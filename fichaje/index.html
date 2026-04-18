@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Fichaje de obra</title>
+
+<!-- Supabase desde CDN. Versión fija para evitar sorpresas. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  :root {
+    --verde: #2e7d32;
+    --naranja: #e67e22;
+    --rojo: #c0392b;
+    --gris-fondo: #f4f6f8;
+    --gris-borde: #d0d7de;
+    --azul-primario: #1e3a5f;
+    --texto: #1a1a1a;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--gris-fondo);
+    color: var(--texto);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .contenedor {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cabecera { text-align: center; padding: 20px 0; }
+  .cabecera h1 {
+    font-size: 18px; margin: 0 0 6px; color: #555;
+    font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .cabecera .obra-nombre {
+    font-size: 26px; font-weight: 700; color: var(--azul-primario);
+  }
+
+  .tarjeta {
+    background: white; border-radius: 14px; padding: 24px;
+    margin-top: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  }
+
+  label {
+    display: block; font-size: 14px; font-weight: 600; color: #555;
+    margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.3px;
+  }
+
+  input[type="text"] {
+    width: 100%; font-size: 24px; padding: 16px 14px;
+    border: 2px solid var(--gris-borde); border-radius: 10px;
+    text-align: center; letter-spacing: 2px; text-transform: uppercase;
+    font-family: inherit;
+  }
+  input[type="text"]:focus { outline: none; border-color: var(--azul-primario); }
+
+  .ultimo-dni { text-align: center; margin-top: 10px; font-size: 13px; color: #777; }
+  .ultimo-dni button {
+    background: none; border: none; color: var(--azul-primario);
+    text-decoration: underline; cursor: pointer; font-size: 13px; padding: 0;
+  }
+
+  button.principal {
+    width: 100%; font-size: 20px; font-weight: 600; padding: 18px;
+    background: var(--azul-primario); color: white; border: none;
+    border-radius: 10px; cursor: pointer; margin-top: 20px; font-family: inherit;
+  }
+  button.principal:disabled { background: #b0b8c1; cursor: not-allowed; }
+  button.principal:active:not(:disabled) { transform: scale(0.98); }
+
+  button.verde    { background: var(--verde); }
+  button.naranja  { background: var(--naranja); }
+  button.rojo     { background: var(--rojo); cursor: default; }
+  button.secundario {
+    background: white; color: var(--azul-primario);
+    border: 2px solid var(--gris-borde);
+  }
+
+  .estado-box {
+    padding: 20px; border-radius: 10px; text-align: center;
+    font-size: 18px; font-weight: 600; margin-bottom: 16px;
+  }
+  .estado-verde   { background: #e8f5e9; color: var(--verde);   border: 2px solid var(--verde); }
+  .estado-naranja { background: #fff4e6; color: var(--naranja); border: 2px solid var(--naranja); }
+  .estado-rojo    { background: #fdecea; color: var(--rojo);    border: 2px solid var(--rojo); }
+
+  .motivos {
+    background: #fff4e6; border-left: 4px solid var(--naranja);
+    padding: 14px 16px; margin: 14px 0; border-radius: 6px; font-size: 15px;
+  }
+  .motivos.criticos { background: #fdecea; border-left-color: var(--rojo); }
+  .motivos ul { margin: 6px 0 0; padding-left: 20px; }
+  .motivos li { margin: 4px 0; }
+
+  .confirmacion-final { text-align: center; padding: 30px 16px; }
+  .confirmacion-final .tick { font-size: 60px; line-height: 1; margin-bottom: 16px; }
+  .confirmacion-final .titulo { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+  .confirmacion-final .hora {
+    font-size: 40px; font-weight: 700; color: var(--azul-primario);
+    margin: 14px 0; letter-spacing: 1px;
+  }
+  .confirmacion-final .nombre { font-size: 18px; color: #555; margin-bottom: 10px; }
+
+  .cargando { text-align: center; padding: 40px 20px; color: #666; }
+  .spinner {
+    display: inline-block; width: 34px; height: 34px;
+    border: 3px solid #ddd; border-top-color: var(--azul-primario);
+    border-radius: 50%; animation: girar 0.9s linear infinite; margin-bottom: 12px;
+  }
+  @keyframes girar { to { transform: rotate(360deg); } }
+
+  .error-banner {
+    background: #fdecea; color: var(--rojo); padding: 14px;
+    border-radius: 8px; margin: 14px 0; text-align: center; font-weight: 500;
+  }
+
+  .oculto { display: none !important; }
+
+  .pie { text-align: center; color: #999; font-size: 12px; margin-top: auto; padding-top: 30px; }
+</style>
+</head>
+<body>
+<div class="contenedor">
+
+  <div class="cabecera">
+    <h1>Fichaje de obra</h1>
+    <div class="obra-nombre" id="obra-nombre">Cargando…</div>
+  </div>
+
+  <div class="tarjeta" id="paso-dni">
+    <label for="dni">DNI o NIE</label>
+    <input type="text" id="dni" placeholder="00000000X" autocomplete="off" maxlength="15">
+    <div class="ultimo-dni oculto" id="ultimo-dni-box">
+      ¿Usar <button type="button" id="btn-ultimo-dni"></button>?
+    </div>
+    <button type="button" class="principal" id="btn-continuar">Continuar</button>
+    <div class="error-banner oculto" id="error-dni"></div>
+  </div>
+
+  <div class="tarjeta oculto" id="paso-cargando">
+    <div class="cargando">
+      <div class="spinner"></div>
+      <div id="cargando-texto">Validando acceso…</div>
+    </div>
+  </div>
+
+  <div class="tarjeta oculto" id="paso-resultado">
+    <div class="estado-box" id="estado-box"></div>
+    <div class="motivos oculto" id="motivos-box"></div>
+    <button type="button" class="principal" id="btn-fichar"></button>
+    <button type="button" class="secundario" id="btn-volver" style="margin-top:10px;">Volver</button>
+  </div>
+
+  <div class="tarjeta oculto" id="paso-final">
+    <div class="confirmacion-final">
+      <div class="tick" id="final-tick">✓</div>
+      <div class="titulo" id="final-titulo"></div>
+      <div class="nombre" id="final-nombre"></div>
+      <div class="hora" id="final-hora"></div>
+      <div id="final-motivos" class="motivos oculto" style="text-align:left;"></div>
+    </div>
+    <button type="button" class="secundario" id="btn-nuevo-fichaje" style="margin-top:10px;">Nuevo fichaje</button>
+  </div>
+
+  <div class="pie">Bosch Pascual · Control de acceso</div>
+</div>
+
+<script src="../js/supabase-client.js"></script>
+
+<script>
+const sb = window.supabaseClient;
+
+const estado = {
+  obraId: null,
+  obraNombre: null,
+  dni: null,
+  ubicacion: null,
+  validacion: null
+};
+
+const el = {
+  obraNombre: document.getElementById('obra-nombre'),
+  pasoDni:     document.getElementById('paso-dni'),
+  pasoCargando:document.getElementById('paso-cargando'),
+  pasoResultado:document.getElementById('paso-resultado'),
+  pasoFinal:   document.getElementById('paso-final'),
+  inputDni:    document.getElementById('dni'),
+  btnContinuar:document.getElementById('btn-continuar'),
+  ultimoDniBox:document.getElementById('ultimo-dni-box'),
+  btnUltimoDni:document.getElementById('btn-ultimo-dni'),
+  errorDni:    document.getElementById('error-dni'),
+  cargandoTexto:document.getElementById('cargando-texto'),
+  estadoBox:   document.getElementById('estado-box'),
+  motivosBox:  document.getElementById('motivos-box'),
+  btnFichar:   document.getElementById('btn-fichar'),
+  btnVolver:   document.getElementById('btn-volver'),
+  finalTick:   document.getElementById('final-tick'),
+  finalTitulo: document.getElementById('final-titulo'),
+  finalNombre: document.getElementById('final-nombre'),
+  finalHora:   document.getElementById('final-hora'),
+  finalMotivos:document.getElementById('final-motivos'),
+  btnNuevo:    document.getElementById('btn-nuevo-fichaje')
+};
+
+(async function init() {
+  const params = new URLSearchParams(window.location.search);
+  estado.obraId = params.get('obra');
+
+  if (!estado.obraId) {
+    el.obraNombre.textContent = '(obra no especificada)';
+    el.btnContinuar.disabled = true;
+    mostrarErrorDni('Código de obra no válido. Escanee de nuevo el QR.');
+    return;
+  }
+
+  el.obraNombre.textContent = 'Obra #' + estado.obraId.substring(0, 8);
+
+  const ultimo = localStorage.getItem('ultimo_dni');
+  if (ultimo && ultimo.length >= 5) {
+    const parcial = '****' + ultimo.substring(ultimo.length - 5);
+    el.btnUltimoDni.textContent = parcial;
+    el.btnUltimoDni.dataset.dni = ultimo;
+    el.ultimoDniBox.classList.remove('oculto');
+  }
+
+  el.inputDni.focus();
+})();
+
+function normalizarDni(dni) {
+  return (dni || '').trim().toUpperCase().replace(/\s+/g, '');
+}
+function mostrarErrorDni(texto) {
+  el.errorDni.textContent = texto;
+  el.errorDni.classList.remove('oculto');
+}
+function ocultarErrorDni() { el.errorDni.classList.add('oculto'); }
+
+function irA(paso) {
+  el.pasoDni.classList.add('oculto');
+  el.pasoCargando.classList.add('oculto');
+  el.pasoResultado.classList.add('oculto');
+  el.pasoFinal.classList.add('oculto');
+  paso.classList.remove('oculto');
+}
+
+function pintarMotivos(contenedor, motivos, criticos) {
+  if (!motivos || motivos.length === 0) { contenedor.classList.add('oculto'); return; }
+  contenedor.className = 'motivos' + (criticos ? ' criticos' : '');
+  contenedor.innerHTML = '<strong>' + (criticos ? 'Motivos del bloqueo:' : 'Avisos:') + '</strong><ul>' +
+    motivos.map(m => '<li>' + escapar(m) + '</li>').join('') + '</ul>';
+  contenedor.classList.remove('oculto');
+}
+
+function escapar(txt) {
+  const div = document.createElement('div');
+  div.textContent = String(txt);
+  return div.innerHTML;
+}
+
+function formatearHora(iso) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+}
+
+function obtenerUbicacion() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject(new Error('Este dispositivo no soporta GPS.'));
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      err => {
+        if (err.code === 1) return reject(new Error('Debe permitir el acceso a la ubicación.'));
+        if (err.code === 2) return reject(new Error('No se pudo obtener la ubicación. Compruebe el GPS.'));
+        if (err.code === 3) return reject(new Error('GPS tardó demasiado. Inténtelo de nuevo.'));
+        reject(new Error('Error de ubicación.'));
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+    );
+  });
+}
+
+el.btnUltimoDni.addEventListener('click', () => {
+  el.inputDni.value = el.btnUltimoDni.dataset.dni;
+  el.ultimoDniBox.classList.add('oculto');
+});
+el.inputDni.addEventListener('input', () => {
+  ocultarErrorDni();
+  el.inputDni.value = el.inputDni.value.toUpperCase();
+});
+el.inputDni.addEventListener('keypress', e => { if (e.key === 'Enter') el.btnContinuar.click(); });
+el.btnContinuar.addEventListener('click', continuarDesdeDni);
+el.btnVolver.addEventListener('click', () => { irA(el.pasoDni); el.inputDni.focus(); });
+el.btnNuevo.addEventListener('click', () => {
+  estado.dni = null; estado.validacion = null; estado.ubicacion = null;
+  el.inputDni.value = '';
+  irA(el.pasoDni); el.inputDni.focus();
+});
+
+async function continuarDesdeDni() {
+  ocultarErrorDni();
+  const dni = normalizarDni(el.inputDni.value);
+  if (dni.length < 5) { mostrarErrorDni('Introduzca un DNI o NIE válido.'); return; }
+  estado.dni = dni;
+  localStorage.setItem('ultimo_dni', dni);
+
+  el.cargandoTexto.textContent = 'Obteniendo ubicación…';
+  irA(el.pasoCargando);
+
+  try {
+    estado.ubicacion = await obtenerUbicacion();
+  } catch (err) {
+    irA(el.pasoDni);
+    mostrarErrorDni(err.message);
+    return;
+  }
+
+  el.cargandoTexto.textContent = 'Validando acceso…';
+  try {
+    const { data, error } = await sb.rpc('validar_acceso', {
+      p_dni: estado.dni,
+      p_obra_id: estado.obraId
+    });
+    if (error) {
+      irA(el.pasoDni);
+      mostrarErrorDni('Error de conexión. Inténtelo de nuevo.');
+      console.error(error); return;
+    }
+    estado.validacion = data;
+    mostrarResultadoValidacion(data);
+  } catch (err) {
+    irA(el.pasoDni);
+    mostrarErrorDni('Error de conexión. Inténtelo de nuevo.');
+    console.error(err);
+  }
+}
+
+function mostrarResultadoValidacion(v) {
+  if (!v.encontrado) {
+    irA(el.pasoDni);
+    mostrarErrorDni(v.mensaje || 'DNI no encontrado. Revise números y letra.');
+    return;
+  }
+  el.estadoBox.className = 'estado-box';
+  el.btnFichar.className = 'principal';
+
+  const estadoEfectivo = (v.estado === 'rojo' && v.tiene_excepcion_hoy) ? 'excepcion' : v.estado;
+
+  switch (estadoEfectivo) {
+    case 'verde':
+      el.estadoBox.classList.add('estado-verde');
+      el.estadoBox.textContent = '✓ Acceso autorizado';
+      pintarMotivos(el.motivosBox, null);
+      el.btnFichar.classList.add('verde');
+      el.btnFichar.textContent = 'Fichar';
+      el.btnFichar.disabled = false;
+      el.btnFichar.onclick = ejecutarFichaje;
+      break;
+    case 'naranja':
+      el.estadoBox.classList.add('estado-naranja');
+      el.estadoBox.textContent = '⚠ Acceso con aviso';
+      pintarMotivos(el.motivosBox, v.motivos, false);
+      el.btnFichar.classList.add('naranja');
+      el.btnFichar.textContent = 'Aceptar aviso y fichar';
+      el.btnFichar.disabled = false;
+      el.btnFichar.onclick = ejecutarFichaje;
+      break;
+    case 'excepcion':
+      el.estadoBox.classList.add('estado-naranja');
+      el.estadoBox.textContent = 'Acceso autorizado excepcionalmente hoy';
+      pintarMotivos(el.motivosBox, v.motivos, false);
+      el.btnFichar.classList.add('naranja');
+      el.btnFichar.textContent = 'Fichar';
+      el.btnFichar.disabled = false;
+      el.btnFichar.onclick = ejecutarFichaje;
+      break;
+    case 'rojo':
+    default:
+      el.estadoBox.classList.add('estado-rojo');
+      el.estadoBox.textContent = '✗ Acceso denegado';
+      pintarMotivos(el.motivosBox, v.motivos, true);
+      el.btnFichar.classList.add('rojo');
+      el.btnFichar.textContent = 'No puede fichar';
+      el.btnFichar.disabled = true;
+      el.btnFichar.onclick = null;
+      break;
+  }
+  irA(el.pasoResultado);
+}
+
+async function ejecutarFichaje() {
+  el.btnFichar.disabled = true;
+  el.cargandoTexto.textContent = 'Registrando fichaje…';
+  irA(el.pasoCargando);
+  try {
+    const { data, error } = await sb.rpc('registrar_fichaje', {
+      p_dni: estado.dni,
+      p_obra_id: estado.obraId,
+      p_latitud: estado.ubicacion.lat,
+      p_longitud: estado.ubicacion.lng
+    });
+    if (error) {
+      irA(el.pasoResultado); el.btnFichar.disabled = false;
+      alert('Error al registrar fichaje. Inténtelo de nuevo.');
+      console.error(error); return;
+    }
+    if (!data.success) {
+      irA(el.pasoResultado); el.btnFichar.disabled = false;
+      alert(data.error || 'No se pudo registrar el fichaje.'); return;
+    }
+    mostrarConfirmacionFinal(data);
+  } catch (err) {
+    irA(el.pasoResultado); el.btnFichar.disabled = false;
+    alert('Error de conexión.'); console.error(err);
+  }
+}
+
+function mostrarConfirmacionFinal(r) {
+  const esEntrada = r.tipo === 'entrada';
+  el.finalTick.textContent = '✓';
+  el.finalTitulo.textContent = esEntrada ? 'Entrada registrada' : 'Salida registrada';
+  el.finalNombre.textContent = estado.validacion && estado.validacion.trabajador_nombre
+    ? estado.validacion.trabajador_nombre.trim() : '';
+  el.finalHora.textContent = formatearHora(r.hora);
+
+  if (r.estado === 'naranja' || r.excepcion_autorizada) {
+    pintarMotivos(el.finalMotivos, r.motivos, false);
+  } else {
+    el.finalMotivos.classList.add('oculto');
+  }
+  irA(el.pasoFinal);
+}
+</script>
+
+</body>
+</html>
