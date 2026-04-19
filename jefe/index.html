@@ -38,6 +38,22 @@
   .stat .numero.verde   { color: var(--verde); }
   .stat .numero.naranja { color: var(--naranja); }
   .stat .numero.rojo    { color: var(--rojo); }
+  .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
+  .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; }
+  .seccion-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+  .badge.verde { background: rgba(76,175,80,0.15); color: var(--verde); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; padding: 10px 20px; font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); }
+  td { padding: 13px 20px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .pill.verde   { background: rgba(76,175,80,0.15);  color: var(--verde); }
+  .pill.naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
+  .pill.rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
+  .vacio { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+  .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
 </style>
 </head>
 <body>
@@ -69,8 +85,15 @@
       <div class="stat"><div class="numero naranja" id="stat-naranja">—</div><div class="etiqueta">Documentación naranja</div></div>
       <div class="stat"><div class="numero rojo" id="stat-rojo">—</div><div class="etiqueta">Documentación roja</div></div>
     </div>
+    <div style="height:20px"></div>
+    <div class="seccion">
+      <div class="seccion-cab">
+        <h2>Trabajadores en obra ahora</h2>
+        <span class="badge verde" id="badge-presencia">—</span>
+      </div>
+      <div id="tabla-presencia"><div class="cargando">Selecciona una obra…</div></div>
+    </div>
   </div>
-</div>
 
 <script src="../js/supabase-client.js"></script>
 <script>
