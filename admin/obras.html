@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Obras — Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -151,7 +152,7 @@
   <div class="modal modal-qr">
     <h2 id="qr-titulo">QR de la obra</h2>
     <div class="url-qr" id="qr-url"></div>
-    <img id="qr-img" width="220" height="220" alt="QR">
+    <canvas id="qr-canvas"></canvas>
     <div class="modal-acciones">
       <button class="btn-secundario" id="btn-cerrar-qr">Cerrar</button>
       <a id="btn-descargar-qr" class="btn-primario" download="qr-obra.png" style="text-decoration:none;">Descargar QR</a>
@@ -283,11 +284,11 @@ function abrirQR(obraId, nombre) {
   document.getElementById('qr-titulo').textContent = 'QR — ' + nombre;
   document.getElementById('qr-url').textContent = url;
 
-  // Generamos QR con API de Google Charts (sin dependencias)
-  const qrSrc = `https://chart.googleapis.com/chart?chs=220x220&cht=qr&chl=${encodeURIComponent(url)}&choe=UTF-8`;
-  const img = document.getElementById('qr-img');
-  img.src = qrSrc;
-  document.getElementById('btn-descargar-qr').href = qrSrc;
+  const canvas = document.getElementById('qr-canvas');
+  new QRious({ element: canvas, value: url, size: 220, background: 'white', foreground: 'black' });
+
+  const btn = document.getElementById('btn-descargar-qr');
+  btn.href = canvas.toDataURL('image/png');
 
   document.getElementById('modal-qr').classList.add('visible');
 }
