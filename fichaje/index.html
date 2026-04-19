@@ -352,7 +352,13 @@ const el = {
   // NOTA: como el anon NO puede leer directamente la tabla obras (RLS),
   // más adelante añadiremos una función RPC "obra_publica(id)" que devuelva
   // solo nombre y datos mínimos para esta pantalla. Por ahora placeholder.
-  el.obraNombre.textContent = 'Obra #' + estado.obraId.substring(0, 8);
+  try {
+    const { data, error } = await sb.rpc('obra_publica', { p_obra_id: estado.obraId });
+    if (error || !data) throw error;
+    el.obraNombre.textContent = data.nombre || 'Obra sin nombre';
+  } catch (e) {
+    el.obraNombre.textContent = 'Obra #' + estado.obraId.substring(0, 8);
+  }
 
   // DNI recordado
   const ultimo = localStorage.getItem('ultimo_dni');
