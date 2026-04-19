@@ -190,9 +190,11 @@ btnLogin.addEventListener('click', async () => {
 
 async function redirigirSegunRol() {
   // Consultar rol del usuario en usuarios_app
+  const { data: { session: s } } = await sb.auth.getSession();
   const { data, error } = await sb
     .from('usuarios_app')
     .select('rol')
+    .eq('auth_user_id', s.user.id)
     .single();
 
   if (error || !data) {
