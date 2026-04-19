@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jefe de Obra — Documentos</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
+    --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
+    --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
+
+  /* SIDEBAR */
+  .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+  .sidebar-logo { padding: 22px 20px 18px; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--naranja); border-bottom: 1px solid var(--borde); }
+  .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
+  .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
+  .sidebar a:hover { background: var(--bg3); color: var(--texto); }
+  .sidebar a.activo { background: var(--bg3); color: var(--texto); font-weight: 600; }
+  .sidebar a .ico { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid var(--borde); }
+  .btn-salir { width: 100%; background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 8px; }
+  .btn-salir:hover { background: var(--bg3); color: var(--texto); }
+
+  /* MAIN */
+  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+  .topbar { padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--borde); }
+  .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+  .topbar-right { display: flex; align-items: center; gap: 14px; }
+  .usuario { font-size: 13px; color: var(--texto2); }
+  .selector-obra { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 8px 12px; font-family: inherit; }
+  .selector-obra:focus { outline: none; border-color: var(--naranja); }
+
+  /* LAYOUT DOS COLUMNAS */
+  .contenido { padding: 24px 28px; display: flex; gap: 20px; flex: 1; min-height: 0; }
+  .col-trabajadores { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; }
+  .col-documentos { flex: 1; display: flex; flex-direction: column; gap: 14px; }
+
+  /* BUSCADOR */
+  .buscador { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 14px; font-family: inherit; width: 100%; }
+  .buscador:focus { outline: none; border-color: var(--naranja); }
+  .buscador::placeholder { color: var(--texto2); }
+
+  /* LISTA TRABAJADORES */
+  .lista-trabajadores { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow-y: auto; flex: 1; }
+  .item-trabajador { padding: 13px 16px; border-bottom: 1px solid var(--borde); cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; transition: background 0.12s; }
+  .item-trabajador:last-child { border-bottom: none; }
+  .item-trabajador:hover { background: var(--bg3); }
+  .item-trabajador.seleccionado { background: var(--bg3); border-left: 3px solid var(--naranja); }
+  .item-trabajador .nombre { font-size: 14px; font-weight: 600; }
+  .item-trabajador .dni { font-size: 12px; color: var(--texto2); margin-top: 2px; }
+
+  /* PILL */
+  .pill { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .pill.verde   { background: rgba(76,175,80,0.15);  color: var(--verde); }
+  .pill.naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
+  .pill.rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
+  .pill.gris    { background: rgba(139,144,158,0.15); color: var(--texto2); }
+
+  /* CABECERA DOCUMENTOS */
+  .doc-cabecera { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+  .doc-cabecera .trab-nombre { font-size: 18px; font-weight: 800; }
+  .doc-cabecera .trab-dni { font-size: 13px; color: var(--texto2); margin-top: 2px; }
+  .btn-nuevo-doc { background: var(--naranja); color: #000; border: none; border-radius: 8px; padding: 10px 18px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; }
+  .btn-nuevo-doc:hover { opacity: 0.85; }
+
+  /* TABLA DOCUMENTOS */
+  .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
+  .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; }
+  .seccion-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; padding: 10px 20px; font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); }
+  td { padding: 13px 20px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); }
+
+  /* ACCIONES */
+  .acciones { display: flex; gap: 8px; align-items: center; }
+  .btn-accion { background: transparent; border: 1px solid var(--borde); color: var(--texto2); border-radius: 6px; padding: 6px 11px; font-size: 12px; cursor: pointer; font-family: inherit; transition: background 0.12s, color 0.12s; white-space: nowrap; }
+  .btn-accion:hover { background: var(--bg3); color: var(--texto); }
+  .btn-accion.peligro:hover { border-color: var(--rojo); color: var(--rojo); }
+  .btn-accion.primario { border-color: var(--naranja); color: var(--naranja); }
+  .btn-accion.primario:hover { background: rgba(255,152,0,0.1); }
+  a.ver-doc { color: var(--azul); font-size: 12px; text-decoration: none; }
+  a.ver-doc:hover { text-decoration: underline; }
+
+  /* ESTADOS */
+  .vacio { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+  .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+  .placeholder-seleccion { padding: 60px 20px; text-align: center; color: var(--texto2); font-size: 15px; }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: none; align-items: center; justify-content: center; }
+  .modal-overlay.abierto { display: flex; }
+  .modal { background: var(--bg2); border: 1px solid var(--borde); border-radius: 12px; width: 480px; max-width: 95vw; padding: 28px; display: flex; flex-direction: column; gap: 18px; }
+  .modal h3 { font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+  .campo { display: flex; flex-direction: column; gap: 6px; }
+  .campo label { font-size: 12px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; }
+  .campo select, .campo input[type="date"], .campo input[type="text"], .campo input[type="file"] {
+    background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px;
+    color: var(--texto); font-size: 14px; padding: 10px 13px; font-family: inherit; width: 100%;
+  }
+  .campo select:focus, .campo input:focus { outline: none; border-color: var(--naranja); }
+  .campo input[type="file"] { padding: 8px 13px; cursor: pointer; }
+  .campo-estado { display: flex; gap: 10px; }
+  .radio-estado { flex: 1; }
+  .radio-estado input { display: none; }
+  .radio-estado label {
+    display: block; text-align: center; padding: 9px; border-radius: 8px;
+    border: 2px solid var(--borde); cursor: pointer; font-size: 13px; font-weight: 600;
+    transition: all 0.12s;
+  }
+  .radio-estado input:checked + label.verde   { border-color: var(--verde);   background: rgba(76,175,80,0.15);  color: var(--verde); }
+  .radio-estado input:checked + label.naranja { border-color: var(--naranja); background: rgba(255,152,0,0.15);  color: var(--naranja); }
+  .radio-estado input:checked + label.rojo    { border-color: var(--rojo);    background: rgba(244,67,54,0.15);  color: var(--rojo); }
+  .radio-estado label:hover { border-color: var(--texto2); }
+  .modal-acciones { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+  .btn-cancelar { background: transparent; border: 1px solid var(--borde); color: var(--texto2); border-radius: 8px; padding: 10px 18px; font-size: 13px; cursor: pointer; font-family: inherit; }
+  .btn-cancelar:hover { background: var(--bg3); }
+  .btn-guardar { background: var(--naranja); color: #000; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .btn-guardar:hover { opacity: 0.85; }
+  .btn-guardar:disabled { opacity: 0.5; cursor: not-allowed; }
+  .msg-error { color: var(--rojo); font-size: 13px; }
+  .msg-ok { color: var(--verde); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">Jefe de Obra</div>
+  <div class="sidebar-section">Principal</div>
+  <a href="index.html"><span class="ico">👷</span> Presencia</a>
+  <div class="sidebar-section">Gestión</div>
+  <a href="fichajes.html"><span class="ico">🕐</span> Fichajes</a>
+  <a href="documentos.html" class="activo"><span class="ico">📄</span> Documentos</a>
+  <div class="sidebar-bottom">
+    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>Documentos</h1>
+    <div class="topbar-right">
+      <select class="selector-obra" id="selector-obra">
+        <option value="">Cargando obras…</option>
+      </select>
+      <span class="usuario" id="usuario-nombre"></span>
+    </div>
+  </div>
+
+  <div class="contenido">
+    <!-- Columna izquierda: lista de trabajadores -->
+    <div class="col-trabajadores">
+      <input class="buscador" id="buscador" type="text" placeholder="Buscar trabajador…">
+      <div class="lista-trabajadores" id="lista-trabajadores">
+        <div class="cargando">Selecciona una obra…</div>
+      </div>
+    </div>
+
+    <!-- Columna derecha: documentos del trabajador seleccionado -->
+    <div class="col-documentos" id="col-documentos">
+      <div class="placeholder-seleccion">← Selecciona un trabajador para ver sus documentos</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Nuevo / editar documento -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h3 id="modal-titulo">Nuevo documento</h3>
+
+    <div class="campo">
+      <label>Tipo de documento</label>
+      <select id="modal-tipo">
+        <option value="TC2 / Alta Seguridad Social">TC2 / Alta Seguridad Social</option>
+        <option value="Apto médico">Apto médico</option>
+        <option value="Formación 20 horas específica">Formación 20 horas específica</option>
+        <option value="Equipos de Protección Individual (EPI)">Equipos de Protección Individual (EPI)</option>
+        <option value="ITA (Informe de Trabajadores en Alta)">ITA (Informe de Trabajadores en Alta)</option>
+        <option value="Seguro Responsabilidad Civil">Seguro Responsabilidad Civil</option>
+        <option value="Otro">Otro (especificar abajo)</option>
+      </select>
+    </div>
+
+    <div class="campo" id="campo-otro" style="display:none">
+      <label>Especificar tipo</label>
+      <input type="text" id="modal-tipo-otro" placeholder="Nombre del documento">
+    </div>
+
+    <div class="campo">
+      <label>Estado</label>
+      <div class="campo-estado">
+        <div class="radio-estado">
+          <input type="radio" name="estado" id="est-verde" value="verde" checked>
+          <label for="est-verde" class="verde">✓ Verde</label>
+        </div>
+        <div class="radio-estado">
+          <input type="radio" name="estado" id="est-naranja" value="naranja">
+          <label for="est-naranja" class="naranja">⚠ Naranja</label>
+        </div>
+        <div class="radio-estado">
+          <input type="radio" name="estado" id="est-rojo" value="rojo">
+          <label for="est-rojo" class="rojo">✕ Rojo</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="campo">
+      <label>Motivo / nota (opcional)</label>
+      <input type="text" id="modal-motivo" placeholder="Ej: Caduca en 30 días">
+    </div>
+
+    <div class="campo">
+      <label>Fecha de caducidad (opcional)</label>
+      <input type="date" id="modal-caducidad">
+    </div>
+
+    <div class="campo">
+      <label>Archivo (opcional)</label>
+      <input type="file" id="modal-archivo" accept=".pdf,.jpg,.jpeg,.png">
+    </div>
+
+    <div id="modal-msg"></div>
+
+    <div class="modal-acciones">
+      <button class="btn-cancelar" id="btn-cancelar">Cancelar</button>
+      <button class="btn-guardar" id="btn-guardar">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let obraActual = null;
+let trabajadorActual = null;
+let todosTrabajadores = [];
+let modoEdicion = null; // null = nuevo, uuid = editar
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+(async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '../'; return; }
+
+  const { data: miUsuario } = await sb
+    .from('usuarios_app')
+    .select('id, nombre')
+    .eq('auth_user_id', session.user.id)
+    .single();
+  if (!miUsuario) { window.location.href = '../'; return; }
+
+  document.getElementById('usuario-nombre').textContent = miUsuario.nombre || session.user.email;
+
+  const { data: misObras, error } = await sb
+    .from('usuarios_obra')
+    .select('obra_id, obra:obra_id(id, nombre)')
+    .eq('usuario_app_id', miUsuario.id)
+    .eq('rol_en_obra', 'jefe_obra');
+
+  if (error || !misObras || misObras.length === 0) { window.location.href = '../'; return; }
+
+  const selector = document.getElementById('selector-obra');
+  selector.innerHTML = '';
+  misObras.forEach(uo => {
+    const opt = document.createElement('option');
+    opt.value = uo.obra.id;
+    opt.textContent = uo.obra.nombre;
+    selector.appendChild(opt);
+  });
+
+  obraActual = misObras[0].obra.id;
+  await cargarTrabajadores();
+
+  selector.addEventListener('change', async () => {
+    obraActual = selector.value;
+    trabajadorActual = null;
+    document.getElementById('col-documentos').innerHTML = '<div class="placeholder-seleccion">← Selecciona un trabajador para ver sus documentos</div>';
+    await cargarTrabajadores();
+  });
+})();
+
+document.getElementById('btn-salir').addEventListener('click', async () => {
+  await sb.auth.signOut(); window.location.href = '../';
+});
+
+// ── TRABAJADORES ──────────────────────────────────────────────────────────────
+async function cargarTrabajadores() {
+  document.getElementById('lista-trabajadores').innerHTML = '<div class="cargando">Cargando…</div>';
+
+  // Obtener trabajadores de la obra con su estado documental
+  const { data: validaciones } = await sb
+    .from('validaciones_obra')
+    .select('trabajador_id, estado, trabajador:trabajador_id(id, nombre, apellidos, dni)')
+    .eq('obra_id', obraActual);
+
+  todosTrabajadores = (validaciones || []).map(v => ({
+    id: v.trabajador.id,
+    nombre: v.trabajador.nombre,
+    apellidos: v.trabajador.apellidos,
+    dni: v.trabajador.dni,
+    estado: v.estado
+  }));
+
+  // Si no hay validaciones, cargar todos los trabajadores de la obra desde fichajes
+  if (todosTrabajadores.length === 0) {
+    const { data: ficha } = await sb
+      .from('fichajes')
+      .select('trabajador:trabajador_id(id, nombre, apellidos, dni)')
+      .eq('obra_id', obraActual);
+    
+    const vistos = new Set();
+    (ficha || []).forEach(f => {
+      if (!vistos.has(f.trabajador.id)) {
+        vistos.add(f.trabajador.id);
+        todosTrabajadores.push({ ...f.trabajador, estado: 'verde' });
+      }
+    });
+  }
+
+  renderTrabajadores(todosTrabajadores);
+}
+
+function renderTrabajadores(lista) {
+  const contenedor = document.getElementById('lista-trabajadores');
+  if (lista.length === 0) {
+    contenedor.innerHTML = '<div class="vacio">No hay trabajadores en esta obra</div>';
+    return;
+  }
+  contenedor.innerHTML = lista.map(t => `
+    <div class="item-trabajador ${trabajadorActual?.id === t.id ? 'seleccionado' : ''}"
+         data-id="${t.id}" data-nombre="${esc(t.nombre)}" data-apellidos="${esc(t.apellidos)}" data-dni="${esc(t.dni)}">
+      <div>
+        <div class="nombre">${esc(t.nombre)} ${esc(t.apellidos)}</div>
+        <div class="dni">${esc(t.dni)}</div>
+      </div>
+      <span class="pill ${t.estado || 'verde'}">${t.estado || 'verde'}</span>
+    </div>
+  `).join('');
+
+  contenedor.querySelectorAll('.item-trabajador').forEach(el => {
+    el.addEventListener('click', () => {
+      trabajadorActual = { id: el.dataset.id, nombre: el.dataset.nombre, apellidos: el.dataset.apellidos, dni: el.dataset.dni };
+      contenedor.querySelectorAll('.item-trabajador').forEach(e => e.classList.remove('seleccionado'));
+      el.classList.add('seleccionado');
+      cargarDocumentos();
+    });
+  });
+}
+
+// Buscador
+document.getElementById('buscador').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase();
+  const filtrados = todosTrabajadores.filter(t =>
+    (t.nombre + ' ' + t.apellidos + ' ' + t.dni).toLowerCase().includes(q)
+  );
+  renderTrabajadores(filtrados);
+});
+
+// ── DOCUMENTOS ────────────────────────────────────────────────────────────────
+async function cargarDocumentos() {
+  const col = document.getElementById('col-documentos');
+  col.innerHTML = `
+    <div class="doc-cabecera">
+      <div>
+        <div class="trab-nombre">${esc(trabajadorActual.nombre)} ${esc(trabajadorActual.apellidos)}</div>
+        <div class="trab-dni">DNI: ${esc(trabajadorActual.dni)}</div>
+      </div>
+      <button class="btn-nuevo-doc" id="btn-nuevo-doc">＋ Añadir documento</button>
+    </div>
+    <div class="seccion">
+      <div class="seccion-cab"><h2>Documentos</h2></div>
+      <div id="tabla-docs"><div class="cargando">Cargando…</div></div>
+    </div>
+  `;
+
+  document.getElementById('btn-nuevo-doc').addEventListener('click', () => abrirModal(null));
+
+  const { data: docs, error } = await sb
+    .from('documentos_trabajador')
+    .select('*')
+    .eq('trabajador_id', trabajadorActual.id)
+    .eq('obra_id', obraActual)
+    .order('created_at', { ascending: false });
+
+  renderDocumentos(docs || []);
+}
+
+function renderDocumentos(docs) {
+  const contenedor = document.getElementById('tabla-docs');
+  if (!contenedor) return;
+  if (docs.length === 0) {
+    contenedor.innerHTML = '<div class="vacio">Sin documentos. Pulsa "Añadir documento" para subir el primero.</div>';
+    return;
+  }
+  contenedor.innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Tipo</th><th>Estado</th><th>Caducidad</th><th>Motivo</th><th>Archivo</th><th>Acciones</th>
+      </tr></thead>
+      <tbody>
+        ${docs.map(d => `
+          <tr>
+            <td><strong>${esc(d.tipo_documento)}</strong></td>
+            <td><span class="pill ${d.estado_documento}">${d.estado_documento}</span></td>
+            <td>${d.fecha_caducidad ? formatFecha(d.fecha_caducidad) : '<span style="color:var(--texto2)">—</span>'}</td>
+            <td style="color:var(--texto2);font-size:13px">${esc(d.motivo || '—')}</td>
+            <td>${d.archivo_url ? `<a class="ver-doc" href="${d.archivo_url}" target="_blank">Ver archivo</a>` : '<span style="color:var(--texto2)">Sin archivo</span>'}</td>
+            <td>
+              <div class="acciones">
+                <button class="btn-accion primario" onclick="abrirModal('${d.id}')">Editar</button>
+                <button class="btn-accion peligro" onclick="eliminarDoc('${d.id}')">Eliminar</button>
+              </div>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+let docEditar = null;
+
+async function abrirModal(docId) {
+  modoEdicion = docId;
+  document.getElementById('modal-msg').textContent = '';
+  document.getElementById('btn-guardar').disabled = false;
+
+  const overlay = document.getElementById('modal-overlay');
+  overlay.classList.add('abierto');
+
+  if (docId) {
+    document.getElementById('modal-titulo').textContent = 'Editar documento';
+    const { data: doc } = await sb.from('documentos_trabajador').select('*').eq('id', docId).single();
+    docEditar = doc;
+
+    // Rellenar modal
+    const tiposStd = Array.from(document.getElementById('modal-tipo').options).map(o => o.value);
+    if (tiposStd.includes(doc.tipo_documento)) {
+      document.getElementById('modal-tipo').value = doc.tipo_documento;
+      document.getElementById('campo-otro').style.display = 'none';
+    } else {
+      document.getElementById('modal-tipo').value = 'Otro';
+      document.getElementById('campo-otro').style.display = '';
+      document.getElementById('modal-tipo-otro').value = doc.tipo_documento;
+    }
+    document.querySelector(`input[name="estado"][value="${doc.estado_documento}"]`).checked = true;
+    document.getElementById('modal-motivo').value = doc.motivo || '';
+    document.getElementById('modal-caducidad').value = doc.fecha_caducidad || '';
+    document.getElementById('modal-archivo').value = '';
+  } else {
+    document.getElementById('modal-titulo').textContent = 'Nuevo documento';
+    docEditar = null;
+    document.getElementById('modal-tipo').value = 'TC2 / Alta Seguridad Social';
+    document.getElementById('campo-otro').style.display = 'none';
+    document.getElementById('modal-tipo-otro').value = '';
+    document.getElementById('est-verde').checked = true;
+    document.getElementById('modal-motivo').value = '';
+    document.getElementById('modal-caducidad').value = '';
+    document.getElementById('modal-archivo').value = '';
+  }
+}
+
+// Mostrar/ocultar campo "otro"
+document.getElementById('modal-tipo').addEventListener('change', e => {
+  document.getElementById('campo-otro').style.display = e.target.value === 'Otro' ? '' : 'none';
+});
+
+function cerrarModal() {
+  document.getElementById('modal-overlay').classList.remove('abierto');
+}
+document.getElementById('btn-cancelar').addEventListener('click', cerrarModal);
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) cerrarModal();
+});
+
+// ── GUARDAR ───────────────────────────────────────────────────────────────────
+document.getElementById('btn-guardar').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-guardar');
+  const msg = document.getElementById('modal-msg');
+  btn.disabled = true;
+  msg.className = '';
+  msg.textContent = 'Guardando…';
+
+  let tipoDoc = document.getElementById('modal-tipo').value;
+  if (tipoDoc === 'Otro') {
+    tipoDoc = document.getElementById('modal-tipo-otro').value.trim();
+    if (!tipoDoc) { msg.className = 'msg-error'; msg.textContent = 'Especifica el tipo de documento.'; btn.disabled = false; return; }
+  }
+
+  const estado = document.querySelector('input[name="estado"]:checked').value;
+  const motivo = document.getElementById('modal-motivo').value.trim() || null;
+  const caducidad = document.getElementById('modal-caducidad').value || null;
+  const archivoInput = document.getElementById('modal-archivo');
+
+  let archivoUrl = docEditar?.archivo_url || null;
+
+  // Subir archivo si hay uno nuevo
+  if (archivoInput.files.length > 0) {
+    const archivo = archivoInput.files[0];
+    const ext = archivo.name.split('.').pop();
+    const nombreArchivo = `${trabajadorActual.id}/${obraActual}/${Date.now()}.${ext}`;
+    const { data: uploadData, error: uploadError } = await sb.storage
+      .from('documentos')
+      .upload(nombreArchivo, archivo, { upsert: true });
+    
+    if (uploadError) {
+      msg.className = 'msg-error';
+      msg.textContent = 'Error al subir el archivo: ' + uploadError.message;
+      btn.disabled = false;
+      return;
+    }
+    const { data: urlData } = sb.storage.from('documentos').getPublicUrl(nombreArchivo);
+    archivoUrl = urlData.publicUrl;
+  }
+
+  const payload = {
+    trabajador_id: trabajadorActual.id,
+    obra_id: obraActual,
+    tipo_documento: tipoDoc,
+    estado_documento: estado,
+    motivo,
+    fecha_caducidad: caducidad,
+    archivo_url: archivoUrl,
+    origen: 'manual',
+    updated_at: new Date().toISOString()
+  };
+
+  let error;
+  if (modoEdicion) {
+    ({ error } = await sb.from('documentos_trabajador').update(payload).eq('id', modoEdicion));
+  } else {
+    ({ error } = await sb.from('documentos_trabajador').insert(payload));
+  }
+
+  if (error) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Error: ' + error.message;
+    btn.disabled = false;
+    return;
+  }
+
+  msg.className = 'msg-ok';
+  msg.textContent = '¡Guardado!';
+  setTimeout(() => { cerrarModal(); cargarDocumentos(); }, 800);
+});
+
+// ── ELIMINAR ──────────────────────────────────────────────────────────────────
+async function eliminarDoc(docId) {
+  if (!confirm('¿Seguro que quieres eliminar este documento?')) return;
+  const { error } = await sb.from('documentos_trabajador').delete().eq('id', docId);
+  if (error) { alert('Error al eliminar: ' + error.message); return; }
+  cargarDocumentos();
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function esc(txt) {
+  const d = document.createElement('div');
+  d.textContent = String(txt || '');
+  return d.innerHTML;
+}
+
+function formatFecha(iso) {
+  if (!iso) return '—';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+</script>
+</body>
+</html>
