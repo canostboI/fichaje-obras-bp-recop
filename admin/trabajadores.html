@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trabajadores — Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
+    --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
+    --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
+  .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+  .sidebar-logo { padding: 22px 20px 18px; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--verde); border-bottom: 1px solid var(--borde); }
+  .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
+  .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
+  .sidebar a:hover { background: var(--bg3); color: var(--texto); }
+  .sidebar a.activo { background: var(--bg3); color: var(--texto); font-weight: 600; }
+  .sidebar a .ico { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid var(--borde); }
+  .btn-salir { width: 100%; background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 8px; }
+  .btn-salir:hover { background: var(--bg3); color: var(--texto); }
+  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+  .topbar { padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+  .contenido { padding: 0 28px 28px; }
+  .btn-primario { background: var(--azul); color: white; border: none; padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .btn-primario:hover { opacity: 0.9; }
+  .btn-secundario { background: transparent; color: var(--texto2); border: 1px solid var(--borde); padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
+  .btn-secundario:hover { background: var(--bg3); color: var(--texto); }
+  .barra-filtros { display: flex; gap: 12px; margin-bottom: 16px; }
+  .barra-filtros input { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 14px; font-family: inherit; width: 260px; }
+  .barra-filtros input:focus { outline: none; border-color: var(--azul); }
+  .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; padding: 11px 20px; font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); }
+  td { padding: 13px 20px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .pill.verde  { background: rgba(76,175,80,0.15);  color: var(--verde); }
+  .pill.naranja{ background: rgba(255,152,0,0.15);  color: var(--naranja); }
+  .pill.rojo   { background: rgba(244,67,54,0.15);  color: var(--rojo); }
+  .pill.gris   { background: rgba(139,144,158,0.15); color: var(--texto2); }
+  .acciones { display: flex; gap: 8px; }
+  .vacio { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+  .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.visible { display: flex; }
+  .modal { background: var(--bg2); border: 1px solid var(--borde); border-radius: 14px; padding: 28px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+  .modal h2 { font-size: 16px; font-weight: 700; margin-bottom: 22px; }
+  .campo { margin-bottom: 16px; }
+  .campo label { display: block; font-size: 12px; font-weight: 600; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+  .campo input, .campo select { width: 100%; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 12px; font-family: inherit; }
+  .campo input:focus, .campo select:focus { outline: none; border-color: var(--azul); }
+  .campo-fila { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-acciones { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+  .error-modal { background: rgba(244,67,54,0.1); color: var(--rojo); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; display: none; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">Bosch Pascual</div>
+  <div class="sidebar-section">Principal</div>
+  <a href="index.html"><span class="ico">📊</span> Dashboard</a>
+  <div class="sidebar-section">Gestión</div>
+  <a href="obras.html"><span class="ico">🏗</span> Obras</a>
+  <a href="trabajadores.html" class="activo"><span class="ico">👷</span> Trabajadores</a>
+  <a href="#"><span class="ico">🏢</span> Empresas</a>
+  <a href="#"><span class="ico">📋</span> Fichajes</a>
+  <a href="#"><span class="ico">⚠️</span> Incidencias</a>
+  <div class="sidebar-bottom">
+    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>Trabajadores</h1>
+    <button class="btn-primario" id="btn-nuevo">+ Nuevo trabajador</button>
+  </div>
+  <div class="contenido">
+    <div class="barra-filtros">
+      <input type="text" id="filtro" placeholder="Buscar por nombre o DNI…">
+    </div>
+    <div class="seccion">
+      <div id="tabla-trabajadores"><div class="cargando">Cargando…</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CREAR/EDITAR -->
+<div class="modal-overlay" id="modal-trabajador">
+  <div class="modal">
+    <h2 id="modal-titulo">Nuevo trabajador</h2>
+    <div class="error-modal" id="error-modal"></div>
+    <div class="campo-fila">
+      <div class="campo">
+        <label>Nombre</label>
+        <input type="text" id="f-nombre" placeholder="Juan">
+      </div>
+      <div class="campo">
+        <label>Apellidos</label>
+        <input type="text" id="f-apellidos" placeholder="García López">
+      </div>
+    </div>
+    <div class="campo">
+      <label>DNI / NIE</label>
+      <input type="text" id="f-dni" placeholder="12345678A" maxlength="15">
+    </div>
+    <div class="campo">
+      <label>Teléfono (opcional)</label>
+      <input type="text" id="f-telefono" placeholder="600 000 000">
+    </div>
+    <div class="campo">
+      <label>Estado</label>
+      <select id="f-activo">
+        <option value="true">Activo</option>
+        <option value="false">Inactivo</option>
+      </select>
+    </div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cancelar">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/supabase-client.js"></script>
+<script>
+const sb = window.supabaseClient;
+let trabajadorEditandoId = null;
+let todosTrabajadores = [];
+
+(async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '../'; return; }
+  const { data: u } = await sb.from('usuarios_app').select('rol').single();
+  if (!u || u.rol !== 'admin') { window.location.href = '../'; return; }
+  await cargarTrabajadores();
+})();
+
+document.getElementById('btn-salir').addEventListener('click', async () => {
+  await sb.auth.signOut(); window.location.href = '../';
+});
+
+async function cargarTrabajadores() {
+  const { data, error } = await sb
+    .from('trabajadores')
+    .select(`
+      id, nombre, apellidos, dni, telefono, activo,
+      validaciones_obra ( estado, obra:obra_id ( nombre ) )
+    `)
+    .order('apellidos');
+
+  if (error || !data) {
+    document.getElementById('tabla-trabajadores').innerHTML = '<div class="vacio">Error al cargar trabajadores</div>';
+    return;
+  }
+
+  todosTrabajadores = data;
+  renderTabla(data);
+}
+
+function renderTabla(data) {
+  if (data.length === 0) {
+    document.getElementById('tabla-trabajadores').innerHTML = '<div class="vacio">No hay trabajadores</div>';
+    return;
+  }
+
+  document.getElementById('tabla-trabajadores').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Nombre</th><th>DNI</th><th>Teléfono</th><th>Estado doc.</th><th>Obras</th><th>Activo</th><th>Acciones</th>
+      </tr></thead>
+      <tbody>
+        ${data.map(t => {
+          const estadoGeneral = estadoDocumental(t.validaciones_obra);
+          const obras = (t.validaciones_obra || []).map(v =>
+            `<span class="pill ${v.estado}">${esc(v.obra?.nombre)}</span>`
+          ).join(' ') || '—';
+          return `
+            <tr>
+              <td><strong>${esc(t.nombre)} ${esc(t.apellidos)}</strong></td>
+              <td>${esc(t.dni)}</td>
+              <td>${esc(t.telefono || '—')}</td>
+              <td><span class="pill ${estadoGeneral}">${estadoGeneral}</span></td>
+              <td>${obras}</td>
+              <td><span class="pill ${t.activo ? 'verde' : 'gris'}">${t.activo ? 'Sí' : 'No'}</span></td>
+              <td>
+                <div class="acciones">
+                  <button class="btn-secundario" onclick="abrirEditar(${JSON.stringify(t).replace(/"/g, '&quot;')})">Editar</button>
+                </div>
+              </td>
+            </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+function estadoDocumental(validaciones) {
+  if (!validaciones || validaciones.length === 0) return 'gris';
+  if (validaciones.some(v => v.estado === 'rojo'))    return 'rojo';
+  if (validaciones.some(v => v.estado === 'naranja')) return 'naranja';
+  return 'verde';
+}
+
+// Filtro búsqueda
+document.getElementById('filtro').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  const filtrados = todosTrabajadores.filter(t =>
+    (t.nombre + ' ' + t.apellidos).toLowerCase().includes(q) ||
+    (t.dni || '').toLowerCase().includes(q)
+  );
+  renderTabla(filtrados);
+});
+
+// MODAL
+document.getElementById('btn-nuevo').addEventListener('click', () => {
+  trabajadorEditandoId = null;
+  document.getElementById('modal-titulo').textContent = 'Nuevo trabajador';
+  document.getElementById('f-nombre').value = '';
+  document.getElementById('f-apellidos').value = '';
+  document.getElementById('f-dni').value = '';
+  document.getElementById('f-telefono').value = '';
+  document.getElementById('f-activo').value = 'true';
+  ocultarError();
+  document.getElementById('modal-trabajador').classList.add('visible');
+});
+
+function abrirEditar(t) {
+  trabajadorEditandoId = t.id;
+  document.getElementById('modal-titulo').textContent = 'Editar trabajador';
+  document.getElementById('f-nombre').value = t.nombre || '';
+  document.getElementById('f-apellidos').value = t.apellidos || '';
+  document.getElementById('f-dni').value = t.dni || '';
+  document.getElementById('f-telefono').value = t.telefono || '';
+  document.getElementById('f-activo').value = String(t.activo);
+  ocultarError();
+  document.getElementById('modal-trabajador').classList.add('visible');
+}
+
+document.getElementById('btn-cancelar').addEventListener('click', () => {
+  document.getElementById('modal-trabajador').classList.remove('visible');
+});
+
+document.getElementById('btn-guardar').addEventListener('click', async () => {
+  const nombre   = document.getElementById('f-nombre').value.trim();
+  const apellidos= document.getElementById('f-apellidos').value.trim();
+  const dni      = document.getElementById('f-dni').value.trim().toUpperCase();
+  const telefono = document.getElementById('f-telefono').value.trim();
+  const activo   = document.getElementById('f-activo').value === 'true';
+
+  if (!nombre) { mostrarError('El nombre es obligatorio.'); return; }
+  if (!dni)    { mostrarError('El DNI es obligatorio.'); return; }
+
+  const payload = { nombre, apellidos, dni, activo };
+  if (telefono) payload.telefono = telefono;
+
+  let error;
+  if (trabajadorEditandoId) {
+    ({ error } = await sb.from('trabajadores').update(payload).eq('id', trabajadorEditandoId));
+  } else {
+    ({ error } = await sb.from('trabajadores').insert(payload));
+  }
+
+  if (error) {
+    mostrarError(error.code === '23505' ? 'Ya existe un trabajador con ese DNI.' : 'Error al guardar: ' + error.message);
+    return;
+  }
+  document.getElementById('modal-trabajador').classList.remove('visible');
+  await cargarTrabajadores();
+});
+
+function mostrarError(msg) {
+  const el = document.getElementById('error-modal');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function ocultarError() {
+  document.getElementById('error-modal').style.display = 'none';
+}
+function esc(txt) {
+  const d = document.createElement('div');
+  d.textContent = String(txt || '');
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>
