@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Incidencias — Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
+    --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
+    --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
+  .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+  .sidebar-logo { padding: 22px 20px 18px; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--verde); border-bottom: 1px solid var(--borde); }
+  .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
+  .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
+  .sidebar a:hover { background: var(--bg3); color: var(--texto); }
+  .sidebar a.activo { background: var(--bg3); color: var(--texto); font-weight: 600; }
+  .sidebar a .ico { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid var(--borde); }
+  .btn-salir { width: 100%; background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 8px; }
+  .btn-salir:hover { background: var(--bg3); color: var(--texto); }
+  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+  .topbar { padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+  .contenido { padding: 0 28px 28px; }
+  .barra-filtros { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+  .barra-filtros input, .barra-filtros select { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 14px; font-family: inherit; }
+  .barra-filtros input[type="date"] { width: 160px; }
+  .barra-filtros select { width: 200px; }
+  .barra-filtros input:focus, .barra-filtros select:focus { outline: none; border-color: var(--azul); }
+  .btn-secundario { background: transparent; color: var(--texto2); border: 1px solid var(--borde); padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
+  .btn-secundario:hover { background: var(--bg3); color: var(--texto); }
+  .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
+  .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; }
+  .seccion-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; background: rgba(255,152,0,0.15); color: var(--naranja); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; padding: 11px 20px; font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); }
+  td { padding: 13px 20px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .pill.naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
+  .pill.rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
+  .pill.gris    { background: rgba(139,144,158,0.15); color: var(--texto2); }
+  .vacio { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+  .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">Bosch Pascual</div>
+  <div class="sidebar-section">Principal</div>
+  <a href="index.html"><span class="ico">📊</span> Dashboard</a>
+  <div class="sidebar-section">Gestión</div>
+  <a href="obras.html"><span class="ico">🏗</span> Obras</a>
+  <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
+  <a href="#"><span class="ico">🏢</span> Empresas</a>
+  <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
+  <a href="incidencias.html" class="activo"><span class="ico">⚠️</span> Incidencias</a>
+  <div class="sidebar-bottom">
+    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>Incidencias</h1>
+  </div>
+  <div class="contenido">
+    <div class="barra-filtros">
+      <input type="date" id="filtro-fecha">
+      <select id="filtro-obra">
+        <option value="">Todas las obras</option>
+      </select>
+      <select id="filtro-tipo">
+        <option value="">Todos los tipos</option>
+        <option value="autocierre">Autocierre</option>
+        <option value="acceso_naranja">Acceso naranja</option>
+        <option value="acceso_rojo">Acceso rojo</option>
+        <option value="fuera_de_zona">Fuera de zona</option>
+      </select>
+      <button class="btn-secundario" id="btn-buscar">Buscar</button>
+      <button class="btn-secundario" id="btn-hoy">Hoy</button>
+    </div>
+    <div class="seccion">
+      <div class="seccion-cab">
+        <h2>Listado de incidencias</h2>
+        <span class="badge" id="badge-total">—</span>
+      </div>
+      <div id="tabla-incidencias"><div class="cargando">Cargando…</div></div>
+    </div>
+  </div>
+</div>
+
+<script src="../js/supabase-client.js"></script>
+<script>
+const sb = window.supabaseClient;
+
+(async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '../'; return; }
+  const { data: u } = await sb.from('usuarios_app').select('rol').single();
+  if (!u || u.rol !== 'admin') { window.location.href = '../'; return; }
+
+  const hoy = new Date().toISOString().split('T')[0];
+  document.getElementById('filtro-fecha').value = hoy;
+
+  await cargarObras();
+  await buscar();
+})();
+
+document.getElementById('btn-salir').addEventListener('click', async () => {
+  await sb.auth.signOut(); window.location.href = '../';
+});
+
+async function cargarObras() {
+  const { data } = await sb.from('obras').select('id, nombre').eq('activa', true).order('nombre');
+  const select = document.getElementById('filtro-obra');
+  (data || []).forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o.id;
+    opt.textContent = o.nombre;
+    select.appendChild(opt);
+  });
+}
+
+document.getElementById('btn-buscar').addEventListener('click', buscar);
+document.getElementById('btn-hoy').addEventListener('click', () => {
+  document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
+  buscar();
+});
+
+async function buscar() {
+  document.getElementById('tabla-incidencias').innerHTML = '<div class="cargando">Cargando…</div>';
+
+  const fecha  = document.getElementById('filtro-fecha').value;
+  const obraId = document.getElementById('filtro-obra').value;
+  const tipo   = document.getElementById('filtro-tipo').value;
+
+  let query = sb
+    .from('incidencias')
+    .select('id, tipo, descripcion, creado_en, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)')
+    .order('creado_en', { ascending: false })
+    .limit(200);
+
+  if (fecha) {
+    query = query.gte('creado_en', fecha + 'T00:00:00').lte('creado_en', fecha + 'T23:59:59');
+  }
+  if (obraId) query = query.eq('obra_id', obraId);
+  if (tipo)   query = query.eq('tipo', tipo);
+
+  const { data, error } = await query;
+
+  if (error || !data || data.length === 0) {
+    document.getElementById('badge-total').textContent = '0 incidencias';
+    document.getElementById('tabla-incidencias').innerHTML = '<div class="vacio">No hay incidencias para estos filtros ✓</div>';
+    return;
+  }
+
+  document.getElementById('badge-total').textContent = data.length + ' incidencias';
+
+  document.getElementById('tabla-incidencias').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Trabajador</th><th>DNI</th><th>Obra</th><th>Tipo</th><th>Descripción</th><th>Fecha y hora</th>
+      </tr></thead>
+      <tbody>
+        ${data.map(i => `
+          <tr>
+            <td><strong>${esc(i.trabajador?.nombre)} ${esc(i.trabajador?.apellidos)}</strong></td>
+            <td>${esc(i.trabajador?.dni)}</td>
+            <td>${esc(i.obra?.nombre)}</td>
+            <td><span class="pill ${colorTipo(i.tipo)}">${esc(i.tipo)}</span></td>
+            <td>${esc(i.descripcion || '—')}</td>
+            <td>${formatFechaHora(i.creado_en)}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function colorTipo(tipo) {
+  if (!tipo) return 'gris';
+  if (tipo.includes('rojo') || tipo === 'autocierre') return 'rojo';
+  return 'naranja';
+}
+
+function esc(txt) {
+  const d = document.createElement('div');
+  d.textContent = String(txt || '');
+  return d.innerHTML;
+}
+
+function formatFechaHora(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' +
+         d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+}
+</script>
+</body>
+</html>
