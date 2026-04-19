@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jefe de Obra — Trabajadores</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
+    --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
+    --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
+
+  /* SIDEBAR */
+  .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+  .sidebar-logo { padding: 22px 20px 18px; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--naranja); border-bottom: 1px solid var(--borde); }
+  .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
+  .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
+  .sidebar a:hover { background: var(--bg3); color: var(--texto); }
+  .sidebar a.activo { background: var(--bg3); color: var(--texto); font-weight: 600; }
+  .sidebar a .ico { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid var(--borde); }
+  .btn-salir { width: 100%; background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 8px; }
+  .btn-salir:hover { background: var(--bg3); color: var(--texto); }
+
+  /* MAIN */
+  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+  .topbar { padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--borde); }
+  .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+  .topbar-right { display: flex; align-items: center; gap: 14px; }
+  .usuario { font-size: 13px; color: var(--texto2); }
+
+  .contenido { padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
+
+  /* BARRA SUPERIOR */
+  .barra-acciones { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+  .buscador { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 14px; font-family: inherit; width: 280px; }
+  .buscador:focus { outline: none; border-color: var(--naranja); }
+  .buscador::placeholder { color: var(--texto2); }
+  .btn-nuevo { background: var(--naranja); color: #000; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; }
+  .btn-nuevo:hover { opacity: 0.85; }
+
+  /* TABLA */
+  .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
+  .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; }
+  .seccion-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; padding: 10px 20px; font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); }
+  td { padding: 13px 20px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); }
+  .pill { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; margin: 2px; }
+  .pill.verde   { background: rgba(76,175,80,0.15);  color: var(--verde); }
+  .pill.naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
+  .pill.rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
+  .pill.obra    { background: rgba(33,150,243,0.15); color: var(--azul); font-size: 11px; }
+  .vacio { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+  .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+
+  .acciones { display: flex; gap: 8px; }
+  .btn-accion { background: transparent; border: 1px solid var(--borde); color: var(--texto2); border-radius: 6px; padding: 6px 11px; font-size: 12px; cursor: pointer; font-family: inherit; transition: background 0.12s, color 0.12s; }
+  .btn-accion:hover { background: var(--bg3); color: var(--texto); }
+  .btn-accion.primario { border-color: var(--naranja); color: var(--naranja); }
+  .btn-accion.primario:hover { background: rgba(255,152,0,0.1); }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: none; align-items: center; justify-content: center; }
+  .modal-overlay.abierto { display: flex; }
+  .modal { background: var(--bg2); border: 1px solid var(--borde); border-radius: 12px; width: 500px; max-width: 95vw; padding: 28px; display: flex; flex-direction: column; gap: 18px; }
+  .modal h3 { font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+  .campo { display: flex; flex-direction: column; gap: 6px; }
+  .campo label { font-size: 12px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; }
+  .campo input[type="text"] { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 13px; font-family: inherit; width: 100%; }
+  .campo input:focus { outline: none; border-color: var(--naranja); }
+  .campo input::placeholder { color: var(--texto2); }
+
+  /* CHECKBOXES OBRAS */
+  .lista-obras { display: flex; flex-direction: column; gap: 8px; }
+  .check-obra { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; cursor: pointer; transition: border-color 0.12s; }
+  .check-obra:hover { border-color: var(--naranja); }
+  .check-obra input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--naranja); cursor: pointer; }
+  .check-obra span { font-size: 14px; }
+  .check-obra.marcado { border-color: var(--naranja); background: rgba(255,152,0,0.05); }
+
+  .modal-acciones { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+  .btn-cancelar { background: transparent; border: 1px solid var(--borde); color: var(--texto2); border-radius: 8px; padding: 10px 18px; font-size: 13px; cursor: pointer; font-family: inherit; }
+  .btn-cancelar:hover { background: var(--bg3); }
+  .btn-guardar { background: var(--naranja); color: #000; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .btn-guardar:hover { opacity: 0.85; }
+  .btn-guardar:disabled { opacity: 0.5; cursor: not-allowed; }
+  .msg-error { color: var(--rojo); font-size: 13px; }
+  .msg-ok { color: var(--verde); font-size: 13px; }
+
+  .dni-hint { font-size: 12px; color: var(--texto2); margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">Jefe de Obra</div>
+  <div class="sidebar-section">Principal</div>
+  <a href="index.html"><span class="ico">👷</span> Presencia</a>
+  <div class="sidebar-section">Gestión</div>
+  <a href="fichajes.html"><span class="ico">🕐</span> Fichajes</a>
+  <a href="documentos.html"><span class="ico">📄</span> Documentos</a>
+  <a href="trabajadores.html" class="activo"><span class="ico">👥</span> Trabajadores</a>
+  <div class="sidebar-bottom">
+    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>Trabajadores</h1>
+    <div class="topbar-right">
+      <span class="usuario" id="usuario-nombre"></span>
+    </div>
+  </div>
+
+  <div class="contenido">
+    <div class="barra-acciones">
+      <input class="buscador" id="buscador" type="text" placeholder="Buscar por nombre o DNI…">
+      <button class="btn-nuevo" id="btn-nuevo">＋ Nuevo trabajador</button>
+    </div>
+
+    <div class="seccion">
+      <div class="seccion-cab">
+        <h2>Trabajadores en mis obras</h2>
+        <span style="font-size:13px;color:var(--texto2)" id="contador"></span>
+      </div>
+      <div id="tabla-trabajadores"><div class="cargando">Cargando…</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h3 id="modal-titulo">Nuevo trabajador</h3>
+
+    <div class="campo">
+      <label>Nombre</label>
+      <input type="text" id="modal-nombre" placeholder="Nombre">
+    </div>
+    <div class="campo">
+      <label>Apellidos</label>
+      <input type="text" id="modal-apellidos" placeholder="Apellidos">
+    </div>
+    <div class="campo">
+      <label>DNI / NIE</label>
+      <input type="text" id="modal-dni" placeholder="12345678A" style="text-transform:uppercase">
+      <span class="dni-hint">Sin espacios ni guiones. Ejemplo: 12345678A</span>
+    </div>
+
+    <div class="campo">
+      <label>Asignar a obras</label>
+      <div class="lista-obras" id="lista-obras-check">
+        <div style="color:var(--texto2);font-size:14px">Cargando obras…</div>
+      </div>
+    </div>
+
+    <div id="modal-msg"></div>
+
+    <div class="modal-acciones">
+      <button class="btn-cancelar" id="btn-cancelar">Cancelar</button>
+      <button class="btn-guardar" id="btn-guardar">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let misObras = [];
+let todosTrabajadores = [];
+let miUsuarioId = null;
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+(async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '../'; return; }
+
+  const { data: miUsuario } = await sb
+    .from('usuarios_app')
+    .select('id, nombre')
+    .eq('auth_user_id', session.user.id)
+    .single();
+  if (!miUsuario) { window.location.href = '../'; return; }
+
+  miUsuarioId = miUsuario.id;
+  document.getElementById('usuario-nombre').textContent = miUsuario.nombre || session.user.email;
+
+  const { data: obrasJefe, error } = await sb
+    .from('usuarios_obra')
+    .select('obra_id, obra:obra_id(id, nombre)')
+    .eq('usuario_app_id', miUsuario.id)
+    .eq('rol_en_obra', 'jefe_obra');
+
+  if (error || !obrasJefe || obrasJefe.length === 0) { window.location.href = '../'; return; }
+
+  misObras = obrasJefe.map(uo => uo.obra);
+
+  await cargarTrabajadores();
+})();
+
+document.getElementById('btn-salir').addEventListener('click', async () => {
+  await sb.auth.signOut(); window.location.href = '../';
+});
+
+// ── CARGAR TRABAJADORES ───────────────────────────────────────────────────────
+async function cargarTrabajadores() {
+  document.getElementById('tabla-trabajadores').innerHTML = '<div class="cargando">Cargando…</div>';
+
+  const obraIds = misObras.map(o => o.id);
+
+  // Traer validaciones de todas mis obras para saber qué trabajadores hay
+  const { data: validaciones } = await sb
+    .from('validaciones_obra')
+    .select('trabajador_id, obra_id, estado, trabajador:trabajador_id(id, nombre, apellidos, dni)')
+    .in('obra_id', obraIds);
+
+  // Agrupar por trabajador
+  const porTrabajador = {};
+  (validaciones || []).forEach(v => {
+    if (!porTrabajador[v.trabajador_id]) {
+      porTrabajador[v.trabajador_id] = {
+        id: v.trabajador.id,
+        nombre: v.trabajador.nombre,
+        apellidos: v.trabajador.apellidos,
+        dni: v.trabajador.dni,
+        obras: []
+      };
+    }
+    const obra = misObras.find(o => o.id === v.obra_id);
+    if (obra) {
+      porTrabajador[v.trabajador_id].obras.push({ nombre: obra.nombre, estado: v.estado });
+    }
+  });
+
+  todosTrabajadores = Object.values(porTrabajador);
+  renderTabla(todosTrabajadores);
+}
+
+function renderTabla(lista) {
+  document.getElementById('contador').textContent = lista.length + ' trabajadores';
+  const contenedor = document.getElementById('tabla-trabajadores');
+  if (lista.length === 0) {
+    contenedor.innerHTML = '<div class="vacio">No hay trabajadores. Pulsa "Nuevo trabajador" para añadir el primero.</div>';
+    return;
+  }
+  contenedor.innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Nombre</th><th>DNI</th><th>Obras asignadas</th><th>Acciones</th>
+      </tr></thead>
+      <tbody>
+        ${lista.map(t => `
+          <tr>
+            <td><strong>${esc(t.nombre)} ${esc(t.apellidos)}</strong></td>
+            <td style="font-family:monospace">${esc(t.dni)}</td>
+            <td>${t.obras.map(o => `<span class="pill obra">${esc(o.nombre)}</span>`).join('')}</td>
+            <td>
+              <div class="acciones">
+                <button class="btn-accion primario" onclick="abrirEdicion('${t.id}')">Editar</button>
+              </div>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+// Buscador
+document.getElementById('buscador').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase();
+  renderTabla(todosTrabajadores.filter(t =>
+    (t.nombre + ' ' + t.apellidos + ' ' + t.dni).toLowerCase().includes(q)
+  ));
+});
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+let modoEdicion = null; // null = nuevo, uuid = editar
+
+function renderCheckObras(obrasSeleccionadas = []) {
+  document.getElementById('lista-obras-check').innerHTML = misObras.map(o => `
+    <label class="check-obra ${obrasSeleccionadas.includes(o.id) ? 'marcado' : ''}" id="label-obra-${o.id}">
+      <input type="checkbox" value="${o.id}" ${obrasSeleccionadas.includes(o.id) ? 'checked' : ''}
+             onchange="toggleMarcado(this)">
+      <span>${esc(o.nombre)}</span>
+    </label>
+  `).join('');
+}
+
+function toggleMarcado(checkbox) {
+  const label = checkbox.closest('.check-obra');
+  label.classList.toggle('marcado', checkbox.checked);
+}
+
+document.getElementById('btn-nuevo').addEventListener('click', () => {
+  modoEdicion = null;
+  document.getElementById('modal-titulo').textContent = 'Nuevo trabajador';
+  document.getElementById('modal-nombre').value = '';
+  document.getElementById('modal-apellidos').value = '';
+  document.getElementById('modal-dni').value = '';
+  document.getElementById('modal-msg').textContent = '';
+  document.getElementById('btn-guardar').disabled = false;
+  renderCheckObras(misObras.length === 1 ? [misObras[0].id] : []);
+  document.getElementById('modal-overlay').classList.add('abierto');
+  document.getElementById('modal-nombre').focus();
+});
+
+async function abrirEdicion(trabajadorId) {
+  modoEdicion = trabajadorId;
+  document.getElementById('modal-titulo').textContent = 'Editar trabajador';
+  document.getElementById('modal-msg').textContent = '';
+  document.getElementById('btn-guardar').disabled = false;
+
+  const t = todosTrabajadores.find(x => x.id === trabajadorId);
+  document.getElementById('modal-nombre').value = t.nombre;
+  document.getElementById('modal-apellidos').value = t.apellidos;
+  document.getElementById('modal-dni').value = t.dni;
+
+  // Obras donde ya está asignado
+  const obraIds = misObras.map(o => o.id);
+  const { data: vals } = await sb
+    .from('validaciones_obra')
+    .select('obra_id')
+    .eq('trabajador_id', trabajadorId)
+    .in('obra_id', obraIds);
+
+  const asignadas = (vals || []).map(v => v.obra_id);
+  renderCheckObras(asignadas);
+  document.getElementById('modal-overlay').classList.add('abierto');
+}
+
+function cerrarModal() {
+  document.getElementById('modal-overlay').classList.remove('abierto');
+}
+document.getElementById('btn-cancelar').addEventListener('click', cerrarModal);
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) cerrarModal();
+});
+
+// ── GUARDAR ───────────────────────────────────────────────────────────────────
+document.getElementById('btn-guardar').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-guardar');
+  const msg = document.getElementById('modal-msg');
+  btn.disabled = true;
+  msg.className = '';
+  msg.textContent = 'Guardando…';
+
+  const nombre = document.getElementById('modal-nombre').value.trim();
+  const apellidos = document.getElementById('modal-apellidos').value.trim();
+  const dni = document.getElementById('modal-dni').value.trim().toUpperCase();
+
+  if (!nombre || !apellidos || !dni) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Nombre, apellidos y DNI son obligatorios.';
+    btn.disabled = false;
+    return;
+  }
+
+  // Obras seleccionadas
+  const checkboxes = document.querySelectorAll('#lista-obras-check input[type="checkbox"]:checked');
+  const obrasSeleccionadas = Array.from(checkboxes).map(cb => cb.value);
+
+  if (obrasSeleccionadas.length === 0) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Selecciona al menos una obra.';
+    btn.disabled = false;
+    return;
+  }
+
+  let trabajadorId = modoEdicion;
+
+  if (!modoEdicion) {
+    // Comprobar si ya existe un trabajador con ese DNI
+    const { data: existe } = await sb
+      .from('trabajadores')
+      .select('id')
+      .eq('dni', dni)
+      .maybeSingle();
+
+    if (existe) {
+      // Ya existe: reutilizar su ID
+      trabajadorId = existe.id;
+    } else {
+      // Crear nuevo trabajador
+      const { data: nuevo, error: errCrear } = await sb
+        .from('trabajadores')
+        .insert({ nombre, apellidos, dni, activo: true })
+        .select('id')
+        .single();
+
+      if (errCrear) {
+        msg.className = 'msg-error';
+        msg.textContent = 'Error al crear trabajador: ' + errCrear.message;
+        btn.disabled = false;
+        return;
+      }
+      trabajadorId = nuevo.id;
+    }
+  } else {
+    // Actualizar datos del trabajador
+    const { error: errUpdate } = await sb
+      .from('trabajadores')
+      .update({ nombre, apellidos, dni })
+      .eq('id', modoEdicion);
+
+    if (errUpdate) {
+      msg.className = 'msg-error';
+      msg.textContent = 'Error al actualizar: ' + errUpdate.message;
+      btn.disabled = false;
+      return;
+    }
+  }
+
+  // Gestionar asignaciones a obras
+  // 1. Traer asignaciones actuales en mis obras
+  const { data: asignacionesActuales } = await sb
+    .from('validaciones_obra')
+    .select('obra_id')
+    .eq('trabajador_id', trabajadorId)
+    .in('obra_id', misObras.map(o => o.id));
+
+  const yaAsignadas = (asignacionesActuales || []).map(a => a.obra_id);
+
+  // 2. Añadir las nuevas
+  const aNadir = obrasSeleccionadas.filter(id => !yaAsignadas.includes(id));
+  if (aNadir.length > 0) {
+    const inserts = aNadir.map(obraId => ({
+      trabajador_id: trabajadorId,
+      obra_id: obraId,
+      estado: 'verde',
+      motivos: [],
+      documentos_afectados: []
+    }));
+    const { error: errIns } = await sb.from('validaciones_obra').insert(inserts);
+    if (errIns) {
+      msg.className = 'msg-error';
+      msg.textContent = 'Error al asignar obras: ' + errIns.message;
+      btn.disabled = false;
+      return;
+    }
+  }
+
+  // 3. Quitar las desasignadas (solo en modo edición)
+  if (modoEdicion) {
+    const aQuitar = yaAsignadas.filter(id => !obrasSeleccionadas.includes(id));
+    if (aQuitar.length > 0) {
+      await sb
+        .from('validaciones_obra')
+        .delete()
+        .eq('trabajador_id', trabajadorId)
+        .in('obra_id', aQuitar);
+    }
+  }
+
+  msg.className = 'msg-ok';
+  msg.textContent = '¡Guardado correctamente!';
+  setTimeout(() => { cerrarModal(); cargarTrabajadores(); }, 800);
+});
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function esc(txt) {
+  const d = document.createElement('div');
+  d.textContent = String(txt || '');
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>
