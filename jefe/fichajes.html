@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fichajes — Jefe de Obra</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
+    --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
+    --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
+  .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+  .sidebar-logo { padding: 22px 20px 18px; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--naranja); border-bottom: 1px solid var(--borde); }
+  .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
+  .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
+  .sidebar a:hover { background: var(--bg3); color: var(--texto); }
+  .sidebar a.activo { background: var(--bg3); color: var(--texto); font-weight: 600; }
+  .sidebar a .ico { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid var(--borde); }
+  .btn-salir { width: 100%; background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 8px; }
+  .btn-salir:hover { background: var(--bg3); color: var(--texto); }
+  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+  .topbar { padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+  .topbar-right { display: flex; align-items: center; gap: 14px; }
+  .usuario { font-size: 13px; color: var(--texto2); }
+  .selector-obra { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 8px 12px; font-family: inherit; }
+  .contenido { padding: 0 28px 28px; }
+  .barra-filtros { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+  .barra-filtros input { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 14px; font-family: inherit; width: 160px; }
+  .barra-filtros input:focus { outline: none; border-color: var(--naranja); }
+  .btn-secundario { background: transparent; color: var(--texto2); border: 1px solid var(--borde); padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
+  .btn-secundario:hover { background: var(--bg3); color: var(--texto); }
+  .btn-naranja { background: var(--naranja); color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .btn-naranja:hover { opacity: 0.9; }
+  .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
+  .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; }
+  .seccion-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; background: rgba(33,150,243,0.15); color: var(--azul); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; padding: 10px 20px; font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); }
+  td { padding: 13px 20px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .pill.verde  { background: rgba(76,175,80,0.15);  color: var(--verde); }
+  .pill.azul   { background: rgba(33,150,243,0.15); color: var(--azul); }
+  .pill.naranja{ background: rgba(255,152,0,0.15);  color: var(--naranja); }
+  .vacio { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+  .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.visible { display: flex; }
+  .modal { background: var(--bg2); border: 1px solid var(--borde); border-radius: 14px; padding: 28px; width: 100%; max-width: 420px; }
+  .modal h2 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .modal .subtitulo { font-size: 13px; color: var(--texto2); margin-bottom: 22px; }
+  .campo { margin-bottom: 16px; }
+  .campo label { display: block; font-size: 12px; font-weight: 600; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+  .campo input, .campo textarea { width: 100%; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 12px; font-family: inherit; }
+  .campo textarea { resize: vertical; min-height: 70px; }
+  .modal-acciones { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+  .btn-primario { background: var(--naranja); color: white; border: none; padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .error-modal { background: rgba(244,67,54,0.1); color: var(--rojo); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; display: none; }
+  .ok-modal { background: rgba(76,175,80,0.1); color: var(--verde); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; display: none; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">Jefe de Obra</div>
+  <div class="sidebar-section">Principal</div>
+  <a href="index.html"><span class="ico">👷</span> Presencia</a>
+  <div class="sidebar-section">Gestión</div>
+  <a href="fichajes.html" class="activo"><span class="ico">🕐</span> Fichajes</a>
+  <div class="sidebar-bottom">
+    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>Fichajes</h1>
+    <div class="topbar-right">
+      <select class="selector-obra" id="selector-obra"></select>
+      <span class="usuario" id="usuario-nombre"></span>
+    </div>
+  </div>
+  <div class="contenido">
+    <div class="barra-filtros">
+      <input type="date" id="filtro-fecha">
+      <button class="btn-secundario" id="btn-hoy">Hoy</button>
+      <button class="btn-secundario" id="btn-buscar">Buscar</button>
+    </div>
+    <div class="seccion">
+      <div class="seccion-cab">
+        <h2>Historial de fichajes</h2>
+        <span class="badge" id="badge-total">—</span>
+      </div>
+      <div id="tabla-fichajes"><div class="cargando">Cargando…</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-correccion">
+  <div class="modal">
+    <h2>Corregir fichaje</h2>
+    <div class="subtitulo" id="correccion-subtitulo"></div>
+    <div class="error-modal" id="error-correccion"></div>
+    <div class="ok-modal" id="ok-correccion"></div>
+    <div class="campo">
+      <label>Nueva hora</label>
+      <input type="time" id="f-hora">
+    </div>
+    <div class="campo">
+      <label>Motivo</label>
+      <textarea id="f-motivo" placeholder="Ej: El trabajador olvidó fichar la salida"></textarea>
+    </div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cancelar">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/supabase-client.js"></script>
+<script>
+const sb = window.supabaseClient;
+let obraActual = null;
+let fichajeCorrigiendoId = null;
+let fichajeCorrigiendoHora = null;
+
+(async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '../'; return; }
+
+  const { data: miUsuario } = await sb
+    .from('usuarios_app')
+    .select('id, nombre')
+    .eq('auth_user_id', session.user.id)
+    .single();
+
+  if (!miUsuario) { window.location.href = '../'; return; }
+  document.getElementById('usuario-nombre').textContent = miUsuario.nombre || session.user.email;
+
+  const { data: misObras } = await sb
+    .from('usuarios_obra')
+    .select('obra_id, obra:obra_id(id, nombre)')
+    .eq('usuario_app_id', miUsuario.id)
+    .eq('rol_en_obra', 'jefe_obra');
+
+  if (!misObras || misObras.length === 0) { window.location.href = '../'; return; }
+
+  const selector = document.getElementById('selector-obra');
+  misObras.forEach(uo => {
+    const opt = document.createElement('option');
+    opt.value = uo.obra.id;
+    opt.textContent = uo.obra.nombre;
+    selector.appendChild(opt);
+  });
+
+  obraActual = misObras[0].obra.id;
+  document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
+  await buscar();
+
+  selector.addEventListener('change', async () => {
+    obraActual = selector.value;
+    await buscar();
+  });
+})();
+
+document.getElementById('btn-salir').addEventListener('click', async () => {
+  await sb.auth.signOut(); window.location.href = '../';
+});
+document.getElementById('btn-hoy').addEventListener('click', () => {
+  document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
+  buscar();
+});
+document.getElementById('btn-buscar').addEventListener('click', buscar);
+
+async function buscar() {
+  document.getElementById('tabla-fichajes').innerHTML = '<div class="cargando">Cargando…</div>';
+  const fecha = document.getElementById('filtro-fecha').value;
+
+  let query = sb
+    .from('fichajes')
+    .select('id, tipo, hora, es_manual, cierre_automatico, trabajador:trabajador_id(nombre, apellidos, dni)')
+    .eq('obra_id', obraActual)
+    .order('hora', { ascending: false })
+    .limit(200);
+
+  if (fecha) query = query.gte('hora', fecha + 'T00:00:00').lte('hora', fecha + 'T23:59:59');
+
+  const { data, error } = await query;
+
+  if (error || !data || data.length === 0) {
+    document.getElementById('badge-total').textContent = '0 registros';
+    document.getElementById('tabla-fichajes').innerHTML = '<div class="vacio">No hay fichajes para esta fecha</div>';
+    return;
+  }
+
+  document.getElementById('badge-total').textContent = data.length + ' registros';
+  document.getElementById('tabla-fichajes').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Trabajador</th><th>DNI</th><th>Tipo</th><th>Hora</th><th>Avisos</th><th>Acción</th>
+      </tr></thead>
+      <tbody>
+        ${data.map(f => {
+          const avisos = [];
+          if (f.cierre_automatico) avisos.push('⏰ Autocierre');
+          if (f.es_manual) avisos.push('✏️ Corregido');
+          return `<tr>
+            <td><strong>${esc(f.trabajador?.nombre)} ${esc(f.trabajador?.apellidos)}</strong></td>
+            <td>${esc(f.trabajador?.dni)}</td>
+            <td><span class="pill ${f.tipo === 'entrada' ? 'verde' : 'azul'}">${f.tipo}</span></td>
+            <td>${formatFechaHora(f.hora)}</td>
+            <td>${avisos.join(' ') || '—'}</td>
+            <td><button class="btn-naranja" onclick="abrirCorreccion('${f.id}', '${esc(f.trabajador?.nombre)} ${esc(f.trabajador?.apellidos)}', '${f.hora}')">Corregir</button></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+function abrirCorreccion(id, nombre, hora) {
+  fichajeCorrigiendoId = id;
+  fichajeCorrigiendoHora = hora;
+  document.getElementById('correccion-subtitulo').textContent = nombre;
+  document.getElementById('f-hora').value = hora ? hora.substring(11, 16) : '';
+  document.getElementById('f-motivo').value = '';
+  document.getElementById('error-correccion').style.display = 'none';
+  document.getElementById('ok-correccion').style.display = 'none';
+  document.getElementById('btn-guardar').disabled = false;
+  document.getElementById('modal-correccion').classList.add('visible');
+}
+
+document.getElementById('btn-cancelar').addEventListener('click', () => {
+  document.getElementById('modal-correccion').classList.remove('visible');
+});
+
+document.getElementById('btn-guardar').addEventListener('click', async () => {
+  const nuevaHora = document.getElementById('f-hora').value;
+  const motivo = document.getElementById('f-motivo').value.trim();
+  if (!nuevaHora) { mostrarError('La hora es obligatoria.'); return; }
+  if (!motivo)    { mostrarError('El motivo es obligatorio.'); return; }
+
+  const { data: { session } } = await sb.auth.getSession();
+  const fechaBase = fichajeCorrigiendoHora.substring(0, 10);
+
+  const { error } = await sb
+    .from('fichajes')
+    .update({
+      hora: fechaBase + 'T' + nuevaHora + ':00',
+      es_manual: true,
+      motivo_correccion: motivo,
+      corregido_por: session.user.id,
+      corregido_en: new Date().toISOString()
+    })
+    .eq('id', fichajeCorrigiendoId);
+
+  if (error) { mostrarError('Error al guardar: ' + error.message); return; }
+
+  document.getElementById('ok-correccion').textContent = 'Corrección guardada.';
+  document.getElementById('ok-correccion').style.display = 'block';
+  document.getElementById('btn-guardar').disabled = true;
+  setTimeout(async () => {
+    document.getElementById('modal-correccion').classList.remove('visible');
+    await buscar();
+  }, 1200);
+});
+
+function mostrarError(msg) {
+  const el = document.getElementById('error-correccion');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function esc(txt) {
+  const d = document.createElement('div');
+  d.textContent = String(txt || '');
+  return d.innerHTML;
+}
+function formatFechaHora(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' +
+         d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+}
+</script>
+</body>
+</html>
