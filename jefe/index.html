@@ -80,10 +80,18 @@ const sb = window.supabaseClient;
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '../'; return; }
 
+  const { data: miUsuario } = await sb
+    .from('usuarios_app')
+    .select('id')
+    .eq('auth_user_id', session.user.id)
+    .single();
+
+  if (!miUsuario) { window.location.href = '../'; return; }
+
   const { data: misObras, error } = await sb
     .from('usuarios_obra')
     .select('obra_id, rol_en_obra, obra:obra_id(id, nombre)')
-    .eq('user_id', session.user.id)
+    .eq('usuario_app_id', miUsuario.id)
     .eq('rol_en_obra', 'jefe_obra')
 
   if (error || !misObras || misObras.length === 0) {
