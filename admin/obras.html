@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Obras — Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --verde: #4caf50;
+    --naranja: #ff9800;
+    --rojo: #f44336;
+    --azul: #2196f3;
+    --bg: #111318;
+    --bg2: #1a1d24;
+    --bg3: #22262f;
+    --borde: #2e3340;
+    --texto: #e8eaf0;
+    --texto2: #8b909e;
+    --sidebar-w: 200px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--texto);
+    min-height: 100vh;
+    display: flex;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--bg2);
+    border-right: 1px solid var(--borde);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 10;
+  }
+  .sidebar-logo {
+    padding: 22px 20px 18px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--verde);
+    border-bottom: 1px solid var(--borde);
+  }
+  .sidebar-section {
+    padding: 18px 14px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--texto2);
+  }
+  .sidebar a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    font-size: 14px;
+    color: var(--texto2);
+    text-decoration: none;
+    border-radius: 8px;
+    margin: 2px 8px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .sidebar a:hover { background: var(--bg3); color: var(--texto); }
+  .sidebar a.activo { background: var(--bg3); color: var(--texto); font-weight: 600; }
+  .sidebar a .ico { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-bottom {
+    margin-top: auto;
+    padding: 16px;
+    border-top: 1px solid var(--borde);
+  }
+  .btn-salir {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--borde);
+    color: var(--texto2);
+    padding: 9px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-salir:hover { background: var(--bg3); color: var(--texto); }
+
+  /* MAIN */
+  .main {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .topbar {
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .topbar h1 {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .contenido { padding: 0 28px 28px; }
+
+  /* BOTÓN PRIMARIO */
+  .btn-primario {
+    background: var(--azul);
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-primario:hover { opacity: 0.9; }
+
+  .btn-secundario {
+    background: transparent;
+    color: var(--texto2);
+    border: 1px solid var(--borde);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-secundario:hover { background: var(--bg3); color: var(--texto); }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--rojo);
+    border: 1px solid var(--rojo);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-danger:hover { background: rgba(244,67,54,0.1); }
+
+  /* TABLA OBRAS */
+  .seccion {
+    background: var(--bg2);
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th {
+    text-align: left;
+    padding: 11px 20px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--texto2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--borde);
+  }
+  td {
+    padding: 13px 20px;
+    border-bottom: 1px solid var(--borde);
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); }
+
+  .pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .pill.verde  { background: rgba(76,175,80,0.15);  color: var(--verde); }
+  .pill.gris   { background: rgba(139,144,158,0.15); color: var(--texto2); }
+
+  .acciones { display: flex; gap: 8px; }
+
+  .vacio {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--texto2);
+    font-size: 14px;
+  }
+  .cargando {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--texto2);
+  }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.visible { display: flex; }
+  .modal {
+    background: var(--bg2);
+    border: 1px solid var(--borde);
+    border-radius: 14px;
+    padding: 28px;
+    width: 100%;
+    max-width: 540px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal h2 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 22px;
+  }
+  .campo {
+    margin-bottom: 16px;
+  }
+  .campo label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--texto2);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 6px;
+  }
+  .campo input, .campo select {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    color: var(--texto);
+    font-size: 14px;
+    padding: 10px 12px;
+    font-family: inherit;
+  }
+  .campo input:focus, .campo select:focus {
+    outline: none;
+    border-color: var(--azul);
+  }
+  .campo-fila { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-acciones {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 24px;
+  }
+  .error-modal {
+    background: rgba(244,67,54,0.1);
+    color: var(--rojo);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 14px;
+    display: none;
+  }
+
+  /* MODAL QR */
+  .modal-qr {
+    text-align: center;
+  }
+  .modal-qr .url-qr {
+    font-size: 12px;
+    color: var(--texto2);
+    word-break: break-all;
+    margin: 14px 0;
+    padding: 10px;
+    background: var(--bg3);
+    border-radius: 8px;
+  }
+  #qr-canvas {
+    margin: 16px auto;
+    display: block;
+  }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">Bosch Pascual</div>
+  <div class="sidebar-section">Principal</div>
+  <a href="index.html"><span class="ico">📊</span> Dashboard</a>
+  <div class="sidebar-section">Gestión</div>
+  <a href="obras.html" class="activo"><span class="ico">🏗</span> Obras</a>
+  <a href="#"><span class="ico">👷</span> Trabajadores</a>
+  <a href="#"><span class="ico">🏢</span> Empresas</a>
+  <a href="#"><span class="ico">📋</span> Fichajes</a>
+  <a href="#"><span class="ico">⚠️</span> Incidencias</a>
+  <div class="sidebar-bottom">
+    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>Obras</h1>
+    <button class="btn-primario" id="btn-nueva">+ Nueva obra</button>
+  </div>
+  <div class="contenido">
+    <div class="seccion">
+      <div id="tabla-obras"><div class="cargando">Cargando…</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CREAR/EDITAR -->
+<div class="modal-overlay" id="modal-obra">
+  <div class="modal">
+    <h2 id="modal-titulo">Nueva obra</h2>
+    <div class="error-modal" id="error-modal"></div>
+    <div class="campo">
+      <label>Nombre de la obra</label>
+      <input type="text" id="f-nombre" placeholder="Ej: Edificio Torres 3">
+    </div>
+    <div class="campo">
+      <label>Dirección</label>
+      <input type="text" id="f-direccion" placeholder="Calle, ciudad">
+    </div>
+    <div class="campo-fila">
+      <div class="campo">
+        <label>Latitud</label>
+        <input type="number" id="f-latitud" placeholder="41.123456" step="0.000001">
+      </div>
+      <div class="campo">
+        <label>Longitud</label>
+        <input type="number" id="f-longitud" placeholder="2.123456" step="0.000001">
+      </div>
+    </div>
+    <div class="campo">
+      <label>Radio GPS (metros)</label>
+      <input type="number" id="f-radio" placeholder="100" min="10" max="1000">
+    </div>
+    <div class="campo-fila">
+      <div class="campo">
+        <label>Hora entrada</label>
+        <input type="time" id="f-entrada">
+      </div>
+      <div class="campo">
+        <label>Hora salida</label>
+        <input type="time" id="f-salida">
+      </div>
+    </div>
+    <div class="campo">
+      <label>Empresa / Marca</label>
+      <select id="f-empresa">
+        <option value="bosch_pascual">Bosch Pascual</option>
+        <option value="recop">RECOP</option>
+      </select>
+    </div>
+    <div class="campo">
+      <label>Estado</label>
+      <select id="f-activa">
+        <option value="true">Activa</option>
+        <option value="false">Inactiva</option>
+      </select>
+    </div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cancelar">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL QR -->
+<div class="modal-overlay" id="modal-qr">
+  <div class="modal modal-qr">
+    <h2 id="qr-titulo">QR de la obra</h2>
+    <div class="url-qr" id="qr-url"></div>
+    <canvas id="qr-canvas" width="220" height="220"></canvas>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cerrar-qr">Cerrar</button>
+      <button class="btn-primario" id="btn-descargar-qr">Descargar QR</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="../js/supabase-client.js"></script>
+<script>
+const sb = window.supabaseClient;
+let obraEditandoId = null;
+
+// Auth
+(async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '../'; return; }
+  const { data: u } = await sb.from('usuarios_app').select('rol').single();
+  if (!u || u.rol !== 'admin') { window.location.href = '../'; return; }
+  await cargarObras();
+})();
+
+document.getElementById('btn-salir').addEventListener('click', async () => {
+  await sb.auth.signOut(); window.location.href = '../';
+});
+
+// ── CARGAR OBRAS ──────────────────────────────────────────
+async function cargarObras() {
+  const { data, error } = await sb
+    .from('obras')
+    .select('id, nombre, direccion, empresa_marca, radio_gps, hora_entrada_default, hora_salida_default, activa')
+    .order('nombre');
+
+  if (error || !data || data.length === 0) {
+    document.getElementById('tabla-obras').innerHTML = '<div class="vacio">No hay obras todavía</div>';
+    return;
+  }
+
+  document.getElementById('tabla-obras').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Nombre</th><th>Dirección</th><th>Empresa</th><th>Radio GPS</th><th>Horario</th><th>Estado</th><th>Acciones</th>
+      </tr></thead>
+      <tbody>
+        ${data.map(o => `
+          <tr>
+            <td><strong>${esc(o.nombre)}</strong></td>
+            <td>${esc(o.direccion || '—')}</td>
+            <td>${esc(o.empresa_marca || '—')}</td>
+            <td>${o.radio_gps}m</td>
+            <td>${hora(o.hora_entrada_default)} – ${hora(o.hora_salida_default)}</td>
+            <td><span class="pill ${o.activa ? 'verde' : 'gris'}">${o.activa ? 'Activa' : 'Inactiva'}</span></td>
+            <td>
+              <div class="acciones">
+                <button class="btn-secundario" onclick="abrirQR('${o.id}', '${esc(o.nombre)}')">QR</button>
+                <button class="btn-secundario" onclick="abrirEditar(${JSON.stringify(o).replace(/"/g, '&quot;')})">Editar</button>
+              </div>
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ── MODAL CREAR/EDITAR ────────────────────────────────────
+document.getElementById('btn-nueva').addEventListener('click', () => {
+  obraEditandoId = null;
+  document.getElementById('modal-titulo').textContent = 'Nueva obra';
+  document.getElementById('f-nombre').value = '';
+  document.getElementById('f-direccion').value = '';
+  document.getElementById('f-latitud').value = '';
+  document.getElementById('f-longitud').value = '';
+  document.getElementById('f-radio').value = '100';
+  document.getElementById('f-entrada').value = '08:00';
+  document.getElementById('f-salida').value = '18:00';
+  document.getElementById('f-empresa').value = 'bosch_pascual';
+  document.getElementById('f-activa').value = 'true';
+  ocultarError();
+  document.getElementById('modal-obra').classList.add('visible');
+});
+
+function abrirEditar(o) {
+  obraEditandoId = o.id;
+  document.getElementById('modal-titulo').textContent = 'Editar obra';
+  document.getElementById('f-nombre').value = o.nombre || '';
+  document.getElementById('f-direccion').value = o.direccion || '';
+  document.getElementById('f-latitud').value = o.latitud || '';
+  document.getElementById('f-longitud').value = o.longitud || '';
+  document.getElementById('f-radio').value = o.radio_gps || 100;
+  document.getElementById('f-entrada').value = (o.hora_entrada_default || '08:00:00').substring(0,5);
+  document.getElementById('f-salida').value = (o.hora_salida_default || '18:00:00').substring(0,5);
+  document.getElementById('f-empresa').value = o.empresa_marca || 'bosch_pascual';
+  document.getElementById('f-activa').value = String(o.activa);
+  ocultarError();
+  document.getElementById('modal-obra').classList.add('visible');
+}
+
+document.getElementById('btn-cancelar').addEventListener('click', () => {
+  document.getElementById('modal-obra').classList.remove('visible');
+});
+
+document.getElementById('btn-guardar').addEventListener('click', async () => {
+  const nombre = document.getElementById('f-nombre').value.trim();
+  const direccion = document.getElementById('f-direccion').value.trim();
+  const latitud = parseFloat(document.getElementById('f-latitud').value);
+  const longitud = parseFloat(document.getElementById('f-longitud').value);
+  const radio_gps = parseInt(document.getElementById('f-radio').value);
+  const hora_entrada_default = document.getElementById('f-entrada').value + ':00';
+  const hora_salida_default = document.getElementById('f-salida').value + ':00';
+  const empresa_marca = document.getElementById('f-empresa').value;
+  const activa = document.getElementById('f-activa').value === 'true';
+
+  if (!nombre) { mostrarError('El nombre es obligatorio.'); return; }
+  if (isNaN(latitud) || isNaN(longitud)) { mostrarError('Las coordenadas son obligatorias.'); return; }
+
+  const payload = { nombre, direccion, latitud, longitud, radio_gps, hora_entrada_default, hora_salida_default, empresa_marca, activa };
+
+  let error;
+  if (obraEditandoId) {
+    ({ error } = await sb.from('obras').update(payload).eq('id', obraEditandoId));
+  } else {
+    ({ error } = await sb.from('obras').insert(payload));
+  }
+
+  if (error) { mostrarError('Error al guardar: ' + error.message); return; }
+
+  document.getElementById('modal-obra').classList.remove('visible');
+  await cargarObras();
+});
+
+// ── MODAL QR ──────────────────────────────────────────────
+function abrirQR(obraId, nombre) {
+  const url = `https://canostboi.github.io/fichaje-obras-bp-recop/fichaje/?obra=${obraId}`;
+  document.getElementById('qr-titulo').textContent = 'QR — ' + nombre;
+  document.getElementById('qr-url').textContent = url;
+
+  const canvas = document.getElementById('qr-canvas');
+  QRCode.toCanvas(canvas, url, { width: 220, margin: 2, color: { dark: '#000000', light: '#ffffff' } });
+
+  document.getElementById('modal-qr').classList.add('visible');
+}
+
+document.getElementById('btn-cerrar-qr').addEventListener('click', () => {
+  document.getElementById('modal-qr').classList.remove('visible');
+});
+
+document.getElementById('btn-descargar-qr').addEventListener('click', () => {
+  const canvas = document.getElementById('qr-canvas');
+  const a = document.createElement('a');
+  a.download = 'qr-obra.png';
+  a.href = canvas.toDataURL();
+  a.click();
+});
+
+// ── UTILIDADES ────────────────────────────────────────────
+function mostrarError(msg) {
+  const el = document.getElementById('error-modal');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function ocultarError() {
+  document.getElementById('error-modal').style.display = 'none';
+}
+function esc(txt) {
+  const d = document.createElement('div');
+  d.textContent = String(txt || '');
+  return d.innerHTML;
+}
+function hora(t) {
+  if (!t) return '—';
+  return t.substring(0, 5);
+}
+</script>
+</body>
+</html>
