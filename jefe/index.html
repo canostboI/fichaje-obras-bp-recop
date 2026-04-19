@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jefe de Obra — Fichaje Obras</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
+    --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
+    --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
+  .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+  .sidebar-logo { padding: 22px 20px 18px; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--naranja); border-bottom: 1px solid var(--borde); }
+  .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
+  .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
+  .sidebar a:hover { background: var(--bg3); color: var(--texto); }
+  .sidebar a.activo { background: var(--bg3); color: var(--texto); font-weight: 600; }
+  .sidebar a .ico { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid var(--borde); }
+  .btn-salir { width: 100%; background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 8px; }
+  .btn-salir:hover { background: var(--bg3); color: var(--texto); }
+  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+  .topbar { padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+  .topbar-right { display: flex; align-items: center; gap: 14px; }
+  .usuario { font-size: 13px; color: var(--texto2); }
+  .selector-obra { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 8px 12px; font-family: inherit; }
+  .selector-obra:focus { outline: none; border-color: var(--naranja); }
+  .contenido { padding: 24px 28px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .stat { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 20px 22px; }
+  .stat .numero { font-size: 38px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
+  .stat .etiqueta { font-size: 13px; color: var(--texto2); }
+  .stat .numero.verde   { color: var(--verde); }
+  .stat .numero.naranja { color: var(--naranja); }
+  .stat .numero.rojo    { color: var(--rojo); }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">Jefe de Obra</div>
+  <div class="sidebar-section">Principal</div>
+  <a href="index.html" class="activo"><span class="ico">👷</span> Presencia</a>
+  <div class="sidebar-section">Gestión</div>
+  <a href="fichajes.html"><span class="ico">🕐</span> Fichajes</a>
+  <div class="sidebar-bottom">
+    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>Presencia</h1>
+    <div class="topbar-right">
+      <select class="selector-obra" id="selector-obra">
+        <option value="">Cargando obras…</option>
+      </select>
+      <span class="usuario" id="usuario-nombre"></span>
+    </div>
+  </div>
+  <div class="contenido">
+    <div class="stats">
+      <div class="stat"><div class="numero verde" id="stat-dentro">—</div><div class="etiqueta">En obra ahora</div></div>
+      <div class="stat"><div class="numero naranja" id="stat-naranja">—</div><div class="etiqueta">Documentación naranja</div></div>
+      <div class="stat"><div class="numero rojo" id="stat-rojo">—</div><div class="etiqueta">Documentación roja</div></div>
+    </div>
+  </div>
+</div>
+
+<script src="../js/supabase-client.js"></script>
+<script>
+const sb = window.supabaseClient;
+
+(async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '../'; return; }
+
+  const { data: misObras, error } = await sb
+    .from('usuarios_obra')
+    .select('obra_id, rol_en_obra, obra:obra_id(id, nombre)')
+    .eq('user_id', session.user.id)
+    .eq('rol_en_obra', 'jefe');
+
+  if (error || !misObras || misObras.length === 0) {
+    window.location.href = '../';
+    return;
+  }
+
+  const { data: u } = await sb.from('usuarios_app').select('nombre').single();
+  document.getElementById('usuario-nombre').textContent = u?.nombre || session.user.email;
+
+  const selector = document.getElementById('selector-obra');
+  selector.innerHTML = '';
+  misObras.forEach(uo => {
+    const opt = document.createElement('option');
+    opt.value = uo.obra.id;
+    opt.textContent = uo.obra.nombre;
+    selector.appendChild(opt);
+  });
+
+  selector.addEventListener('change', () => {
+    // aquí cargaremos datos cuando añadamos las tablas
+  });
+})();
+
+document.getElementById('btn-salir').addEventListener('click', async () => {
+  await sb.auth.signOut(); window.location.href = '../';
+});
+</script>
+</body>
+</html>
