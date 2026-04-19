@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Panel Encargado</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f4f4f4; color: #222; }
+
+    header {
+      background: #1a1a2e; color: white;
+      padding: 1rem 1.5rem;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    header h1 { font-size: 1.1rem; }
+    header button {
+      background: transparent; border: 1px solid #fff;
+      color: white; padding: 0.3rem 0.8rem;
+      border-radius: 6px; cursor: pointer; font-size: 0.85rem;
+    }
+
+    main { max-width: 700px; margin: 2rem auto; padding: 0 1rem; }
+
+    .card {
+      background: white; border-radius: 10px;
+      padding: 1.5rem; margin-bottom: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #333; }
+
+    select, input {
+      width: 100%; padding: 0.6rem;
+      border: 1px solid #ccc; border-radius: 6px;
+      font-size: 1rem; margin-top: 0.3rem;
+    }
+
+    .btn {
+      display: inline-block; padding: 0.7rem 1.4rem;
+      border: none; border-radius: 8px;
+      cursor: pointer; font-size: 1rem; font-weight: bold;
+      margin-top: 0.5rem;
+    }
+    .btn-primary { background: #1a1a2e; color: white; }
+    .btn-green { background: #28a745; color: white; width: 100%; padding: 1rem; font-size: 1.1rem; }
+    .btn-green:disabled { background: #aaa; cursor: not-allowed; }
+
+    .trabajador-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.6rem 0; border-bottom: 1px solid #eee;
+    }
+    .trabajador-row:last-child { border-bottom: none; }
+    .nombre { font-weight: bold; }
+    .hora { color: #555; font-size: 0.9rem; }
+    .badge {
+      font-size: 0.75rem; padding: 0.2rem 0.6rem;
+      border-radius: 12px; font-weight: bold;
+    }
+    .badge-verde { background: #d4edda; color: #155724; }
+    .badge-naranja { background: #fff3cd; color: #856404; }
+
+    #msg-ronda {
+      margin-top: 0.8rem; padding: 0.7rem 1rem;
+      border-radius: 6px; display: none;
+    }
+    .msg-ok { background: #d4edda; color: #155724; }
+    .msg-err { background: #f8d7da; color: #721c24; }
+
+    .loading { color: #888; font-style: italic; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Panel Encargado</h1>
+  <button id="btn-logout">Cerrar sesión</button>
+</header>
+
+<main>
+  <!-- Selector de obra (visible si tiene varias) -->
+  <div class="card" id="card-selector" style="display:none">
+    <h2>Selecciona una obra</h2>
+    <select id="select-obra">
+      <option value="">-- Elige obra --</option>
+    </select>
+    <br/>
+    <button class="btn btn-primary" style="margin-top:1rem" id="btn-elegir-obra">Ver presencia</button>
+  </div>
+
+  <!-- Panel principal (oculto hasta elegir obra) -->
+  <div id="panel-obra" style="display:none">
+
+    <div class="card">
+      <h2 id="nombre-obra">Cargando obra...</h2>
+      <p id="fecha-hoy" style="color:#666; font-size:0.9rem"></p>
+    </div>
+
+    <div class="card">
+      <h2>👷 Trabajadores presentes ahora</h2>
+      <div id="lista-presencia"><p class="loading">Cargando...</p></div>
+    </div>
+
+    <div class="card">
+      <h2>✅ Ronda de control</h2>
+      <label style="display:block; margin-bottom:0.5rem; color:#555; font-size:0.9rem">
+        Nota (opcional):
+        <input type="text" id="input-nota" placeholder="Todo correcto / Incidencia detectada..." />
+      </label>
+      <button class="btn btn-green" id="btn-ronda">Marcar ronda hecha</button>
+      <div id="msg-ronda"></div>
+    </div>
+
+  </div>
+
+  <p id="msg-error" style="color:red; display:none"></p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/supabase-client.js"></script>
+<script>
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let obraActualId = null;
+
+  // ─── INICIO ───────────────────────────────────────────────
+  async function init() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = '../index.html'; return; }
+
+    // Verificar rol encargado
+    const { data: usuario, error } = await sb
+      .from('usuarios_app')
+      .select('id, nombre, rol')
+      .eq('auth_user_id', session.user.id)
+      .single();
+
+    if (error || !usuario || usuario.rol !== 'encargado') {
+      mostrarError('Acceso denegado. No tienes rol de encargado.');
+      return;
+    }
+
+    // Cargar obras del encargado
+    const { data: asignaciones } = await sb
+      .from('usuarios_obra')
+      .select('obra_id, obras(id, nombre)')
+      .eq('usuario_app_id', usuario.id)
+      .eq('rol_en_obra', 'encargado');
+
+    if (!asignaciones || asignaciones.length === 0) {
+      mostrarError('No tienes ninguna obra asignada.');
+      return;
+    }
+
+    if (asignaciones.length === 1) {
+      // Solo una obra → directo
+      const obra = asignaciones[0].obras;
+      cargarObra(obra.id, obra.nombre);
+    } else {
+      // Varias obras → mostrar selector
+      const select = document.getElementById('select-obra');
+      asignaciones.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.obras.id;
+        opt.textContent = a.obras.nombre;
+        select.appendChild(opt);
+      });
+      document.getElementById('card-selector').style.display = 'block';
+    }
+  }
+
+  document.getElementById('btn-elegir-obra').addEventListener('click', () => {
+    const select = document.getElementById('select-obra');
+    const obraId = select.value;
+    const obraNombre = select.options[select.selectedIndex].text;
+    if (!obraId) return;
+    document.getElementById('card-selector').style.display = 'none';
+    cargarObra(obraId, obraNombre);
+  });
+
+  // ─── CARGAR OBRA ──────────────────────────────────────────
+  function cargarObra(obraId, obraNombre) {
+    obraActualId = obraId;
+    document.getElementById('nombre-obra').textContent = obraNombre;
+    const hoy = new Date().toLocaleDateString('es-ES', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+    document.getElementById('fecha-hoy').textContent = hoy.charAt(0).toUpperCase() + hoy.slice(1);
+    document.getElementById('panel-obra').style.display = 'block';
+    cargarPresencia(obraId);
+  }
+
+  // ─── PRESENCIA ────────────────────────────────────────────
+  async function cargarPresencia(obraId) {
+    const lista = document.getElementById('lista-presencia');
+    lista.innerHTML = '<p class="loading">Cargando...</p>';
+
+    const hoy = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+    // Traer fichajes de hoy en esta obra
+    const { data: fichajes, error } = await sb
+      .from('fichajes')
+      .select('tipo, hora, trabajador_id, trabajadores(nombre, apellidos, dni)')
+      .eq('obra_id', obraId)
+      .gte('hora', hoy + 'T00:00:00')
+      .lte('hora', hoy + 'T23:59:59')
+      .order('hora', { ascending: true });
+
+    if (error) {
+      lista.innerHTML = '<p style="color:red">Error al cargar presencia.</p>';
+      return;
+    }
+
+    // Calcular quién está dentro (entrada sin salida posterior)
+    const estado = {}; // trabajador_id → { nombre, ultimoTipo, hora }
+    fichajes.forEach(f => {
+      const id = f.trabajador_id;
+      const nombre = f.trabajadores
+        ? `${f.trabajadores.nombre} ${f.trabajadores.apellidos || ''}`.trim()
+        : 'Desconocido';
+      const hora = new Date(f.hora).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      estado[id] = { nombre, tipo: f.tipo, hora };
+    });
+
+    const presentes = Object.values(estado).filter(t => t.tipo === 'entrada');
+
+    if (presentes.length === 0) {
+      lista.innerHTML = '<p style="color:#888">Nadie en obra en este momento.</p>';
+      return;
+    }
+
+    lista.innerHTML = '';
+    presentes.forEach(t => {
+      const row = document.createElement('div');
+      row.className = 'trabajador-row';
+      row.innerHTML = `
+        <div>
+          <div class="nombre">${t.nombre}</div>
+          <div class="hora">Entrada: ${t.hora}</div>
+        </div>
+        <span class="badge badge-verde">En obra</span>
+      `;
+      lista.appendChild(row);
+    });
+  }
+
+  // ─── RONDA ────────────────────────────────────────────────
+  document.getElementById('btn-ronda').addEventListener('click', async () => {
+    if (!obraActualId) return;
+    const btn = document.getElementById('btn-ronda');
+    const nota = document.getElementById('input-nota').value.trim();
+    const msg = document.getElementById('msg-ronda');
+
+    btn.disabled = true;
+    btn.textContent = 'Registrando...';
+    msg.style.display = 'none';
+
+    const { data, error } = await sb.rpc('marcar_ronda', {
+      p_obra_id: obraActualId,
+      p_nota: nota || null
+    });
+
+    if (error) {
+      msg.textContent = 'Error al registrar la ronda: ' + error.message;
+      msg.className = 'msg-err';
+    } else {
+      msg.textContent = '✅ Ronda registrada correctamente.';
+      msg.className = 'msg-ok';
+      document.getElementById('input-nota').value = '';
+    }
+
+    msg.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Marcar ronda hecha';
+  });
+
+  // ─── LOGOUT ───────────────────────────────────────────────
+  document.getElementById('btn-logout').addEventListener('click', async () => {
+    await sb.auth.signOut();
+    window.location.href = '../index.html';
+  });
+
+  // ─── UTILIDADES ───────────────────────────────────────────
+  function mostrarError(texto) {
+    const el = document.getElementById('msg-error');
+    el.textContent = texto;
+    el.style.display = 'block';
+  }
+
+  init();
+</script>
+</body>
+</html>
