@@ -123,7 +123,7 @@
 </script>
 <script>
   const { createClient } = supabase;
-  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const sb = window.supabaseClient;
 
   let obraActualId = null;
 
