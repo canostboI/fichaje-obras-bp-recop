@@ -84,7 +84,7 @@ const sb = window.supabaseClient;
     .from('usuarios_obra')
     .select('obra_id, rol_en_obra, obra:obra_id(id, nombre)')
     .eq('user_id', session.user.id)
-    .eq('rol_en_obra', 'jefe');
+    .eq('rol_en_obra', 'jefe_obra')
 
   if (error || !misObras || misObras.length === 0) {
     window.location.href = '../';
