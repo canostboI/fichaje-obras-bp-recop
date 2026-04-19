@@ -134,14 +134,110 @@ const sb = window.supabaseClient;
     selector.appendChild(opt);
   });
 
-  selector.addEventListener('change', () => {
-    // aquí cargaremos datos cuando añadamos las tablas
+  obraActual = misObras[0].obra.id;
+  await cargarPresencia();
+
+  selector.addEventListener('change', async () => {
+    obraActual = selector.value;
+    await cargarPresencia();
   });
 })();
 
 document.getElementById('btn-salir').addEventListener('click', async () => {
   await sb.auth.signOut(); window.location.href = '../';
 });
+
+let obraActual = null;
+
+async function cargarPresencia() {
+  document.getElementById('tabla-presencia').innerHTML = '<div class="cargando">Cargando…</div>';
+  const hoy = new Date().toISOString().split('T')[0];
+
+  const { data: fichajes } = await sb
+    .from('fichajes')
+    .select('id, tipo, hora, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni)')
+    .eq('obra_id', obraActual)
+    .gte('hora', hoy + 'T00:00:00')
+    .lte('hora', hoy + 'T23:59:59')
+    .order('hora', { ascending: true });
+
+  if (!fichajes || fichajes.length === 0) {
+    document.getElementById('stat-dentro').textContent = '0';
+    document.getElementById('stat-naranja').textContent = '0';
+    document.getElementById('stat-rojo').textContent = '0';
+    document.getElementById('badge-presencia').textContent = '0 dentro';
+    document.getElementById('tabla-presencia').innerHTML = '<div class="vacio">Nadie ha fichado entrada hoy</div>';
+    return;
+  }
+
+  // Calcular quién está dentro
+  const porTrabajador = {};
+  fichajes.forEach(f => {
+    if (!porTrabajador[f.trabajador_id]) {
+      porTrabajador[f.trabajador_id] = { trabajador: f.trabajador, entradas: [], salidas: [] };
+    }
+    if (f.tipo === 'entrada') porTrabajador[f.trabajador_id].entradas.push(f);
+    else porTrabajador[f.trabajador_id].salidas.push(f);
+  });
+
+  const dentro = Object.values(porTrabajador).filter(t => t.entradas.length > t.salidas.length);
+
+  // Estado documental
+  const ids = dentro.map(t => t.trabajador.id);
+  let validaciones = {};
+  if (ids.length > 0) {
+    const { data: vals } = await sb
+      .from('validaciones_obra')
+      .select('trabajador_id, estado')
+      .eq('obra_id', obraActual)
+      .in('trabajador_id', ids);
+    (vals || []).forEach(v => { validaciones[v.trabajador_id] = v.estado; });
+  }
+
+  const nDentro = dentro.length;
+  const nNaranja = dentro.filter(t => validaciones[t.trabajador.id] === 'naranja').length;
+  const nRojo = dentro.filter(t => validaciones[t.trabajador.id] === 'rojo').length;
+
+  document.getElementById('stat-dentro').textContent = nDentro;
+  document.getElementById('stat-naranja').textContent = nNaranja;
+  document.getElementById('stat-rojo').textContent = nRojo;
+  document.getElementById('badge-presencia').textContent = nDentro + ' dentro';
+
+  if (dentro.length === 0) {
+    document.getElementById('tabla-presencia').innerHTML = '<div class="vacio">Nadie está en obra ahora mismo</div>';
+    return;
+  }
+
+  document.getElementById('tabla-presencia').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Trabajador</th><th>DNI</th><th>Entrada</th><th>Doc.</th>
+      </tr></thead>
+      <tbody>
+        ${dentro.map(t => {
+          const ultimaEntrada = t.entradas[t.entradas.length - 1];
+          const estado = validaciones[t.trabajador.id] || 'verde';
+          return `<tr>
+            <td><strong>${esc(t.trabajador.nombre)} ${esc(t.trabajador.apellidos)}</strong></td>
+            <td>${esc(t.trabajador.dni)}</td>
+            <td>${formatHora(ultimaEntrada.hora)}</td>
+            <td><span class="pill ${estado}">${estado}</span></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+function esc(txt) {
+  const d = document.createElement('div');
+  d.textContent = String(txt || '');
+  return d.innerHTML;
+}
+
+function formatHora(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+}
 </script>
 </body>
 </html>
