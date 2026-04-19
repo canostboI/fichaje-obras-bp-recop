@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Acceso — Fichaje Obras</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --azul: #1e3a5f;
+    --gris-fondo: #f4f6f8;
+    --gris-borde: #d0d7de;
+    --rojo: #c0392b;
+    --texto: #1a1a1a;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--gris-fondo);
+    color: var(--texto);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tarjeta {
+    background: white;
+    border-radius: 16px;
+    padding: 40px 32px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    margin: 20px;
+  }
+  .logo {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .logo h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--azul);
+    margin: 0 0 4px;
+  }
+  .logo p {
+    font-size: 13px;
+    color: #888;
+    margin: 0;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  input {
+    width: 100%;
+    font-size: 16px;
+    padding: 13px 14px;
+    border: 2px solid var(--gris-borde);
+    border-radius: 10px;
+    font-family: inherit;
+    margin-bottom: 18px;
+  }
+  input:focus {
+    outline: none;
+    border-color: var(--azul);
+  }
+  button {
+    width: 100%;
+    font-size: 17px;
+    font-weight: 600;
+    padding: 15px;
+    background: var(--azul);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    margin-top: 4px;
+  }
+  button:disabled { background: #b0b8c1; cursor: not-allowed; }
+  button:active:not(:disabled) { transform: scale(0.98); }
+  .error {
+    background: #fdecea;
+    color: var(--rojo);
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    margin-top: 16px;
+    text-align: center;
+    display: none;
+  }
+  .spinner-wrap {
+    text-align: center;
+    padding: 10px 0 0;
+    display: none;
+  }
+  .spinner {
+    display: inline-block;
+    width: 26px; height: 26px;
+    border: 3px solid #ddd;
+    border-top-color: var(--azul);
+    border-radius: 50%;
+    animation: girar 0.9s linear infinite;
+  }
+  @keyframes girar { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="tarjeta">
+  <div class="logo">
+    <h1>Fichaje Obras</h1>
+    <p>Panel de gestión — V2</p>
+  </div>
+
+  <label for="email">Correo electrónico</label>
+  <input type="email" id="email" placeholder="tu@email.com" autocomplete="email">
+
+  <label for="password">Contraseña</label>
+  <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+
+  <button id="btn-login">Entrar</button>
+
+  <div class="error" id="error-box"></div>
+  <div class="spinner-wrap" id="spinner"><div class="spinner"></div></div>
+</div>
+
+<script src="js/supabase-client.js"></script>
+<script>
+const sb = window.supabaseClient;
+
+const emailEl    = document.getElementById('email');
+const passEl     = document.getElementById('password');
+const btnLogin   = document.getElementById('btn-login');
+const errorBox   = document.getElementById('error-box');
+const spinner    = document.getElementById('spinner');
+
+// Si ya hay sesión activa, redirigir directamente
+(async function () {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) await redirigirSegunRol();
+})();
+
+function mostrarError(msg) {
+  errorBox.textContent = msg;
+  errorBox.style.display = 'block';
+}
+
+function ocultarError() {
+  errorBox.style.display = 'none';
+}
+
+function setCargando(val) {
+  btnLogin.disabled = val;
+  spinner.style.display = val ? 'block' : 'none';
+}
+
+passEl.addEventListener('keypress', e => {
+  if (e.key === 'Enter') btnLogin.click();
+});
+
+btnLogin.addEventListener('click', async () => {
+  ocultarError();
+  const email = emailEl.value.trim();
+  const pass  = passEl.value;
+
+  if (!email || !pass) {
+    mostrarError('Introduce tu correo y contraseña.');
+    return;
+  }
+
+  setCargando(true);
+
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+
+  if (error) {
+    setCargando(false);
+    mostrarError('Correo o contraseña incorrectos.');
+    return;
+  }
+
+  await redirigirSegunRol();
+});
+
+async function redirigirSegunRol() {
+  // Consultar rol del usuario en usuarios_app
+  const { data, error } = await sb
+    .from('usuarios_app')
+    .select('rol')
+    .single();
+
+  if (error || !data) {
+    await sb.auth.signOut();
+    mostrarError('Tu usuario no tiene acceso configurado. Contacta con el administrador.');
+    setCargando(false);
+    return;
+  }
+
+  switch (data.rol) {
+    case 'admin':
+      window.location.href = 'admin/';
+      break;
+    case 'jefe_obra':
+      window.location.href = 'jefe/';
+      break;
+    case 'encargado':
+      window.location.href = 'encargado/';
+      break;
+    default:
+      await sb.auth.signOut();
+      mostrarError('Rol no reconocido. Contacta con el administrador.');
+      setCargando(false);
+  }
+}
+</script>
+</body>
+</html>
