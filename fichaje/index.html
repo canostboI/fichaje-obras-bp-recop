@@ -9,6 +9,11 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
+  /* =========================================================
+     ESTILOS PANTALLA FICHAJE
+     Filosofía: simple, grande, legible a plena luz en obra.
+     Todo inline aquí (no hay CSS externo) para carga instantánea.
+     ========================================================= */
   :root {
     --verde: #2e7d32;
     --naranja: #e67e22;
@@ -40,106 +45,209 @@
     flex-direction: column;
   }
 
-  .cabecera { text-align: center; padding: 20px 0; }
+  .cabecera {
+    text-align: center;
+    padding: 20px 0;
+  }
   .cabecera h1 {
-    font-size: 18px; margin: 0 0 6px; color: #555;
-    font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;
+    font-size: 18px;
+    margin: 0 0 6px;
+    color: #555;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
   .cabecera .obra-nombre {
-    font-size: 26px; font-weight: 700; color: var(--azul-primario);
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--azul-primario);
   }
 
   .tarjeta {
-    background: white; border-radius: 14px; padding: 24px;
-    margin-top: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    background: white;
+    border-radius: 14px;
+    padding: 24px;
+    margin-top: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
   }
 
   label {
-    display: block; font-size: 14px; font-weight: 600; color: #555;
-    margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.3px;
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
   }
 
   input[type="text"] {
-    width: 100%; font-size: 24px; padding: 16px 14px;
-    border: 2px solid var(--gris-borde); border-radius: 10px;
-    text-align: center; letter-spacing: 2px; text-transform: uppercase;
+    width: 100%;
+    font-size: 24px;
+    padding: 16px 14px;
+    border: 2px solid var(--gris-borde);
+    border-radius: 10px;
+    text-align: center;
+    letter-spacing: 2px;
+    text-transform: uppercase;
     font-family: inherit;
   }
-  input[type="text"]:focus { outline: none; border-color: var(--azul-primario); }
+  input[type="text"]:focus {
+    outline: none;
+    border-color: var(--azul-primario);
+  }
 
-  .ultimo-dni { text-align: center; margin-top: 10px; font-size: 13px; color: #777; }
+  .ultimo-dni {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 13px;
+    color: #777;
+  }
   .ultimo-dni button {
-    background: none; border: none; color: var(--azul-primario);
-    text-decoration: underline; cursor: pointer; font-size: 13px; padding: 0;
+    background: none;
+    border: none;
+    color: var(--azul-primario);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 0;
   }
 
   button.principal {
-    width: 100%; font-size: 20px; font-weight: 600; padding: 18px;
-    background: var(--azul-primario); color: white; border: none;
-    border-radius: 10px; cursor: pointer; margin-top: 20px; font-family: inherit;
+    width: 100%;
+    font-size: 20px;
+    font-weight: 600;
+    padding: 18px;
+    background: var(--azul-primario);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    margin-top: 20px;
+    font-family: inherit;
   }
-  button.principal:disabled { background: #b0b8c1; cursor: not-allowed; }
-  button.principal:active:not(:disabled) { transform: scale(0.98); }
+  button.principal:disabled {
+    background: #b0b8c1;
+    cursor: not-allowed;
+  }
+  button.principal:active:not(:disabled) {
+    transform: scale(0.98);
+  }
 
   button.verde    { background: var(--verde); }
   button.naranja  { background: var(--naranja); }
   button.rojo     { background: var(--rojo); cursor: default; }
   button.secundario {
-    background: white; color: var(--azul-primario);
+    background: white;
+    color: var(--azul-primario);
     border: 2px solid var(--gris-borde);
   }
 
   .estado-box {
-    padding: 20px; border-radius: 10px; text-align: center;
-    font-size: 18px; font-weight: 600; margin-bottom: 16px;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
   }
   .estado-verde   { background: #e8f5e9; color: var(--verde);   border: 2px solid var(--verde); }
   .estado-naranja { background: #fff4e6; color: var(--naranja); border: 2px solid var(--naranja); }
   .estado-rojo    { background: #fdecea; color: var(--rojo);    border: 2px solid var(--rojo); }
 
   .motivos {
-    background: #fff4e6; border-left: 4px solid var(--naranja);
-    padding: 14px 16px; margin: 14px 0; border-radius: 6px; font-size: 15px;
+    background: #fff4e6;
+    border-left: 4px solid var(--naranja);
+    padding: 14px 16px;
+    margin: 14px 0;
+    border-radius: 6px;
+    font-size: 15px;
   }
-  .motivos.criticos { background: #fdecea; border-left-color: var(--rojo); }
-  .motivos ul { margin: 6px 0 0; padding-left: 20px; }
+  .motivos.criticos {
+    background: #fdecea;
+    border-left-color: var(--rojo);
+  }
+  .motivos ul {
+    margin: 6px 0 0;
+    padding-left: 20px;
+  }
   .motivos li { margin: 4px 0; }
 
-  .confirmacion-final { text-align: center; padding: 30px 16px; }
-  .confirmacion-final .tick { font-size: 60px; line-height: 1; margin-bottom: 16px; }
-  .confirmacion-final .titulo { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
-  .confirmacion-final .hora {
-    font-size: 40px; font-weight: 700; color: var(--azul-primario);
-    margin: 14px 0; letter-spacing: 1px;
+  .confirmacion-final {
+    text-align: center;
+    padding: 30px 16px;
   }
-  .confirmacion-final .nombre { font-size: 18px; color: #555; margin-bottom: 10px; }
+  .confirmacion-final .tick {
+    font-size: 60px;
+    line-height: 1;
+    margin-bottom: 16px;
+  }
+  .confirmacion-final .titulo {
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .confirmacion-final .hora {
+    font-size: 40px;
+    font-weight: 700;
+    color: var(--azul-primario);
+    margin: 14px 0;
+    letter-spacing: 1px;
+  }
+  .confirmacion-final .nombre {
+    font-size: 18px;
+    color: #555;
+    margin-bottom: 10px;
+  }
 
-  .cargando { text-align: center; padding: 40px 20px; color: #666; }
+  .cargando {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666;
+  }
   .spinner {
-    display: inline-block; width: 34px; height: 34px;
-    border: 3px solid #ddd; border-top-color: var(--azul-primario);
-    border-radius: 50%; animation: girar 0.9s linear infinite; margin-bottom: 12px;
+    display: inline-block;
+    width: 34px;
+    height: 34px;
+    border: 3px solid #ddd;
+    border-top-color: var(--azul-primario);
+    border-radius: 50%;
+    animation: girar 0.9s linear infinite;
+    margin-bottom: 12px;
   }
   @keyframes girar { to { transform: rotate(360deg); } }
 
   .error-banner {
-    background: #fdecea; color: var(--rojo); padding: 14px;
-    border-radius: 8px; margin: 14px 0; text-align: center; font-weight: 500;
+    background: #fdecea;
+    color: var(--rojo);
+    padding: 14px;
+    border-radius: 8px;
+    margin: 14px 0;
+    text-align: center;
+    font-weight: 500;
   }
 
   .oculto { display: none !important; }
 
-  .pie { text-align: center; color: #999; font-size: 12px; margin-top: auto; padding-top: 30px; }
+  .pie {
+    text-align: center;
+    color: #999;
+    font-size: 12px;
+    margin-top: auto;
+    padding-top: 30px;
+  }
 </style>
 </head>
 <body>
 <div class="contenedor">
 
+  <!-- Cabecera: nombre de la obra -->
   <div class="cabecera">
     <h1>Fichaje de obra</h1>
     <div class="obra-nombre" id="obra-nombre">Cargando…</div>
   </div>
 
+  <!-- PASO 1: introducir DNI -->
   <div class="tarjeta" id="paso-dni">
     <label for="dni">DNI o NIE</label>
     <input type="text" id="dni" placeholder="00000000X" autocomplete="off" maxlength="15">
@@ -150,6 +258,7 @@
     <div class="error-banner oculto" id="error-dni"></div>
   </div>
 
+  <!-- PASO 2: cargando validación -->
   <div class="tarjeta oculto" id="paso-cargando">
     <div class="cargando">
       <div class="spinner"></div>
@@ -157,6 +266,7 @@
     </div>
   </div>
 
+  <!-- PASO 3: resultado validación -->
   <div class="tarjeta oculto" id="paso-resultado">
     <div class="estado-box" id="estado-box"></div>
     <div class="motivos oculto" id="motivos-box"></div>
@@ -164,6 +274,7 @@
     <button type="button" class="secundario" id="btn-volver" style="margin-top:10px;">Volver</button>
   </div>
 
+  <!-- PASO 4: confirmación final -->
   <div class="tarjeta oculto" id="paso-final">
     <div class="confirmacion-final">
       <div class="tick" id="final-tick">✓</div>
@@ -178,19 +289,26 @@
   <div class="pie">Bosch Pascual · Control de acceso</div>
 </div>
 
+<!-- Cliente Supabase compartido de toda la V2 -->
 <script src="../js/supabase-client.js"></script>
 
 <script>
+// =====================================================================
+// LÓGICA DE LA PANTALLA DE FICHAJE
+// =====================================================================
+
 const sb = window.supabaseClient;
 
+// Estado en memoria para esta sesión de fichaje
 const estado = {
   obraId: null,
   obraNombre: null,
   dni: null,
-  ubicacion: null,
-  validacion: null
+  ubicacion: null,  // { lat, lng }
+  validacion: null  // respuesta de validar_acceso
 };
 
+// Elementos del DOM (capturados una vez)
 const el = {
   obraNombre: document.getElementById('obra-nombre'),
   pasoDni:     document.getElementById('paso-dni'),
@@ -215,6 +333,9 @@ const el = {
   btnNuevo:    document.getElementById('btn-nuevo-fichaje')
 };
 
+// =====================================================================
+// INICIALIZACIÓN: leer ?obra=... de la URL, cargar nombre, precargar DNI
+// =====================================================================
 (async function init() {
   const params = new URLSearchParams(window.location.search);
   estado.obraId = params.get('obra');
@@ -226,8 +347,14 @@ const el = {
     return;
   }
 
+  // Cargar nombre de la obra (lectura pública no permitida: lo pedimos por
+  // RPC futura, pero de momento mostramos un placeholder con el ID)
+  // NOTA: como el anon NO puede leer directamente la tabla obras (RLS),
+  // más adelante añadiremos una función RPC "obra_publica(id)" que devuelva
+  // solo nombre y datos mínimos para esta pantalla. Por ahora placeholder.
   el.obraNombre.textContent = 'Obra #' + estado.obraId.substring(0, 8);
 
+  // DNI recordado
   const ultimo = localStorage.getItem('ultimo_dni');
   if (ultimo && ultimo.length >= 5) {
     const parcial = '****' + ultimo.substring(ultimo.length - 5);
@@ -239,14 +366,22 @@ const el = {
   el.inputDni.focus();
 })();
 
+// =====================================================================
+// UTILIDADES
+// =====================================================================
+
 function normalizarDni(dni) {
   return (dni || '').trim().toUpperCase().replace(/\s+/g, '');
 }
+
 function mostrarErrorDni(texto) {
   el.errorDni.textContent = texto;
   el.errorDni.classList.remove('oculto');
 }
-function ocultarErrorDni() { el.errorDni.classList.add('oculto'); }
+
+function ocultarErrorDni() {
+  el.errorDni.classList.add('oculto');
+}
 
 function irA(paso) {
   el.pasoDni.classList.add('oculto');
@@ -257,10 +392,14 @@ function irA(paso) {
 }
 
 function pintarMotivos(contenedor, motivos, criticos) {
-  if (!motivos || motivos.length === 0) { contenedor.classList.add('oculto'); return; }
+  if (!motivos || motivos.length === 0) {
+    contenedor.classList.add('oculto');
+    return;
+  }
   contenedor.className = 'motivos' + (criticos ? ' criticos' : '');
   contenedor.innerHTML = '<strong>' + (criticos ? 'Motivos del bloqueo:' : 'Avisos:') + '</strong><ul>' +
-    motivos.map(m => '<li>' + escapar(m) + '</li>').join('') + '</ul>';
+    motivos.map(m => '<li>' + escapar(m) + '</li>').join('') +
+    '</ul>';
   contenedor.classList.remove('oculto');
 }
 
@@ -275,9 +414,12 @@ function formatearHora(iso) {
   return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 }
 
+// Obtener geolocalización del navegador, con timeout razonable
 function obtenerUbicacion() {
   return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) return reject(new Error('Este dispositivo no soporta GPS.'));
+    if (!navigator.geolocation) {
+      return reject(new Error('Este dispositivo no soporta GPS.'));
+    }
     navigator.geolocation.getCurrentPosition(
       pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
       err => {
@@ -291,30 +433,55 @@ function obtenerUbicacion() {
   });
 }
 
+// =====================================================================
+// EVENTOS
+// =====================================================================
+
 el.btnUltimoDni.addEventListener('click', () => {
   el.inputDni.value = el.btnUltimoDni.dataset.dni;
   el.ultimoDniBox.classList.add('oculto');
 });
+
 el.inputDni.addEventListener('input', () => {
   ocultarErrorDni();
   el.inputDni.value = el.inputDni.value.toUpperCase();
 });
-el.inputDni.addEventListener('keypress', e => { if (e.key === 'Enter') el.btnContinuar.click(); });
+
+el.inputDni.addEventListener('keypress', e => {
+  if (e.key === 'Enter') el.btnContinuar.click();
+});
+
 el.btnContinuar.addEventListener('click', continuarDesdeDni);
 el.btnVolver.addEventListener('click', () => { irA(el.pasoDni); el.inputDni.focus(); });
 el.btnNuevo.addEventListener('click', () => {
-  estado.dni = null; estado.validacion = null; estado.ubicacion = null;
+  // Reset completo
+  estado.dni = null;
+  estado.validacion = null;
+  estado.ubicacion = null;
   el.inputDni.value = '';
-  irA(el.pasoDni); el.inputDni.focus();
+  irA(el.pasoDni);
+  el.inputDni.focus();
 });
+
+// =====================================================================
+// FLUJO PRINCIPAL
+// =====================================================================
 
 async function continuarDesdeDni() {
   ocultarErrorDni();
   const dni = normalizarDni(el.inputDni.value);
-  if (dni.length < 5) { mostrarErrorDni('Introduzca un DNI o NIE válido.'); return; }
+
+  if (dni.length < 5) {
+    mostrarErrorDni('Introduzca un DNI o NIE válido.');
+    return;
+  }
+
   estado.dni = dni;
+
+  // Guardamos el DNI localmente para recordarlo la próxima vez
   localStorage.setItem('ultimo_dni', dni);
 
+  // Obtener GPS primero (lo necesitaremos sí o sí para fichar)
   el.cargandoTexto.textContent = 'Obteniendo ubicación…';
   irA(el.pasoCargando);
 
@@ -326,17 +493,21 @@ async function continuarDesdeDni() {
     return;
   }
 
+  // Llamar a validar_acceso
   el.cargandoTexto.textContent = 'Validando acceso…';
   try {
     const { data, error } = await sb.rpc('validar_acceso', {
       p_dni: estado.dni,
       p_obra_id: estado.obraId
     });
+
     if (error) {
       irA(el.pasoDni);
       mostrarErrorDni('Error de conexión. Inténtelo de nuevo.');
-      console.error(error); return;
+      console.error(error);
+      return;
     }
+
     estado.validacion = data;
     mostrarResultadoValidacion(data);
   } catch (err) {
@@ -352,6 +523,8 @@ function mostrarResultadoValidacion(v) {
     mostrarErrorDni(v.mensaje || 'DNI no encontrado. Revise números y letra.');
     return;
   }
+
+  // Caso: trabajador encontrado. Pintamos según estado.
   el.estadoBox.className = 'estado-box';
   el.btnFichar.className = 'principal';
 
@@ -367,6 +540,7 @@ function mostrarResultadoValidacion(v) {
       el.btnFichar.disabled = false;
       el.btnFichar.onclick = ejecutarFichaje;
       break;
+
     case 'naranja':
       el.estadoBox.classList.add('estado-naranja');
       el.estadoBox.textContent = '⚠ Acceso con aviso';
@@ -376,6 +550,7 @@ function mostrarResultadoValidacion(v) {
       el.btnFichar.disabled = false;
       el.btnFichar.onclick = ejecutarFichaje;
       break;
+
     case 'excepcion':
       el.estadoBox.classList.add('estado-naranja');
       el.estadoBox.textContent = 'Acceso autorizado excepcionalmente hoy';
@@ -385,6 +560,7 @@ function mostrarResultadoValidacion(v) {
       el.btnFichar.disabled = false;
       el.btnFichar.onclick = ejecutarFichaje;
       break;
+
     case 'rojo':
     default:
       el.estadoBox.classList.add('estado-rojo');
@@ -396,6 +572,7 @@ function mostrarResultadoValidacion(v) {
       el.btnFichar.onclick = null;
       break;
   }
+
   irA(el.pasoResultado);
 }
 
@@ -403,6 +580,7 @@ async function ejecutarFichaje() {
   el.btnFichar.disabled = true;
   el.cargandoTexto.textContent = 'Registrando fichaje…';
   irA(el.pasoCargando);
+
   try {
     const { data, error } = await sb.rpc('registrar_fichaje', {
       p_dni: estado.dni,
@@ -410,19 +588,28 @@ async function ejecutarFichaje() {
       p_latitud: estado.ubicacion.lat,
       p_longitud: estado.ubicacion.lng
     });
+
     if (error) {
-      irA(el.pasoResultado); el.btnFichar.disabled = false;
+      irA(el.pasoResultado);
+      el.btnFichar.disabled = false;
       alert('Error al registrar fichaje. Inténtelo de nuevo.');
-      console.error(error); return;
+      console.error(error);
+      return;
     }
+
     if (!data.success) {
-      irA(el.pasoResultado); el.btnFichar.disabled = false;
-      alert(data.error || 'No se pudo registrar el fichaje.'); return;
+      irA(el.pasoResultado);
+      el.btnFichar.disabled = false;
+      alert(data.error || 'No se pudo registrar el fichaje.');
+      return;
     }
+
     mostrarConfirmacionFinal(data);
   } catch (err) {
-    irA(el.pasoResultado); el.btnFichar.disabled = false;
-    alert('Error de conexión.'); console.error(err);
+    irA(el.pasoResultado);
+    el.btnFichar.disabled = false;
+    alert('Error de conexión.');
+    console.error(err);
   }
 }
 
@@ -431,14 +618,21 @@ function mostrarConfirmacionFinal(r) {
   el.finalTick.textContent = '✓';
   el.finalTitulo.textContent = esEntrada ? 'Entrada registrada' : 'Salida registrada';
   el.finalNombre.textContent = estado.validacion && estado.validacion.trabajador_nombre
-    ? estado.validacion.trabajador_nombre.trim() : '';
+    ? estado.validacion.trabajador_nombre.trim()
+    : '';
   el.finalHora.textContent = formatearHora(r.hora);
 
+  // Si era naranja/excepcional, recordar motivos al salir también
   if (r.estado === 'naranja' || r.excepcion_autorizada) {
-    pintarMotivos(el.finalMotivos, r.motivos, false);
+    pintarMotivos(
+      el.finalMotivos,
+      r.motivos,
+      false
+    );
   } else {
     el.finalMotivos.classList.add('oculto');
   }
+
   irA(el.pasoFinal);
 }
 </script>

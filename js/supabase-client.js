@@ -21,6 +21,8 @@ if (!window.supabase) {
 // Creamos UNA sola instancia y la colgamos de window para reutilizarla.
 window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
   auth: {
+    // El fichaje del trabajador no usa login, pero esta config vale también
+    // cuando luego se añadan paneles con login.
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true
