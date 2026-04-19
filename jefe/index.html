@@ -64,6 +64,8 @@
   <a href="index.html" class="activo"><span class="ico">👷</span> Presencia</a>
   <div class="sidebar-section">Gestión</div>
   <a href="fichajes.html"><span class="ico">🕐</span> Fichajes</a>
+  <a href="documentos.html"><span class="ico">📄</span> Documentos</a>
+  <a href="trabajadores.html"><span class="ico">👥</span> Trabajadores</a>
   <div class="sidebar-bottom">
     <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
   </div>
@@ -94,6 +96,7 @@
       <div id="tabla-presencia"><div class="cargando">Selecciona una obra…</div></div>
     </div>
   </div>
+</div>
 
 <script src="../js/supabase-client.js"></script>
 <script>
@@ -115,7 +118,7 @@ const sb = window.supabaseClient;
     .from('usuarios_obra')
     .select('obra_id, rol_en_obra, obra:obra_id(id, nombre)')
     .eq('usuario_app_id', miUsuario.id)
-    .eq('rol_en_obra', 'jefe_obra')
+    .eq('rol_en_obra', 'jefe_obra');
 
   if (error || !misObras || misObras.length === 0) {
     window.location.href = '../';
@@ -170,7 +173,6 @@ async function cargarPresencia() {
     return;
   }
 
-  // Calcular quién está dentro
   const porTrabajador = {};
   fichajes.forEach(f => {
     if (!porTrabajador[f.trabajador_id]) {
@@ -182,7 +184,6 @@ async function cargarPresencia() {
 
   const dentro = Object.values(porTrabajador).filter(t => t.entradas.length > t.salidas.length);
 
-  // Estado documental
   const ids = dentro.map(t => t.trabajador.id);
   let validaciones = {};
   if (ids.length > 0) {
