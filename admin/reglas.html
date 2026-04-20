@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Reglas Documentales — Admin</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f4f6f9; color: #333; }
+
+    .sidebar {
+      position: fixed; top: 0; left: 0; width: 220px; height: 100vh;
+      background: #1a1a2e; color: white; padding: 24px 16px;
+    }
+    .sidebar h2 { font-size: 16px; margin-bottom: 32px; color: #aaa; }
+    .sidebar a {
+      display: block; color: white; text-decoration: none;
+      padding: 10px 12px; border-radius: 6px; margin-bottom: 4px; font-size: 14px;
+    }
+    .sidebar a:hover, .sidebar a.active { background: #16213e; }
+    .sidebar .logout { margin-top: auto; position: absolute; bottom: 24px; left: 16px; right: 16px; }
+    .sidebar .logout a { color: #ff6b6b; }
+
+    .main { margin-left: 220px; padding: 32px; }
+    h1 { font-size: 22px; margin-bottom: 8px; }
+    .subtitle { color: #666; font-size: 14px; margin-bottom: 24px; }
+
+    .toolbar { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+    .btn {
+      padding: 8px 16px; border: none; border-radius: 6px;
+      cursor: pointer; font-size: 14px; font-weight: 600;
+    }
+    .btn-primary { background: #4f46e5; color: white; }
+    .btn-primary:hover { background: #4338ca; }
+    .btn-danger { background: #ef4444; color: white; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-success { background: #22c55e; color: white; }
+    .btn-success:hover { background: #16a34a; }
+
+    .card { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    thead { background: #f8fafc; }
+    th { padding: 12px 16px; text-align: left; font-weight: 600; color: #555; border-bottom: 1px solid #e5e7eb; }
+    td { padding: 10px 16px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr.nueva { background: #f0fdf4; }
+
+    td input[type="text"], td select {
+      width: 100%; padding: 6px 8px; border: 1px solid #d1d5db;
+      border-radius: 5px; font-size: 13px; background: white;
+    }
+    td input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 12px;
+      font-size: 12px; font-weight: 600;
+    }
+    .badge-verde { background: #dcfce7; color: #166534; }
+    .badge-naranja { background: #fff7ed; color: #9a3412; }
+    .badge-rojo { background: #fee2e2; color: #991b1b; }
+
+    .msg { padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 14px; display: none; }
+    .msg-ok { background: #dcfce7; color: #166534; }
+    .msg-err { background: #fee2e2; color: #991b1b; }
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <h2>⚙️ ADMIN</h2>
+  <a href="index.html">Dashboard</a>
+  <a href="obras.html">Obras</a>
+  <a href="trabajadores.html">Trabajadores</a>
+  <a href="fichajes.html">Fichajes</a>
+  <a href="incidencias.html">Incidencias</a>
+  <a href="reglas.html" class="active">Reglas documentales</a>
+  <div class="logout"><a href="../index.html" id="btnLogout">Cerrar sesión</a></div>
+</div>
+
+<div class="main">
+  <h1>Reglas documentales</h1>
+  <p class="subtitle">Define cuándo un documento pone a un trabajador en verde, naranja o rojo.</p>
+
+  <div id="msgOk" class="msg msg-ok"></div>
+  <div id="msgErr" class="msg msg-err"></div>
+
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="nuevaFila()">+ Nueva regla</button>
+  </div>
+
+  <div class="card">
+    <table id="tablaReglas">
+      <thead>
+        <tr>
+          <th>Documento</th>
+          <th>Estado e-Coordina</th>
+          <th>Obligatorio</th>
+          <th>Resultado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="cuerpoTabla">
+        <tr><td colspan="5" style="text-align:center;padding:24px;color:#aaa;">Cargando…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="toolbar" style="margin-top:16px;">
+    <button class="btn btn-success" onclick="guardarTodo()">💾 Guardar cambios</button>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let reglas = []; // datos actuales
+  let eliminadas = []; // IDs a borrar
+
+  async function checkAdmin() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { location.href = '../index.html'; return; }
+    const { data } = await sb.from('usuarios_app').select('rol').eq('auth_user_id', session.user.id).single();
+    if (!data || data.rol !== 'admin') { location.href = '../index.html'; }
+  }
+
+  async function cargarReglas() {
+    const { data, error } = await sb.from('reglas_documentales')
+      .select('*')
+      .order('nombre_documento')
+      .order('estado_ecoordina');
+
+    if (error) { mostrarError('Error al cargar reglas: ' + error.message); return; }
+    reglas = data || [];
+    renderTabla();
+  }
+
+  function renderTabla() {
+    const tbody = document.getElementById('cuerpoTabla');
+    if (reglas.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:#aaa;">No hay reglas. Añade la primera.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = reglas.map((r, i) => `
+      <tr data-i="${i}" ${r._nueva ? 'class="nueva"' : ''}>
+        <td><input type="text" value="${esc(r.nombre_documento)}" onchange="actualizar(${i},'nombre_documento',this.value)"/></td>
+        <td><input type="text" value="${esc(r.estado_ecoordina)}" onchange="actualizar(${i},'estado_ecoordina',this.value)"/></td>
+        <td style="text-align:center">
+          <input type="checkbox" ${r.es_obligatorio ? 'checked' : ''} onchange="actualizar(${i},'es_obligatorio',this.checked)"/>
+        </td>
+        <td>
+          <select onchange="actualizar(${i},'resultado',this.value)">
+            <option value="verde"   ${r.resultado==='verde'   ?'selected':''}>🟢 Verde</option>
+            <option value="naranja" ${r.resultado==='naranja' ?'selected':''}>🟠 Naranja</option>
+            <option value="rojo"    ${r.resultado==='rojo'    ?'selected':''}>🔴 Rojo</option>
+          </select>
+        </td>
+        <td>
+          <button class="btn btn-danger" style="padding:4px 10px;font-size:12px" onclick="eliminarFila(${i})">Eliminar</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function esc(str) {
+    return (str || '').replace(/"/g, '&quot;');
+  }
+
+  function actualizar(i, campo, valor) {
+    reglas[i][campo] = valor;
+    if (!reglas[i]._nueva) reglas[i]._modificada = true;
+  }
+
+  function nuevaFila() {
+    reglas.push({
+      id: null,
+      nombre_documento: '',
+      estado_ecoordina: '',
+      es_obligatorio: true,
+      resultado: 'rojo',
+      _nueva: true
+    });
+    renderTabla();
+    // foco en el primer input de la nueva fila
+    const filas = document.querySelectorAll('#cuerpoTabla tr');
+    const ultima = filas[filas.length - 1];
+    if (ultima) ultima.querySelector('input[type="text"]').focus();
+  }
+
+  function eliminarFila(i) {
+    const r = reglas[i];
+    if (r.id) eliminadas.push(r.id); // marcar para borrar en BD
+    reglas.splice(i, 1);
+    renderTabla();
+  }
+
+  async function guardarTodo() {
+    ocultarMensajes();
+
+    // Validar que no haya campos vacíos
+    for (const r of reglas) {
+      if (!r.nombre_documento.trim() || !r.estado_ecoordina.trim()) {
+        mostrarError('Hay filas con Documento o Estado vacío. Rellénalo antes de guardar.');
+        return;
+      }
+    }
+
+    let errores = [];
+
+    // 1. Borrar eliminadas
+    for (const id of eliminadas) {
+      const { error } = await sb.from('reglas_documentales').delete().eq('id', id);
+      if (error) errores.push('Borrar ' + id + ': ' + error.message);
+    }
+
+    // 2. Insertar nuevas
+    const nuevas = reglas.filter(r => r._nueva);
+    for (const r of nuevas) {
+      const { error } = await sb.from('reglas_documentales').insert({
+        nombre_documento: r.nombre_documento.trim(),
+        estado_ecoordina: r.estado_ecoordina.trim(),
+        es_obligatorio: r.es_obligatorio,
+        resultado: r.resultado
+      });
+      if (error) errores.push('Insertar ' + r.nombre_documento + ': ' + error.message);
+    }
+
+    // 3. Actualizar modificadas
+    const modificadas = reglas.filter(r => r._modificada && !r._nueva);
+    for (const r of modificadas) {
+      const { error } = await sb.from('reglas_documentales').update({
+        nombre_documento: r.nombre_documento.trim(),
+        estado_ecoordina: r.estado_ecoordina.trim(),
+        es_obligatorio: r.es_obligatorio,
+        resultado: r.resultado
+      }).eq('id', r.id);
+      if (error) errores.push('Actualizar ' + r.nombre_documento + ': ' + error.message);
+    }
+
+    if (errores.length > 0) {
+      mostrarError('Errores al guardar:\n' + errores.join('\n'));
+    } else {
+      mostrarOk('Cambios guardados correctamente.');
+      eliminadas = [];
+      await cargarReglas(); // recargar desde BD
+    }
+  }
+
+  function mostrarOk(msg) {
+    const el = document.getElementById('msgOk');
+    el.textContent = msg; el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 4000);
+  }
+  function mostrarError(msg) {
+    const el = document.getElementById('msgErr');
+    el.textContent = msg; el.style.display = 'block';
+  }
+  function ocultarMensajes() {
+    document.getElementById('msgOk').style.display = 'none';
+    document.getElementById('msgErr').style.display = 'none';
+  }
+
+  document.getElementById('btnLogout').addEventListener('click', async (e) => {
+    e.preventDefault();
+    await sb.auth.signOut();
+    location.href = '../index.html';
+  });
+
+  (async () => {
+    await checkAdmin();
+    await cargarReglas();
+  })();
+</script>
+</body>
+</html>
