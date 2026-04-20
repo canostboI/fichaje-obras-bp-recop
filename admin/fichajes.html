@@ -104,7 +104,7 @@ const sb = window.supabaseClient;
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '../'; return; }
-  const { data: u } = await sb.from('usuarios_app').select('rol').single();
+  const { data: u } = await sb.from('usuarios_app').select('rol').eq('auth_user_id', session.user.id).single();
   if (!u || u.rol !== 'admin') { window.location.href = '../'; return; }
 
   // Fecha por defecto: hoy
