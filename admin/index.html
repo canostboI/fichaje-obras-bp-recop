@@ -122,7 +122,7 @@ const sb = window.supabaseClient;
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '../'; return; }
-  const { data: usuario } = await sb.from('usuarios_app').select('rol, nombre').single();
+  const { data: usuario } = await sb.from('usuarios_app').select('rol, nombre').eq('auth_user_id', session.user.id).single();
   if (!usuario || usuario.rol !== 'admin') { window.location.href = '../'; return; }
   document.getElementById('usuario-email').textContent = usuario.nombre || session.user.email;
   await Promise.all([cargarFichajes(), cargarObras(), cargarRojos(), cargarIncidencias()]);
