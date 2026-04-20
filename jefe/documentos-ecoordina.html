@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Importar e-Coordina — Jefe de Obra</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<style>
+  :root {
+    --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
+    --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
+    --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
+  .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+  .sidebar-logo { padding: 22px 20px 18px; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--naranja); border-bottom: 1px solid var(--borde); }
+  .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
+  .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
+  .sidebar a:hover { background: var(--bg3); color: var(--texto); }
+  .sidebar a.activo { background: var(--bg3); color: var(--texto); font-weight: 600; }
+  .sidebar a .ico { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid var(--borde); }
+  .btn-salir { width: 100%; background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 8px; }
+  .btn-salir:hover { background: var(--bg3); color: var(--texto); }
+  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+  .topbar { padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--borde); }
+  .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+  .topbar-right { display: flex; align-items: center; gap: 14px; }
+  .usuario { font-size: 13px; color: var(--texto2); }
+  .selector-obra { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 8px 12px; font-family: inherit; }
+  .selector-obra:focus { outline: none; border-color: var(--naranja); }
+  .contenido { padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
+
+  .zona-subida { border: 2px dashed var(--borde); border-radius: 12px; padding: 48px 24px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; background: var(--bg2); }
+  .zona-subida:hover, .zona-subida.drag-over { border-color: var(--naranja); background: rgba(255,152,0,0.05); }
+  .zona-subida .icono { font-size: 40px; margin-bottom: 12px; }
+  .zona-subida .titulo { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .zona-subida .subtitulo { font-size: 13px; color: var(--texto2); }
+  .zona-subida input[type="file"] { display: none; }
+
+  .progreso { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 20px 24px; display: none; }
+  .progreso.visible { display: block; }
+  .progreso-texto { font-size: 14px; color: var(--texto2); margin-bottom: 10px; }
+  .progreso-barra-wrap { background: var(--bg3); border-radius: 4px; height: 6px; overflow: hidden; }
+  .progreso-barra { height: 100%; background: var(--naranja); border-radius: 4px; transition: width 0.3s; width: 0%; }
+
+  .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; display: none; }
+  .seccion.visible { display: block; }
+  .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .seccion-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .seccion-cab-acciones { display: flex; gap: 10px; align-items: center; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; padding: 10px 20px; font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); }
+  td { padding: 13px 20px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); }
+
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .pill.verde   { background: rgba(76,175,80,0.15);  color: var(--verde); }
+  .pill.naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
+  .pill.rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
+
+  .btn { padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; border: none; transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-confirmar { background: var(--verde); color: #fff; }
+  .btn-cancelar  { background: transparent; border: 1px solid var(--borde); color: var(--texto2); }
+
+  .alerta { padding: 12px 16px; border-radius: 8px; font-size: 13px; display: none; }
+  .alerta.visible { display: block; }
+  .alerta.ok    { background: rgba(76,175,80,0.1);  border: 1px solid var(--verde);   color: var(--verde); }
+  .alerta.error { background: rgba(244,67,54,0.1);  border: 1px solid var(--rojo);    color: var(--rojo); }
+  .alerta.info  { background: rgba(255,152,0,0.1);  border: 1px solid var(--naranja); color: var(--naranja); }
+
+  .motivos { font-size: 12px; color: var(--texto2); margin-top: 3px; line-height: 1.6; }
+
+  select.override { background: var(--bg3); border: 1px solid var(--borde); border-radius: 6px; color: var(--texto); font-size: 12px; padding: 4px 8px; font-family: inherit; cursor: pointer; }
+  select.override:focus { outline: none; border-color: var(--naranja); }
+
+  .tag-nuevo { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; background: rgba(33,150,243,0.15); color: var(--azul); margin-left: 6px; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">Jefe de Obra</div>
+  <div class="sidebar-section">Principal</div>
+  <a href="index.html"><span class="ico">👷</span> Presencia</a>
+  <div class="sidebar-section">Gestión</div>
+  <a href="fichajes.html"><span class="ico">🕐</span> Fichajes</a>
+  <a href="documentos.html"><span class="ico">📄</span> Documentos</a>
+  <a href="documentos-ecoordina.html" class="activo"><span class="ico">📥</span> e-Coordina</a>
+  <a href="trabajadores.html"><span class="ico">👥</span> Trabajadores</a>
+  <div class="sidebar-bottom">
+    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>Importar e-Coordina</h1>
+    <div class="topbar-right">
+      <select class="selector-obra" id="selector-obra">
+        <option value="">Cargando obras…</option>
+      </select>
+      <span class="usuario" id="usuario-nombre"></span>
+    </div>
+  </div>
+
+  <div class="contenido">
+
+    <div class="alerta info visible" id="alerta-instrucciones">
+      📋 Sube el <strong>"Informe cumplimiento documental - detalle"</strong> de e-Coordina para cada subcontrata. Puedes subir varios PDFs uno a uno. El estado de cada trabajador lo calcula tu app según tus propias reglas.
+    </div>
+
+    <div class="alerta" id="alerta-resultado"></div>
+
+    <div class="zona-subida" id="zona-subida">
+      <input type="file" id="input-pdf" accept="application/pdf">
+      <div class="icono">📄</div>
+      <div class="titulo">Arrastra el PDF aquí o haz clic para seleccionarlo</div>
+      <div class="subtitulo">Informe cumplimiento documental - detalle (e-Coordina)</div>
+    </div>
+
+    <div class="progreso" id="progreso">
+      <div class="progreso-texto" id="progreso-texto">Leyendo PDF…</div>
+      <div class="progreso-barra-wrap"><div class="progreso-barra" id="progreso-barra"></div></div>
+    </div>
+
+    <div class="seccion" id="seccion-resultado">
+      <div class="seccion-cab">
+        <h2 id="titulo-resultado">Resultado</h2>
+        <div class="seccion-cab-acciones">
+          <button class="btn btn-cancelar" id="btn-cancelar">Cancelar</button>
+          <button class="btn btn-confirmar" id="btn-confirmar">✓ Confirmar e importar</button>
+        </div>
+      </div>
+      <div id="tabla-resultado"></div>
+    </div>
+
+  </div>
+</div>
+
+<script src="../js/supabase-client.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+const sb = window.supabaseClient;
+let obraActual = null;
+let resultadoParsed = [];
+let reglas = [];
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '../'; return; }
+
+  const { data: miUsuario } = await sb
+    .from('usuarios_app')
+    .select('id, nombre')
+    .eq('auth_user_id', session.user.id)
+    .single();
+  if (!miUsuario) { window.location.href = '../'; return; }
+
+  document.getElementById('usuario-nombre').textContent =
+    miUsuario.nombre || session.user.email;
+
+  const { data: misObras } = await sb
+    .from('usuarios_obra')
+    .select('obra_id, obra:obra_id(id, nombre)')
+    .eq('usuario_app_id', miUsuario.id)
+    .eq('rol_en_obra', 'jefe_obra');
+
+  if (!misObras || misObras.length === 0) { window.location.href = '../'; return; }
+
+  const selector = document.getElementById('selector-obra');
+  selector.innerHTML = '';
+  misObras.forEach(uo => {
+    const opt = document.createElement('option');
+    opt.value = uo.obra.id;
+    opt.textContent = uo.obra.nombre;
+    selector.appendChild(opt);
+  });
+  obraActual = misObras[0].obra.id;
+  selector.addEventListener('change', () => { obraActual = selector.value; resetUI(); });
+
+  // Cargar reglas documentales
+  const { data: r } = await sb.from('reglas_documentales').select('*');
+  reglas = r || [];
+})();
+
+document.getElementById('btn-salir').addEventListener('click', async () => {
+  await sb.auth.signOut();
+  window.location.href = '../';
+});
+
+// ── Zona de subida ────────────────────────────────────────────────────────────
+const zona     = document.getElementById('zona-subida');
+const inputPdf = document.getElementById('input-pdf');
+
+zona.addEventListener('click', () => inputPdf.click());
+zona.addEventListener('dragover',  e => { e.preventDefault(); zona.classList.add('drag-over'); });
+zona.addEventListener('dragleave', ()  => zona.classList.remove('drag-over'));
+zona.addEventListener('drop', e => {
+  e.preventDefault();
+  zona.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type === 'application/pdf') procesarPDF(file);
+  else mostrarAlerta('error', 'El archivo debe ser un PDF.');
+});
+inputPdf.addEventListener('change', () => {
+  if (inputPdf.files[0]) procesarPDF(inputPdf.files[0]);
+});
+
+// ── Procesar PDF ──────────────────────────────────────────────────────────────
+async function procesarPDF(file) {
+  resetUI();
+  mostrarProgreso('Leyendo PDF…', 10);
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+    let textoTotal = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page    = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      // Reconstruir líneas manteniendo orden espacial
+      textoTotal += content.items.map(item => item.str).join(' ') + '\n';
+      mostrarProgreso(
+        `Leyendo página ${i} de ${pdf.numPages}…`,
+        10 + Math.round((i / pdf.numPages) * 50)
+      );
+    }
+
+    mostrarProgreso('Extrayendo datos de trabajadores…', 65);
+    const trabajadores = parsearTexto(textoTotal);
+
+    if (trabajadores.length === 0) {
+      ocultarProgreso();
+      mostrarAlerta('error',
+        'No se encontraron trabajadores en este PDF. Asegúrate de subir el <strong>"Informe cumplimiento documental - detalle"</strong>.');
+      return;
+    }
+
+    mostrarProgreso('Aplicando reglas documentales…', 80);
+    const conEstado = aplicarReglas(trabajadores);
+
+    mostrarProgreso('Verificando trabajadores en la app…', 88);
+    const dnis = conEstado.map(t => t.dni);
+    const { data: enApp } = await sb.from('trabajadores').select('dni').in('dni', dnis);
+    const dnisEnApp = new Set((enApp || []).map(t => t.dni));
+    const conExistencia = conEstado.map(t => ({ ...t, en_app: dnisEnApp.has(t.dni) }));
+
+    mostrarProgreso('Preparando tabla de revisión…', 95);
+    resultadoParsed = conExistencia;
+    mostrarTabla(conExistencia);
+    ocultarProgreso();
+
+  } catch (err) {
+    ocultarProgreso();
+    mostrarAlerta('error', 'Error al leer el PDF: ' + err.message);
+  }
+}
+
+// ── Parser ────────────────────────────────────────────────────────────────────
+function parsearTexto(texto) {
+  // Normalizar espacios
+  texto = texto.replace(/\s+/g, ' ');
+
+  const trabajadoresMap = {};
+
+  // Patrón: [nombre documento] Trabajador [NOMBRE - DNI] [Estado] [Sí|No] [Sí|No]
+  const regex = /(.+?)\s+Trabajador\s+([A-ZÁÉÍÓÚÜÑ][A-ZÁÉÍÓÚÜÑa-záéíóúüñ\s,.']+?)\s+-\s+([A-Z0-9]{7,10})\s+(Validado|Caducado|Sin presentar|Validaci[oó]n pendiente)\s+(Sí|No)\s+(Sí|No)/g;
+
+  let match;
+  while ((match = regex.exec(texto)) !== null) {
+    const nombreDoc   = match[1].trim();
+    const nombreTrab  = match[2].trim();
+    const dni         = match[3].trim();
+    const estado      = match[4].replace('Validacion', 'Validación');
+    const obligatorio = match[5] === 'Sí';
+
+    // Ignorar filas de empresa (el elemento no tiene formato NOMBRE - DNI de persona)
+    if (dni.length < 7) continue;
+
+    // Separar apellidos y nombre (formato e-Coordina: APELLIDOS, NOMBRE)
+    let nombre    = nombreTrab;
+    let apellidos = '';
+    if (nombreTrab.includes(',')) {
+      const partes = nombreTrab.split(',');
+      apellidos = partes[0].trim();
+      nombre    = (partes[1] || '').trim() || apellidos;
+    }
+
+    if (!trabajadoresMap[dni]) {
+      trabajadoresMap[dni] = { dni, nombre, apellidos, documentos: [] };
+    }
+
+    trabajadoresMap[dni].documentos.push({ documento: nombreDoc, estado, obligatorio });
+  }
+
+  return Object.values(trabajadoresMap);
+}
+
+// ── Aplicar reglas ────────────────────────────────────────────────────────────
+function aplicarReglas(trabajadores) {
+  return trabajadores.map(t => {
+    let estadoFinal = 'verde';
+    const motivos   = [];
+
+    const obligatorios = t.documentos.filter(d => d.obligatorio);
+
+    for (const doc of obligatorios) {
+      const res = calcularEstadoDoc(doc.documento, doc.estado);
+      if (res === 'rojo') {
+        estadoFinal = 'rojo';
+        motivos.push(`🔴 ${doc.documento}: ${doc.estado}`);
+      } else if (res === 'naranja' && estadoFinal !== 'rojo') {
+        estadoFinal = 'naranja';
+        motivos.push(`🟡 ${doc.documento}: ${doc.estado}`);
+      }
+    }
+
+    return { ...t, estado_calculado: estadoFinal, motivos, override: undefined };
+  });
+}
+
+function calcularEstadoDoc(nombreDoc, estadoEcoordina) {
+  if (estadoEcoordina === 'Validado') return 'verde';
+
+  // Regla específica para este documento
+  const especifica = reglas.find(r =>
+    r.nombre_documento !== '*' &&
+    nombreDoc.toLowerCase().includes(r.nombre_documento.toLowerCase()) &&
+    r.estado_ecoordina === estadoEcoordina &&
+    r.es_obligatorio
+  );
+  if (especifica) return especifica.resultado;
+
+  // Regla comodín
+  const comodin = reglas.find(r =>
+    r.nombre_documento === '*' &&
+    r.estado_ecoordina === estadoEcoordina &&
+    r.es_obligatorio
+  );
+  if (comodin) return comodin.resultado;
+
+  // Sin regla → naranja por precaución
+  return 'naranja';
+}
+
+// ── Tabla de revisión ─────────────────────────────────────────────────────────
+function mostrarTabla(trabajadores) {
+  const n = trabajadores.length;
+  document.getElementById('titulo-resultado').textContent =
+    `${n} trabajador${n !== 1 ? 'es' : ''} encontrados — revisa antes de confirmar`;
+
+  const html = `
+    <table>
+      <thead><tr>
+        <th>Trabajador</th>
+        <th>DNI</th>
+        <th>Estado calculado</th>
+        <th>Motivos</th>
+        <th>Ajuste manual</th>
+      </tr></thead>
+      <tbody>
+        ${trabajadores.map((t, i) => `
+          <tr style="${!t.en_app ? 'opacity:0.45' : ''}">
+            <td>
+              <strong>${esc(t.apellidos ? t.apellidos + ', ' + t.nombre : t.nombre)}</strong>
+              ${!t.en_app ? '<span style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px;background:rgba(244,67,54,0.12);color:#f44336;margin-left:6px">Sin dar de alta</span>' : ''}
+            </td>
+            <td style="font-family:monospace;font-size:13px;color:var(--texto2)">${esc(t.dni)}</td>
+            <td>${t.en_app ? `<span class="pill ${t.estado_calculado}">${t.estado_calculado}</span>` : '<span style="color:var(--texto2);font-size:12px">—</span>'}</td>
+            <td>
+              <div class="motivos">
+                ${t.en_app ? (t.motivos.length ? t.motivos.join('<br>') : '<span style="color:var(--verde)">Todo OK</span>') : 'No se actualizará'}
+              </div>
+            </td>
+            <td>
+              ${t.en_app ? `
+              <select class="override" data-idx="${i}">
+                <option value="auto">— Auto</option>
+                <option value="verde">🟢 Verde</option>
+                <option value="naranja">🟡 Naranja</option>
+                <option value="rojo">🔴 Rojo</option>
+              </select>` : '—'}
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+
+  document.getElementById('tabla-resultado').innerHTML = html;
+  document.getElementById('seccion-resultado').classList.add('visible');
+
+  document.querySelectorAll('select.override').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const idx = parseInt(sel.dataset.idx);
+      resultadoParsed[idx].override = sel.value === 'auto' ? undefined : sel.value;
+    });
+  });
+}
+
+// ── Confirmar importación ─────────────────────────────────────────────────────
+document.getElementById('btn-confirmar').addEventListener('click', async () => {
+  if (!obraActual) { mostrarAlerta('error', 'Selecciona una obra primero.'); return; }
+  if (!resultadoParsed.length) return;
+
+  const btn = document.getElementById('btn-confirmar');
+  btn.textContent = 'Importando…';
+  btn.disabled = true;
+
+  let actualizados = 0, noEncontrados = 0, errores = 0;
+
+  for (const t of resultadoParsed) {
+    try {
+      const estadoFinal = t.override || t.estado_calculado;
+
+      // Solo actuar si el trabajador ya existe en la app
+      const { data: existente } = await sb
+        .from('trabajadores')
+        .select('id')
+        .eq('dni', t.dni)
+        .maybeSingle();
+
+      if (!existente) {
+        noEncontrados++;
+        continue; // No crear, solo ignorar
+      }
+
+      // Upsert validación
+      const { error: errVal } = await sb
+        .from('validaciones_obra')
+        .upsert({
+          trabajador_id:  existente.id,
+          obra_id:        obraActual,
+          estado:         estadoFinal,
+          motivos:        t.motivos,
+          actualizado_en: new Date().toISOString()
+        }, { onConflict: 'trabajador_id,obra_id' });
+
+      if (errVal) { errores++; } else { actualizados++; }
+
+    } catch (e) {
+      errores++;
+    }
+  }
+
+  btn.textContent = '✓ Confirmar e importar';
+  btn.disabled = false;
+
+  let msg = `✅ Listo. ${actualizados} trabajador${actualizados !== 1 ? 'es' : ''} actualizados.`;
+  if (noEncontrados) msg += ` ${noEncontrados} no estaban dados de alta en la app y se han ignorado.`;
+  if (errores)       msg += ` ⚠️ ${errores} con error.`;
+
+  mostrarAlerta('ok', msg);
+  document.getElementById('seccion-resultado').classList.remove('visible');
+  resultadoParsed = [];
+  inputPdf.value  = '';
+});
+
+document.getElementById('btn-cancelar').addEventListener('click', resetUI);
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function mostrarProgreso(texto, pct) {
+  document.getElementById('progreso').classList.add('visible');
+  document.getElementById('progreso-texto').textContent = texto;
+  document.getElementById('progreso-barra').style.width = pct + '%';
+}
+function ocultarProgreso() {
+  setTimeout(() => document.getElementById('progreso').classList.remove('visible'), 800);
+}
+function mostrarAlerta(tipo, msg) {
+  const el = document.getElementById('alerta-resultado');
+  el.className = `alerta ${tipo} visible`;
+  el.innerHTML  = msg;
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function resetUI() {
+  resultadoParsed = [];
+  document.getElementById('seccion-resultado').classList.remove('visible');
+  document.getElementById('progreso').classList.remove('visible');
+  document.getElementById('alerta-resultado').className = 'alerta';
+  document.getElementById('tabla-resultado').innerHTML  = '';
+  inputPdf.value = '';
+}
+function esc(txt) {
+  const d = document.createElement('div');
+  d.textContent = String(txt || '');
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>
