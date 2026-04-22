@@ -8,6 +8,9 @@
 <!-- Supabase desde CDN. Versión fija para evitar sorpresas. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+<!-- Branding centralizado por empresa-marca -->
+<script src="../js/branding.js"></script>
+
 <style>
   /* =========================================================
      ESTILOS PANTALLA FICHAJE
@@ -22,6 +25,9 @@
     --gris-borde: #d0d7de;
     --azul-primario: #1e3a5f;
     --texto: #1a1a1a;
+    /* Branding (se sobreescribe en JS al cargar la obra) */
+    --color-principal: #1e3a5f;
+    --color-acento: #1e3a5f;
   }
 
   * { box-sizing: border-box; }
@@ -49,6 +55,13 @@
     text-align: center;
     padding: 20px 0;
   }
+  .logo-marca {
+    max-width: 200px;
+    max-height: 60px;
+    margin: 0 auto 14px;
+    display: block;
+  }
+  .logo-marca.oculto { display: none; }
   .cabecera h1 {
     font-size: 18px;
     margin: 0 0 6px;
@@ -60,7 +73,7 @@
   .cabecera .obra-nombre {
     font-size: 26px;
     font-weight: 700;
-    color: var(--azul-primario);
+    color: var(--color-principal);
   }
 
   .tarjeta {
@@ -94,7 +107,7 @@
   }
   input[type="text"]:focus {
     outline: none;
-    border-color: var(--azul-primario);
+    border-color: var(--color-principal);
   }
 
   .ultimo-dni {
@@ -106,7 +119,7 @@
   .ultimo-dni button {
     background: none;
     border: none;
-    color: var(--azul-primario);
+    color: var(--color-principal);
     text-decoration: underline;
     cursor: pointer;
     font-size: 13px;
@@ -118,7 +131,7 @@
     font-size: 20px;
     font-weight: 600;
     padding: 18px;
-    background: var(--azul-primario);
+    background: var(--color-principal);
     color: white;
     border: none;
     border-radius: 10px;
@@ -139,7 +152,7 @@
   button.rojo     { background: var(--rojo); cursor: default; }
   button.secundario {
     background: white;
-    color: var(--azul-primario);
+    color: var(--color-principal);
     border: 2px solid var(--gris-borde);
   }
 
@@ -190,7 +203,7 @@
   .confirmacion-final .hora {
     font-size: 40px;
     font-weight: 700;
-    color: var(--azul-primario);
+    color: var(--color-principal);
     margin: 14px 0;
     letter-spacing: 1px;
   }
@@ -210,7 +223,7 @@
     width: 34px;
     height: 34px;
     border: 3px solid #ddd;
-    border-top-color: var(--azul-primario);
+    border-top-color: var(--color-principal);
     border-radius: 50%;
     animation: girar 0.9s linear infinite;
     margin-bottom: 12px;
@@ -241,8 +254,9 @@
 <body>
 <div class="contenedor">
 
-  <!-- Cabecera: nombre de la obra -->
+  <!-- Cabecera: logo de la marca + nombre de la obra -->
   <div class="cabecera">
+    <img id="logo-marca" class="logo-marca oculto" alt="">
     <h1>Fichaje de obra</h1>
     <div class="obra-nombre" id="obra-nombre">Cargando…</div>
   </div>
@@ -286,7 +300,7 @@
     <button type="button" class="secundario" id="btn-nuevo-fichaje" style="margin-top:10px;">Nuevo fichaje</button>
   </div>
 
-  <div class="pie">Bosch Pascual · Control de acceso</div>
+  <div class="pie" id="pie-marca">Control de acceso</div>
 </div>
 
 <!-- Cliente Supabase compartido de toda la V2 -->
@@ -310,6 +324,8 @@ const estado = {
 
 // Elementos del DOM (capturados una vez)
 const el = {
+  logoMarca:   document.getElementById('logo-marca'),
+  pieMarca:    document.getElementById('pie-marca'),
   obraNombre: document.getElementById('obra-nombre'),
   pasoDni:     document.getElementById('paso-dni'),
   pasoCargando:document.getElementById('paso-cargando'),
@@ -347,15 +363,19 @@ const el = {
     return;
   }
 
-  // Cargar nombre de la obra (lectura pública no permitida: lo pedimos por
-  // RPC futura, pero de momento mostramos un placeholder con el ID)
-  // NOTA: como el anon NO puede leer directamente la tabla obras (RLS),
-  // más adelante añadiremos una función RPC "obra_publica(id)" que devuelva
-  // solo nombre y datos mínimos para esta pantalla. Por ahora placeholder.
+  // Cargar datos públicos de la obra vía RPC
   try {
     const { data, error } = await sb.rpc('obra_publica', { p_obra_id: estado.obraId });
     if (error || !data) throw error;
     el.obraNombre.textContent = data.nombre || 'Obra sin nombre';
+
+    // Aplicar branding según empresa_marca
+    const marca = data.empresa_marca || 'bosch_pascual';
+    const branding = aplicarBranding(marca);
+    el.logoMarca.src = '../' + branding.logo;
+    el.logoMarca.alt = branding.nombre;
+    el.logoMarca.classList.remove('oculto');
+    el.pieMarca.textContent = branding.nombre + ' · Control de acceso';
   } catch (e) {
     el.obraNombre.textContent = 'Obra #' + estado.obraId.substring(0, 8);
   }
