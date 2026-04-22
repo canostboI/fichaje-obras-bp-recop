@@ -178,7 +178,7 @@
 
       <p style="font-size:13px;color:#64748b;margin-bottom:16px;">
         Puedes ajustar manualmente el estado de cualquier trabajador antes de confirmar.
-        Solo se actualizarán los trabajadores que ya existen en la app (los demás se ignoran).
+        Los trabajadores que no existen en la app se crearán automáticamente con su empresa.
       </p>
 
       <table id="tablaResultado">
@@ -457,7 +457,8 @@ async function procesarExcel() {
       motivos,
       enApp,
       trabajadorId: enApp ? trabajadoresApp[dni].id : null,
-      nombreApp: enApp ? trabajadoresApp[dni].nombre : null
+      nombreApp: enApp ? trabajadoresApp[dni].nombre : null,
+      empresaRaw: fila['Empresa'] || ''
     });
   }
 
@@ -530,12 +531,24 @@ function cambiarEstado(i, nuevoEstado) {
 }
 
 // ── CONFIRMAR ─────────────────────────────────────────────────────────────────
+// ── EXTRAER NOMBRE Y CIF DE EMPRESA ──────────────────────────────────────────
+function extraerEmpresa(texto) {
+  if (!texto) return { nombre: '', cif: '' };
+  const partes = texto.split(' - ');
+  if (partes.length >= 2) {
+    return {
+      nombre: partes.slice(0, partes.length - 1).join(' - ').trim(),
+      cif: partes[partes.length - 1].trim()
+    };
+  }
+  return { nombre: texto.trim(), cif: '' };
+}
+
 async function confirmarImportacion() {
   const obraId = document.getElementById('obraSelect').value;
-  const aActualizar = resultadoFinal.filter(r => r.enApp);
 
-  if (!aActualizar.length) {
-    document.getElementById('msgConfirmar').textContent = 'No hay trabajadores en la app para actualizar.';
+  if (!resultadoFinal.length) {
+    document.getElementById('msgConfirmar').textContent = 'No hay trabajadores para importar.';
     return;
   }
 
@@ -543,19 +556,72 @@ async function confirmarImportacion() {
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Guardando...';
 
-  let ok = 0, errores = 0;
+  let creados = 0, actualizados = 0, errores = 0;
 
-  for (const r of aActualizar) {
-    const motivos = r.motivos.length ? r.motivos : null;
-    const { error } = await sb.from('validaciones_obra').upsert({
-      trabajador_id: r.trabajadorId,
-      obra_id: obraId,
-      estado: r.estadoManual,
-      motivos: motivos ? { lista: motivos } : null,
-      fecha_validacion: new Date().toISOString()
-    }, { onConflict: 'trabajador_id,obra_id' });
+  // Caché de empresas creadas en esta sesión: cif -> id
+  const empresaCache = {};
 
-    if (error) { console.error(error); errores++; } else { ok++; }
+  for (const r of resultadoFinal) {
+    try {
+      let trabajadorId = r.trabajadorId;
+
+      // Si no está en la app, crearlo
+      if (!r.enApp) {
+        // 1. Crear o recuperar empresa
+        let empresaId = null;
+        if (r.empresaRaw) {
+          const { nombre, cif } = extraerEmpresa(r.empresaRaw);
+          const cacheKey = cif || nombre;
+
+          if (empresaCache[cacheKey]) {
+            empresaId = empresaCache[cacheKey];
+          } else {
+            // Buscar si ya existe
+            const { data: empExist } = await sb.from('empresas')
+              .select('id').eq('cif', cif).maybeSingle();
+            if (empExist) {
+              empresaId = empExist.id;
+            } else {
+              // Crear empresa
+              const { data: empNew, error: empErr } = await sb.from('empresas')
+                .insert({ nombre, cif }).select('id').single();
+              if (empErr) throw empErr;
+              empresaId = empNew.id;
+            }
+            empresaCache[cacheKey] = empresaId;
+          }
+        }
+
+        // 2. Crear trabajador
+        const { data: trabNew, error: trabErr } = await sb.from('trabajadores')
+          .insert({
+            nombre: r.nombre,
+            dni: r.dni,
+            empresa_id: empresaId || null,
+            categoria: 'peon'
+          }).select('id').single();
+        if (trabErr) throw trabErr;
+        trabajadorId = trabNew.id;
+        creados++;
+      }
+
+      // 3. Upsert en validaciones_obra
+      const motivos = r.motivos.length ? r.motivos : null;
+      const { error: valErr } = await sb.from('validaciones_obra').upsert({
+        trabajador_id: trabajadorId,
+        obra_id: obraId,
+        estado: r.estadoManual,
+        motivos: motivos ? { lista: motivos } : null,
+        fecha_validacion: new Date().toISOString()
+      }, { onConflict: 'trabajador_id,obra_id' });
+      if (valErr) throw valErr;
+
+      if (r.enApp) actualizados++;
+
+    } catch (err) {
+      console.error('Error con', r.dni, err);
+      errores++;
+    }
   }
 
   btn.disabled = false;
@@ -564,15 +630,14 @@ async function confirmarImportacion() {
   const msg = document.getElementById('msgConfirmar');
   if (errores === 0) {
     msg.style.color = '#065f46';
-    msg.textContent = `✅ ${ok} trabajadores actualizados correctamente.`;
-
+    msg.textContent = `✅ ${creados} trabajadores creados, ${actualizados} actualizados.`;
     document.getElementById('alertas').innerHTML = `
       <div class="alert alert-success">
-        Importación completada. ${ok} trabajadores actualizados en la obra seleccionada.
+        Importación completada. ${creados} trabajadores nuevos creados, ${actualizados} actualizados.
       </div>`;
   } else {
     msg.style.color = '#991b1b';
-    msg.textContent = `⚠️ ${ok} actualizados, ${errores} errores. Revisa la consola.`;
+    msg.textContent = `⚠️ ${creados} creados, ${actualizados} actualizados, ${errores} errores. Revisa la consola.`;
   }
 }
 
