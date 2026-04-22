@@ -1,501 +1,575 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Importar e-Coordina — Jefe de Obra</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-<style>
-  :root {
-    --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
-    --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
-    --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
-  .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
-  .sidebar-logo { padding: 22px 20px 18px; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--naranja); border-bottom: 1px solid var(--borde); }
-  .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
-  .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
-  .sidebar a:hover { background: var(--bg3); color: var(--texto); }
-  .sidebar a.activo { background: var(--bg3); color: var(--texto); font-weight: 600; }
-  .sidebar a .ico { font-size: 16px; width: 20px; text-align: center; }
-  .sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid var(--borde); }
-  .btn-salir { width: 100%; background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 8px; }
-  .btn-salir:hover { background: var(--bg3); color: var(--texto); }
-  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
-  .topbar { padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--borde); }
-  .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
-  .topbar-right { display: flex; align-items: center; gap: 14px; }
-  .usuario { font-size: 13px; color: var(--texto2); }
-  .selector-obra { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 8px 12px; font-family: inherit; }
-  .selector-obra:focus { outline: none; border-color: var(--naranja); }
-  .contenido { padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Importar e-Coordina</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f4f6f9; color: #1a1a2e; }
 
-  .zona-subida { border: 2px dashed var(--borde); border-radius: 12px; padding: 48px 24px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; background: var(--bg2); }
-  .zona-subida:hover, .zona-subida.drag-over { border-color: var(--naranja); background: rgba(255,152,0,0.05); }
-  .zona-subida .icono { font-size: 40px; margin-bottom: 12px; }
-  .zona-subida .titulo { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
-  .zona-subida .subtitulo { font-size: 13px; color: var(--texto2); }
-  .zona-subida input[type="file"] { display: none; }
+    .topbar {
+      background: #1a1a2e; color: white; padding: 14px 24px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .topbar a { color: #aab4c8; text-decoration: none; font-size: 14px; }
+    .topbar a:hover { color: white; }
+    .topbar h1 { font-size: 18px; font-weight: 600; }
 
-  .progreso { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 20px 24px; display: none; }
-  .progreso.visible { display: block; }
-  .progreso-texto { font-size: 14px; color: var(--texto2); margin-bottom: 10px; }
-  .progreso-barra-wrap { background: var(--bg3); border-radius: 4px; height: 6px; overflow: hidden; }
-  .progreso-barra { height: 100%; background: var(--naranja); border-radius: 4px; transition: width 0.3s; width: 0%; }
+    .sidebar {
+      position: fixed; left: 0; top: 53px; bottom: 0; width: 200px;
+      background: #1e2a3a; padding: 20px 0; overflow-y: auto;
+    }
+    .sidebar a {
+      display: block; padding: 10px 20px; color: #aab4c8;
+      text-decoration: none; font-size: 14px; transition: background 0.2s;
+    }
+    .sidebar a:hover, .sidebar a.active { background: #2a3f5f; color: white; }
 
-  .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; display: none; }
-  .seccion.visible { display: block; }
-  .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-  .seccion-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-  .seccion-cab-acciones { display: flex; gap: 10px; align-items: center; }
+    .main { margin-left: 200px; padding: 28px 32px; }
 
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th { text-align: left; padding: 10px 20px; font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); }
-  td { padding: 13px 20px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
-  tr:last-child td { border-bottom: none; }
-  tr:hover td { background: var(--bg3); }
+    .card {
+      background: white; border-radius: 10px; padding: 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 24px;
+    }
+    .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #1a1a2e; }
 
-  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-  .pill.verde   { background: rgba(76,175,80,0.15);  color: var(--verde); }
-  .pill.naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
-  .pill.rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
+    .drop-zone {
+      border: 2px dashed #c0cce0; border-radius: 8px; padding: 40px;
+      text-align: center; cursor: pointer; transition: all 0.2s; background: #f8fafc;
+    }
+    .drop-zone:hover, .drop-zone.dragover { border-color: #3b82f6; background: #eff6ff; }
+    .drop-zone p { color: #64748b; font-size: 14px; margin-top: 8px; }
+    .drop-zone .icon { font-size: 36px; }
 
-  .btn { padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; border: none; transition: opacity 0.15s; }
-  .btn:hover { opacity: 0.85; }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-confirmar { background: var(--verde); color: #fff; }
-  .btn-cancelar  { background: transparent; border: 1px solid var(--borde); color: var(--texto2); }
+    input[type="file"] { display: none; }
 
-  .alerta { padding: 12px 16px; border-radius: 8px; font-size: 13px; display: none; }
-  .alerta.visible { display: block; }
-  .alerta.ok    { background: rgba(76,175,80,0.1);  border: 1px solid var(--verde);   color: var(--verde); }
-  .alerta.error { background: rgba(244,67,54,0.1);  border: 1px solid var(--rojo);    color: var(--rojo); }
-  .alerta.info  { background: rgba(255,152,0,0.1);  border: 1px solid var(--naranja); color: var(--naranja); }
+    select {
+      padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px;
+      font-size: 14px; background: white; width: 100%; max-width: 400px;
+    }
 
-  .motivos { font-size: 12px; color: var(--texto2); margin-top: 3px; line-height: 1.6; }
+    .btn {
+      padding: 9px 20px; border-radius: 6px; font-size: 14px;
+      font-weight: 500; border: none; cursor: pointer; transition: background 0.2s;
+    }
+    .btn-primary { background: #3b82f6; color: white; }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
+    .btn-success { background: #10b981; color: white; }
+    .btn-success:hover { background: #059669; }
+    .btn-outline { background: white; color: #374151; border: 1px solid #d1d5db; }
+    .btn-outline:hover { background: #f9fafb; }
 
-  select.override { background: var(--bg3); border: 1px solid var(--borde); border-radius: 6px; color: var(--texto); font-size: 12px; padding: 4px 8px; font-family: inherit; cursor: pointer; }
-  select.override:focus { outline: none; border-color: var(--naranja); }
+    .semaforo {
+      display: inline-block; width: 12px; height: 12px; border-radius: 50%;
+      margin-right: 6px; vertical-align: middle;
+    }
+    .verde { background: #10b981; }
+    .naranja { background: #f59e0b; }
+    .rojo { background: #ef4444; }
 
-  .tag-nuevo { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; background: rgba(33,150,243,0.15); color: var(--azul); margin-left: 6px; vertical-align: middle; }
-</style>
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; }
+    td { padding: 9px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    tr:hover td { background: #f8fafc; }
+
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 20px;
+      font-size: 11px; font-weight: 600;
+    }
+    .badge-verde { background: #d1fae5; color: #065f46; }
+    .badge-naranja { background: #fef3c7; color: #92400e; }
+    .badge-rojo { background: #fee2e2; color: #991b1b; }
+    .badge-ignorado { background: #f1f5f9; color: #64748b; }
+
+    .motivos { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+    .alert {
+      padding: 12px 16px; border-radius: 6px; font-size: 13px; margin-bottom: 16px;
+    }
+    .alert-info { background: #eff6ff; color: #1e40af; border-left: 3px solid #3b82f6; }
+    .alert-warning { background: #fffbeb; color: #92400e; border-left: 3px solid #f59e0b; }
+    .alert-success { background: #f0fdf4; color: #166534; border-left: 3px solid #10b981; }
+    .alert-error { background: #fef2f2; color: #991b1b; border-left: 3px solid #ef4444; }
+
+    .stats { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+    .stat-box {
+      background: #f8fafc; border-radius: 8px; padding: 12px 20px;
+      text-align: center; min-width: 100px; border: 1px solid #e2e8f0;
+    }
+    .stat-box .num { font-size: 24px; font-weight: 700; }
+    .stat-box .label { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+    .override-select {
+      padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 4px;
+      font-size: 12px; background: white;
+    }
+
+    .spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid #93c5fd; border-top-color: #3b82f6;
+      border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #374151; }
+
+    #resultado { display: none; }
+    #paso-obra { display: none; }
+  </style>
 </head>
 <body>
 
+<div class="topbar">
+  <a href="index.html">← Panel Jefe</a>
+  <h1>Importar documentación e-Coordina</h1>
+</div>
+
 <div class="sidebar">
-  <div class="sidebar-logo">Jefe de Obra</div>
-  <div class="sidebar-section">Principal</div>
-  <a href="index.html"><span class="ico">👷</span> Presencia</a>
-  <div class="sidebar-section">Gestión</div>
-  <a href="fichajes.html"><span class="ico">🕐</span> Fichajes</a>
-  <a href="documentos.html"><span class="ico">📄</span> Documentos</a>
-  <a href="documentos-ecoordina.html" class="activo"><span class="ico">📥</span> e-Coordina</a>
-  <a href="trabajadores.html"><span class="ico">👥</span> Trabajadores</a>
-  <div class="sidebar-bottom">
-    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
-  </div>
+  <a href="index.html">👥 Presencia</a>
+  <a href="fichajes.html">🕐 Fichajes</a>
+  <a href="trabajadores.html">👷 Trabajadores</a>
+  <a href="documentos.html">📄 Documentos</a>
+  <a href="documentos-ecoordina.html" class="active">📥 e-Coordina</a>
 </div>
 
 <div class="main">
-  <div class="topbar">
-    <h1>Importar e-Coordina</h1>
-    <div class="topbar-right">
-      <select class="selector-obra" id="selector-obra">
-        <option value="">Cargando obras…</option>
+
+  <!-- PASO 1: Subir archivo -->
+  <div class="card" id="paso-upload">
+    <h2>📥 Paso 1 — Sube el Excel de e-Coordina</h2>
+    <p style="font-size:13px;color:#64748b;margin-bottom:16px;">
+      Exporta desde e-Coordina: <strong>Informes → Lista de obra</strong> en formato Excel (.xlsx).
+    </p>
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <div class="icon">📊</div>
+      <p>Haz clic aquí o arrastra el archivo Excel</p>
+      <p style="font-size:12px;margin-top:4px;">Solo archivos .xlsx</p>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx" />
+  </div>
+
+  <!-- PASO 2: Seleccionar obra -->
+  <div class="card" id="paso-obra">
+    <h2>🏗️ Paso 2 — Selecciona la obra</h2>
+    <div class="form-group">
+      <label>Obra a actualizar:</label>
+      <select id="obraSelect">
+        <option value="">Cargando obras...</option>
       </select>
-      <span class="usuario" id="usuario-nombre"></span>
     </div>
+    <button class="btn btn-primary" id="btnProcesar" onclick="procesarExcel()">
+      Procesar Excel
+    </button>
   </div>
 
-  <div class="contenido">
+  <!-- RESULTADO -->
+  <div id="resultado">
+    <div class="card">
+      <h2>📋 Paso 3 — Revisión antes de confirmar</h2>
 
-    <div class="alerta info visible" id="alerta-instrucciones">
-      📋 Sube el <strong>"Informe cumplimiento documental - detalle"</strong> de e-Coordina para cada subcontrata. Puedes subir varios PDFs uno a uno. El estado de cada trabajador lo calcula tu app según tus propias reglas.
-    </div>
+      <div id="alertas"></div>
 
-    <div class="alerta" id="alerta-resultado"></div>
+      <div class="stats" id="stats"></div>
 
-    <div class="zona-subida" id="zona-subida">
-      <input type="file" id="input-pdf" accept="application/pdf">
-      <div class="icono">📄</div>
-      <div class="titulo">Arrastra el PDF aquí o haz clic para seleccionarlo</div>
-      <div class="subtitulo">Informe cumplimiento documental - detalle (e-Coordina)</div>
-    </div>
+      <p style="font-size:13px;color:#64748b;margin-bottom:16px;">
+        Puedes ajustar manualmente el estado de cualquier trabajador antes de confirmar.
+        Solo se actualizarán los trabajadores que ya existen en la app (los demás se ignoran).
+      </p>
 
-    <div class="progreso" id="progreso">
-      <div class="progreso-texto" id="progreso-texto">Leyendo PDF…</div>
-      <div class="progreso-barra-wrap"><div class="progreso-barra" id="progreso-barra"></div></div>
-    </div>
+      <table id="tablaResultado">
+        <thead>
+          <tr>
+            <th>Trabajador</th>
+            <th>DNI</th>
+            <th>Empresa</th>
+            <th>Estado calculado</th>
+            <th>Motivos</th>
+            <th>Ajuste manual</th>
+            <th>En app</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyResultado"></tbody>
+      </table>
 
-    <div class="seccion" id="seccion-resultado">
-      <div class="seccion-cab">
-        <h2 id="titulo-resultado">Resultado</h2>
-        <div class="seccion-cab-acciones">
-          <button class="btn btn-cancelar" id="btn-cancelar">Cancelar</button>
-          <button class="btn btn-confirmar" id="btn-confirmar">✓ Confirmar e importar</button>
-        </div>
+      <div style="margin-top:20px;display:flex;gap:12px;align-items:center;">
+        <button class="btn btn-success" id="btnConfirmar" onclick="confirmarImportacion()">
+          ✅ Confirmar importación
+        </button>
+        <button class="btn btn-outline" onclick="location.reload()">Cancelar</button>
+        <span id="msgConfirmar" style="font-size:13px;color:#64748b;"></span>
       </div>
-      <div id="tabla-resultado"></div>
     </div>
-
   </div>
+
 </div>
 
-<script src="../js/supabase-client.js"></script>
 <script>
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const sb = window.supabaseClient;
-let obraActual = null;
-let resultadoParsed = [];
+let session = null;
+let misObras = [];
 let reglas = [];
+let trabajadoresApp = {}; // dni -> {id, nombre}
+let datosExcel = null; // filas parseadas
+let resultadoFinal = []; // trabajadores con semáforo calculado
 
-// ── Init ──────────────────────────────────────────────────────────────────────
-(async function init() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) { window.location.href = '../'; return; }
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+async function init() {
+  const { data: { session: s } } = await sb.auth.getSession();
+  if (!s) { window.location.href = '../index.html'; return; }
+  session = s;
 
-  const { data: miUsuario } = await sb
-    .from('usuarios_app')
-    .select('id, nombre')
-    .eq('auth_user_id', session.user.id)
-    .single();
-  if (!miUsuario) { window.location.href = '../'; return; }
+  // Verificar rol
+  const { data: ua } = await sb.from('usuarios_app')
+    .select('rol').eq('auth_user_id', s.user.id).single();
+  if (!ua || (ua.rol !== 'admin' && ua.rol !== 'jefe_obra')) {
+    window.location.href = '../index.html'; return;
+  }
 
-  document.getElementById('usuario-nombre').textContent =
-    miUsuario.nombre || session.user.email;
+  await cargarObras();
+  await cargarReglas();
+}
 
-  const { data: misObras } = await sb
-    .from('usuarios_obra')
-    .select('obra_id, obra:obra_id(id, nombre)')
-    .eq('usuario_app_id', miUsuario.id)
-    .eq('rol_en_obra', 'jefe_obra');
+async function cargarObras() {
+  const { data: { session: s } } = await sb.auth.getSession();
+  const { data: ua } = await sb.from('usuarios_app')
+    .select('id, rol').eq('auth_user_id', s.user.id).single();
 
-  if (!misObras || misObras.length === 0) { window.location.href = '../'; return; }
+  let obras;
+  if (ua.rol === 'admin') {
+    const { data } = await sb.from('obras').select('id, nombre').eq('activa', true).order('nombre');
+    obras = data;
+  } else {
+    const { data: uo } = await sb.from('usuarios_obra')
+      .select('obra_id').eq('usuario_app_id', ua.id).eq('rol_en_obra', 'jefe_obra');
+    const ids = (uo || []).map(r => r.obra_id);
+    if (!ids.length) { obras = []; }
+    else {
+      const { data } = await sb.from('obras').select('id, nombre').in('id', ids).eq('activa', true).order('nombre');
+      obras = data;
+    }
+  }
 
-  const selector = document.getElementById('selector-obra');
-  selector.innerHTML = '';
-  misObras.forEach(uo => {
-    const opt = document.createElement('option');
-    opt.value = uo.obra.id;
-    opt.textContent = uo.obra.nombre;
-    selector.appendChild(opt);
-  });
-  obraActual = misObras[0].obra.id;
-  selector.addEventListener('change', () => { obraActual = selector.value; resetUI(); });
+  misObras = obras || [];
+  const sel = document.getElementById('obraSelect');
+  sel.innerHTML = misObras.length
+    ? '<option value="">— Selecciona una obra —</option>' + misObras.map(o => `<option value="${o.id}">${o.nombre}</option>`).join('')
+    : '<option value="">No tienes obras asignadas</option>';
+}
 
-  // Cargar reglas documentales
-  const { data: r } = await sb.from('reglas_documentales').select('*');
-  reglas = r || [];
-})();
+async function cargarReglas() {
+  const { data } = await sb.from('reglas_documentales').select('*');
+  reglas = data || [];
+}
 
-document.getElementById('btn-salir').addEventListener('click', async () => {
-  await sb.auth.signOut();
-  window.location.href = '../';
-});
+// ── DRAG & DROP ───────────────────────────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
 
-// ── Zona de subida ────────────────────────────────────────────────────────────
-const zona     = document.getElementById('zona-subida');
-const inputPdf = document.getElementById('input-pdf');
-
-zona.addEventListener('click', () => inputPdf.click());
-zona.addEventListener('dragover',  e => { e.preventDefault(); zona.classList.add('drag-over'); });
-zona.addEventListener('dragleave', ()  => zona.classList.remove('drag-over'));
-zona.addEventListener('drop', e => {
-  e.preventDefault();
-  zona.classList.remove('drag-over');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
   const file = e.dataTransfer.files[0];
-  if (file && file.type === 'application/pdf') procesarPDF(file);
-  else mostrarAlerta('error', 'El archivo debe ser un PDF.');
+  if (file) procesarArchivo(file);
 });
-inputPdf.addEventListener('change', () => {
-  if (inputPdf.files[0]) procesarPDF(inputPdf.files[0]);
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) procesarArchivo(fileInput.files[0]);
 });
 
-// ── Procesar PDF ──────────────────────────────────────────────────────────────
-async function procesarPDF(file) {
-  resetUI();
-  mostrarProgreso('Leyendo PDF…', 10);
-
-  try {
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-
-    let textoTotal = '';
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page    = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      // Reconstruir líneas manteniendo orden espacial
-      textoTotal += content.items.map(item => item.str).join(' ') + '\n';
-      mostrarProgreso(
-        `Leyendo página ${i} de ${pdf.numPages}…`,
-        10 + Math.round((i / pdf.numPages) * 50)
-      );
-    }
-
-    mostrarProgreso('Extrayendo datos de trabajadores…', 65);
-    const trabajadores = parsearTexto(textoTotal);
-
-    if (trabajadores.length === 0) {
-      ocultarProgreso();
-      mostrarAlerta('error',
-        'No se encontraron trabajadores en este PDF. Asegúrate de subir el <strong>"Informe cumplimiento documental - detalle"</strong>.');
-      return;
-    }
-
-    mostrarProgreso('Aplicando reglas documentales…', 80);
-    const conEstado = aplicarReglas(trabajadores);
-
-    mostrarProgreso('Verificando trabajadores en la app…', 88);
-    const dnis = conEstado.map(t => t.dni);
-    const { data: enApp } = await sb.from('trabajadores').select('dni').in('dni', dnis);
-    const dnisEnApp = new Set((enApp || []).map(t => t.dni));
-    const conExistencia = conEstado.map(t => ({ ...t, en_app: dnisEnApp.has(t.dni) }));
-
-    mostrarProgreso('Preparando tabla de revisión…', 95);
-    resultadoParsed = conExistencia;
-    mostrarTabla(conExistencia);
-    ocultarProgreso();
-
-  } catch (err) {
-    ocultarProgreso();
-    mostrarAlerta('error', 'Error al leer el PDF: ' + err.message);
-  }
-}
-
-// ── Parser ────────────────────────────────────────────────────────────────────
-function parsearTexto(texto) {
-  // Normalizar espacios
-  texto = texto.replace(/\s+/g, ' ');
-
-  const trabajadoresMap = {};
-
-  // Patrón: [nombre documento] Trabajador [NOMBRE - DNI] [Estado] [Sí|No] [Sí|No]
-  const regex = /(.+?)\s+Trabajador\s+([A-ZÁÉÍÓÚÜÑ][A-ZÁÉÍÓÚÜÑa-záéíóúüñ\s,.']+?)\s+-\s+([A-Z0-9]{7,10})\s+(Validado|Caducado|Sin presentar|Validaci[oó]n pendiente)\s+(Sí|No)\s+(Sí|No)/g;
-
-  let match;
-  while ((match = regex.exec(texto)) !== null) {
-    const nombreDoc   = match[1].trim();
-    const nombreTrab  = match[2].trim();
-    const dni         = match[3].trim();
-    const estado      = match[4].replace('Validacion', 'Validación');
-    const obligatorio = match[5] === 'Sí';
-
-    // Ignorar filas de empresa (el elemento no tiene formato NOMBRE - DNI de persona)
-    if (dni.length < 7) continue;
-
-    // Separar apellidos y nombre (formato e-Coordina: APELLIDOS, NOMBRE)
-    let nombre    = nombreTrab;
-    let apellidos = '';
-    if (nombreTrab.includes(',')) {
-      const partes = nombreTrab.split(',');
-      apellidos = partes[0].trim();
-      nombre    = (partes[1] || '').trim() || apellidos;
-    }
-
-    if (!trabajadoresMap[dni]) {
-      trabajadoresMap[dni] = { dni, nombre, apellidos, documentos: [] };
-    }
-
-    trabajadoresMap[dni].documentos.push({ documento: nombreDoc, estado, obligatorio });
+function procesarArchivo(file) {
+  if (!file.name.endsWith('.xlsx')) {
+    alert('Solo se aceptan archivos .xlsx'); return;
   }
 
-  return Object.values(trabajadoresMap);
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wb = XLSX.read(e.target.result, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const filas = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    datosExcel = filas;
+
+    // Mostrar nombre del archivo en drop zone
+    dropZone.innerHTML = `<div class="icon">✅</div><p><strong>${file.name}</strong> cargado</p>`;
+
+    // Mostrar paso 2
+    document.getElementById('paso-obra').style.display = 'block';
+  };
+  reader.readAsArrayBuffer(file);
 }
 
-// ── Aplicar reglas ────────────────────────────────────────────────────────────
-function aplicarReglas(trabajadores) {
-  return trabajadores.map(t => {
-    let estadoFinal = 'verde';
-    const motivos   = [];
-
-    const obligatorios = t.documentos.filter(d => d.obligatorio);
-
-    for (const doc of obligatorios) {
-      const res = calcularEstadoDoc(doc.documento, doc.estado);
-      if (res === 'rojo') {
-        estadoFinal = 'rojo';
-        motivos.push(`🔴 ${doc.documento}: ${doc.estado}`);
-      } else if (res === 'naranja' && estadoFinal !== 'rojo') {
-        estadoFinal = 'naranja';
-        motivos.push(`🟡 ${doc.documento}: ${doc.estado}`);
-      }
-    }
-
-    return { ...t, estado_calculado: estadoFinal, motivos, override: undefined };
-  });
+// ── EXTRAER DNI ───────────────────────────────────────────────────────────────
+function extraerDni(texto) {
+  if (!texto) return null;
+  // Formato: "NOMBRE APELLIDO - X1234567A"
+  const partes = texto.split(' - ');
+  if (partes.length < 2) return null;
+  const dni = partes[partes.length - 1].trim();
+  // Validar que parece un DNI/NIE (6-9 chars alfanuméricos)
+  if (/^[A-Z0-9]{6,10}$/i.test(dni)) return dni.toUpperCase();
+  return null;
 }
 
-function calcularEstadoDoc(nombreDoc, estadoEcoordina) {
-  if (estadoEcoordina === 'Validado') return 'verde';
+function extraerNombreEmpresa(texto) {
+  if (!texto) return '';
+  // Formato: "EMPRESA SL - B12345678"
+  const partes = texto.split(' - ');
+  return partes[0].trim();
+}
 
-  // Regla específica para este documento
-  const especifica = reglas.find(r =>
-    r.nombre_documento !== '*' &&
-    nombreDoc.toLowerCase().includes(r.nombre_documento.toLowerCase()) &&
-    r.estado_ecoordina === estadoEcoordina &&
-    r.es_obligatorio
+// ── APLICAR REGLAS ────────────────────────────────────────────────────────────
+function aplicarRegla(nombreDoc, estadoEcoordina, tipoAplica) {
+  // Buscar regla exacta primero
+  let regla = reglas.find(r =>
+    r.aplica_a === tipoAplica &&
+    r.nombre_documento === nombreDoc &&
+    r.estado_ecoordina === estadoEcoordina
   );
-  if (especifica) return especifica.resultado;
-
-  // Regla comodín
-  const comodin = reglas.find(r =>
-    r.nombre_documento === '*' &&
-    r.estado_ecoordina === estadoEcoordina &&
-    r.es_obligatorio
-  );
-  if (comodin) return comodin.resultado;
-
-  // Sin regla → naranja por precaución
-  return 'naranja';
+  // Si no hay regla exacta, buscar comodín (*)
+  if (!regla) {
+    regla = reglas.find(r =>
+      r.aplica_a === tipoAplica &&
+      r.nombre_documento === '*' &&
+      r.estado_ecoordina === estadoEcoordina
+    );
+  }
+  return regla || null;
 }
 
-// ── Tabla de revisión ─────────────────────────────────────────────────────────
-function mostrarTabla(trabajadores) {
-  const n = trabajadores.length;
-  document.getElementById('titulo-resultado').textContent =
-    `${n} trabajador${n !== 1 ? 'es' : ''} encontrados — revisa antes de confirmar`;
-
-  const html = `
-    <table>
-      <thead><tr>
-        <th>Trabajador</th>
-        <th>DNI</th>
-        <th>Estado calculado</th>
-        <th>Motivos</th>
-        <th>Ajuste manual</th>
-      </tr></thead>
-      <tbody>
-        ${trabajadores.map((t, i) => `
-          <tr style="${!t.en_app ? 'opacity:0.45' : ''}">
-            <td>
-              <strong>${esc(t.apellidos ? t.apellidos + ', ' + t.nombre : t.nombre)}</strong>
-              ${!t.en_app ? '<span style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px;background:rgba(244,67,54,0.12);color:#f44336;margin-left:6px">Sin dar de alta</span>' : ''}
-            </td>
-            <td style="font-family:monospace;font-size:13px;color:var(--texto2)">${esc(t.dni)}</td>
-            <td>${t.en_app ? `<span class="pill ${t.estado_calculado}">${t.estado_calculado}</span>` : '<span style="color:var(--texto2);font-size:12px">—</span>'}</td>
-            <td>
-              <div class="motivos">
-                ${t.en_app ? (t.motivos.length ? t.motivos.join('<br>') : '<span style="color:var(--verde)">Todo OK</span>') : 'No se actualizará'}
-              </div>
-            </td>
-            <td>
-              ${t.en_app ? `
-              <select class="override" data-idx="${i}">
-                <option value="auto">— Auto</option>
-                <option value="verde">🟢 Verde</option>
-                <option value="naranja">🟡 Naranja</option>
-                <option value="rojo">🔴 Rojo</option>
-              </select>` : '—'}
-            </td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>`;
-
-  document.getElementById('tabla-resultado').innerHTML = html;
-  document.getElementById('seccion-resultado').classList.add('visible');
-
-  document.querySelectorAll('select.override').forEach(sel => {
-    sel.addEventListener('change', () => {
-      const idx = parseInt(sel.dataset.idx);
-      resultadoParsed[idx].override = sel.value === 'auto' ? undefined : sel.value;
-    });
-  });
+function peorEstado(a, b) {
+  const orden = { rojo: 3, naranja: 2, verde: 1 };
+  return (orden[a] || 0) >= (orden[b] || 0) ? a : b;
 }
 
-// ── Confirmar importación ─────────────────────────────────────────────────────
-document.getElementById('btn-confirmar').addEventListener('click', async () => {
-  if (!obraActual) { mostrarAlerta('error', 'Selecciona una obra primero.'); return; }
-  if (!resultadoParsed.length) return;
+// ── PROCESAR EXCEL ────────────────────────────────────────────────────────────
+async function procesarExcel() {
+  const obraId = document.getElementById('obraSelect').value;
+  if (!obraId) { alert('Selecciona una obra primero'); return; }
+  if (!datosExcel) { alert('Primero sube el archivo Excel'); return; }
 
-  const btn = document.getElementById('btn-confirmar');
-  btn.textContent = 'Importando…';
+  const btn = document.getElementById('btnProcesar');
   btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Procesando...';
 
-  let actualizados = 0, noEncontrados = 0, errores = 0;
+  // Cargar trabajadores de la app para esta obra
+  // (todos los que tienen validaciones_obra para esta obra, o están en trabajadores)
+  const { data: trabApp } = await sb.from('trabajadores').select('id, nombre, dni');
+  trabajadoresApp = {};
+  (trabApp || []).forEach(t => {
+    trabajadoresApp[t.dni.toUpperCase()] = { id: t.id, nombre: t.nombre };
+  });
 
-  for (const t of resultadoParsed) {
-    try {
-      const estadoFinal = t.override || t.estado_calculado;
+  // Separar filas: con DNI (trabajador) vs sin DNI (empresa)
+  const filasEmpresa = [];
+  const filasTrabajador = [];
 
-      // Solo actuar si el trabajador ya existe en la app
-      const { data: existente } = await sb
-        .from('trabajadores')
-        .select('id')
-        .eq('dni', t.dni)
-        .maybeSingle();
-
-      if (!existente) {
-        noEncontrados++;
-        continue; // No crear, solo ignorar
-      }
-
-      // Upsert validación
-      const { error: errVal } = await sb
-        .from('validaciones_obra')
-        .upsert({
-          trabajador_id:  existente.id,
-          obra_id:        obraActual,
-          estado:         estadoFinal,
-          motivos:        t.motivos,
-          actualizado_en: new Date().toISOString()
-        }, { onConflict: 'trabajador_id,obra_id' });
-
-      if (errVal) { errores++; } else { actualizados++; }
-
-    } catch (e) {
-      errores++;
+  for (const fila of datosExcel) {
+    const trabajadorRaw = fila['Trabajador'] || '';
+    const dni = extraerDni(trabajadorRaw);
+    if (dni) {
+      filasTrabajador.push({ ...fila, _dni: dni, _nombreTrabajador: trabajadorRaw.split(' - ')[0].trim() });
+    } else {
+      filasEmpresa.push(fila);
     }
   }
 
-  btn.textContent = '✓ Confirmar e importar';
+  // Calcular problemas por empresa (nombre_empresa → [{doc, estado, resultado}])
+  const problemasPorEmpresa = {};
+  for (const fila of filasEmpresa) {
+    const empresa = extraerNombreEmpresa(fila['Empresa'] || '');
+    if (!empresa) continue;
+    const nombreDoc = fila['Documento'] || '';
+    const estado = fila['Estado'] || '';
+    const regla = aplicarRegla(nombreDoc, estado, 'empresa');
+    if (regla) {
+      if (!problemasPorEmpresa[empresa]) problemasPorEmpresa[empresa] = [];
+      problemasPorEmpresa[empresa].push({
+        doc: nombreDoc,
+        estado,
+        resultado: regla.resultado
+      });
+    }
+  }
+
+  // Agrupar filas por trabajador (dni)
+  const porTrabajador = {};
+  for (const fila of filasTrabajador) {
+    const dni = fila._dni;
+    if (!porTrabajador[dni]) {
+      porTrabajador[dni] = {
+        dni,
+        nombre: fila._nombreTrabajador,
+        empresa: extraerNombreEmpresa(fila['Empresa'] || ''),
+        docs: []
+      };
+    }
+    porTrabajador[dni].docs.push({
+      doc: fila['Documento'] || '',
+      estado: fila['Estado'] || ''
+    });
+  }
+
+  // Calcular semáforo por trabajador
+  resultadoFinal = [];
+  for (const [dni, info] of Object.entries(porTrabajador)) {
+    let estadoFinal = 'verde';
+    const motivos = [];
+
+    // 1. Docs propios del trabajador
+    for (const { doc, estado } of info.docs) {
+      const regla = aplicarRegla(doc, estado, 'trabajador');
+      if (regla) {
+        estadoFinal = peorEstado(estadoFinal, regla.resultado);
+        motivos.push(`${doc} (${estado}) → ${regla.resultado}`);
+      }
+    }
+
+    // 2. Docs heredados de su empresa
+    const empProblemas = problemasPorEmpresa[info.empresa] || [];
+    for (const p of empProblemas) {
+      estadoFinal = peorEstado(estadoFinal, p.resultado);
+      motivos.push(`[Empresa] ${p.doc} (${p.estado}) → ${p.resultado}`);
+    }
+
+    const enApp = !!trabajadoresApp[dni];
+    resultadoFinal.push({
+      dni,
+      nombre: info.nombre,
+      empresa: info.empresa,
+      estadoCalculado: estadoFinal,
+      estadoManual: estadoFinal, // editable
+      motivos,
+      enApp,
+      trabajadorId: enApp ? trabajadoresApp[dni].id : null,
+      nombreApp: enApp ? trabajadoresApp[dni].nombre : null
+    });
+  }
+
+  // Ordenar: rojos primero, luego naranja, luego verde
+  const orden = { rojo: 0, naranja: 1, verde: 2 };
+  resultadoFinal.sort((a, b) => orden[a.estadoCalculado] - orden[b.estadoCalculado]);
+
+  renderTabla();
+  renderStats();
+
   btn.disabled = false;
+  btn.innerHTML = 'Procesar Excel';
+  document.getElementById('resultado').style.display = 'block';
+  document.getElementById('resultado').scrollIntoView({ behavior: 'smooth' });
+}
 
-  let msg = `✅ Listo. ${actualizados} trabajador${actualizados !== 1 ? 'es' : ''} actualizados.`;
-  if (noEncontrados) msg += ` ${noEncontrados} no estaban dados de alta en la app y se han ignorado.`;
-  if (errores)       msg += ` ⚠️ ${errores} con error.`;
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderStats() {
+  const enApp = resultadoFinal.filter(r => r.enApp);
+  const rojos = enApp.filter(r => r.estadoCalculado === 'rojo').length;
+  const naranjas = enApp.filter(r => r.estadoCalculado === 'naranja').length;
+  const verdes = enApp.filter(r => r.estadoCalculado === 'verde').length;
+  const ignorados = resultadoFinal.filter(r => !r.enApp).length;
 
-  mostrarAlerta('ok', msg);
-  document.getElementById('seccion-resultado').classList.remove('visible');
-  resultadoParsed = [];
-  inputPdf.value  = '';
-});
+  document.getElementById('stats').innerHTML = `
+    <div class="stat-box"><div class="num" style="color:#ef4444">${rojos}</div><div class="label">🔴 Rojos</div></div>
+    <div class="stat-box"><div class="num" style="color:#f59e0b">${naranjas}</div><div class="label">🟡 Naranja</div></div>
+    <div class="stat-box"><div class="num" style="color:#10b981">${verdes}</div><div class="label">🟢 Verde</div></div>
+    <div class="stat-box"><div class="num" style="color:#94a3b8">${ignorados}</div><div class="label">⚪ No en app</div></div>
+  `;
+}
 
-document.getElementById('btn-cancelar').addEventListener('click', resetUI);
+function renderTabla() {
+  const tbody = document.getElementById('tbodyResultado');
+  tbody.innerHTML = '';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function mostrarProgreso(texto, pct) {
-  document.getElementById('progreso').classList.add('visible');
-  document.getElementById('progreso-texto').textContent = texto;
-  document.getElementById('progreso-barra').style.width = pct + '%';
+  for (let i = 0; i < resultadoFinal.length; i++) {
+    const r = resultadoFinal[i];
+    const badgeClass = `badge-${r.estadoCalculado}`;
+    const enAppBadge = r.enApp
+      ? `<span class="badge badge-verde">✓ Sí</span>`
+      : `<span class="badge badge-ignorado">No (se ignora)</span>`;
+
+    const motivosHtml = r.motivos.length
+      ? r.motivos.map(m => `<div class="motivos">• ${m}</div>`).join('')
+      : '<div class="motivos" style="color:#10b981">Sin incidencias documentales</div>';
+
+    const selectManual = `
+      <select class="override-select" onchange="cambiarEstado(${i}, this.value)">
+        <option value="verde" ${r.estadoManual === 'verde' ? 'selected' : ''}>🟢 Verde</option>
+        <option value="naranja" ${r.estadoManual === 'naranja' ? 'selected' : ''}>🟡 Naranja</option>
+        <option value="rojo" ${r.estadoManual === 'rojo' ? 'selected' : ''}>🔴 Rojo</option>
+      </select>`;
+
+    tbody.innerHTML += `
+      <tr>
+        <td>${r.nombre}</td>
+        <td><code>${r.dni}</code></td>
+        <td style="font-size:12px;color:#64748b">${r.empresa}</td>
+        <td><span class="badge ${badgeClass}">${r.estadoCalculado.toUpperCase()}</span></td>
+        <td>${motivosHtml}</td>
+        <td>${r.enApp ? selectManual : '—'}</td>
+        <td>${enAppBadge}</td>
+      </tr>`;
+  }
 }
-function ocultarProgreso() {
-  setTimeout(() => document.getElementById('progreso').classList.remove('visible'), 800);
+
+function cambiarEstado(i, nuevoEstado) {
+  resultadoFinal[i].estadoManual = nuevoEstado;
 }
-function mostrarAlerta(tipo, msg) {
-  const el = document.getElementById('alerta-resultado');
-  el.className = `alerta ${tipo} visible`;
-  el.innerHTML  = msg;
-  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+// ── CONFIRMAR ─────────────────────────────────────────────────────────────────
+async function confirmarImportacion() {
+  const obraId = document.getElementById('obraSelect').value;
+  const aActualizar = resultadoFinal.filter(r => r.enApp);
+
+  if (!aActualizar.length) {
+    document.getElementById('msgConfirmar').textContent = 'No hay trabajadores en la app para actualizar.';
+    return;
+  }
+
+  const btn = document.getElementById('btnConfirmar');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Guardando...';
+
+  let ok = 0, errores = 0;
+
+  for (const r of aActualizar) {
+    const motivos = r.motivos.length ? r.motivos : null;
+    const { error } = await sb.from('validaciones_obra').upsert({
+      trabajador_id: r.trabajadorId,
+      obra_id: obraId,
+      estado: r.estadoManual,
+      motivos: motivos ? { lista: motivos } : null,
+      actualizado_en: new Date().toISOString()
+    }, { onConflict: 'trabajador_id,obra_id' });
+
+    if (error) { console.error(error); errores++; } else { ok++; }
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '✅ Confirmar importación';
+
+  const msg = document.getElementById('msgConfirmar');
+  if (errores === 0) {
+    msg.style.color = '#065f46';
+    msg.textContent = `✅ ${ok} trabajadores actualizados correctamente.`;
+
+    document.getElementById('alertas').innerHTML = `
+      <div class="alert alert-success">
+        Importación completada. ${ok} trabajadores actualizados en la obra seleccionada.
+      </div>`;
+  } else {
+    msg.style.color = '#991b1b';
+    msg.textContent = `⚠️ ${ok} actualizados, ${errores} errores. Revisa la consola.`;
+  }
 }
-function resetUI() {
-  resultadoParsed = [];
-  document.getElementById('seccion-resultado').classList.remove('visible');
-  document.getElementById('progreso').classList.remove('visible');
-  document.getElementById('alerta-resultado').className = 'alerta';
-  document.getElementById('tabla-resultado').innerHTML  = '';
-  inputPdf.value = '';
-}
-function esc(txt) {
-  const d = document.createElement('div');
-  d.textContent = String(txt || '');
-  return d.innerHTML;
-}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+init();
 </script>
 </body>
 </html>
