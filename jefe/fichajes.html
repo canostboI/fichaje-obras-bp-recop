@@ -5,16 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fichajes — Jefe de Obra</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/branding.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
     --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
     --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
+    --color-acento: #ff9800;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
   .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
-  .sidebar-logo { padding: 22px 20px 18px; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--naranja); border-bottom: 1px solid var(--borde); }
+  .sidebar-brand { padding: 18px 16px 14px; border-bottom: 1px solid var(--borde); }
+  .sidebar-brand img { max-width: 100%; max-height: 42px; display: none; object-fit: contain; }
+  .sidebar-logo { padding: 10px 20px 14px; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--color-acento); }
   .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
   .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
   .sidebar a:hover { background: var(--bg3); color: var(--texto); }
@@ -29,10 +33,11 @@
   .topbar-right { display: flex; align-items: center; gap: 14px; }
   .usuario { font-size: 13px; color: var(--texto2); }
   .selector-obra { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 8px 12px; font-family: inherit; }
+  .selector-obra:focus { outline: none; border-color: var(--color-acento); }
   .contenido { padding: 0 28px 28px; }
   .barra-filtros { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
   .barra-filtros input { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 14px; font-family: inherit; width: 160px; }
-  .barra-filtros input:focus { outline: none; border-color: var(--naranja); }
+  .barra-filtros input:focus { outline: none; border-color: var(--color-acento); }
   .btn-secundario { background: transparent; color: var(--texto2); border: 1px solid var(--borde); padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
   .btn-secundario:hover { background: var(--bg3); color: var(--texto); }
   .btn-naranja { background: var(--naranja); color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
@@ -70,6 +75,9 @@
 <body>
 
 <div class="sidebar">
+  <div class="sidebar-brand">
+    <img id="sidebar-logo" alt="">
+  </div>
   <div class="sidebar-logo">Jefe de Obra</div>
   <div class="sidebar-section">Principal</div>
   <a href="index.html"><span class="ico">👷</span> Presencia</a>
@@ -77,6 +85,7 @@
   <a href="fichajes.html" class="activo"><span class="ico">🕐</span> Fichajes</a>
   <a href="documentos.html"><span class="ico">📄</span> Documentos</a>
   <a href="trabajadores.html"><span class="ico">👥</span> Trabajadores</a>
+  <a href="documentos-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
   <div class="sidebar-bottom">
     <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
   </div>
@@ -131,6 +140,7 @@
 <script>
 const sb = window.supabaseClient;
 let obraActual = null;
+let brandingActual = null;
 let fichajeCorrigiendoId = null;
 let fichajeCorrigiendoHora = null;
 
@@ -149,7 +159,7 @@ let fichajeCorrigiendoHora = null;
 
   const { data: misObras } = await sb
     .from('usuarios_obra')
-    .select('obra_id, obra:obra_id(id, nombre)')
+    .select('obra_id, obra:obra_id(id, nombre, empresa_marca)')
     .eq('usuario_app_id', miUsuario.id)
     .eq('rol_en_obra', 'jefe_obra');
 
@@ -160,18 +170,31 @@ let fichajeCorrigiendoHora = null;
     const opt = document.createElement('option');
     opt.value = uo.obra.id;
     opt.textContent = uo.obra.nombre;
+    opt.dataset.marca = uo.obra.empresa_marca || 'bosch_pascual';
     selector.appendChild(opt);
   });
 
   obraActual = misObras[0].obra.id;
+  aplicarBrandingObra(misObras[0].obra.empresa_marca);
   document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
   await buscar();
 
   selector.addEventListener('change', async () => {
     obraActual = selector.value;
+    const marca = selector.options[selector.selectedIndex].dataset.marca;
+    aplicarBrandingObra(marca);
     await buscar();
   });
 })();
+
+function aplicarBrandingObra(empresaMarca) {
+  const marca = empresaMarca || 'bosch_pascual';
+  brandingActual = aplicarBranding(marca);
+  const logoImg = document.getElementById('sidebar-logo');
+  logoImg.src = '../' + brandingActual.logo_blanco;
+  logoImg.alt = brandingActual.nombre;
+  logoImg.style.display = 'block';
+}
 
 document.getElementById('btn-salir').addEventListener('click', async () => {
   await sb.auth.signOut(); window.location.href = '../';
