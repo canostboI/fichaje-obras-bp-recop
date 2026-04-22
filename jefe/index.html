@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Jefe de Obra — Fichaje Obras</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -30,6 +31,8 @@
   .usuario { font-size: 13px; color: var(--texto2); }
   .selector-obra { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 8px 12px; font-family: inherit; }
   .selector-obra:focus { outline: none; border-color: var(--naranja); }
+  .btn-qr { background: var(--bg2); border: 1px solid var(--borde); color: var(--texto); font-size: 13px; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; transition: background 0.15s; }
+  .btn-qr:hover { background: var(--bg3); }
   .contenido { padding: 24px 28px; }
   .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
   .stat { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 20px 22px; }
@@ -54,6 +57,17 @@
   .pill.rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
   .vacio { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+
+  /* Modal QR */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.visible { display: flex; }
+  .modal-qr { background: white; color: #111; border-radius: 14px; padding: 32px; max-width: 380px; width: 90%; text-align: center; }
+  .modal-qr h3 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .modal-qr p { font-size: 13px; color: #666; margin-bottom: 20px; }
+  .modal-qr canvas { display: block; margin: 0 auto 20px; }
+  .modal-qr-btns { display: flex; gap: 10px; justify-content: center; }
+  .btn-imprimir { background: #111318; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; }
+  .btn-cerrar-modal { background: #f1f5f9; color: #333; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; }
 </style>
 </head>
 <body>
@@ -66,6 +80,7 @@
   <a href="fichajes.html"><span class="ico">🕐</span> Fichajes</a>
   <a href="documentos.html"><span class="ico">📄</span> Documentos</a>
   <a href="trabajadores.html"><span class="ico">👥</span> Trabajadores</a>
+  <a href="documentos-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
   <div class="sidebar-bottom">
     <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
   </div>
@@ -75,6 +90,7 @@
   <div class="topbar">
     <h1>Presencia</h1>
     <div class="topbar-right">
+      <button class="btn-qr" id="btn-ver-qr">📱 Ver QR</button>
       <select class="selector-obra" id="selector-obra">
         <option value="">Cargando obras…</option>
       </select>
@@ -98,6 +114,19 @@
   </div>
 </div>
 
+<!-- Modal QR -->
+<div class="modal-overlay" id="modal-qr">
+  <div class="modal-qr">
+    <h3 id="qr-obra-nombre">Obra</h3>
+    <p>Escanea este código para fichar</p>
+    <canvas id="qr-canvas"></canvas>
+    <div class="modal-qr-btns">
+      <button class="btn-imprimir" onclick="imprimirQR()">🖨️ Imprimir</button>
+      <button class="btn-cerrar-modal" onclick="cerrarQR()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <script src="../js/supabase-client.js"></script>
 <script>
 const sb = window.supabaseClient;
@@ -108,11 +137,13 @@ const sb = window.supabaseClient;
 
   const { data: miUsuario } = await sb
     .from('usuarios_app')
-    .select('id')
+    .select('id, nombre')
     .eq('auth_user_id', session.user.id)
     .single();
 
   if (!miUsuario) { window.location.href = '../'; return; }
+
+  document.getElementById('usuario-nombre').textContent = miUsuario.nombre || session.user.email;
 
   const { data: misObras, error } = await sb
     .from('usuarios_obra')
@@ -124,9 +155,6 @@ const sb = window.supabaseClient;
     window.location.href = '../';
     return;
   }
-
-  const { data: u } = await sb.from('usuarios_app').select('nombre').single();
-  document.getElementById('usuario-nombre').textContent = u?.nombre || session.user.email;
 
   const selector = document.getElementById('selector-obra');
   selector.innerHTML = '';
@@ -148,6 +176,12 @@ const sb = window.supabaseClient;
 
 document.getElementById('btn-salir').addEventListener('click', async () => {
   await sb.auth.signOut(); window.location.href = '../';
+});
+
+document.getElementById('btn-ver-qr').addEventListener('click', () => {
+  if (!obraActual) return;
+  const obraNombre = document.getElementById('selector-obra').options[document.getElementById('selector-obra').selectedIndex]?.text || 'Obra';
+  abrirQR(obraActual, obraNombre);
 });
 
 let obraActual = null;
@@ -228,6 +262,48 @@ async function cargarPresencia() {
       </tbody>
     </table>`;
 }
+
+// ── QR ────────────────────────────────────────────────────────────────────────
+function abrirQR(obraId, obraNombre) {
+  const url = `https://canostboi.github.io/fichaje-obras-bp-recop/fichaje/?obra=${obraId}`;
+  document.getElementById('qr-obra-nombre').textContent = obraNombre;
+  QRCode.toCanvas(document.getElementById('qr-canvas'), url, { width: 280, margin: 2 }, err => {
+    if (err) console.error(err);
+  });
+  document.getElementById('modal-qr').classList.add('visible');
+}
+
+function cerrarQR() {
+  document.getElementById('modal-qr').classList.remove('visible');
+}
+
+function imprimirQR() {
+  const canvas = document.getElementById('qr-canvas');
+  const obraNombre = document.getElementById('qr-obra-nombre').textContent;
+  const dataUrl = canvas.toDataURL('image/png');
+  const win = window.open('', '_blank');
+  win.document.write(`
+    <!DOCTYPE html><html><head>
+    <title>QR — ${obraNombre}</title>
+    <style>
+      body { font-family: sans-serif; text-align: center; padding: 40px; }
+      h1 { font-size: 24px; margin-bottom: 8px; }
+      p { color: #666; font-size: 14px; margin-bottom: 24px; }
+      img { display: block; margin: 0 auto; width: 280px; }
+    </style>
+    </head><body>
+    <h1>${obraNombre}</h1>
+    <p>Escanea este código QR para fichar tu entrada/salida</p>
+    <img src="${dataUrl}" />
+    <script>window.onload = () => { window.print(); }<\/script>
+    </body></html>`);
+  win.document.close();
+}
+
+// Cerrar modal al hacer clic fuera
+document.getElementById('modal-qr').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-qr')) cerrarQR();
+});
 
 function esc(txt) {
   const d = document.createElement('div');
