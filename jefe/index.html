@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Jefe de Obra — Fichaje Obras</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -267,9 +267,9 @@ async function cargarPresencia() {
 function abrirQR(obraId, obraNombre) {
   const url = `https://canostboi.github.io/fichaje-obras-bp-recop/fichaje/?obra=${obraId}`;
   document.getElementById('qr-obra-nombre').textContent = obraNombre;
-  QRCode.toCanvas(document.getElementById('qr-canvas'), url, { width: 280, margin: 2 }, err => {
-    if (err) console.error(err);
-  });
+  const canvas = document.getElementById('qr-canvas');
+canvas.innerHTML = '';
+new QRCode(canvas, { text: url, width: 280, height: 280 });
   document.getElementById('modal-qr').classList.add('visible');
 }
 
