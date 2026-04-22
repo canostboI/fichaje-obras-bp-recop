@@ -367,8 +367,7 @@ async function procesarExcel() {
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Procesando...';
 
-  // Cargar trabajadores de la app para esta obra
-  // (todos los que tienen validaciones_obra para esta obra, o están en trabajadores)
+  // Cargar trabajadores de la app
   const { data: trabApp } = await sb.from('trabajadores').select('id, nombre, dni');
   trabajadoresApp = {};
   (trabApp || []).forEach(t => {
@@ -408,6 +407,7 @@ async function procesarExcel() {
   }
 
   // Agrupar filas por trabajador (dni)
+  // FIX: guardamos empresaRaw (texto completo con CIF) aquí mismo para usarlo después
   const porTrabajador = {};
   for (const fila of filasTrabajador) {
     const dni = fila._dni;
@@ -416,6 +416,7 @@ async function procesarExcel() {
         dni,
         nombre: fila._nombreTrabajador,
         empresa: extraerNombreEmpresa(fila['Empresa'] || ''),
+        empresaRaw: String(fila['Empresa'] || ''), // ← texto completo "EMPRESA SL - B12345678"
         docs: []
       };
     }
@@ -452,13 +453,13 @@ async function procesarExcel() {
       dni,
       nombre: info.nombre,
       empresa: info.empresa,
+      empresaRaw: info.empresaRaw, // ← FIX: viene de info, no de fila (que no existe aquí)
       estadoCalculado: estadoFinal,
-      estadoManual: estadoFinal, // editable
+      estadoManual: estadoFinal,
       motivos,
       enApp,
       trabajadorId: enApp ? trabajadoresApp[dni].id : null,
-      nombreApp: enApp ? trabajadoresApp[dni].nombre : null,
-      empresaRaw: fila['Empresa'] || ''
+      nombreApp: enApp ? trabajadoresApp[dni].nombre : null
     });
   }
 
@@ -487,7 +488,7 @@ function renderStats() {
     <div class="stat-box"><div class="num" style="color:#ef4444">${rojos}</div><div class="label">🔴 Rojos</div></div>
     <div class="stat-box"><div class="num" style="color:#f59e0b">${naranjas}</div><div class="label">🟡 Naranja</div></div>
     <div class="stat-box"><div class="num" style="color:#10b981">${verdes}</div><div class="label">🟢 Verde</div></div>
-    <div class="stat-box"><div class="num" style="color:#94a3b8">${ignorados}</div><div class="label">⚪ No en app</div></div>
+    <div class="stat-box"><div class="num" style="color:#94a3b8">${ignorados}</div><div class="label">⚪ No en app (se crearán)</div></div>
   `;
 }
 
@@ -500,7 +501,7 @@ function renderTabla() {
     const badgeClass = `badge-${r.estadoCalculado}`;
     const enAppBadge = r.enApp
       ? `<span class="badge badge-verde">✓ Sí</span>`
-      : `<span class="badge badge-ignorado">No (se ignora)</span>`;
+      : `<span class="badge badge-naranja">Nuevo</span>`;
 
     const motivosHtml = r.motivos.length
       ? r.motivos.map(m => `<div class="motivos">• ${m}</div>`).join('')
@@ -520,7 +521,7 @@ function renderTabla() {
         <td style="font-size:12px;color:#64748b">${r.empresa}</td>
         <td><span class="badge ${badgeClass}">${r.estadoCalculado.toUpperCase()}</span></td>
         <td>${motivosHtml}</td>
-        <td>${r.enApp ? selectManual : '—'}</td>
+        <td>${selectManual}</td>
         <td>${enAppBadge}</td>
       </tr>`;
   }
@@ -531,7 +532,6 @@ function cambiarEstado(i, nuevoEstado) {
 }
 
 // ── CONFIRMAR ─────────────────────────────────────────────────────────────────
-// ── EXTRAER NOMBRE Y CIF DE EMPRESA ──────────────────────────────────────────
 function extraerEmpresa(texto) {
   if (!texto) return { nombre: '', cif: '' };
   const partes = texto.split(' - ');
@@ -558,7 +558,7 @@ async function confirmarImportacion() {
 
   let creados = 0, actualizados = 0, errores = 0;
 
-  // Caché de empresas creadas en esta sesión: cif -> id
+  // Caché de empresas creadas en esta sesión: cif/nombre -> id
   const empresaCache = {};
 
   for (const r of resultadoFinal) {
@@ -576,9 +576,17 @@ async function confirmarImportacion() {
           if (empresaCache[cacheKey]) {
             empresaId = empresaCache[cacheKey];
           } else {
-            // Buscar si ya existe
-            const { data: empExist } = await sb.from('empresas')
-              .select('id').eq('cif', cif).maybeSingle();
+            // Buscar si ya existe por CIF
+            let empExist = null;
+            if (cif) {
+              const { data } = await sb.from('empresas').select('id').eq('cif', cif).maybeSingle();
+              empExist = data;
+            }
+            if (!empExist && nombre) {
+              const { data } = await sb.from('empresas').select('id').eq('nombre', nombre).maybeSingle();
+              empExist = data;
+            }
+
             if (empExist) {
               empresaId = empExist.id;
             } else {
