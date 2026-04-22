@@ -278,9 +278,9 @@ function cerrarQR() {
 }
 
 function imprimirQR() {
-  const canvas = document.getElementById('qr-canvas');
   const obraNombre = document.getElementById('qr-obra-nombre').textContent;
-  const dataUrl = canvas.toDataURL('image/png');
+  const img = document.querySelector('#qr-canvas img');
+  const dataUrl = img ? img.src : '';
   const win = window.open('', '_blank');
   win.document.write(`
     <!DOCTYPE html><html><head>
