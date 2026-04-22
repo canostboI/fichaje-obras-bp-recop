@@ -544,7 +544,7 @@ async function confirmarImportacion() {
       obra_id: obraId,
       estado: r.estadoManual,
       motivos: motivos ? { lista: motivos } : null,
-      actualizado_en: new Date().toISOString()
+      fecha_validacion: new Date().toISOString()
     }, { onConflict: 'trabajador_id,obra_id' });
 
     if (error) { console.error(error); errores++; } else { ok++; }
