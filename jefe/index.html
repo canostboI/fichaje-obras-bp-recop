@@ -6,16 +6,20 @@
 <title>Jefe de Obra — Fichaje Obras</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="../js/branding.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
     --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
     --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
+    --color-acento: #ff9800;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
   .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
-  .sidebar-logo { padding: 22px 20px 18px; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--naranja); border-bottom: 1px solid var(--borde); }
+  .sidebar-brand { padding: 18px 16px 14px; border-bottom: 1px solid var(--borde); }
+  .sidebar-brand img { max-width: 100%; max-height: 42px; display: none; object-fit: contain; }
+  .sidebar-logo { padding: 10px 20px 14px; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--color-acento); }
   .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
   .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
   .sidebar a:hover { background: var(--bg3); color: var(--texto); }
@@ -30,7 +34,7 @@
   .topbar-right { display: flex; align-items: center; gap: 14px; }
   .usuario { font-size: 13px; color: var(--texto2); }
   .selector-obra { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 8px 12px; font-family: inherit; }
-  .selector-obra:focus { outline: none; border-color: var(--naranja); }
+  .selector-obra:focus { outline: none; border-color: var(--color-acento); }
   .btn-qr { background: var(--bg2); border: 1px solid var(--borde); color: var(--texto); font-size: 13px; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; transition: background 0.15s; }
   .btn-qr:hover { background: var(--bg3); }
   .contenido { padding: 24px 28px; }
@@ -73,6 +77,9 @@
 <body>
 
 <div class="sidebar">
+  <div class="sidebar-brand">
+    <img id="sidebar-logo" alt="">
+  </div>
   <div class="sidebar-logo">Jefe de Obra</div>
   <div class="sidebar-section">Principal</div>
   <a href="index.html" class="activo"><span class="ico">👷</span> Presencia</a>
@@ -131,6 +138,9 @@
 <script>
 const sb = window.supabaseClient;
 
+let obraActual = null;
+let brandingActual = null;
+
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '../'; return; }
@@ -147,7 +157,7 @@ const sb = window.supabaseClient;
 
   const { data: misObras, error } = await sb
     .from('usuarios_obra')
-    .select('obra_id, rol_en_obra, obra:obra_id(id, nombre)')
+    .select('obra_id, rol_en_obra, obra:obra_id(id, nombre, empresa_marca)')
     .eq('usuario_app_id', miUsuario.id)
     .eq('rol_en_obra', 'jefe_obra');
 
@@ -162,17 +172,32 @@ const sb = window.supabaseClient;
     const opt = document.createElement('option');
     opt.value = uo.obra.id;
     opt.textContent = uo.obra.nombre;
+    opt.dataset.marca = uo.obra.empresa_marca || 'bosch_pascual';
     selector.appendChild(opt);
   });
 
   obraActual = misObras[0].obra.id;
+  aplicarBrandingObra(misObras[0].obra.empresa_marca);
   await cargarPresencia();
 
   selector.addEventListener('change', async () => {
     obraActual = selector.value;
+    const marca = selector.options[selector.selectedIndex].dataset.marca;
+    aplicarBrandingObra(marca);
     await cargarPresencia();
   });
 })();
+
+function aplicarBrandingObra(empresaMarca) {
+  const marca = empresaMarca || 'bosch_pascual';
+  brandingActual = aplicarBranding(marca);
+  const logoImg = document.getElementById('sidebar-logo');
+  logoImg.src = '../' + brandingActual.logo_blanco;
+  logoImg.alt = brandingActual.nombre;
+  logoImg.style.display = 'block';
+  // El color acento del tema jefe lo mantenemos fijo en naranja (es tema oscuro);
+  // si quieres que cambie con la marca, aquí podrías sobreescribir --color-acento.
+}
 
 document.getElementById('btn-salir').addEventListener('click', async () => {
   await sb.auth.signOut(); window.location.href = '../';
@@ -183,8 +208,6 @@ document.getElementById('btn-ver-qr').addEventListener('click', () => {
   const obraNombre = document.getElementById('selector-obra').options[document.getElementById('selector-obra').selectedIndex]?.text || 'Obra';
   abrirQR(obraActual, obraNombre);
 });
-
-let obraActual = null;
 
 async function cargarPresencia() {
   document.getElementById('tabla-presencia').innerHTML = '<div class="cargando">Cargando…</div>';
@@ -268,8 +291,8 @@ function abrirQR(obraId, obraNombre) {
   const url = `https://canostboi.github.io/fichaje-obras-bp-recop/fichaje/?obra=${obraId}`;
   document.getElementById('qr-obra-nombre').textContent = obraNombre;
   const canvas = document.getElementById('qr-canvas');
-canvas.innerHTML = '';
-new QRCode(canvas, { text: url, width: 280, height: 280 });
+  canvas.innerHTML = '';
+  new QRCode(canvas, { text: url, width: 280, height: 280 });
   document.getElementById('modal-qr').classList.add('visible');
 }
 
@@ -281,20 +304,31 @@ function imprimirQR() {
   const obraNombre = document.getElementById('qr-obra-nombre').textContent;
   const img = document.querySelector('#qr-canvas img');
   const dataUrl = img ? img.src : '';
+
+  // Logo en color para el cartel
+  const logoUrl = brandingActual
+    ? window.location.origin + window.location.pathname.replace(/jefe\/.*$/, '') + brandingActual.logo
+    : '';
+  const marcaNombre = brandingActual ? brandingActual.nombre : '';
+
   const win = window.open('', '_blank');
   win.document.write(`
     <!DOCTYPE html><html><head>
     <title>QR — ${obraNombre}</title>
     <style>
       body { font-family: sans-serif; text-align: center; padding: 40px; }
+      .logo-marca { max-height: 60px; max-width: 220px; margin-bottom: 20px; }
       h1 { font-size: 24px; margin-bottom: 8px; }
+      .empresa { color: #888; font-size: 13px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
       p { color: #666; font-size: 14px; margin-bottom: 24px; }
-      img { display: block; margin: 0 auto; width: 280px; }
+      img.qr { display: block; margin: 0 auto; width: 280px; }
     </style>
     </head><body>
+    ${logoUrl ? `<img class="logo-marca" src="${logoUrl}" alt="${marcaNombre}" />` : ''}
+    <div class="empresa">${marcaNombre}</div>
     <h1>${obraNombre}</h1>
     <p>Escanea este código QR para fichar tu entrada/salida</p>
-    <img src="${dataUrl}" />
+    <img class="qr" src="${dataUrl}" />
     <script>window.onload = () => { window.print(); }<\/script>
     </body></html>`);
   win.document.close();
