@@ -33,6 +33,20 @@
     box-shadow: 0 4px 20px rgba(0,0,0,0.08);
     margin: 20px;
   }
+  .logos-marcas {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--gris-borde);
+  }
+  .logos-marcas img {
+    max-height: 44px;
+    max-width: 130px;
+    object-fit: contain;
+  }
   .logo {
     text-align: center;
     margin-bottom: 32px;
@@ -114,6 +128,12 @@
 </head>
 <body>
 <div class="tarjeta">
+
+  <div class="logos-marcas">
+    <img src="assets/logos/bosch_pascual_logo.svg" alt="Bosch Pascual">
+    <img src="assets/logos/recop_logo.svg" alt="Rècop">
+  </div>
+
   <div class="logo">
     <h1>Fichaje Obras</h1>
     <p>Panel de gestión — V2</p>
