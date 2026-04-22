@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Panel Encargado</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: sans-serif; background: #f4f4f4; color: #222; }
@@ -11,13 +13,20 @@
     header {
       background: #1a1a2e; color: white;
       padding: 1rem 1.5rem;
-      display: flex; justify-content: space-between; align-items: center;
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
     }
     header h1 { font-size: 1.1rem; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
     header button {
       background: transparent; border: 1px solid #fff;
       color: white; padding: 0.3rem 0.8rem;
       border-radius: 6px; cursor: pointer; font-size: 0.85rem;
+    }
+    .btn-qr-header {
+      background: transparent; border: 1px solid rgba(255,255,255,0.4);
+      color: white; padding: 0.3rem 0.8rem;
+      border-radius: 6px; cursor: pointer; font-size: 0.85rem;
+      display: none;
     }
 
     main { max-width: 700px; margin: 2rem auto; padding: 0 1rem; }
@@ -68,17 +77,31 @@
     .msg-err { background: #f8d7da; color: #721c24; }
 
     .loading { color: #888; font-style: italic; }
+
+    /* Modal QR */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+    .modal-overlay.visible { display: flex; }
+    .modal-qr { background: white; color: #111; border-radius: 14px; padding: 32px; max-width: 380px; width: 90%; text-align: center; }
+    .modal-qr h3 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+    .modal-qr p { font-size: 13px; color: #666; margin-bottom: 20px; }
+    .modal-qr canvas { display: block; margin: 0 auto 20px; }
+    .modal-qr-btns { display: flex; gap: 10px; justify-content: center; }
+    .btn-imprimir { background: #1a1a2e; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; }
+    .btn-cerrar-modal { background: #f1f5f9; color: #333; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; }
   </style>
 </head>
 <body>
 
 <header>
   <h1>Panel Encargado</h1>
-  <button id="btn-logout">Cerrar sesión</button>
+  <div class="header-right">
+    <button class="btn-qr-header" id="btn-ver-qr">📱 Ver QR</button>
+    <button id="btn-logout">Cerrar sesión</button>
+  </div>
 </header>
 
 <main>
-  <!-- Selector de obra (visible si tiene varias) -->
+  <!-- Selector de obra -->
   <div class="card" id="card-selector" style="display:none">
     <h2>Selecciona una obra</h2>
     <select id="select-obra">
@@ -88,7 +111,7 @@
     <button class="btn btn-primary" style="margin-top:1rem" id="btn-elegir-obra">Ver presencia</button>
   </div>
 
-  <!-- Panel principal (oculto hasta elegir obra) -->
+  <!-- Panel principal -->
   <div id="panel-obra" style="display:none">
 
     <div class="card">
@@ -116,23 +139,32 @@
   <p id="msg-error" style="color:red; display:none"></p>
 </main>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Modal QR -->
+<div class="modal-overlay" id="modal-qr">
+  <div class="modal-qr">
+    <h3 id="qr-obra-nombre">Obra</h3>
+    <p>Escanea este código para fichar</p>
+    <canvas id="qr-canvas"></canvas>
+    <div class="modal-qr-btns">
+      <button class="btn-imprimir" onclick="imprimirQR()">🖨️ Imprimir</button>
+      <button class="btn-cerrar-modal" onclick="cerrarQR()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <script>
   const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
-</script>
-<script>
   const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let obraActualId = null;
+  let obraActualNombre = '';
 
-  // ─── INICIO ───────────────────────────────────────────────
   async function init() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) { window.location.href = '../index.html'; return; }
 
-    // Verificar rol encargado
     const { data: usuario, error } = await sb
       .from('usuarios_app')
       .select('id, nombre, rol')
@@ -144,7 +176,6 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       return;
     }
 
-    // Cargar obras del encargado
     const { data: asignaciones } = await sb
       .from('usuarios_obra')
       .select('obra_id, obras(id, nombre)')
@@ -157,11 +188,9 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
 
     if (asignaciones.length === 1) {
-      // Solo una obra → directo
       const obra = asignaciones[0].obras;
       cargarObra(obra.id, obra.nombre);
     } else {
-      // Varias obras → mostrar selector
       const select = document.getElementById('select-obra');
       asignaciones.forEach(a => {
         const opt = document.createElement('option');
@@ -176,30 +205,29 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   document.getElementById('btn-elegir-obra').addEventListener('click', () => {
     const select = document.getElementById('select-obra');
     const obraId = select.value;
-    const obraNombre = select.options[select.selectedIndex].text;
+    const nombre = select.options[select.selectedIndex].text;
     if (!obraId) return;
     document.getElementById('card-selector').style.display = 'none';
-    cargarObra(obraId, obraNombre);
+    cargarObra(obraId, nombre);
   });
 
-  // ─── CARGAR OBRA ──────────────────────────────────────────
   function cargarObra(obraId, obraNombre) {
     obraActualId = obraId;
+    obraActualNombre = obraNombre;
     document.getElementById('nombre-obra').textContent = obraNombre;
     const hoy = new Date().toLocaleDateString('es-ES', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
     document.getElementById('fecha-hoy').textContent = hoy.charAt(0).toUpperCase() + hoy.slice(1);
     document.getElementById('panel-obra').style.display = 'block';
+    document.getElementById('btn-ver-qr').style.display = 'inline-block';
     cargarPresencia(obraId);
   }
 
-  // ─── PRESENCIA ────────────────────────────────────────────
   async function cargarPresencia(obraId) {
     const lista = document.getElementById('lista-presencia');
     lista.innerHTML = '<p class="loading">Cargando...</p>';
 
-    const hoy = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const hoy = new Date().toISOString().slice(0, 10);
 
-    // Traer fichajes de hoy en esta obra
     const { data: fichajes, error } = await sb
       .from('fichajes')
       .select('tipo, hora, trabajador_id, trabajadores(nombre, apellidos, dni)')
@@ -213,8 +241,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       return;
     }
 
-    // Calcular quién está dentro (entrada sin salida posterior)
-    const estado = {}; // trabajador_id → { nombre, ultimoTipo, hora }
+    const estado = {};
     fichajes.forEach(f => {
       const id = f.trabajador_id;
       const nombre = f.trabajadores
@@ -246,7 +273,6 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     });
   }
 
-  // ─── RONDA ────────────────────────────────────────────────
   document.getElementById('btn-ronda').addEventListener('click', async () => {
     if (!obraActualId) return;
     const btn = document.getElementById('btn-ronda');
@@ -276,13 +302,57 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     btn.textContent = 'Marcar ronda hecha';
   });
 
-  // ─── LOGOUT ───────────────────────────────────────────────
   document.getElementById('btn-logout').addEventListener('click', async () => {
     await sb.auth.signOut();
     window.location.href = '../index.html';
   });
 
-  // ─── UTILIDADES ───────────────────────────────────────────
+  document.getElementById('btn-ver-qr').addEventListener('click', () => {
+    if (!obraActualId) return;
+    abrirQR(obraActualId, obraActualNombre);
+  });
+
+  // ── QR ──────────────────────────────────────────────────────────────────────
+  function abrirQR(obraId, obraNombre) {
+    const url = `https://canostboi.github.io/fichaje-obras-bp-recop/fichaje/?obra=${obraId}`;
+    document.getElementById('qr-obra-nombre').textContent = obraNombre;
+    QRCode.toCanvas(document.getElementById('qr-canvas'), url, { width: 280, margin: 2 }, err => {
+      if (err) console.error(err);
+    });
+    document.getElementById('modal-qr').classList.add('visible');
+  }
+
+  function cerrarQR() {
+    document.getElementById('modal-qr').classList.remove('visible');
+  }
+
+  function imprimirQR() {
+    const canvas = document.getElementById('qr-canvas');
+    const obraNombre = document.getElementById('qr-obra-nombre').textContent;
+    const dataUrl = canvas.toDataURL('image/png');
+    const win = window.open('', '_blank');
+    win.document.write(`
+      <!DOCTYPE html><html><head>
+      <title>QR — ${obraNombre}</title>
+      <style>
+        body { font-family: sans-serif; text-align: center; padding: 40px; }
+        h1 { font-size: 24px; margin-bottom: 8px; }
+        p { color: #666; font-size: 14px; margin-bottom: 24px; }
+        img { display: block; margin: 0 auto; width: 280px; }
+      </style>
+      </head><body>
+      <h1>${obraNombre}</h1>
+      <p>Escanea este código QR para fichar tu entrada/salida</p>
+      <img src="${dataUrl}" />
+      <script>window.onload = () => { window.print(); }<\/script>
+      </body></html>`);
+    win.document.close();
+  }
+
+  document.getElementById('modal-qr').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-qr')) cerrarQR();
+  });
+
   function mostrarError(texto) {
     const el = document.getElementById('msg-error');
     el.textContent = texto;
