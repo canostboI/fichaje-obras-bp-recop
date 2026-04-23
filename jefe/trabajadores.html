@@ -67,7 +67,15 @@
   .pill.clicable { cursor: pointer; transition: transform 0.1s, filter 0.1s; border: 1px solid transparent; }
   .pill.clicable:hover { filter: brightness(1.3); transform: translateY(-1px); }
   .pill.forzado { border-style: dashed; border-color: currentColor; }
-
+/* Fila por obra dentro de la celda */
+  .obra-fila { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+  .obra-nombre { font-size: 14px; color: var(--texto); flex: 1; }
+  .pill-estado { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; cursor: pointer; transition: filter 0.1s, transform 0.1s; border: 1px solid transparent; white-space: nowrap; }
+  .pill-estado:hover { filter: brightness(1.25); transform: translateY(-1px); }
+  .pill-estado.verde   { background: rgba(76,175,80,0.15);  color: var(--verde); }
+  .pill-estado.naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
+  .pill-estado.rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
+  .pill-estado.forzado { border-style: dashed; border-color: currentColor; }
   .vacio { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
 
@@ -366,14 +374,27 @@ function renderTabla(lista) {
 }
 
 function pillObra(trabajador, obra) {
-  const clases = ['pill', obra.estado, 'clicable'];
+  const etiquetas = {
+    verde:   { texto: '✓ Válido',      icono: '✓' },
+    naranja: { texto: '⚠ Con avisos',  icono: '⚠' },
+    rojo:    { texto: '✗ Sin acceso',  icono: '✗' }
+  };
+  const et = etiquetas[obra.estado] || etiquetas.verde;
+  const clases = ['pill-estado', obra.estado];
   if (obra.estado_forzado) clases.push('forzado');
   const marca = obra.estado_forzado ? ' ⚑' : '';
   const tooltip = obra.estado_forzado
-    ? `Estado forzado: ${obra.estado}. Motivo: ${obra.motivo_forzado || '(sin motivo)'}. Clic para cambiar.`
+    ? `Estado forzado a ${obra.estado}. Motivo: ${obra.motivo_forzado || '(sin motivo)'}. Clic para cambiar.`
     : `Estado: ${obra.estado}. Clic para forzar.`;
-  return `<span class="${clases.join(' ')}" title="${esc(tooltip)}"
-            onclick="abrirModalForzar('${trabajador.id}', '${obra.obra_id}')">${esc(obra.nombre)}${marca}</span>`;
+  return `
+    <div class="obra-fila">
+      <span class="obra-nombre">${esc(obra.nombre)}</span>
+      <span class="${clases.join(' ')}" title="${esc(tooltip)}"
+            onclick="abrirModalForzar('${trabajador.id}', '${obra.obra_id}')">
+        ${et.texto}${marca}
+      </span>
+    </div>
+  `;
 }
 
 // Buscador
