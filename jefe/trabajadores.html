@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -352,35 +351,6 @@ async function cargarTrabajadores() {
         estado_forzado: v.estado_forzado === true,
         motivo_forzado: v.motivo_forzado || null,
         excepcion_hoy: excepcion  // null o el objeto completo
-      });
-    }
-  });
-
-  todosTrabajadores = Object.values(porTrabajador);
-  renderTabla(todosTrabajadores);
-}
-
-  // Agrupar por trabajador
-  const porTrabajador = {};
-  (validaciones || []).forEach(v => {
-    if (!v.trabajador) return;
-    if (!porTrabajador[v.trabajador_id]) {
-      porTrabajador[v.trabajador_id] = {
-        id: v.trabajador.id,
-        nombre: v.trabajador.nombre,
-        apellidos: v.trabajador.apellidos,
-        dni: v.trabajador.dni,
-        obras: []
-      };
-    }
-    const obra = misObras.find(o => o.id === v.obra_id);
-    if (obra) {
-      porTrabajador[v.trabajador_id].obras.push({
-        obra_id: v.obra_id,
-        nombre: obra.nombre,
-        estado: v.estado || 'verde',
-        estado_forzado: v.estado_forzado === true,
-        motivo_forzado: v.motivo_forzado || null
       });
     }
   });
