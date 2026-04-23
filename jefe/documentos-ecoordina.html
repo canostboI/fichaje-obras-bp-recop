@@ -6,117 +6,142 @@
   <title>Importar e-Coordina</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="../js/branding.js"></script>
   <style>
+    :root {
+      --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
+      --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
+      --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
+      --color-acento: #ff9800;
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, sans-serif; background: #f4f6f9; color: #1a1a2e; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
 
-    .topbar {
-      background: #1a1a2e; color: white; padding: 14px 24px;
-      display: flex; align-items: center; gap: 16px;
-    }
-    .topbar a { color: #aab4c8; text-decoration: none; font-size: 14px; }
-    .topbar a:hover { color: white; }
-    .topbar h1 { font-size: 18px; font-weight: 600; }
+    /* SIDEBAR */
+    .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+    .sidebar-brand { padding: 20px 20px 14px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: center; }
+    .sidebar-brand img { max-width: 140px; max-height: 50px; object-fit: contain; }
+    .sidebar-logo { padding: 16px 20px 14px; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--color-acento); border-bottom: 1px solid var(--borde); }
+    .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
+    .sidebar a:hover { background: var(--bg3); color: var(--texto); }
+    .sidebar a.active { background: var(--bg3); color: var(--texto); font-weight: 600; }
 
-    .sidebar {
-      position: fixed; left: 0; top: 53px; bottom: 0; width: 200px;
-      background: #1e2a3a; padding: 20px 0; overflow-y: auto;
-    }
-    .sidebar a {
-      display: block; padding: 10px 20px; color: #aab4c8;
-      text-decoration: none; font-size: 14px; transition: background 0.2s;
-    }
-    .sidebar a:hover, .sidebar a.active { background: #2a3f5f; color: white; }
+    /* MAIN */
+    .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+    .topbar { padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--borde); }
+    .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+    .topbar a.volver { font-size: 13px; color: var(--texto2); text-decoration: none; }
+    .topbar a.volver:hover { color: var(--texto); }
 
-    .main { margin-left: 200px; padding: 28px 32px; }
+    .contenido { padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
 
+    /* CARD */
     .card {
-      background: white; border-radius: 10px; padding: 24px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 24px;
+      background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px;
+      padding: 20px 24px;
     }
-    .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #1a1a2e; }
+    .card h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; color: var(--texto); }
 
+    /* DROP ZONE */
     .drop-zone {
-      border: 2px dashed #c0cce0; border-radius: 8px; padding: 40px;
-      text-align: center; cursor: pointer; transition: all 0.2s; background: #f8fafc;
+      border: 2px dashed var(--borde); border-radius: 8px; padding: 40px;
+      text-align: center; cursor: pointer; transition: all 0.2s; background: var(--bg3);
     }
-    .drop-zone:hover, .drop-zone.dragover { border-color: #3b82f6; background: #eff6ff; }
-    .drop-zone p { color: #64748b; font-size: 14px; margin-top: 8px; }
+    .drop-zone:hover, .drop-zone.dragover { border-color: var(--color-acento); background: rgba(255,152,0,0.05); }
+    .drop-zone p { color: var(--texto2); font-size: 14px; margin-top: 8px; }
     .drop-zone .icon { font-size: 36px; }
 
     input[type="file"] { display: none; }
 
+    /* SELECT */
     select {
-      padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px;
-      font-size: 14px; background: white; width: 100%; max-width: 400px;
+      padding: 9px 13px; border: 1px solid var(--borde); border-radius: 8px;
+      font-size: 14px; background: var(--bg3); color: var(--texto);
+      width: 100%; max-width: 400px; font-family: inherit;
     }
+    select:focus { outline: none; border-color: var(--color-acento); }
 
+    /* BOTONES */
     .btn {
-      padding: 9px 20px; border-radius: 6px; font-size: 14px;
-      font-weight: 500; border: none; cursor: pointer; transition: background 0.2s;
+      padding: 10px 20px; border-radius: 8px; font-size: 13px;
+      font-weight: 700; border: none; cursor: pointer; transition: opacity 0.15s;
+      font-family: inherit;
     }
-    .btn-primary { background: #3b82f6; color: white; }
-    .btn-primary:hover { background: #2563eb; }
-    .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
-    .btn-success { background: #10b981; color: white; }
-    .btn-success:hover { background: #059669; }
-    .btn-outline { background: white; color: #374151; border: 1px solid #d1d5db; }
-    .btn-outline:hover { background: #f9fafb; }
+    .btn-primary { background: var(--color-acento); color: #000; }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-success { background: var(--verde); color: #fff; }
+    .btn-success:hover { opacity: 0.85; }
+    .btn-success:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-outline { background: transparent; color: var(--texto2); border: 1px solid var(--borde); }
+    .btn-outline:hover { background: var(--bg3); color: var(--texto); }
 
-    .semaforo {
-      display: inline-block; width: 12px; height: 12px; border-radius: 50%;
-      margin-right: 6px; vertical-align: middle;
-    }
-    .verde { background: #10b981; }
-    .naranja { background: #f59e0b; }
-    .rojo { background: #ef4444; }
-
+    /* TABLA */
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; }
-    td { padding: 9px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
-    tr:hover td { background: #f8fafc; }
+    th { background: var(--bg3); padding: 10px 12px; text-align: left; font-weight: 700; color: var(--texto2); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); }
+    td { padding: 10px 12px; border-bottom: 1px solid var(--borde); vertical-align: middle; color: var(--texto); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--bg3); }
+    code { font-family: monospace; background: var(--bg3); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
 
+    /* BADGES */
     .badge {
-      display: inline-block; padding: 2px 8px; border-radius: 20px;
-      font-size: 11px; font-weight: 600;
+      display: inline-block; padding: 3px 9px; border-radius: 20px;
+      font-size: 11px; font-weight: 700;
     }
-    .badge-verde { background: #d1fae5; color: #065f46; }
-    .badge-naranja { background: #fef3c7; color: #92400e; }
-    .badge-rojo { background: #fee2e2; color: #991b1b; }
-    .badge-ignorado { background: #f1f5f9; color: #64748b; }
+    .badge-verde   { background: rgba(76,175,80,0.15);  color: var(--verde); }
+    .badge-naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
+    .badge-rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
+    .badge-ignorado { background: var(--bg3); color: var(--texto2); }
 
-    .motivos { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .motivos { font-size: 11px; color: var(--texto2); margin-top: 2px; }
 
+    /* ALERTAS */
     .alert {
-      padding: 12px 16px; border-radius: 6px; font-size: 13px; margin-bottom: 16px;
+      padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px;
+      border: 1px solid var(--borde);
     }
-    .alert-info { background: #eff6ff; color: #1e40af; border-left: 3px solid #3b82f6; }
-    .alert-warning { background: #fffbeb; color: #92400e; border-left: 3px solid #f59e0b; }
-    .alert-success { background: #f0fdf4; color: #166534; border-left: 3px solid #10b981; }
-    .alert-error { background: #fef2f2; color: #991b1b; border-left: 3px solid #ef4444; }
+    .alert-info    { background: rgba(33,150,243,0.1);  color: var(--azul);    border-left: 3px solid var(--azul); }
+    .alert-warning { background: rgba(255,152,0,0.1);   color: var(--naranja); border-left: 3px solid var(--naranja); }
+    .alert-success { background: rgba(76,175,80,0.1);   color: var(--verde);   border-left: 3px solid var(--verde); }
+    .alert-error   { background: rgba(244,67,54,0.1);   color: var(--rojo);    border-left: 3px solid var(--rojo); }
 
-    .stats { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+    /* STATS */
+    .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
     .stat-box {
-      background: #f8fafc; border-radius: 8px; padding: 12px 20px;
-      text-align: center; min-width: 100px; border: 1px solid #e2e8f0;
+      background: var(--bg3); border-radius: 8px; padding: 14px 20px;
+      text-align: center; min-width: 110px; border: 1px solid var(--borde);
     }
-    .stat-box .num { font-size: 24px; font-weight: 700; }
-    .stat-box .label { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .stat-box .num { font-size: 24px; font-weight: 800; }
+    .stat-box .label { font-size: 11px; color: var(--texto2); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
 
     .override-select {
-      padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 4px;
-      font-size: 12px; background: white;
+      padding: 5px 8px; border: 1px solid var(--borde); border-radius: 6px;
+      font-size: 12px; background: var(--bg3); color: var(--texto);
+      font-family: inherit;
     }
+    .override-select:focus { outline: none; border-color: var(--color-acento); }
 
+    /* SPINNER */
     .spinner {
-      display: inline-block; width: 16px; height: 16px;
-      border: 2px solid #93c5fd; border-top-color: #3b82f6;
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid rgba(0,0,0,0.3); border-top-color: #000;
       border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle;
+    }
+    .btn-success .spinner {
+      border-color: rgba(255,255,255,0.3); border-top-color: #fff;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* FORM */
     .form-group { margin-bottom: 16px; }
-    .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #374151; }
+    .form-group label {
+      display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px;
+      color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px;
+    }
+
+    .ayuda { font-size: 13px; color: var(--texto2); margin-bottom: 16px; }
+    .ayuda strong { color: var(--texto); }
 
     #resultado { display: none; }
     #paso-obra { display: none; }
@@ -124,12 +149,11 @@
 </head>
 <body>
 
-<div class="topbar">
-  <a href="index.html">← Panel Jefe</a>
-  <h1>Importar documentación e-Coordina</h1>
-</div>
-
 <div class="sidebar">
+  <div class="sidebar-brand">
+    <img id="sidebar-logo" alt="Logo">
+  </div>
+  <div class="sidebar-logo">Jefe de Obra</div>
   <a href="index.html">👥 Presencia</a>
   <a href="fichajes.html">🕐 Fichajes</a>
   <a href="trabajadores.html">👷 Trabajadores</a>
@@ -138,74 +162,81 @@
 </div>
 
 <div class="main">
-
-  <!-- PASO 1: Subir archivo -->
-  <div class="card" id="paso-upload">
-    <h2>📥 Paso 1 — Sube el Excel de e-Coordina</h2>
-    <p style="font-size:13px;color:#64748b;margin-bottom:16px;">
-      Exporta desde e-Coordina: <strong>Informes → Lista de obra</strong> en formato Excel (.xlsx).
-    </p>
-    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-      <div class="icon">📊</div>
-      <p>Haz clic aquí o arrastra el archivo Excel</p>
-      <p style="font-size:12px;margin-top:4px;">Solo archivos .xlsx</p>
-    </div>
-    <input type="file" id="fileInput" accept=".xlsx" />
+  <div class="topbar">
+    <h1>Importar e-Coordina</h1>
+    <a href="index.html" class="volver">← Panel Jefe</a>
   </div>
 
-  <!-- PASO 2: Seleccionar obra -->
-  <div class="card" id="paso-obra">
-    <h2>🏗️ Paso 2 — Selecciona la obra</h2>
-    <div class="form-group">
-      <label>Obra a actualizar:</label>
-      <select id="obraSelect">
-        <option value="">Cargando obras...</option>
-      </select>
-    </div>
-    <button class="btn btn-primary" id="btnProcesar" onclick="procesarExcel()">
-      Procesar Excel
-    </button>
-  </div>
+  <div class="contenido">
 
-  <!-- RESULTADO -->
-  <div id="resultado">
-    <div class="card">
-      <h2>📋 Paso 3 — Revisión antes de confirmar</h2>
-
-      <div id="alertas"></div>
-
-      <div class="stats" id="stats"></div>
-
-      <p style="font-size:13px;color:#64748b;margin-bottom:16px;">
-        Puedes ajustar manualmente el estado de cualquier trabajador antes de confirmar.
-        Los trabajadores que no existen en la app se crearán automáticamente con su empresa.
+    <!-- PASO 1: Subir archivo -->
+    <div class="card" id="paso-upload">
+      <h2>📥 Paso 1 — Sube el Excel de e-Coordina</h2>
+      <p class="ayuda">
+        Exporta desde e-Coordina: <strong>Informes → Lista de obra</strong> en formato Excel (.xlsx).
       </p>
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <div class="icon">📊</div>
+        <p>Haz clic aquí o arrastra el archivo Excel</p>
+        <p style="font-size:12px;margin-top:4px;">Solo archivos .xlsx</p>
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx" />
+    </div>
 
-      <table id="tablaResultado">
-        <thead>
-          <tr>
-            <th>Trabajador</th>
-            <th>DNI</th>
-            <th>Empresa</th>
-            <th>Estado calculado</th>
-            <th>Motivos</th>
-            <th>Ajuste manual</th>
-            <th>En app</th>
-          </tr>
-        </thead>
-        <tbody id="tbodyResultado"></tbody>
-      </table>
+    <!-- PASO 2: Seleccionar obra -->
+    <div class="card" id="paso-obra">
+      <h2>🏗️ Paso 2 — Selecciona la obra</h2>
+      <div class="form-group">
+        <label>Obra a actualizar</label>
+        <select id="obraSelect">
+          <option value="">Cargando obras...</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" id="btnProcesar" onclick="procesarExcel()">
+        Procesar Excel
+      </button>
+    </div>
 
-      <div style="margin-top:20px;display:flex;gap:12px;align-items:center;">
-        <button class="btn btn-success" id="btnConfirmar" onclick="confirmarImportacion()">
-          ✅ Confirmar importación
-        </button>
-        <button class="btn btn-outline" onclick="location.reload()">Cancelar</button>
-        <span id="msgConfirmar" style="font-size:13px;color:#64748b;"></span>
+    <!-- RESULTADO -->
+    <div id="resultado">
+      <div class="card">
+        <h2>📋 Paso 3 — Revisión antes de confirmar</h2>
+
+        <div id="alertas"></div>
+
+        <div class="stats" id="stats"></div>
+
+        <p class="ayuda">
+          Puedes ajustar manualmente el estado de cualquier trabajador antes de confirmar.
+          Los trabajadores que no existen en la app se crearán automáticamente con su empresa.
+        </p>
+
+        <table id="tablaResultado">
+          <thead>
+            <tr>
+              <th>Trabajador</th>
+              <th>DNI</th>
+              <th>Empresa</th>
+              <th>Estado calculado</th>
+              <th>Motivos</th>
+              <th>Ajuste manual</th>
+              <th>En app</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyResultado"></tbody>
+        </table>
+
+        <div style="margin-top:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <button class="btn btn-success" id="btnConfirmar" onclick="confirmarImportacion()">
+            ✅ Confirmar importación
+          </button>
+          <button class="btn btn-outline" onclick="location.reload()">Cancelar</button>
+          <span id="msgConfirmar" style="font-size:13px;color:var(--texto2);"></span>
+        </div>
       </div>
     </div>
-  </div>
 
+  </div>
 </div>
 
 <script>
@@ -238,6 +269,16 @@ async function init() {
   await cargarReglas();
 }
 
+// Aplica branding (colores + logo sidebar) según la marca de la obra
+function aplicarBrandingObra(marca) {
+  const branding = aplicarBranding(marca);
+  window.brandingActual = branding;
+  const logoImg = document.getElementById('sidebar-logo');
+  if (logoImg && branding.logo_blanco) {
+    logoImg.src = '../' + branding.logo_blanco;
+  }
+}
+
 async function cargarObras() {
   const { data: { session: s } } = await sb.auth.getSession();
   const { data: ua } = await sb.from('usuarios_app')
@@ -245,7 +286,7 @@ async function cargarObras() {
 
   let obras;
   if (ua.rol === 'admin') {
-    const { data } = await sb.from('obras').select('id, nombre').eq('activa', true).order('nombre');
+    const { data } = await sb.from('obras').select('id, nombre, empresa_marca').eq('activa', true).order('nombre');
     obras = data;
   } else {
     const { data: uo } = await sb.from('usuarios_obra')
@@ -253,16 +294,27 @@ async function cargarObras() {
     const ids = (uo || []).map(r => r.obra_id);
     if (!ids.length) { obras = []; }
     else {
-      const { data } = await sb.from('obras').select('id, nombre').in('id', ids).eq('activa', true).order('nombre');
+      const { data } = await sb.from('obras').select('id, nombre, empresa_marca').in('id', ids).eq('activa', true).order('nombre');
       obras = data;
     }
   }
 
   misObras = obras || [];
+
+  // Aplicar branding según la primera obra
+  const marcaInicial = misObras[0]?.empresa_marca || 'bosch_pascual';
+  aplicarBrandingObra(marcaInicial);
+
   const sel = document.getElementById('obraSelect');
   sel.innerHTML = misObras.length
     ? '<option value="">— Selecciona una obra —</option>' + misObras.map(o => `<option value="${o.id}">${o.nombre}</option>`).join('')
     : '<option value="">No tienes obras asignadas</option>';
+
+  // Actualizar branding al cambiar de obra
+  sel.addEventListener('change', () => {
+    const obra = misObras.find(o => o.id === sel.value);
+    if (obra) aplicarBrandingObra(obra.empresa_marca || 'bosch_pascual');
+  });
 }
 
 async function cargarReglas() {
@@ -485,10 +537,10 @@ function renderStats() {
   const ignorados = resultadoFinal.filter(r => !r.enApp).length;
 
   document.getElementById('stats').innerHTML = `
-    <div class="stat-box"><div class="num" style="color:#ef4444">${rojos}</div><div class="label">🔴 Rojos</div></div>
-    <div class="stat-box"><div class="num" style="color:#f59e0b">${naranjas}</div><div class="label">🟡 Naranja</div></div>
-    <div class="stat-box"><div class="num" style="color:#10b981">${verdes}</div><div class="label">🟢 Verde</div></div>
-    <div class="stat-box"><div class="num" style="color:#94a3b8">${ignorados}</div><div class="label">⚪ No en app (se crearán)</div></div>
+    <div class="stat-box"><div class="num" style="color:var(--rojo)">${rojos}</div><div class="label">🔴 Rojos</div></div>
+    <div class="stat-box"><div class="num" style="color:var(--naranja)">${naranjas}</div><div class="label">🟡 Naranja</div></div>
+    <div class="stat-box"><div class="num" style="color:var(--verde)">${verdes}</div><div class="label">🟢 Verde</div></div>
+    <div class="stat-box"><div class="num" style="color:var(--texto2)">${ignorados}</div><div class="label">⚪ No en app (se crearán)</div></div>
   `;
 }
 
@@ -505,7 +557,7 @@ function renderTabla() {
 
     const motivosHtml = r.motivos.length
       ? r.motivos.map(m => `<div class="motivos">• ${m}</div>`).join('')
-      : '<div class="motivos" style="color:#10b981">Sin incidencias documentales</div>';
+      : '<div class="motivos" style="color:var(--verde)">Sin incidencias documentales</div>';
 
     const selectManual = `
       <select class="override-select" onchange="cambiarEstado(${i}, this.value)">
@@ -518,7 +570,7 @@ function renderTabla() {
       <tr>
         <td>${r.nombre}</td>
         <td><code>${r.dni}</code></td>
-        <td style="font-size:12px;color:#64748b">${r.empresa}</td>
+        <td style="font-size:12px;color:var(--texto2)">${r.empresa}</td>
         <td><span class="badge ${badgeClass}">${r.estadoCalculado.toUpperCase()}</span></td>
         <td>${motivosHtml}</td>
         <td>${selectManual}</td>
@@ -637,14 +689,14 @@ async function confirmarImportacion() {
 
   const msg = document.getElementById('msgConfirmar');
   if (errores === 0) {
-    msg.style.color = '#065f46';
+    msg.style.color = 'var(--verde)';
     msg.textContent = `✅ ${creados} trabajadores creados, ${actualizados} actualizados.`;
     document.getElementById('alertas').innerHTML = `
       <div class="alert alert-success">
         Importación completada. ${creados} trabajadores nuevos creados, ${actualizados} actualizados.
       </div>`;
   } else {
-    msg.style.color = '#991b1b';
+    msg.style.color = 'var(--rojo)';
     msg.textContent = `⚠️ ${creados} creados, ${actualizados} actualizados, ${errores} errores. Revisa la consola.`;
   }
 }
