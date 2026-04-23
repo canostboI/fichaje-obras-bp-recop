@@ -314,6 +314,52 @@ async function cargarTrabajadores() {
     .select('trabajador_id, obra_id, estado, estado_forzado, motivo_forzado, trabajador:trabajador_id(id, nombre, apellidos, dni)')
     .in('obra_id', obraIds);
 
+  // Traer excepciones de HOY para estas obras
+  const hoy = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const { data: excepciones } = await sb
+    .from('excepciones_acceso')
+    .select('id, trabajador_id, obra_id, motivo_autorizacion, created_at, autorizado_por:autorizado_por_user_id(nombre)')
+    .in('obra_id', obraIds)
+    .eq('fecha', hoy);
+
+  // Indexar excepciones por "trabajador_id|obra_id" para búsqueda rápida
+  const excepcionesPorKey = {};
+  (excepciones || []).forEach(ex => {
+    excepcionesPorKey[`${ex.trabajador_id}|${ex.obra_id}`] = ex;
+  });
+
+  // Agrupar por trabajador
+  const porTrabajador = {};
+  (validaciones || []).forEach(v => {
+    if (!v.trabajador) return;
+    if (!porTrabajador[v.trabajador_id]) {
+      porTrabajador[v.trabajador_id] = {
+        id: v.trabajador.id,
+        nombre: v.trabajador.nombre,
+        apellidos: v.trabajador.apellidos,
+        dni: v.trabajador.dni,
+        obras: []
+      };
+    }
+    const obra = misObras.find(o => o.id === v.obra_id);
+    if (obra) {
+      const key = `${v.trabajador_id}|${v.obra_id}`;
+      const excepcion = excepcionesPorKey[key] || null;
+      porTrabajador[v.trabajador_id].obras.push({
+        obra_id: v.obra_id,
+        nombre: obra.nombre,
+        estado: v.estado || 'verde',
+        estado_forzado: v.estado_forzado === true,
+        motivo_forzado: v.motivo_forzado || null,
+        excepcion_hoy: excepcion  // null o el objeto completo
+      });
+    }
+  });
+
+  todosTrabajadores = Object.values(porTrabajador);
+  renderTabla(todosTrabajadores);
+}
+
   // Agrupar por trabajador
   const porTrabajador = {};
   (validaciones || []).forEach(v => {
