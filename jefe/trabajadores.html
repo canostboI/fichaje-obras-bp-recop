@@ -286,7 +286,7 @@ function renderTabla(lista) {
           <tr>
             <td><strong>${esc(t.nombre)} ${esc(t.apellidos)}</strong></td>
             <td style="font-family:monospace">${esc(t.dni)}</td>
-            <td>${t.obras.map(o => `<span class="pill obra">${esc(o.nombre)}</span>`).join('')}</td>
+            <td>${t.obras.map(o => `<span class="pill ${o.estado || 'verde'}" title="Estado: ${o.estado || 'verde'}">${esc(o.nombre)}</span>`).join('')}</td>
             <td>
               <div class="acciones">
                 <button class="btn-accion primario" onclick="abrirEdicion('${t.id}')">Editar</button>
