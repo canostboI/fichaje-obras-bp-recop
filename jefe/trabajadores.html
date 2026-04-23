@@ -5,18 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Jefe de Obra — Trabajadores</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/branding.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
     --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
     --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
+    --color-acento: #ff9800;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
 
   /* SIDEBAR */
   .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
-  .sidebar-logo { padding: 22px 20px 18px; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--naranja); border-bottom: 1px solid var(--borde); }
+  .sidebar-brand { padding: 20px 20px 14px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: center; }
+  .sidebar-brand img { max-width: 140px; max-height: 50px; object-fit: contain; }
+  .sidebar-logo { padding: 16px 20px 14px; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--color-acento); border-bottom: 1px solid var(--borde); }
   .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
   .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
   .sidebar a:hover { background: var(--bg3); color: var(--texto); }
@@ -38,9 +42,9 @@
   /* BARRA SUPERIOR */
   .barra-acciones { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
   .buscador { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 14px; font-family: inherit; width: 280px; }
-  .buscador:focus { outline: none; border-color: var(--naranja); }
+  .buscador:focus { outline: none; border-color: var(--color-acento); }
   .buscador::placeholder { color: var(--texto2); }
-  .btn-nuevo { background: var(--naranja); color: #000; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; }
+  .btn-nuevo { background: var(--color-acento); color: #000; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; }
   .btn-nuevo:hover { opacity: 0.85; }
 
   /* TABLA */
@@ -63,7 +67,7 @@
   .acciones { display: flex; gap: 8px; }
   .btn-accion { background: transparent; border: 1px solid var(--borde); color: var(--texto2); border-radius: 6px; padding: 6px 11px; font-size: 12px; cursor: pointer; font-family: inherit; transition: background 0.12s, color 0.12s; }
   .btn-accion:hover { background: var(--bg3); color: var(--texto); }
-  .btn-accion.primario { border-color: var(--naranja); color: var(--naranja); }
+  .btn-accion.primario { border-color: var(--color-acento); color: var(--color-acento); }
   .btn-accion.primario:hover { background: rgba(255,152,0,0.1); }
 
   /* MODAL */
@@ -74,21 +78,21 @@
   .campo { display: flex; flex-direction: column; gap: 6px; }
   .campo label { font-size: 12px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; }
   .campo input[type="text"] { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 13px; font-family: inherit; width: 100%; }
-  .campo input:focus { outline: none; border-color: var(--naranja); }
+  .campo input:focus { outline: none; border-color: var(--color-acento); }
   .campo input::placeholder { color: var(--texto2); }
 
   /* CHECKBOXES OBRAS */
   .lista-obras { display: flex; flex-direction: column; gap: 8px; }
   .check-obra { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; cursor: pointer; transition: border-color 0.12s; }
-  .check-obra:hover { border-color: var(--naranja); }
-  .check-obra input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--naranja); cursor: pointer; }
+  .check-obra:hover { border-color: var(--color-acento); }
+  .check-obra input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--color-acento); cursor: pointer; }
   .check-obra span { font-size: 14px; }
-  .check-obra.marcado { border-color: var(--naranja); background: rgba(255,152,0,0.05); }
+  .check-obra.marcado { border-color: var(--color-acento); background: rgba(255,152,0,0.05); }
 
   .modal-acciones { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
   .btn-cancelar { background: transparent; border: 1px solid var(--borde); color: var(--texto2); border-radius: 8px; padding: 10px 18px; font-size: 13px; cursor: pointer; font-family: inherit; }
   .btn-cancelar:hover { background: var(--bg3); }
-  .btn-guardar { background: var(--naranja); color: #000; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .btn-guardar { background: var(--color-acento); color: #000; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
   .btn-guardar:hover { opacity: 0.85; }
   .btn-guardar:disabled { opacity: 0.5; cursor: not-allowed; }
   .msg-error { color: var(--rojo); font-size: 13px; }
@@ -100,6 +104,9 @@
 <body>
 
 <div class="sidebar">
+  <div class="sidebar-brand">
+    <img id="sidebar-logo" alt="Logo">
+  </div>
   <div class="sidebar-logo">Jefe de Obra</div>
   <div class="sidebar-section">Principal</div>
   <a href="index.html"><span class="ico">👷</span> Presencia</a>
@@ -196,9 +203,10 @@ let miUsuarioId = null;
   miUsuarioId = miUsuario.id;
   document.getElementById('usuario-nombre').textContent = miUsuario.nombre || session.user.email;
 
+  // Traer obras del jefe + empresa_marca de cada una
   const { data: obrasJefe, error } = await sb
     .from('usuarios_obra')
-    .select('obra_id, obra:obra_id(id, nombre)')
+    .select('obra_id, obra:obra_id(id, nombre, empresa_marca)')
     .eq('usuario_app_id', miUsuario.id)
     .eq('rol_en_obra', 'jefe_obra');
 
@@ -206,8 +214,22 @@ let miUsuarioId = null;
 
   misObras = obrasJefe.map(uo => uo.obra);
 
+  // Aplicar branding según la primera obra del jefe
+  const marca = misObras[0]?.empresa_marca || 'bosch_pascual';
+  aplicarBrandingObra(marca);
+
   await cargarTrabajadores();
 })();
+
+// Aplica branding (colores + logo sidebar) según la marca de la obra
+function aplicarBrandingObra(marca) {
+  const branding = aplicarBranding(marca);
+  window.brandingActual = branding;
+  const logoImg = document.getElementById('sidebar-logo');
+  if (logoImg && branding.logo_blanco) {
+    logoImg.src = '../' + branding.logo_blanco;
+  }
+}
 
 document.getElementById('btn-salir').addEventListener('click', async () => {
   await sb.auth.signOut(); window.location.href = '../';
