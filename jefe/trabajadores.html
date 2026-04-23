@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -61,6 +62,12 @@
   .pill.naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
   .pill.rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
   .pill.obra    { background: rgba(33,150,243,0.15); color: var(--azul); font-size: 11px; }
+
+  /* Pill clicable para forzar */
+  .pill.clicable { cursor: pointer; transition: transform 0.1s, filter 0.1s; border: 1px solid transparent; }
+  .pill.clicable:hover { filter: brightness(1.3); transform: translateY(-1px); }
+  .pill.forzado { border-style: dashed; border-color: currentColor; }
+
   .vacio { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
 
@@ -77,9 +84,10 @@
   .modal h3 { font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
   .campo { display: flex; flex-direction: column; gap: 6px; }
   .campo label { font-size: 12px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; }
-  .campo input[type="text"] { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 13px; font-family: inherit; width: 100%; }
-  .campo input:focus { outline: none; border-color: var(--color-acento); }
-  .campo input::placeholder { color: var(--texto2); }
+  .campo input[type="text"], .campo textarea { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 13px; font-family: inherit; width: 100%; }
+  .campo input:focus, .campo textarea:focus { outline: none; border-color: var(--color-acento); }
+  .campo input::placeholder, .campo textarea::placeholder { color: var(--texto2); }
+  .campo textarea { min-height: 70px; resize: vertical; }
 
   /* CHECKBOXES OBRAS */
   .lista-obras { display: flex; flex-direction: column; gap: 8px; }
@@ -89,12 +97,26 @@
   .check-obra span { font-size: 14px; }
   .check-obra.marcado { border-color: var(--color-acento); background: rgba(255,152,0,0.05); }
 
+  /* SELECTOR DE ESTADO */
+  .selector-estado { display: flex; gap: 8px; }
+  .btn-estado { flex: 1; padding: 12px; border-radius: 8px; border: 2px solid var(--borde); background: var(--bg3); color: var(--texto); cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 700; text-transform: uppercase; transition: all 0.12s; }
+  .btn-estado:hover { filter: brightness(1.2); }
+  .btn-estado.seleccionado.verde   { border-color: var(--verde);   color: var(--verde);   background: rgba(76,175,80,0.1); }
+  .btn-estado.seleccionado.naranja { border-color: var(--naranja); color: var(--naranja); background: rgba(255,152,0,0.1); }
+  .btn-estado.seleccionado.rojo    { border-color: var(--rojo);    color: var(--rojo);    background: rgba(244,67,54,0.1); }
+
+  /* INFO BOX (para mostrar forzado actual) */
+  .info-box { padding: 12px 14px; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; font-size: 13px; color: var(--texto2); line-height: 1.5; }
+  .info-box strong { color: var(--texto); }
+
   .modal-acciones { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
   .btn-cancelar { background: transparent; border: 1px solid var(--borde); color: var(--texto2); border-radius: 8px; padding: 10px 18px; font-size: 13px; cursor: pointer; font-family: inherit; }
   .btn-cancelar:hover { background: var(--bg3); }
   .btn-guardar { background: var(--color-acento); color: #000; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
   .btn-guardar:hover { opacity: 0.85; }
   .btn-guardar:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-quitar { background: transparent; border: 1px solid var(--rojo); color: var(--rojo); border-radius: 8px; padding: 10px 18px; font-size: 13px; cursor: pointer; font-family: inherit; margin-right: auto; }
+  .btn-quitar:hover { background: rgba(244,67,54,0.1); }
   .msg-error { color: var(--rojo); font-size: 13px; }
   .msg-ok { color: var(--verde); font-size: 13px; }
 
@@ -143,7 +165,7 @@
   </div>
 </div>
 
-<!-- MODAL -->
+<!-- MODAL TRABAJADOR -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
     <h3 id="modal-titulo">Nuevo trabajador</h3>
@@ -178,6 +200,39 @@
   </div>
 </div>
 
+<!-- MODAL FORZAR ESTADO -->
+<div class="modal-overlay" id="modal-forzar-overlay">
+  <div class="modal">
+    <h3>Forzar estado documental</h3>
+
+    <div class="info-box" id="forzar-info">
+      <!-- Se rellena desde JS -->
+    </div>
+
+    <div class="campo">
+      <label>Nuevo estado</label>
+      <div class="selector-estado">
+        <button type="button" class="btn-estado" data-estado="verde" onclick="seleccionarEstado('verde')">Verde</button>
+        <button type="button" class="btn-estado" data-estado="naranja" onclick="seleccionarEstado('naranja')">Naranja</button>
+        <button type="button" class="btn-estado" data-estado="rojo" onclick="seleccionarEstado('rojo')">Rojo</button>
+      </div>
+    </div>
+
+    <div class="campo">
+      <label>Motivo (obligatorio)</label>
+      <textarea id="forzar-motivo" placeholder="Ejemplo: TC2 entregado en papel el 23/04/2026"></textarea>
+    </div>
+
+    <div id="forzar-msg"></div>
+
+    <div class="modal-acciones">
+      <button type="button" class="btn-quitar" id="btn-quitar-forzado" style="display:none">Quitar forzado</button>
+      <button type="button" class="btn-cancelar" id="btn-cancelar-forzar">Cancelar</button>
+      <button type="button" class="btn-guardar" id="btn-aplicar-forzar">Aplicar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
@@ -187,6 +242,10 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let misObras = [];
 let todosTrabajadores = [];
 let miUsuarioId = null;
+
+// Estado del modal de forzar
+let forzarCtx = null; // { trabajador_id, obra_id, trabajador_nombre, obra_nombre, estado_actual, estado_forzado, motivo_forzado }
+let estadoSeleccionado = null;
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 (async function init() {
@@ -241,15 +300,16 @@ async function cargarTrabajadores() {
 
   const obraIds = misObras.map(o => o.id);
 
-  // Traer validaciones de todas mis obras para saber qué trabajadores hay
+  // Traer validaciones de todas mis obras con info de forzado
   const { data: validaciones } = await sb
     .from('validaciones_obra')
-    .select('trabajador_id, obra_id, estado, trabajador:trabajador_id(id, nombre, apellidos, dni)')
+    .select('trabajador_id, obra_id, estado, estado_forzado, motivo_forzado, trabajador:trabajador_id(id, nombre, apellidos, dni)')
     .in('obra_id', obraIds);
 
   // Agrupar por trabajador
   const porTrabajador = {};
   (validaciones || []).forEach(v => {
+    if (!v.trabajador) return;
     if (!porTrabajador[v.trabajador_id]) {
       porTrabajador[v.trabajador_id] = {
         id: v.trabajador.id,
@@ -261,7 +321,13 @@ async function cargarTrabajadores() {
     }
     const obra = misObras.find(o => o.id === v.obra_id);
     if (obra) {
-      porTrabajador[v.trabajador_id].obras.push({ nombre: obra.nombre, estado: v.estado });
+      porTrabajador[v.trabajador_id].obras.push({
+        obra_id: v.obra_id,
+        nombre: obra.nombre,
+        estado: v.estado || 'verde',
+        estado_forzado: v.estado_forzado === true,
+        motivo_forzado: v.motivo_forzado || null
+      });
     }
   });
 
@@ -286,7 +352,7 @@ function renderTabla(lista) {
           <tr>
             <td><strong>${esc(t.nombre)} ${esc(t.apellidos)}</strong></td>
             <td style="font-family:monospace">${esc(t.dni)}</td>
-            <td>${t.obras.map(o => `<span class="pill ${o.estado || 'verde'}" title="Estado: ${o.estado || 'verde'}">${esc(o.nombre)}</span>`).join('')}</td>
+            <td>${t.obras.map(o => pillObra(t, o)).join('')}</td>
             <td>
               <div class="acciones">
                 <button class="btn-accion primario" onclick="abrirEdicion('${t.id}')">Editar</button>
@@ -299,6 +365,17 @@ function renderTabla(lista) {
   `;
 }
 
+function pillObra(trabajador, obra) {
+  const clases = ['pill', obra.estado, 'clicable'];
+  if (obra.estado_forzado) clases.push('forzado');
+  const marca = obra.estado_forzado ? ' ⚑' : '';
+  const tooltip = obra.estado_forzado
+    ? `Estado forzado: ${obra.estado}. Motivo: ${obra.motivo_forzado || '(sin motivo)'}. Clic para cambiar.`
+    : `Estado: ${obra.estado}. Clic para forzar.`;
+  return `<span class="${clases.join(' ')}" title="${esc(tooltip)}"
+            onclick="abrirModalForzar('${trabajador.id}', '${obra.obra_id}')">${esc(obra.nombre)}${marca}</span>`;
+}
+
 // Buscador
 document.getElementById('buscador').addEventListener('input', e => {
   const q = e.target.value.toLowerCase();
@@ -307,7 +384,7 @@ document.getElementById('buscador').addEventListener('input', e => {
   ));
 });
 
-// ── MODAL ─────────────────────────────────────────────────────────────────────
+// ── MODAL TRABAJADOR (nuevo / editar) ─────────────────────────────────────────
 let modoEdicion = null; // null = nuevo, uuid = editar
 
 function renderCheckObras(obrasSeleccionadas = []) {
@@ -370,7 +447,7 @@ document.getElementById('modal-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-overlay')) cerrarModal();
 });
 
-// ── GUARDAR ───────────────────────────────────────────────────────────────────
+// ── GUARDAR TRABAJADOR ────────────────────────────────────────────────────────
 document.getElementById('btn-guardar').addEventListener('click', async () => {
   const btn = document.getElementById('btn-guardar');
   const msg = document.getElementById('modal-msg');
@@ -389,7 +466,6 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     return;
   }
 
-  // Obras seleccionadas
   const checkboxes = document.querySelectorAll('#lista-obras-check input[type="checkbox"]:checked');
   const obrasSeleccionadas = Array.from(checkboxes).map(cb => cb.value);
 
@@ -403,7 +479,6 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   let trabajadorId = modoEdicion;
 
   if (!modoEdicion) {
-    // Comprobar si ya existe un trabajador con ese DNI
     const { data: existe } = await sb
       .from('trabajadores')
       .select('id')
@@ -411,10 +486,8 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
       .maybeSingle();
 
     if (existe) {
-      // Ya existe: reutilizar su ID
       trabajadorId = existe.id;
     } else {
-      // Crear nuevo trabajador
       const { data: nuevo, error: errCrear } = await sb
         .from('trabajadores')
         .insert({ nombre, apellidos, dni, activo: true })
@@ -430,7 +503,6 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
       trabajadorId = nuevo.id;
     }
   } else {
-    // Actualizar datos del trabajador
     const { error: errUpdate } = await sb
       .from('trabajadores')
       .update({ nombre, apellidos, dni })
@@ -444,8 +516,6 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     }
   }
 
-  // Gestionar asignaciones a obras
-  // 1. Traer asignaciones actuales en mis obras
   const { data: asignacionesActuales } = await sb
     .from('validaciones_obra')
     .select('obra_id')
@@ -454,7 +524,6 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
 
   const yaAsignadas = (asignacionesActuales || []).map(a => a.obra_id);
 
-  // 2. Añadir las nuevas
   const aNadir = obrasSeleccionadas.filter(id => !yaAsignadas.includes(id));
   if (aNadir.length > 0) {
     const inserts = aNadir.map(obraId => ({
@@ -473,7 +542,6 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     }
   }
 
-  // 3. Quitar las desasignadas (solo en modo edición)
   if (modoEdicion) {
     const aQuitar = yaAsignadas.filter(id => !obrasSeleccionadas.includes(id));
     if (aQuitar.length > 0) {
@@ -488,6 +556,139 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   msg.className = 'msg-ok';
   msg.textContent = '¡Guardado correctamente!';
   setTimeout(() => { cerrarModal(); cargarTrabajadores(); }, 800);
+});
+
+// ── MODAL FORZAR ESTADO ───────────────────────────────────────────────────────
+function abrirModalForzar(trabajadorId, obraId) {
+  const t = todosTrabajadores.find(x => x.id === trabajadorId);
+  if (!t) return;
+  const o = t.obras.find(x => x.obra_id === obraId);
+  if (!o) return;
+
+  forzarCtx = {
+    trabajador_id: trabajadorId,
+    obra_id: obraId,
+    trabajador_nombre: `${t.nombre} ${t.apellidos}`,
+    obra_nombre: o.nombre,
+    estado_actual: o.estado,
+    estado_forzado: o.estado_forzado,
+    motivo_forzado: o.motivo_forzado
+  };
+
+  // Rellenar info box
+  const info = document.getElementById('forzar-info');
+  let html = `
+    <strong>${esc(forzarCtx.trabajador_nombre)}</strong> en <strong>${esc(forzarCtx.obra_nombre)}</strong><br>
+    Estado actual: <span class="pill ${forzarCtx.estado_actual}">${forzarCtx.estado_actual}</span>
+  `;
+  if (forzarCtx.estado_forzado) {
+    html += `<br><br>⚑ <strong>Actualmente forzado.</strong><br>Motivo: ${esc(forzarCtx.motivo_forzado || '(sin motivo)')}`;
+  }
+  info.innerHTML = html;
+
+  // Reset selector y motivo
+  estadoSeleccionado = null;
+  document.querySelectorAll('.btn-estado').forEach(b => {
+    b.className = 'btn-estado';
+  });
+  document.getElementById('forzar-motivo').value = '';
+  document.getElementById('forzar-msg').textContent = '';
+  document.getElementById('forzar-msg').className = '';
+  document.getElementById('btn-aplicar-forzar').disabled = false;
+
+  // Botón "Quitar forzado" solo si ya está forzado
+  document.getElementById('btn-quitar-forzado').style.display =
+    forzarCtx.estado_forzado ? 'inline-block' : 'none';
+
+  document.getElementById('modal-forzar-overlay').classList.add('abierto');
+}
+
+function seleccionarEstado(estado) {
+  estadoSeleccionado = estado;
+  document.querySelectorAll('.btn-estado').forEach(b => {
+    if (b.dataset.estado === estado) {
+      b.className = `btn-estado seleccionado ${estado}`;
+    } else {
+      b.className = 'btn-estado';
+    }
+  });
+}
+
+function cerrarModalForzar() {
+  document.getElementById('modal-forzar-overlay').classList.remove('abierto');
+  forzarCtx = null;
+  estadoSeleccionado = null;
+}
+document.getElementById('btn-cancelar-forzar').addEventListener('click', cerrarModalForzar);
+document.getElementById('modal-forzar-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-forzar-overlay')) cerrarModalForzar();
+});
+
+// Aplicar forzado
+document.getElementById('btn-aplicar-forzar').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-aplicar-forzar');
+  const msg = document.getElementById('forzar-msg');
+
+  if (!estadoSeleccionado) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Selecciona un estado (verde, naranja o rojo).';
+    return;
+  }
+  const motivo = document.getElementById('forzar-motivo').value.trim();
+  if (!motivo) {
+    msg.className = 'msg-error';
+    msg.textContent = 'El motivo es obligatorio.';
+    return;
+  }
+
+  btn.disabled = true;
+  msg.className = '';
+  msg.textContent = 'Aplicando…';
+
+  const { data, error } = await sb.rpc('forzar_estado_validacion', {
+    p_trabajador_id: forzarCtx.trabajador_id,
+    p_obra_id: forzarCtx.obra_id,
+    p_nuevo_estado: estadoSeleccionado,
+    p_motivo: motivo
+  });
+
+  if (error) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Error: ' + error.message;
+    btn.disabled = false;
+    return;
+  }
+
+  msg.className = 'msg-ok';
+  msg.textContent = '¡Estado forzado correctamente!';
+  setTimeout(() => { cerrarModalForzar(); cargarTrabajadores(); }, 800);
+});
+
+// Quitar forzado
+document.getElementById('btn-quitar-forzado').addEventListener('click', async () => {
+  if (!confirm('¿Quitar el forzado? El estado volverá al que tenía antes del forzado.')) return;
+
+  const btn = document.getElementById('btn-quitar-forzado');
+  const msg = document.getElementById('forzar-msg');
+  btn.disabled = true;
+  msg.className = '';
+  msg.textContent = 'Quitando forzado…';
+
+  const { data, error } = await sb.rpc('quitar_forzado_validacion', {
+    p_trabajador_id: forzarCtx.trabajador_id,
+    p_obra_id: forzarCtx.obra_id
+  });
+
+  if (error) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Error: ' + error.message;
+    btn.disabled = false;
+    return;
+  }
+
+  msg.className = 'msg-ok';
+  msg.textContent = '¡Forzado quitado!';
+  setTimeout(() => { cerrarModalForzar(); cargarTrabajadores(); }, 800);
 });
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
