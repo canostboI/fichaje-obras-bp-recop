@@ -33,8 +33,10 @@
   .btn-secundario { background: transparent; color: var(--texto2); border: 1px solid var(--borde); padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
   .btn-secundario:hover { background: var(--bg3); color: var(--texto); }
   .barra-filtros { display: flex; gap: 12px; margin-bottom: 16px; }
-  .barra-filtros input { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 14px; font-family: inherit; width: 260px; }
-  .barra-filtros input:focus { outline: none; border-color: var(--azul); }
+  .barra-filtros input, .barra-filtros select { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 14px; font-family: inherit; }
+.barra-filtros input { width: 260px; }
+.barra-filtros select { min-width: 220px; cursor: pointer; }
+.barra-filtros input:focus, .barra-filtros select:focus { outline: none; border-color: var(--azul); }
   .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   th { text-align: left; padding: 11px 20px; font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); }
@@ -90,8 +92,11 @@
   </div>
   <div class="contenido">
     <div class="barra-filtros">
-      <input type="text" id="filtro" placeholder="Buscar por nombre o DNI…">
-    </div>
+  <input type="text" id="filtro" placeholder="Buscar por nombre o DNI…">
+  <select id="filtro-obra">
+    <option value="">Todas las obras</option>
+  </select>
+</div>
     <div class="seccion">
       <div id="tabla-trabajadores"><div class="cargando">Cargando…</div></div>
     </div>
@@ -158,7 +163,7 @@ async function cargarTrabajadores() {
     .from('trabajadores')
     .select(`
       id, nombre, apellidos, dni, telefono, activo,
-      validaciones_obra ( estado, obra:obra_id ( nombre ) )
+      validaciones_obra ( estado, obra:obra_id ( id, nombre ) )
     `)
     .order('apellidos');
 
@@ -168,7 +173,35 @@ async function cargarTrabajadores() {
   }
 
   todosTrabajadores = data;
-  renderTabla(data);
+  rellenarFiltroObras(data);
+  aplicarFiltros();
+}
+
+function rellenarFiltroObras(trabajadores) {
+  const mapa = new Map();
+  trabajadores.forEach(t => (t.validaciones_obra || []).forEach(v => {
+    if (v.obra?.id && !mapa.has(v.obra.id)) mapa.set(v.obra.id, v.obra.nombre);
+  }));
+  const obras = [...mapa.entries()].sort((a, b) => a[1].localeCompare(b[1], 'es'));
+  const sel = document.getElementById('filtro-obra');
+  const actual = sel.value;
+  sel.innerHTML = '<option value="">Todas las obras</option>' +
+    obras.map(([id, nombre]) => `<option value="${id}">${esc(nombre)}</option>`).join('');
+  if (actual && mapa.has(actual)) sel.value = actual;
+}
+
+function aplicarFiltros() {
+  const q = document.getElementById('filtro').value.toLowerCase();
+  const obraId = document.getElementById('filtro-obra').value;
+  const filtrados = todosTrabajadores.filter(t => {
+    const coincideTexto = !q ||
+      (t.nombre + ' ' + t.apellidos).toLowerCase().includes(q) ||
+      (t.dni || '').toLowerCase().includes(q);
+    const coincideObra = !obraId ||
+      (t.validaciones_obra || []).some(v => v.obra?.id === obraId);
+    return coincideTexto && coincideObra;
+  });
+  renderTabla(filtrados);
 }
 
 function renderTabla(data) {
@@ -215,14 +248,9 @@ function estadoDocumental(validaciones) {
 }
 
 // Filtro búsqueda
-document.getElementById('filtro').addEventListener('input', function() {
-  const q = this.value.toLowerCase();
-  const filtrados = todosTrabajadores.filter(t =>
-    (t.nombre + ' ' + t.apellidos).toLowerCase().includes(q) ||
-    (t.dni || '').toLowerCase().includes(q)
-  );
-  renderTabla(filtrados);
-});
+// Filtros búsqueda y obra
+document.getElementById('filtro').addEventListener('input', aplicarFiltros);
+document.getElementById('filtro-obra').addEventListener('change', aplicarFiltros);
 
 // MODAL
 document.getElementById('btn-nuevo').addEventListener('click', () => {
