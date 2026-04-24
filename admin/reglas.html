@@ -1,114 +1,123 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Reglas Documentales — Admin</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: sans-serif; background: #f4f6f9; color: #333; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reglas documentales — Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
+    --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
+    --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
+  .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+  .sidebar-brand { padding: 18px 16px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: center; gap: 14px; }
+  .sidebar-brand img { height: 22px; width: auto; opacity: 0.9; }
+  .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
+  .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
+  .sidebar a:hover { background: var(--bg3); color: var(--texto); }
+  .sidebar a.activo { background: var(--bg3); color: var(--texto); font-weight: 600; }
+  .sidebar a .ico { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid var(--borde); }
+  .btn-salir { width: 100%; background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 8px; }
+  .btn-salir:hover { background: var(--bg3); color: var(--texto); }
+  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+  .topbar { padding: 20px 28px 8px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+  .subtitulo { padding: 0 28px 18px; color: var(--texto2); font-size: 14px; }
+  .contenido { padding: 0 28px 28px; }
+  .btn-primario { background: var(--azul); color: white; border: none; padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .btn-primario:hover { opacity: 0.9; }
+  .btn-exito { background: var(--verde); color: white; border: none; padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .btn-exito:hover { opacity: 0.9; }
+  .btn-secundario { background: transparent; color: var(--texto2); border: 1px solid var(--borde); padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; }
+  .btn-secundario:hover { background: var(--bg3); color: var(--texto); }
+  .btn-peligro-sutil { background: transparent; color: var(--rojo); border: 1px solid rgba(244,67,54,0.35); padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; }
+  .btn-peligro-sutil:hover { background: rgba(244,67,54,0.1); }
 
-    .sidebar {
-      position: fixed; top: 0; left: 0; width: 220px; height: 100vh;
-      background: #1a1a2e; color: white; padding: 24px 16px;
-    }
-    .sidebar h2 { font-size: 16px; margin-bottom: 32px; color: #aaa; }
-    .sidebar a {
-      display: block; color: white; text-decoration: none;
-      padding: 10px 12px; border-radius: 6px; margin-bottom: 4px; font-size: 14px;
-    }
-    .sidebar a:hover, .sidebar a.active { background: #16213e; }
-    .sidebar .logout { margin-top: auto; position: absolute; bottom: 24px; left: 16px; right: 16px; }
-    .sidebar .logout a { color: #ff6b6b; }
+  .toolbar { display: flex; justify-content: flex-end; margin-bottom: 14px; }
+  .toolbar-inferior { display: flex; justify-content: flex-end; margin-top: 16px; }
 
-    .main { margin-left: 220px; padding: 32px; }
-    h1 { font-size: 22px; margin-bottom: 8px; }
-    .subtitle { color: #666; font-size: 14px; margin-bottom: 24px; }
+  .mensaje { padding: 11px 16px; border-radius: 8px; margin-bottom: 14px; font-size: 13px; display: none; white-space: pre-line; }
+  .mensaje.ok  { background: rgba(76,175,80,0.12);  color: var(--verde); border: 1px solid rgba(76,175,80,0.3); }
+  .mensaje.err { background: rgba(244,67,54,0.12);  color: var(--rojo);  border: 1px solid rgba(244,67,54,0.3); }
 
-    .toolbar { display: flex; justify-content: flex-end; margin-bottom: 16px; }
-    .btn {
-      padding: 8px 16px; border: none; border-radius: 6px;
-      cursor: pointer; font-size: 14px; font-weight: 600;
-    }
-    .btn-primary { background: #4f46e5; color: white; }
-    .btn-primary:hover { background: #4338ca; }
-    .btn-danger { background: #ef4444; color: white; }
-    .btn-danger:hover { background: #dc2626; }
-    .btn-success { background: #22c55e; color: white; }
-    .btn-success:hover { background: #16a34a; }
+  .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; padding: 11px 16px; font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); }
+  td { padding: 10px 16px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); }
+  tr.nueva td { border-left: 2px solid var(--verde); }
+  tr.nueva td:first-child { border-left: 2px solid var(--verde); }
 
-    .card { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden; }
+  td input[type="text"], td select {
+    width: 100%; background: var(--bg3); border: 1px solid var(--borde); border-radius: 6px;
+    color: var(--texto); font-size: 13px; padding: 7px 10px; font-family: inherit;
+  }
+  td input[type="text"]:focus, td select:focus { outline: none; border-color: var(--azul); }
+  td input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--azul); }
+  td.celda-check { text-align: center; }
 
-    table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    thead { background: #f8fafc; }
-    th { padding: 12px 16px; text-align: left; font-weight: 600; color: #555; border-bottom: 1px solid #e5e7eb; }
-    td { padding: 10px 16px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
-    tr:last-child td { border-bottom: none; }
-    tr.nueva { background: #f0fdf4; }
-
-    td input[type="text"], td select {
-      width: 100%; padding: 6px 8px; border: 1px solid #d1d5db;
-      border-radius: 5px; font-size: 13px; background: white;
-    }
-    td input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
-
-    .badge {
-      display: inline-block; padding: 3px 10px; border-radius: 12px;
-      font-size: 12px; font-weight: 600;
-    }
-    .badge-verde { background: #dcfce7; color: #166534; }
-    .badge-naranja { background: #fff7ed; color: #9a3412; }
-    .badge-rojo { background: #fee2e2; color: #991b1b; }
-
-    .msg { padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 14px; display: none; }
-    .msg-ok { background: #dcfce7; color: #166534; }
-    .msg-err { background: #fee2e2; color: #991b1b; }
-  </style>
+  .vacio { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+  .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); }
+</style>
 </head>
 <body>
 
 <div class="sidebar">
-  <h2>⚙️ ADMIN</h2>
-  <a href="index.html">Dashboard</a>
-  <a href="obras.html">Obras</a>
-  <a href="trabajadores.html">Trabajadores</a>
-  <a href="fichajes.html">Fichajes</a>
-  <a href="incidencias.html">Incidencias</a>
-  <a href="reglas.html" class="active">Reglas documentales</a>
-  <div class="logout"><a href="../index.html" id="btnLogout">Cerrar sesión</a></div>
+  <div class="sidebar-brand">
+    <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
+    <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
+  </div>
+  <div class="sidebar-section">Principal</div>
+  <a href="index.html"><span class="ico">📊</span> Dashboard</a>
+  <div class="sidebar-section">Gestión</div>
+  <a href="obras.html"><span class="ico">🏗</span> Obras</a>
+  <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
+  <a href="#"><span class="ico">🏢</span> Empresas</a>
+  <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
+  <a href="incidencias.html"><span class="ico">⚠️</span> Incidencias</a>
+  <a href="reglas.html" class="activo"><span class="ico">📋</span> Reglas documentales</a>
+  <div class="sidebar-bottom">
+    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
+  </div>
 </div>
 
 <div class="main">
-  <h1>Reglas documentales</h1>
-  <p class="subtitle">Define cuándo un documento pone a un trabajador en verde, naranja o rojo.</p>
-
-  <div id="msgOk" class="msg msg-ok"></div>
-  <div id="msgErr" class="msg msg-err"></div>
-
-  <div class="toolbar">
-    <button class="btn btn-primary" onclick="nuevaFila()">+ Nueva regla</button>
+  <div class="topbar">
+    <h1>Reglas documentales</h1>
+    <button class="btn-primario" onclick="nuevaFila()">+ Nueva regla</button>
   </div>
+  <div class="subtitulo">Define cuándo un documento pone a un trabajador en verde, naranja o rojo.</div>
 
-  <div class="card">
-    <table id="tablaReglas">
-      <thead>
-        <tr>
-          <th>Documento</th>
-          <th>Estado e-Coordina</th>
-          <th>Obligatorio</th>
-          <th>Resultado</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="cuerpoTabla">
-        <tr><td colspan="5" style="text-align:center;padding:24px;color:#aaa;">Cargando…</td></tr>
-      </tbody>
-    </table>
-  </div>
+  <div class="contenido">
+    <div id="msgOk" class="mensaje ok"></div>
+    <div id="msgErr" class="mensaje err"></div>
 
-  <div class="toolbar" style="margin-top:16px;">
-    <button class="btn btn-success" onclick="guardarTodo()">💾 Guardar cambios</button>
+    <div class="seccion">
+      <table id="tablaReglas">
+        <thead>
+          <tr>
+            <th>Documento</th>
+            <th>Estado e-Coordina</th>
+            <th style="text-align:center">Obligatorio</th>
+            <th>Resultado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="cuerpoTabla">
+          <tr><td colspan="5"><div class="cargando">Cargando…</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="toolbar-inferior">
+      <button class="btn-exito" onclick="guardarTodo()">💾 Guardar cambios</button>
+    </div>
   </div>
 </div>
 
@@ -142,14 +151,14 @@
   function renderTabla() {
     const tbody = document.getElementById('cuerpoTabla');
     if (reglas.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:#aaa;">No hay reglas. Añade la primera.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5"><div class="vacio">No hay reglas. Añade la primera.</div></td></tr>';
       return;
     }
     tbody.innerHTML = reglas.map((r, i) => `
       <tr data-i="${i}" ${r._nueva ? 'class="nueva"' : ''}>
         <td><input type="text" value="${esc(r.nombre_documento)}" onchange="actualizar(${i},'nombre_documento',this.value)"/></td>
         <td><input type="text" value="${esc(r.estado_ecoordina)}" onchange="actualizar(${i},'estado_ecoordina',this.value)"/></td>
-        <td style="text-align:center">
+        <td class="celda-check">
           <input type="checkbox" ${r.es_obligatorio ? 'checked' : ''} onchange="actualizar(${i},'es_obligatorio',this.checked)"/>
         </td>
         <td>
@@ -160,7 +169,7 @@
           </select>
         </td>
         <td>
-          <button class="btn btn-danger" style="padding:4px 10px;font-size:12px" onclick="eliminarFila(${i})">Eliminar</button>
+          <button class="btn-peligro-sutil" onclick="eliminarFila(${i})">Eliminar</button>
         </td>
       </tr>
     `).join('');
@@ -264,7 +273,7 @@
     document.getElementById('msgErr').style.display = 'none';
   }
 
-  document.getElementById('btnLogout').addEventListener('click', async (e) => {
+  document.getElementById('btn-salir').addEventListener('click', async (e) => {
     e.preventDefault();
     await sb.auth.signOut();
     location.href = '../index.html';
