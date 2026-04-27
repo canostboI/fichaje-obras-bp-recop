@@ -367,20 +367,25 @@ function procesarArchivo(file) {
 }
 
 // ── EXTRAER DNI ───────────────────────────────────────────────────────────────
-function extraerDni(texto) {
+// Columna Trabajador: "APELLIDO, NOMBRE - X1234567A"
+// Columna Empresa:    "EMPRESA SL - B12345678"
+function extraerDniDeTrabajador(texto) {
   if (!texto) return null;
-  // Formato: "NOMBRE APELLIDO - X1234567A"
   const partes = texto.split(' - ');
   if (partes.length < 2) return null;
   const dni = partes[partes.length - 1].trim();
-  // Validar que parece un DNI/NIE (6-9 chars alfanuméricos)
   if (/^[A-Z0-9]{6,10}$/i.test(dni)) return dni.toUpperCase();
   return null;
 }
 
+function extraerNombreTrabajador(texto) {
+  if (!texto) return '';
+  const partes = texto.split(' - ');
+  return partes[0].trim();
+}
+
 function extraerNombreEmpresa(texto) {
   if (!texto) return '';
-  // Formato: "EMPRESA SL - B12345678"
   const partes = texto.split(' - ');
   return partes[0].trim();
 }
@@ -432,25 +437,27 @@ async function procesarExcel() {
 
   for (const fila of datosExcel) {
     const trabajadorRaw = fila['Trabajador'] || '';
-    const dni = extraerDni(trabajadorRaw);
+    const dni = extraerDniDeTrabajador(trabajadorRaw);
     if (dni) {
-      filasTrabajador.push({ ...fila, _dni: dni, _nombreTrabajador: trabajadorRaw.split(' - ')[0].trim() });
+      filasTrabajador.push({ ...fila, _dni: dni, _nombreTrabajador: extraerNombreTrabajador(trabajadorRaw) });
     } else {
       filasEmpresa.push(fila);
     }
   }
 
-  // Calcular problemas por empresa (nombre_empresa → [{doc, estado, resultado}])
+  // Calcular problemas por empresa
+  // Usamos el texto completo de Empresa como clave para evitar fallos de coincidencia
   const problemasPorEmpresa = {};
   for (const fila of filasEmpresa) {
-    const empresa = extraerNombreEmpresa(fila['Empresa'] || '');
-    if (!empresa) continue;
+    const empresaRaw = String(fila['Empresa'] || '').trim();
+    if (!empresaRaw) continue;
     const nombreDoc = fila['Documento'] || '';
     const estado = fila['Estado'] || '';
+    if (estado === 'Validado') continue; // sin problema
     const regla = aplicarRegla(nombreDoc, estado, 'empresa');
     if (regla) {
-      if (!problemasPorEmpresa[empresa]) problemasPorEmpresa[empresa] = [];
-      problemasPorEmpresa[empresa].push({
+      if (!problemasPorEmpresa[empresaRaw]) problemasPorEmpresa[empresaRaw] = [];
+      problemasPorEmpresa[empresaRaw].push({
         doc: nombreDoc,
         estado,
         resultado: regla.resultado
@@ -486,6 +493,7 @@ async function procesarExcel() {
 
     // 1. Docs propios del trabajador
     for (const { doc, estado } of info.docs) {
+      if (estado === 'Validado') continue; // sin problema
       const regla = aplicarRegla(doc, estado, 'trabajador');
       if (regla) {
         estadoFinal = peorEstado(estadoFinal, regla.resultado);
@@ -493,8 +501,8 @@ async function procesarExcel() {
       }
     }
 
-    // 2. Docs heredados de su empresa
-    const empProblemas = problemasPorEmpresa[info.empresa] || [];
+    // 2. Docs heredados de su empresa (usando empresaRaw como clave)
+    const empProblemas = problemasPorEmpresa[info.empresaRaw] || [];
     for (const p of empProblemas) {
       estadoFinal = peorEstado(estadoFinal, p.resultado);
       motivos.push(`[Empresa] ${p.doc} (${p.estado}) → ${p.resultado}`);
@@ -671,7 +679,7 @@ async function confirmarImportacion() {
         trabajador_id: trabajadorId,
         obra_id: obraId,
         estado: r.estadoManual,
-        motivos: motivos ? { lista: motivos } : null,
+        motivos: motivos,
         fecha_validacion: new Date().toISOString()
       }, { onConflict: 'trabajador_id,obra_id' });
       if (valErr) throw valErr;
