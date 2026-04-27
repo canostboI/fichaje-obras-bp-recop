@@ -304,15 +304,17 @@
   <div class="pie" id="pie-marca">Control de acceso</div>
 </div>
 
-<!-- Cliente Supabase compartido de toda la V2 -->
-<script src="../js/supabase-client.js"></script>
-
 <script>
 // =====================================================================
 // LÓGICA DE LA PANTALLA DE FICHAJE
 // =====================================================================
 
-const sb = window.supabaseClient;
+// Cliente Supabase inline (criterio único de la V2: cada página instancia
+// su propio cliente con createClient, sin global compartido).
+const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Estado en memoria para esta sesión de fichaje
 const estado = {
