@@ -284,6 +284,7 @@
   <div class="tarjeta oculto" id="paso-resultado">
     <div class="estado-box" id="estado-box"></div>
     <div class="motivos oculto" id="motivos-box"></div>
+    <div class="error-banner oculto" id="error-resultado"></div>
     <button type="button" class="principal" id="btn-fichar"></button>
     <button type="button" class="secundario" id="btn-volver" style="margin-top:10px;">Volver</button>
   </div>
@@ -336,6 +337,7 @@ const el = {
   ultimoDniBox:document.getElementById('ultimo-dni-box'),
   btnUltimoDni:document.getElementById('btn-ultimo-dni'),
   errorDni:    document.getElementById('error-dni'),
+  errorResultado: document.getElementById('error-resultado'),
   cargandoTexto:document.getElementById('cargando-texto'),
   estadoBox:   document.getElementById('estado-box'),
   motivosBox:  document.getElementById('motivos-box'),
@@ -409,6 +411,15 @@ function ocultarErrorDni() {
   el.errorDni.classList.add('oculto');
 }
 
+function mostrarErrorResultado(texto) {
+  el.errorResultado.textContent = texto;
+  el.errorResultado.classList.remove('oculto');
+}
+
+function ocultarErrorResultado() {
+  el.errorResultado.classList.add('oculto');
+}
+
 function irA(paso) {
   el.pasoDni.classList.add('oculto');
   el.pasoCargando.classList.add('oculto');
@@ -438,6 +449,47 @@ function escapar(txt) {
 function formatearHora(iso) {
   const d = new Date(iso);
   return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+}
+
+// Convierte un error de Supabase/red en un mensaje legible para el usuario
+// y devuelve también una etiqueta para los logs de consola.
+function interpretarError(err) {
+  // Sin internet: navigator.onLine es la pista más clara
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return {
+      mensajeUsuario: 'Sin conexión a internet. Compruebe su WiFi o datos móviles.',
+      etiquetaLog: 'sin_conexion'
+    };
+  }
+
+  const msg = (err && (err.message || err.error_description || err.toString())) || '';
+  const msgLower = msg.toLowerCase();
+
+  // Errores típicos de fetch fallido (red caída a media petición)
+  if (msgLower.includes('failed to fetch') ||
+      msgLower.includes('networkerror') ||
+      msgLower.includes('network request failed')) {
+    return {
+      mensajeUsuario: 'No se pudo conectar con el servidor. Compruebe su conexión e inténtelo de nuevo.',
+      etiquetaLog: 'fallo_red'
+    };
+  }
+
+  // Timeout
+  if (msgLower.includes('timeout') || msgLower.includes('timed out')) {
+    return {
+      mensajeUsuario: 'La conexión tardó demasiado. Inténtelo de nuevo.',
+      etiquetaLog: 'timeout'
+    };
+  }
+
+  // Cualquier otra cosa: mostramos el mensaje real si lo hay
+  return {
+    mensajeUsuario: msg
+      ? 'Error: ' + msg
+      : 'No se pudo completar la operación. Inténtelo de nuevo.',
+    etiquetaLog: 'otro'
+  };
 }
 
 // Obtener geolocalización del navegador, con timeout razonable
@@ -516,6 +568,7 @@ async function continuarDesdeDni() {
   } catch (err) {
     irA(el.pasoDni);
     mostrarErrorDni(err.message);
+    console.error('[fichaje] error_gps:', err);
     return;
   }
 
@@ -528,18 +581,20 @@ async function continuarDesdeDni() {
     });
 
     if (error) {
+      const info = interpretarError(error);
       irA(el.pasoDni);
-      mostrarErrorDni('Error de conexión. Inténtelo de nuevo.');
-      console.error(error);
+      mostrarErrorDni(info.mensajeUsuario);
+      console.error('[fichaje] validar_acceso (' + info.etiquetaLog + '):', error);
       return;
     }
 
     estado.validacion = data;
     mostrarResultadoValidacion(data);
   } catch (err) {
+    const info = interpretarError(err);
     irA(el.pasoDni);
-    mostrarErrorDni('Error de conexión. Inténtelo de nuevo.');
-    console.error(err);
+    mostrarErrorDni(info.mensajeUsuario);
+    console.error('[fichaje] validar_acceso excepción (' + info.etiquetaLog + '):', err);
   }
 }
 
@@ -551,6 +606,7 @@ function mostrarResultadoValidacion(v) {
   }
 
   // Caso: trabajador encontrado. Pintamos según estado.
+  ocultarErrorResultado();
   el.estadoBox.className = 'estado-box';
   el.btnFichar.className = 'principal';
 
@@ -604,6 +660,7 @@ function mostrarResultadoValidacion(v) {
 
 async function ejecutarFichaje() {
   el.btnFichar.disabled = true;
+  ocultarErrorResultado();
   el.cargandoTexto.textContent = 'Registrando fichaje…';
   irA(el.pasoCargando);
 
@@ -616,26 +673,35 @@ async function ejecutarFichaje() {
     });
 
     if (error) {
+      const info = interpretarError(error);
       irA(el.pasoResultado);
       el.btnFichar.disabled = false;
-      alert('Error al registrar fichaje. Inténtelo de nuevo.');
-      console.error(error);
+      mostrarErrorResultado(info.mensajeUsuario);
+      console.error('[fichaje] registrar_fichaje (' + info.etiquetaLog + '):', error);
       return;
     }
 
-    if (!data.success) {
+    if (!data || !data.success) {
+      // La RPC respondió OK pero rechazó el fichaje (rojo, fuera de zona, etc.)
       irA(el.pasoResultado);
       el.btnFichar.disabled = false;
-      alert(data.error || 'No se pudo registrar el fichaje.');
+      const motivoPrincipal = (data && data.error) || 'No se pudo registrar el fichaje.';
+      mostrarErrorResultado(motivoPrincipal);
+      // Si hay motivos detallados, los repintamos como críticos
+      if (data && Array.isArray(data.motivos) && data.motivos.length) {
+        pintarMotivos(el.motivosBox, data.motivos, true);
+      }
+      console.warn('[fichaje] registrar_fichaje rechazado:', data);
       return;
     }
 
     mostrarConfirmacionFinal(data);
   } catch (err) {
+    const info = interpretarError(err);
     irA(el.pasoResultado);
     el.btnFichar.disabled = false;
-    alert('Error de conexión.');
-    console.error(err);
+    mostrarErrorResultado(info.mensajeUsuario);
+    console.error('[fichaje] registrar_fichaje excepción (' + info.etiquetaLog + '):', err);
   }
 }
 
