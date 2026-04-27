@@ -105,6 +105,7 @@
             <th>Documento</th>
             <th>Estado e-Coordina</th>
             <th style="text-align:center">Obligatorio</th>
+            <th>Aplica a</th>
             <th>Resultado</th>
             <th></th>
           </tr>
@@ -151,7 +152,7 @@
   function renderTabla() {
     const tbody = document.getElementById('cuerpoTabla');
     if (reglas.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5"><div class="vacio">No hay reglas. Añade la primera.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6"><div class="vacio">No hay reglas. Añade la primera.</div></td></tr>';
       return;
     }
     tbody.innerHTML = reglas.map((r, i) => `
@@ -160,6 +161,12 @@
         <td><input type="text" value="${esc(r.estado_ecoordina)}" onchange="actualizar(${i},'estado_ecoordina',this.value)"/></td>
         <td class="celda-check">
           <input type="checkbox" ${r.es_obligatorio ? 'checked' : ''} onchange="actualizar(${i},'es_obligatorio',this.checked)"/>
+        </td>
+        <td>
+          <select onchange="actualizar(${i},'aplica_a',this.value)">
+            <option value="trabajador" ${r.aplica_a==='trabajador' ?'selected':''}>👷 Trabajador</option>
+            <option value="empresa"    ${r.aplica_a==='empresa'    ?'selected':''}>🏢 Empresa</option>
+          </select>
         </td>
         <td>
           <select onchange="actualizar(${i},'resultado',this.value)">
@@ -190,6 +197,7 @@
       nombre_documento: '',
       estado_ecoordina: '',
       es_obligatorio: true,
+      aplica_a: 'trabajador',
       resultado: 'rojo',
       _nueva: true
     });
@@ -233,6 +241,7 @@
         nombre_documento: r.nombre_documento.trim(),
         estado_ecoordina: r.estado_ecoordina.trim(),
         es_obligatorio: r.es_obligatorio,
+        aplica_a: r.aplica_a || 'trabajador',
         resultado: r.resultado
       });
       if (error) errores.push('Insertar ' + r.nombre_documento + ': ' + error.message);
@@ -245,6 +254,7 @@
         nombre_documento: r.nombre_documento.trim(),
         estado_ecoordina: r.estado_ecoordina.trim(),
         es_obligatorio: r.es_obligatorio,
+        aplica_a: r.aplica_a || 'trabajador',
         resultado: r.resultado
       }).eq('id', r.id);
       if (error) errores.push('Actualizar ' + r.nombre_documento + ': ' + error.message);
