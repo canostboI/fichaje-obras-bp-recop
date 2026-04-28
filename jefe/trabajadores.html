@@ -395,7 +395,7 @@ function renderTabla(lista) {
       <tbody>
         ${lista.map(t => `
           <tr>
-            <td><strong>${esc(t.nombre)} ${esc(t.apellidos)}</strong></td>
+            <td><strong>${esc(nombreCompleto(t))}</strong></td>
             <td style="font-family:monospace">${esc(t.dni)}</td>
             <td>${t.obras.map(o => pillObra(t, o)).join('')}</td>
             <td>
@@ -445,7 +445,7 @@ function pillObra(trabajador, obra) {
 document.getElementById('buscador').addEventListener('input', e => {
   const q = e.target.value.toLowerCase();
   renderTabla(todosTrabajadores.filter(t =>
-    (t.nombre + ' ' + t.apellidos + ' ' + t.dni).toLowerCase().includes(q)
+    (nombreCompleto(t) + ' ' + (t.dni || '')).toLowerCase().includes(q)
   ));
 });
 
@@ -487,9 +487,9 @@ async function abrirEdicion(trabajadorId) {
   document.getElementById('btn-guardar').disabled = false;
 
   const t = todosTrabajadores.find(x => x.id === trabajadorId);
-  document.getElementById('modal-nombre').value = t.nombre;
-  document.getElementById('modal-apellidos').value = t.apellidos;
-  document.getElementById('modal-dni').value = t.dni;
+  document.getElementById('modal-nombre').value = t.nombre || '';
+  document.getElementById('modal-apellidos').value = t.apellidos || '';
+  document.getElementById('modal-dni').value = t.dni || '';
 
   // Obras donde ya está asignado
   const obraIds = misObras.map(o => o.id);
@@ -633,7 +633,7 @@ function abrirModalForzar(trabajadorId, obraId) {
   forzarCtx = {
     trabajador_id: trabajadorId,
     obra_id: obraId,
-    trabajador_nombre: `${t.nombre} ${t.apellidos}`,
+    trabajador_nombre: nombreCompleto(t),
     obra_nombre: o.nombre,
     estado_actual: o.estado,
     estado_forzado: o.estado_forzado,
@@ -882,6 +882,15 @@ document.getElementById('btn-quitar-autorizacion').addEventListener('click', asy
 });
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
+// Une nombre + apellidos sin que aparezca "null" cuando uno de los dos
+// viene vacío en BD. Si los dos están vacíos, devuelve "(sin nombre)".
+function nombreCompleto(t) {
+  const partes = [t.nombre, t.apellidos]
+    .filter(x => x && String(x).trim())
+    .map(x => String(x).trim());
+  return partes.length > 0 ? partes.join(' ') : '(sin nombre)';
+}
+
 // Extrae lista de motivos en cualquiera de los formatos posibles:
 // - Array directo: ["motivo1", "motivo2"]
 // - Objeto envuelto antiguo: { lista: [...] }
