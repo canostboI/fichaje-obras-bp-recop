@@ -61,6 +61,20 @@
   .pill.naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
   .pill.rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
   .pill.obra    { background: rgba(33,150,243,0.15); color: var(--azul); font-size: 11px; }
+
+  /* Pill clicable para forzar */
+  .pill.clicable { cursor: pointer; transition: transform 0.1s, filter 0.1s; border: 1px solid transparent; }
+  .pill.clicable:hover { filter: brightness(1.3); transform: translateY(-1px); }
+  .pill.forzado { border-style: dashed; border-color: currentColor; }
+/* Fila por obra dentro de la celda */
+  .obra-fila { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+  .obra-nombre { font-size: 14px; color: var(--texto); flex: 1; }
+  .pill-estado { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; cursor: pointer; transition: filter 0.1s, transform 0.1s; border: 1px solid transparent; white-space: nowrap; }
+  .pill-estado:hover { filter: brightness(1.25); transform: translateY(-1px); }
+  .pill-estado.verde   { background: rgba(76,175,80,0.15);  color: var(--verde); }
+  .pill-estado.naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
+  .pill-estado.rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
+  .pill-estado.forzado { border-style: dashed; border-color: currentColor; }
   .vacio { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
 
@@ -73,13 +87,14 @@
   /* MODAL */
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: none; align-items: center; justify-content: center; }
   .modal-overlay.abierto { display: flex; }
-  .modal { background: var(--bg2); border: 1px solid var(--borde); border-radius: 12px; width: 500px; max-width: 95vw; padding: 28px; display: flex; flex-direction: column; gap: 18px; }
+  .modal { background: var(--bg2); border: 1px solid var(--borde); border-radius: 12px; width: 500px; max-width: 95vw; padding: 28px; display: flex; flex-direction: column; gap: 18px; max-height: 92vh; overflow-y: auto; }
   .modal h3 { font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
   .campo { display: flex; flex-direction: column; gap: 6px; }
   .campo label { font-size: 12px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; }
-  .campo input[type="text"] { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 13px; font-family: inherit; width: 100%; }
-  .campo input:focus { outline: none; border-color: var(--color-acento); }
-  .campo input::placeholder { color: var(--texto2); }
+  .campo input[type="text"], .campo textarea { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 13px; font-family: inherit; width: 100%; }
+  .campo input:focus, .campo textarea:focus { outline: none; border-color: var(--color-acento); }
+  .campo input::placeholder, .campo textarea::placeholder { color: var(--texto2); }
+  .campo textarea { min-height: 70px; resize: vertical; }
 
   /* CHECKBOXES OBRAS */
   .lista-obras { display: flex; flex-direction: column; gap: 8px; }
@@ -89,12 +104,37 @@
   .check-obra span { font-size: 14px; }
   .check-obra.marcado { border-color: var(--color-acento); background: rgba(255,152,0,0.05); }
 
-  .modal-acciones { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+  /* SELECTOR DE ESTADO */
+  .selector-estado { display: flex; gap: 8px; }
+  .btn-estado { flex: 1; padding: 12px; border-radius: 8px; border: 2px solid var(--borde); background: var(--bg3); color: var(--texto); cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 700; text-transform: uppercase; transition: all 0.12s; }
+  .btn-estado:hover { filter: brightness(1.2); }
+  .btn-estado.seleccionado.verde   { border-color: var(--verde);   color: var(--verde);   background: rgba(76,175,80,0.1); }
+  .btn-estado.seleccionado.naranja { border-color: var(--naranja); color: var(--naranja); background: rgba(255,152,0,0.1); }
+  .btn-estado.seleccionado.rojo    { border-color: var(--rojo);    color: var(--rojo);    background: rgba(244,67,54,0.1); }
+
+  /* INFO BOX (para mostrar forzado actual) */
+  .info-box { padding: 12px 14px; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; font-size: 13px; color: var(--texto2); line-height: 1.5; }
+  .info-box strong { color: var(--texto); }
+  .info-box.excepcion { border-color: var(--verde); background: rgba(76,175,80,0.07); }
+  .info-box ul.motivos-list { margin: 6px 0 0 18px; padding: 0; font-size: 13px; line-height: 1.55; color: var(--texto); }
+  .info-box ul.motivos-list li { margin-bottom: 2px; }
+
+  /* BLOQUE ALTERNATIVO (autorizar solo hoy / quitar autorización) */
+  .bloque-alt { border-top: 1px solid var(--borde); padding-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .bloque-alt-titulo { font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; }
+  .bloque-alt-sub { font-size: 12px; color: var(--texto2); line-height: 1.4; }
+  .btn-autorizar { background: transparent; border: 1px solid var(--verde); color: var(--verde); border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .btn-autorizar:hover { background: rgba(76,175,80,0.1); }
+  .btn-autorizar:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .modal-acciones { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
   .btn-cancelar { background: transparent; border: 1px solid var(--borde); color: var(--texto2); border-radius: 8px; padding: 10px 18px; font-size: 13px; cursor: pointer; font-family: inherit; }
   .btn-cancelar:hover { background: var(--bg3); }
   .btn-guardar { background: var(--color-acento); color: #000; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
   .btn-guardar:hover { opacity: 0.85; }
   .btn-guardar:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-quitar { background: transparent; border: 1px solid var(--rojo); color: var(--rojo); border-radius: 8px; padding: 10px 18px; font-size: 13px; cursor: pointer; font-family: inherit; margin-right: auto; }
+  .btn-quitar:hover { background: rgba(244,67,54,0.1); }
   .msg-error { color: var(--rojo); font-size: 13px; }
   .msg-ok { color: var(--verde); font-size: 13px; }
 
@@ -112,8 +152,8 @@
   <a href="index.html"><span class="ico">👷</span> Presencia</a>
   <div class="sidebar-section">Gestión</div>
   <a href="fichajes.html"><span class="ico">🕐</span> Fichajes</a>
-  <a href="documentos.html"><span class="ico">📄</span> Documentos</a>
   <a href="trabajadores.html" class="activo"><span class="ico">👥</span> Trabajadores</a>
+  <a href="documentos-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
   <div class="sidebar-bottom">
     <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
   </div>
@@ -143,7 +183,7 @@
   </div>
 </div>
 
-<!-- MODAL -->
+<!-- MODAL TRABAJADOR -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
     <h3 id="modal-titulo">Nuevo trabajador</h3>
@@ -178,6 +218,47 @@
   </div>
 </div>
 
+<!-- MODAL FORZAR ESTADO -->
+<div class="modal-overlay" id="modal-forzar-overlay">
+  <div class="modal">
+    <h3>Estado documental</h3>
+
+    <div class="info-box" id="forzar-info">
+      <!-- Se rellena desde JS -->
+    </div>
+
+    <div class="campo">
+      <label>Nuevo estado</label>
+      <div class="selector-estado">
+        <button type="button" class="btn-estado" data-estado="verde" onclick="seleccionarEstado('verde')">Verde</button>
+        <button type="button" class="btn-estado" data-estado="naranja" onclick="seleccionarEstado('naranja')">Naranja</button>
+        <button type="button" class="btn-estado" data-estado="rojo" onclick="seleccionarEstado('rojo')">Rojo</button>
+      </div>
+    </div>
+
+    <div class="campo">
+      <label>Motivo (obligatorio)</label>
+      <textarea id="forzar-motivo" placeholder="Ejemplo: TC2 entregado en papel el 23/04/2026"></textarea>
+    </div>
+
+    <!-- Bloque alternativo: autorizar solo hoy / quitar autorización -->
+    <div class="bloque-alt" id="bloque-alt" style="display:none">
+      <div class="bloque-alt-titulo" id="bloque-alt-titulo"></div>
+      <div class="bloque-alt-sub" id="bloque-alt-sub"></div>
+      <button type="button" class="btn-autorizar" id="btn-autorizar-hoy" style="display:none">🗝️ Autorizar solo hoy</button>
+      <button type="button" class="btn-quitar" id="btn-quitar-autorizacion" style="display:none; margin:0">Quitar autorización de hoy</button>
+    </div>
+
+    <div id="forzar-msg"></div>
+
+    <div class="modal-acciones">
+      <button type="button" class="btn-quitar" id="btn-quitar-forzado" style="display:none">Quitar forzado</button>
+      <button type="button" class="btn-cancelar" id="btn-cancelar-forzar">Cancelar</button>
+      <button type="button" class="btn-guardar" id="btn-aplicar-forzar">Aplicar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
@@ -187,6 +268,10 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let misObras = [];
 let todosTrabajadores = [];
 let miUsuarioId = null;
+
+// Estado del modal de forzar
+let forzarCtx = null; // { trabajador_id, obra_id, trabajador_nombre, obra_nombre, estado_actual, estado_forzado, motivo_forzado, motivos, forzado_en, excepcion_hoy }
+let estadoSeleccionado = null;
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 (async function init() {
@@ -241,15 +326,30 @@ async function cargarTrabajadores() {
 
   const obraIds = misObras.map(o => o.id);
 
-  // Traer validaciones de todas mis obras para saber qué trabajadores hay
+  // Traer validaciones de todas mis obras con info de forzado y motivos
   const { data: validaciones } = await sb
     .from('validaciones_obra')
-    .select('trabajador_id, obra_id, estado, trabajador:trabajador_id(id, nombre, apellidos, dni)')
+    .select('trabajador_id, obra_id, estado, estado_forzado, motivo_forzado, motivos, forzado_en, trabajador:trabajador_id(id, nombre, apellidos, dni)')
     .in('obra_id', obraIds);
+
+  // Traer excepciones de HOY para estas obras
+  const hoy = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const { data: excepciones } = await sb
+    .from('excepciones_acceso')
+    .select('id, trabajador_id, obra_id, motivo_autorizacion, created_at, autorizado_por:autorizado_por_user_id(nombre)')
+    .in('obra_id', obraIds)
+    .eq('fecha', hoy);
+
+  // Indexar excepciones por "trabajador_id|obra_id" para búsqueda rápida
+  const excepcionesPorKey = {};
+  (excepciones || []).forEach(ex => {
+    excepcionesPorKey[`${ex.trabajador_id}|${ex.obra_id}`] = ex;
+  });
 
   // Agrupar por trabajador
   const porTrabajador = {};
   (validaciones || []).forEach(v => {
+    if (!v.trabajador) return;
     if (!porTrabajador[v.trabajador_id]) {
       porTrabajador[v.trabajador_id] = {
         id: v.trabajador.id,
@@ -261,7 +361,18 @@ async function cargarTrabajadores() {
     }
     const obra = misObras.find(o => o.id === v.obra_id);
     if (obra) {
-      porTrabajador[v.trabajador_id].obras.push({ nombre: obra.nombre, estado: v.estado });
+      const key = `${v.trabajador_id}|${v.obra_id}`;
+      const excepcion = excepcionesPorKey[key] || null;
+      porTrabajador[v.trabajador_id].obras.push({
+        obra_id: v.obra_id,
+        nombre: obra.nombre,
+        estado: v.estado || 'verde',
+        estado_forzado: v.estado_forzado === true,
+        motivo_forzado: v.motivo_forzado || null,
+        motivos: v.motivos,
+        forzado_en: v.forzado_en,
+        excepcion_hoy: excepcion  // null o el objeto completo
+      });
     }
   });
 
@@ -286,7 +397,7 @@ function renderTabla(lista) {
           <tr>
             <td><strong>${esc(t.nombre)} ${esc(t.apellidos)}</strong></td>
             <td style="font-family:monospace">${esc(t.dni)}</td>
-            <td>${t.obras.map(o => `<span class="pill obra">${esc(o.nombre)}</span>`).join('')}</td>
+            <td>${t.obras.map(o => pillObra(t, o)).join('')}</td>
             <td>
               <div class="acciones">
                 <button class="btn-accion primario" onclick="abrirEdicion('${t.id}')">Editar</button>
@@ -299,6 +410,37 @@ function renderTabla(lista) {
   `;
 }
 
+function pillObra(trabajador, obra) {
+  const etiquetas = {
+    verde:   { texto: '✓ Válido',      icono: '✓' },
+    naranja: { texto: '⚠ Con avisos',  icono: '⚠' },
+    rojo:    { texto: '✗ Sin acceso',  icono: '✗' }
+  };
+  const et = etiquetas[obra.estado] || etiquetas.verde;
+  const clases = ['pill-estado', obra.estado];
+  if (obra.estado_forzado) clases.push('forzado');
+  let marca = '';
+  if (obra.estado_forzado) marca += ' ⚑';
+  if (obra.excepcion_hoy) marca += ' 🗝️';
+  let tooltip;
+  if (obra.excepcion_hoy) {
+    tooltip = `Autorizado solo hoy. Motivo: ${obra.excepcion_hoy.motivo_autorizacion || '(sin motivo)'}. Clic para ver.`;
+  } else if (obra.estado_forzado) {
+    tooltip = `Estado forzado a ${obra.estado}. Motivo: ${obra.motivo_forzado || '(sin motivo)'}. Clic para cambiar.`;
+  } else {
+    tooltip = `Estado: ${obra.estado}. Clic para forzar.`;
+  }
+  return `
+    <div class="obra-fila">
+      <span class="obra-nombre">${esc(obra.nombre)}</span>
+      <span class="${clases.join(' ')}" title="${esc(tooltip)}"
+            onclick="abrirModalForzar('${trabajador.id}', '${obra.obra_id}')">
+        ${et.texto}${marca}
+      </span>
+    </div>
+  `;
+}
+
 // Buscador
 document.getElementById('buscador').addEventListener('input', e => {
   const q = e.target.value.toLowerCase();
@@ -307,7 +449,7 @@ document.getElementById('buscador').addEventListener('input', e => {
   ));
 });
 
-// ── MODAL ─────────────────────────────────────────────────────────────────────
+// ── MODAL TRABAJADOR (nuevo / editar) ─────────────────────────────────────────
 let modoEdicion = null; // null = nuevo, uuid = editar
 
 function renderCheckObras(obrasSeleccionadas = []) {
@@ -370,7 +512,7 @@ document.getElementById('modal-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-overlay')) cerrarModal();
 });
 
-// ── GUARDAR ───────────────────────────────────────────────────────────────────
+// ── GUARDAR TRABAJADOR ────────────────────────────────────────────────────────
 document.getElementById('btn-guardar').addEventListener('click', async () => {
   const btn = document.getElementById('btn-guardar');
   const msg = document.getElementById('modal-msg');
@@ -389,7 +531,6 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     return;
   }
 
-  // Obras seleccionadas
   const checkboxes = document.querySelectorAll('#lista-obras-check input[type="checkbox"]:checked');
   const obrasSeleccionadas = Array.from(checkboxes).map(cb => cb.value);
 
@@ -403,7 +544,6 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   let trabajadorId = modoEdicion;
 
   if (!modoEdicion) {
-    // Comprobar si ya existe un trabajador con ese DNI
     const { data: existe } = await sb
       .from('trabajadores')
       .select('id')
@@ -411,10 +551,8 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
       .maybeSingle();
 
     if (existe) {
-      // Ya existe: reutilizar su ID
       trabajadorId = existe.id;
     } else {
-      // Crear nuevo trabajador
       const { data: nuevo, error: errCrear } = await sb
         .from('trabajadores')
         .insert({ nombre, apellidos, dni, activo: true })
@@ -430,7 +568,6 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
       trabajadorId = nuevo.id;
     }
   } else {
-    // Actualizar datos del trabajador
     const { error: errUpdate } = await sb
       .from('trabajadores')
       .update({ nombre, apellidos, dni })
@@ -444,8 +581,6 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     }
   }
 
-  // Gestionar asignaciones a obras
-  // 1. Traer asignaciones actuales en mis obras
   const { data: asignacionesActuales } = await sb
     .from('validaciones_obra')
     .select('obra_id')
@@ -454,7 +589,6 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
 
   const yaAsignadas = (asignacionesActuales || []).map(a => a.obra_id);
 
-  // 2. Añadir las nuevas
   const aNadir = obrasSeleccionadas.filter(id => !yaAsignadas.includes(id));
   if (aNadir.length > 0) {
     const inserts = aNadir.map(obraId => ({
@@ -473,7 +607,6 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     }
   }
 
-  // 3. Quitar las desasignadas (solo en modo edición)
   if (modoEdicion) {
     const aQuitar = yaAsignadas.filter(id => !obrasSeleccionadas.includes(id));
     if (aQuitar.length > 0) {
@@ -490,7 +623,282 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   setTimeout(() => { cerrarModal(); cargarTrabajadores(); }, 800);
 });
 
+// ── MODAL FORZAR ESTADO ───────────────────────────────────────────────────────
+function abrirModalForzar(trabajadorId, obraId) {
+  const t = todosTrabajadores.find(x => x.id === trabajadorId);
+  if (!t) return;
+  const o = t.obras.find(x => x.obra_id === obraId);
+  if (!o) return;
+
+  forzarCtx = {
+    trabajador_id: trabajadorId,
+    obra_id: obraId,
+    trabajador_nombre: `${t.nombre} ${t.apellidos}`,
+    obra_nombre: o.nombre,
+    estado_actual: o.estado,
+    estado_forzado: o.estado_forzado,
+    motivo_forzado: o.motivo_forzado,
+    motivos: o.motivos,
+    forzado_en: o.forzado_en,
+    excepcion_hoy: o.excepcion_hoy
+  };
+
+  // Rellenar info box principal
+  const info = document.getElementById('forzar-info');
+  info.classList.remove('excepcion');
+  let html = `
+    <strong>${esc(forzarCtx.trabajador_nombre)}</strong> en <strong>${esc(forzarCtx.obra_nombre)}</strong><br>
+    Estado actual: <span class="pill ${forzarCtx.estado_actual}">${forzarCtx.estado_actual}</span>
+  `;
+
+  // Lista de motivos (qué documentos están mal)
+  const listaMotivos = extraerListaMotivos(forzarCtx.motivos);
+  if (listaMotivos.length > 0) {
+    html += `<br><br><strong>Motivos:</strong><ul class="motivos-list">`
+         + listaMotivos.map(m => `<li>${esc(m)}</li>`).join('')
+         + `</ul>`;
+  }
+
+  if (forzarCtx.estado_forzado) {
+    const cuandoF = formatFechaLocal(forzarCtx.forzado_en);
+    html += `<br><br>⚑ <strong>Estado forzado a ${esc(forzarCtx.estado_actual)}</strong>${cuandoF ? ' el ' + cuandoF : ''}.<br>Motivo: ${esc(forzarCtx.motivo_forzado || '(sin motivo)')}`;
+  }
+  if (forzarCtx.excepcion_hoy) {
+    info.classList.add('excepcion');
+    const ex = forzarCtx.excepcion_hoy;
+    const quien = ex.autorizado_por?.nombre || 'Desconocido';
+    const cuando = ex.created_at ? new Date(ex.created_at).toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'}) : '';
+    html += `<br><br>🗝️ <strong>Autorizado solo hoy</strong> por ${esc(quien)}${cuando ? ' a las ' + cuando : ''}.<br>Motivo: ${esc(ex.motivo_autorizacion || '(sin motivo)')}`;
+  }
+  info.innerHTML = html;
+
+  // Reset selector y motivo
+  estadoSeleccionado = null;
+  document.querySelectorAll('.btn-estado').forEach(b => {
+    b.className = 'btn-estado';
+  });
+  document.getElementById('forzar-motivo').value = '';
+  document.getElementById('forzar-msg').textContent = '';
+  document.getElementById('forzar-msg').className = '';
+  document.getElementById('btn-aplicar-forzar').disabled = false;
+
+  // Botón "Quitar forzado" solo si ya está forzado
+  document.getElementById('btn-quitar-forzado').style.display =
+    forzarCtx.estado_forzado ? 'inline-block' : 'none';
+
+  // BLOQUE ALTERNATIVO (autorizar solo hoy / quitar autorización)
+  const bloque = document.getElementById('bloque-alt');
+  const btnAutorizar = document.getElementById('btn-autorizar-hoy');
+  const btnQuitarAut = document.getElementById('btn-quitar-autorizacion');
+  const titulo = document.getElementById('bloque-alt-titulo');
+  const sub = document.getElementById('bloque-alt-sub');
+
+  btnAutorizar.style.display = 'none';
+  btnQuitarAut.style.display = 'none';
+  btnAutorizar.disabled = false;
+  btnQuitarAut.disabled = false;
+
+  if (forzarCtx.excepcion_hoy) {
+    // Caso 1: ya tiene excepción → ofrecer quitarla
+    bloque.style.display = 'flex';
+    titulo.textContent = 'Autorización puntual';
+    sub.textContent = 'Esta autorización caduca automáticamente al final del día. Puedes quitarla si te has equivocado.';
+    btnQuitarAut.style.display = 'inline-block';
+  } else if (forzarCtx.estado_actual === 'rojo' && !forzarCtx.estado_forzado) {
+    // Caso 2: rojo natural sin excepción → ofrecer autorizar solo hoy
+    bloque.style.display = 'flex';
+    titulo.textContent = 'O autorizar solo hoy';
+    sub.textContent = 'Alternativa: dejarle pasar puntualmente hoy sin cambiar su estado documental. Mañana vuelve a estar bloqueado. Se usa el motivo de arriba.';
+    btnAutorizar.style.display = 'inline-block';
+  } else {
+    // No aplica
+    bloque.style.display = 'none';
+  }
+
+  document.getElementById('modal-forzar-overlay').classList.add('abierto');
+}
+
+function seleccionarEstado(estado) {
+  estadoSeleccionado = estado;
+  document.querySelectorAll('.btn-estado').forEach(b => {
+    if (b.dataset.estado === estado) {
+      b.className = `btn-estado seleccionado ${estado}`;
+    } else {
+      b.className = 'btn-estado';
+    }
+  });
+}
+
+function cerrarModalForzar() {
+  document.getElementById('modal-forzar-overlay').classList.remove('abierto');
+  forzarCtx = null;
+  estadoSeleccionado = null;
+}
+document.getElementById('btn-cancelar-forzar').addEventListener('click', cerrarModalForzar);
+document.getElementById('modal-forzar-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-forzar-overlay')) cerrarModalForzar();
+});
+
+// Aplicar forzado
+document.getElementById('btn-aplicar-forzar').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-aplicar-forzar');
+  const msg = document.getElementById('forzar-msg');
+
+  if (!estadoSeleccionado) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Selecciona un estado (verde, naranja o rojo).';
+    return;
+  }
+  const motivo = document.getElementById('forzar-motivo').value.trim();
+  if (!motivo) {
+    msg.className = 'msg-error';
+    msg.textContent = 'El motivo es obligatorio.';
+    return;
+  }
+
+  btn.disabled = true;
+  msg.className = '';
+  msg.textContent = 'Aplicando…';
+
+  const { data, error } = await sb.rpc('forzar_estado_validacion', {
+    p_trabajador_id: forzarCtx.trabajador_id,
+    p_obra_id: forzarCtx.obra_id,
+    p_nuevo_estado: estadoSeleccionado,
+    p_motivo: motivo
+  });
+
+  if (error) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Error: ' + error.message;
+    btn.disabled = false;
+    return;
+  }
+
+  msg.className = 'msg-ok';
+  msg.textContent = '¡Estado forzado correctamente!';
+  setTimeout(() => { cerrarModalForzar(); cargarTrabajadores(); }, 800);
+});
+
+// Quitar forzado
+document.getElementById('btn-quitar-forzado').addEventListener('click', async () => {
+  if (!confirm('¿Quitar el forzado? El estado volverá al que tenía antes del forzado.')) return;
+
+  const btn = document.getElementById('btn-quitar-forzado');
+  const msg = document.getElementById('forzar-msg');
+  btn.disabled = true;
+  msg.className = '';
+  msg.textContent = 'Quitando forzado…';
+
+  const { data, error } = await sb.rpc('quitar_forzado_validacion', {
+    p_trabajador_id: forzarCtx.trabajador_id,
+    p_obra_id: forzarCtx.obra_id
+  });
+
+  if (error) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Error: ' + error.message;
+    btn.disabled = false;
+    return;
+  }
+
+  msg.className = 'msg-ok';
+  msg.textContent = '¡Forzado quitado!';
+  setTimeout(() => { cerrarModalForzar(); cargarTrabajadores(); }, 800);
+});
+
+// Autorizar solo hoy (excepción roja del día)
+document.getElementById('btn-autorizar-hoy').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-autorizar-hoy');
+  const msg = document.getElementById('forzar-msg');
+
+  const motivo = document.getElementById('forzar-motivo').value.trim();
+  if (!motivo) {
+    msg.className = 'msg-error';
+    msg.textContent = 'El motivo es obligatorio (se usa como motivo de la autorización).';
+    return;
+  }
+
+  btn.disabled = true;
+  msg.className = '';
+  msg.textContent = 'Autorizando…';
+
+  const { data, error } = await sb.rpc('autorizar_excepcion_roja', {
+    p_trabajador_id: forzarCtx.trabajador_id,
+    p_obra_id: forzarCtx.obra_id,
+    p_motivo_autorizacion: motivo
+  });
+
+  if (error) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Error: ' + error.message;
+    btn.disabled = false;
+    return;
+  }
+
+  // La RPC devuelve { ok: true/false, error?, ... }
+  if (data && data.ok === false) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Error: ' + (data.error || 'No se pudo autorizar');
+    btn.disabled = false;
+    return;
+  }
+
+  msg.className = 'msg-ok';
+  msg.textContent = '¡Autorizado para hoy!';
+  setTimeout(() => { cerrarModalForzar(); cargarTrabajadores(); }, 800);
+});
+
+// Quitar autorización de hoy
+document.getElementById('btn-quitar-autorizacion').addEventListener('click', async () => {
+  if (!confirm('¿Quitar la autorización de hoy? El trabajador volverá a estar bloqueado.')) return;
+
+  const btn = document.getElementById('btn-quitar-autorizacion');
+  const msg = document.getElementById('forzar-msg');
+  btn.disabled = true;
+  msg.className = '';
+  msg.textContent = 'Quitando autorización…';
+
+  const { data, error } = await sb.rpc('quitar_excepcion_roja', {
+    p_excepcion_id: forzarCtx.excepcion_hoy.id
+  });
+
+  if (error) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Error: ' + error.message;
+    btn.disabled = false;
+    return;
+  }
+
+  if (data && data.ok === false) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Error: ' + (data.error || 'No se pudo quitar');
+    btn.disabled = false;
+    return;
+  }
+
+  msg.className = 'msg-ok';
+  msg.textContent = '¡Autorización quitada!';
+  setTimeout(() => { cerrarModalForzar(); cargarTrabajadores(); }, 800);
+});
+
 // ── UTILS ─────────────────────────────────────────────────────────────────────
+// Extrae lista de motivos en cualquiera de los formatos posibles:
+// - Array directo: ["motivo1", "motivo2"]
+// - Objeto envuelto antiguo: { lista: [...] }
+// - null o vacío
+function extraerListaMotivos(motivos) {
+  if (!motivos) return [];
+  if (Array.isArray(motivos)) return motivos;
+  if (typeof motivos === 'object' && Array.isArray(motivos.lista)) return motivos.lista;
+  return [];
+}
+
+function formatFechaLocal(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
 function esc(txt) {
   const d = document.createElement('div');
   d.textContent = String(txt || '');
