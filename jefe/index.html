@@ -85,7 +85,6 @@
   <a href="index.html" class="activo"><span class="ico">👷</span> Presencia</a>
   <div class="sidebar-section">Gestión</div>
   <a href="fichajes.html"><span class="ico">🕐</span> Fichajes</a>
-  <a href="documentos.html"><span class="ico">📄</span> Documentos</a>
   <a href="trabajadores.html"><span class="ico">👥</span> Trabajadores</a>
   <a href="documentos-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
   <div class="sidebar-bottom">
@@ -134,9 +133,11 @@
   </div>
 </div>
 
-<script src="../js/supabase-client.js"></script>
 <script>
-const sb = window.supabaseClient;
+const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let obraActual = null;
 let brandingActual = null;
@@ -195,8 +196,6 @@ function aplicarBrandingObra(empresaMarca) {
   logoImg.src = '../' + brandingActual.logo_blanco;
   logoImg.alt = brandingActual.nombre;
   logoImg.style.display = 'block';
-  // El color acento del tema jefe lo mantenemos fijo en naranja (es tema oscuro);
-  // si quieres que cambie con la marca, aquí podrías sobreescribir --color-acento.
 }
 
 document.getElementById('btn-salir').addEventListener('click', async () => {
@@ -305,7 +304,6 @@ function imprimirQR() {
   const img = document.querySelector('#qr-canvas img');
   const dataUrl = img ? img.src : '';
 
-  // Logo en color para el cartel
   const logoUrl = brandingActual
     ? window.location.origin + window.location.pathname.replace(/jefe\/.*$/, '') + brandingActual.logo
     : '';
@@ -334,7 +332,6 @@ function imprimirQR() {
   win.document.close();
 }
 
-// Cerrar modal al hacer clic fuera
 document.getElementById('modal-qr').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-qr')) cerrarQR();
 });
