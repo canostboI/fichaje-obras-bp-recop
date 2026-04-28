@@ -156,6 +156,37 @@
     border: 2px solid var(--gris-borde);
   }
 
+  /* =========================================================
+     Botones Entrar / Salir tras la validación
+     - El "sugerido" toma el estilo de .principal (grande, color).
+     - El "alternativo" es más pequeño y discreto.
+     ========================================================= */
+  .botones-fichaje {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  button.alternativo {
+    width: 100%;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 12px;
+    background: white;
+    color: #555;
+    border: 2px solid var(--gris-borde);
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  button.alternativo:disabled {
+    color: #b0b8c1;
+    cursor: not-allowed;
+  }
+  button.alternativo:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
   .estado-box {
     padding: 20px;
     border-radius: 10px;
@@ -285,7 +316,14 @@
     <div class="estado-box" id="estado-box"></div>
     <div class="motivos oculto" id="motivos-box"></div>
     <div class="error-banner oculto" id="error-resultado"></div>
-    <button type="button" class="principal" id="btn-fichar"></button>
+
+    <!-- Dos botones de fichaje. El "sugerido" se pinta como .principal,
+         el otro como .alternativo. Si rojo sin excepción, ambos se ocultan. -->
+    <div class="botones-fichaje" id="botones-fichaje">
+      <button type="button" id="btn-entrada"></button>
+      <button type="button" id="btn-salida"></button>
+    </div>
+
     <button type="button" class="secundario" id="btn-volver" style="margin-top:10px;">Volver</button>
   </div>
 
@@ -343,7 +381,9 @@ const el = {
   cargandoTexto:document.getElementById('cargando-texto'),
   estadoBox:   document.getElementById('estado-box'),
   motivosBox:  document.getElementById('motivos-box'),
-  btnFichar:   document.getElementById('btn-fichar'),
+  botonesFichaje: document.getElementById('botones-fichaje'),
+  btnEntrada: document.getElementById('btn-entrada'),
+  btnSalida:  document.getElementById('btn-salida'),
   btnVolver:   document.getElementById('btn-volver'),
   finalTick:   document.getElementById('final-tick'),
   finalTitulo: document.getElementById('final-titulo'),
@@ -543,6 +583,10 @@ el.btnNuevo.addEventListener('click', () => {
   el.inputDni.focus();
 });
 
+// Los dos botones llaman a ejecutarFichaje con su tipo concreto
+el.btnEntrada.addEventListener('click', () => ejecutarFichaje('entrada'));
+el.btnSalida.addEventListener('click', () => ejecutarFichaje('salida'));
+
 // =====================================================================
 // FLUJO PRINCIPAL
 // =====================================================================
@@ -600,6 +644,51 @@ async function continuarDesdeDni() {
   }
 }
 
+// Pinta los dos botones de fichaje según el estado documental y el
+// tipo sugerido por el servidor (validar_acceso devuelve tipo_sugerido).
+// El sugerido toma el estilo principal (color del estado, grande); el otro
+// queda como alternativo (pequeño, gris).
+function configurarBotonesFichaje(estadoDoc, tipoSugerido) {
+  // Por defecto, ambos visibles y habilitados
+  el.botonesFichaje.classList.remove('oculto');
+  el.btnEntrada.disabled = false;
+  el.btnSalida.disabled = false;
+
+  // Color del botón principal según estado documental
+  // (verde para verde, naranja para naranja/excepción)
+  const colorPrincipal = (estadoDoc === 'verde') ? 'verde' : 'naranja';
+
+  // Reset de clases y orden visual
+  el.btnEntrada.className = '';
+  el.btnSalida.className  = '';
+
+  // El sugerido se monta como .principal + color; el otro como .alternativo
+  if (tipoSugerido === 'salida') {
+    el.btnSalida.classList.add('principal', colorPrincipal);
+    el.btnSalida.textContent = 'Salir';
+    el.btnEntrada.classList.add('alternativo');
+    el.btnEntrada.textContent = 'En realidad voy a entrar';
+
+    // Reordenar: primero el sugerido (salida), luego el alternativo
+    el.botonesFichaje.appendChild(el.btnSalida);
+    el.botonesFichaje.appendChild(el.btnEntrada);
+  } else {
+    // Por defecto, sugerido = entrada (cubre 'entrada' y cualquier otro valor)
+    el.btnEntrada.classList.add('principal', colorPrincipal);
+    el.btnEntrada.textContent = 'Entrar';
+    el.btnSalida.classList.add('alternativo');
+    el.btnSalida.textContent = 'En realidad voy a salir';
+
+    el.botonesFichaje.appendChild(el.btnEntrada);
+    el.botonesFichaje.appendChild(el.btnSalida);
+  }
+
+  // Quitamos el margen superior del .principal cuando va dentro de
+  // .botones-fichaje (el contenedor ya da gap de 10px).
+  el.btnEntrada.style.marginTop = '0';
+  el.btnSalida.style.marginTop  = '0';
+}
+
 function mostrarResultadoValidacion(v) {
   if (!v.encontrado) {
     irA(el.pasoDni);
@@ -610,58 +699,51 @@ function mostrarResultadoValidacion(v) {
   // Caso: trabajador encontrado. Pintamos según estado.
   ocultarErrorResultado();
   el.estadoBox.className = 'estado-box';
-  el.btnFichar.className = 'principal';
 
   const estadoEfectivo = (v.estado === 'rojo' && v.tiene_excepcion_hoy) ? 'excepcion' : v.estado;
+  const tipoSugerido = v.tipo_sugerido || 'entrada';
 
   switch (estadoEfectivo) {
     case 'verde':
       el.estadoBox.classList.add('estado-verde');
       el.estadoBox.textContent = '✓ Acceso autorizado';
       pintarMotivos(el.motivosBox, null);
-      el.btnFichar.classList.add('verde');
-      el.btnFichar.textContent = 'Fichar';
-      el.btnFichar.disabled = false;
-      el.btnFichar.onclick = ejecutarFichaje;
+      configurarBotonesFichaje('verde', tipoSugerido);
       break;
 
     case 'naranja':
       el.estadoBox.classList.add('estado-naranja');
       el.estadoBox.textContent = '⚠ Acceso con aviso';
       pintarMotivos(el.motivosBox, v.motivos, false);
-      el.btnFichar.classList.add('naranja');
-      el.btnFichar.textContent = 'Aceptar aviso y fichar';
-      el.btnFichar.disabled = false;
-      el.btnFichar.onclick = ejecutarFichaje;
+      configurarBotonesFichaje('naranja', tipoSugerido);
       break;
 
     case 'excepcion':
       el.estadoBox.classList.add('estado-naranja');
       el.estadoBox.textContent = 'Acceso autorizado excepcionalmente hoy';
       pintarMotivos(el.motivosBox, v.motivos, false);
-      el.btnFichar.classList.add('naranja');
-      el.btnFichar.textContent = 'Fichar';
-      el.btnFichar.disabled = false;
-      el.btnFichar.onclick = ejecutarFichaje;
+      configurarBotonesFichaje('naranja', tipoSugerido);
       break;
 
     case 'rojo':
     default:
+      // Rojo sin excepción: ocultamos los dos botones, solo "Volver".
       el.estadoBox.classList.add('estado-rojo');
       el.estadoBox.textContent = '✗ Acceso denegado';
       pintarMotivos(el.motivosBox, v.motivos, true);
-      el.btnFichar.classList.add('rojo');
-      el.btnFichar.textContent = 'No puede fichar';
-      el.btnFichar.disabled = true;
-      el.btnFichar.onclick = null;
+      el.botonesFichaje.classList.add('oculto');
+      el.btnEntrada.disabled = true;
+      el.btnSalida.disabled = true;
       break;
   }
 
   irA(el.pasoResultado);
 }
 
-async function ejecutarFichaje() {
-  el.btnFichar.disabled = true;
+async function ejecutarFichaje(tipo) {
+  // tipo: 'entrada' | 'salida'
+  el.btnEntrada.disabled = true;
+  el.btnSalida.disabled = true;
   ocultarErrorResultado();
   el.cargandoTexto.textContent = 'Registrando fichaje…';
   irA(el.pasoCargando);
@@ -671,22 +753,28 @@ async function ejecutarFichaje() {
       p_dni: estado.dni,
       p_obra_id: estado.obraId,
       p_latitud: estado.ubicacion.lat,
-      p_longitud: estado.ubicacion.lng
+      p_longitud: estado.ubicacion.lng,
+      p_tipo: tipo
     });
 
     if (error) {
       const info = interpretarError(error);
       irA(el.pasoResultado);
-      el.btnFichar.disabled = false;
+      el.btnEntrada.disabled = false;
+      el.btnSalida.disabled = false;
       mostrarErrorResultado(info.mensajeUsuario);
       console.error('[fichaje] registrar_fichaje (' + info.etiquetaLog + '):', error);
       return;
     }
 
     if (!data || !data.success) {
-      // La RPC respondió OK pero rechazó el fichaje (rojo, fuera de zona, etc.)
+      // La RPC respondió OK pero rechazó el fichaje
+      // (rojo, fuera de zona, incoherencia entrada/salida, etc.).
+      // Volvemos al resultado dejando los DOS botones pulsables, para
+      // que el usuario pueda intentar el otro tipo si toca.
       irA(el.pasoResultado);
-      el.btnFichar.disabled = false;
+      el.btnEntrada.disabled = false;
+      el.btnSalida.disabled = false;
       const motivoPrincipal = (data && data.error) || 'No se pudo registrar el fichaje.';
       mostrarErrorResultado(motivoPrincipal);
       // Si hay motivos detallados, los repintamos como críticos
@@ -701,7 +789,8 @@ async function ejecutarFichaje() {
   } catch (err) {
     const info = interpretarError(err);
     irA(el.pasoResultado);
-    el.btnFichar.disabled = false;
+    el.btnEntrada.disabled = false;
+    el.btnSalida.disabled = false;
     mostrarErrorResultado(info.mensajeUsuario);
     console.error('[fichaje] registrar_fichaje excepción (' + info.etiquetaLog + '):', err);
   }
