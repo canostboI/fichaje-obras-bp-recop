@@ -51,3 +51,4 @@ El QR impreso en cada obra debe apuntar a esa URL.
 - 🚧 Pantalla de fichaje del trabajador (en curso).
 - ⏳ Login unificado + paneles admin, jefe de obra, encargado.
 - ⏳ Importación e-Coordina (Excel/CSV).
+- 
