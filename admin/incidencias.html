@@ -48,6 +48,8 @@
   .pill.naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
   .pill.rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
   .pill.gris    { background: rgba(139,144,158,0.15); color: var(--texto2); }
+  .detalle-celda { line-height: 1.4; }
+  .comentario { color: var(--texto2); font-size: 12px; margin-top: 3px; font-style: italic; }
   .vacio { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); }
 </style>
@@ -85,15 +87,10 @@
     <div class="barra-filtros">
       <input type="date" id="filtro-fecha">
       <select id="filtro-obra"><option value="">Todas las obras</option></select>
-      <select id="filtro-tipo">
-        <option value="">Todos los tipos</option>
-        <option value="autocierre">Autocierre</option>
-        <option value="acceso_naranja">Acceso naranja</option>
-        <option value="acceso_rojo">Acceso rojo</option>
-        <option value="fuera_de_zona">Fuera de zona</option>
-      </select>
+      <select id="filtro-tipo"><option value="">Todos los tipos</option></select>
       <button class="btn-secundario" id="btn-buscar">Buscar</button>
       <button class="btn-secundario" id="btn-hoy">Hoy</button>
+      <button class="btn-secundario" id="btn-limpiar">Limpiar fecha</button>
     </div>
 
     <div class="seccion">
@@ -127,6 +124,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
 
   await cargarObras();
+  await cargarTipos();
   await buscar();
 })();
 
@@ -146,9 +144,26 @@ async function cargarObras() {
   });
 }
 
+async function cargarTipos() {
+  // Filtro dinámico: lee los tipos que realmente existen en BD
+  const { data } = await sb.from('incidencias').select('tipo').limit(1000);
+  const tipos = [...new Set((data || []).map(d => d.tipo).filter(Boolean))].sort();
+  const select = document.getElementById('filtro-tipo');
+  tipos.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t;
+    opt.textContent = t;
+    select.appendChild(opt);
+  });
+}
+
 document.getElementById('btn-buscar').onclick = buscar;
 document.getElementById('btn-hoy').onclick = () => {
   document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
+  buscar();
+};
+document.getElementById('btn-limpiar').onclick = () => {
+  document.getElementById('filtro-fecha').value = '';
   buscar();
 };
 
@@ -160,17 +175,33 @@ async function buscar() {
   const tipo   = document.getElementById('filtro-tipo').value;
 
   let query = sb.from('incidencias')
-    .select('id, tipo, descripcion, creado_en, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)')
-    .order('creado_en', { ascending: false })
+    .select('id, tipo, detalle, comentario, created_at, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)')
+    .order('created_at', { ascending: false })
     .limit(200);
 
-  if (fecha) query = query.gte('creado_en', fecha + 'T00:00:00').lte('creado_en', fecha + 'T23:59:59');
+  // Filtro de fecha respetando zona horaria local (CET/CEST):
+  // convierte el inicio y fin del día LOCAL a UTC ISO antes de filtrar.
+  if (fecha) {
+    const [y, m, d] = fecha.split('-').map(Number);
+    const desde = new Date(y, m - 1, d, 0, 0, 0, 0);          // inicio día local
+    const hasta = new Date(y, m - 1, d, 23, 59, 59, 999);     // fin día local
+    query = query.gte('created_at', desde.toISOString())
+                 .lte('created_at', hasta.toISOString());
+  }
+
   if (obraId) query = query.eq('obra_id', obraId);
   if (tipo)   query = query.eq('tipo', tipo);
 
   const { data, error } = await query;
 
-  if (error || !data || data.length === 0) {
+  if (error) {
+    console.error(error);
+    document.getElementById('badge-total').textContent = 'Error';
+    document.getElementById('tabla-incidencias').innerHTML = '<div class="vacio">Error al cargar: ' + esc(error.message) + '</div>';
+    return;
+  }
+
+  if (!data || data.length === 0) {
     document.getElementById('badge-total').textContent = '0 incidencias';
     document.getElementById('tabla-incidencias').innerHTML = '<div class="vacio">No hay incidencias ✓</div>';
     return;
@@ -181,7 +212,7 @@ async function buscar() {
   document.getElementById('tabla-incidencias').innerHTML = `
     <table>
       <thead><tr>
-        <th>Trabajador</th><th>DNI</th><th>Obra</th><th>Tipo</th><th>Descripción</th><th>Fecha y hora</th>
+        <th>Trabajador</th><th>DNI</th><th>Obra</th><th>Tipo</th><th>Detalle</th><th>Fecha y hora</th>
       </tr></thead>
       <tbody>
         ${data.map(i => `
@@ -190,8 +221,11 @@ async function buscar() {
             <td>${esc(i.trabajador?.dni)}</td>
             <td>${esc(i.obra?.nombre)}</td>
             <td><span class="pill ${colorTipo(i.tipo)}">${esc(i.tipo)}</span></td>
-            <td>${esc(i.descripcion || '—')}</td>
-            <td>${formatFechaHora(i.creado_en)}</td>
+            <td class="detalle-celda">
+              ${esc(i.detalle || '—')}
+              ${i.comentario ? `<div class="comentario">${esc(i.comentario)}</div>` : ''}
+            </td>
+            <td>${formatFechaHora(i.created_at)}</td>
           </tr>`).join('')}
       </tbody>
     </table>`;
@@ -199,8 +233,10 @@ async function buscar() {
 
 function colorTipo(tipo) {
   if (!tipo) return 'gris';
-  if (tipo.includes('rojo') || tipo === 'autocierre') return 'rojo';
-  return 'naranja';
+  const t = tipo.toLowerCase();
+  if (t.includes('rojo') || t.includes('autocierre') || t.includes('cierre')) return 'rojo';
+  if (t.includes('naranja') || t.includes('aviso') || t.includes('zona')) return 'naranja';
+  return 'gris';
 }
 
 function esc(txt) {
