@@ -15,7 +15,7 @@
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
   .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
   .sidebar-brand { padding: 18px 16px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: center; gap: 14px; }
-.sidebar-brand img { height: 22px; width: auto; opacity: 0.9; }
+  .sidebar-brand img { height: 22px; width: auto; opacity: 0.9; }
   .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
   .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
   .sidebar a:hover { background: var(--bg3); color: var(--texto); }
@@ -34,16 +34,16 @@
   .btn-secundario:hover { background: var(--bg3); color: var(--texto); }
   .barra-filtros { display: flex; gap: 12px; margin-bottom: 16px; }
   .barra-filtros input, .barra-filtros select { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 14px; font-family: inherit; }
-.barra-filtros input { width: 260px; }
-.barra-filtros select { min-width: 220px; cursor: pointer; }
-.barra-filtros input:focus, .barra-filtros select:focus { outline: none; border-color: var(--azul); }
+  .barra-filtros input { width: 260px; }
+  .barra-filtros select { min-width: 220px; cursor: pointer; }
+  .barra-filtros input:focus, .barra-filtros select:focus { outline: none; border-color: var(--azul); }
   .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   th { text-align: left; padding: 11px 20px; font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); }
   td { padding: 13px 20px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: var(--bg3); }
-  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin: 2px; }
   .pill.verde  { background: rgba(76,175,80,0.15);  color: var(--verde); }
   .pill.naranja{ background: rgba(255,152,0,0.15);  color: var(--naranja); }
   .pill.rojo   { background: rgba(244,67,54,0.15);  color: var(--rojo); }
@@ -68,11 +68,13 @@
 
 <div class="sidebar">
   <div class="sidebar-brand">
-  <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
-  <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
-</div>
+    <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
+    <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
+  </div>
+
   <div class="sidebar-section">Principal</div>
   <a href="index.html"><span class="ico">📊</span> Dashboard</a>
+
   <div class="sidebar-section">Gestión</div>
   <a href="obras.html"><span class="ico">🏗</span> Obras</a>
   <a href="trabajadores.html" class="activo"><span class="ico">👷</span> Trabajadores</a>
@@ -80,6 +82,7 @@
   <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
   <a href="incidencias.html"><span class="ico">⚠️</span> Incidencias</a>
   <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
+
   <div class="sidebar-bottom">
     <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
   </div>
@@ -90,24 +93,26 @@
     <h1>Trabajadores</h1>
     <button class="btn-primario" id="btn-nuevo">+ Nuevo trabajador</button>
   </div>
+
   <div class="contenido">
     <div class="barra-filtros">
-  <input type="text" id="filtro" placeholder="Buscar por nombre o DNI…">
-  <select id="filtro-obra">
-    <option value="">Todas las obras</option>
-  </select>
-</div>
+      <input type="text" id="filtro" placeholder="Buscar por nombre o DNI…">
+      <select id="filtro-obra">
+        <option value="">Todas las obras</option>
+      </select>
+    </div>
+
     <div class="seccion">
       <div id="tabla-trabajadores"><div class="cargando">Cargando…</div></div>
     </div>
   </div>
 </div>
 
-<!-- MODAL CREAR/EDITAR -->
 <div class="modal-overlay" id="modal-trabajador">
   <div class="modal">
     <h2 id="modal-titulo">Nuevo trabajador</h2>
     <div class="error-modal" id="error-modal"></div>
+
     <div class="campo-fila">
       <div class="campo">
         <label>Nombre</label>
@@ -118,14 +123,17 @@
         <input type="text" id="f-apellidos" placeholder="García López">
       </div>
     </div>
+
     <div class="campo">
       <label>DNI / NIE</label>
       <input type="text" id="f-dni" placeholder="12345678A" maxlength="15">
     </div>
+
     <div class="campo">
       <label>Teléfono (opcional)</label>
       <input type="text" id="f-telefono" placeholder="600 000 000">
     </div>
+
     <div class="campo">
       <label>Estado</label>
       <select id="f-activo">
@@ -133,6 +141,7 @@
         <option value="false">Inactivo</option>
       </select>
     </div>
+
     <div class="modal-acciones">
       <button class="btn-secundario" id="btn-cancelar">Cancelar</button>
       <button class="btn-primario" id="btn-guardar">Guardar</button>
@@ -140,23 +149,35 @@
   </div>
 </div>
 
-<script src="../js/supabase-client.js"></script>
 <script>
-const sb = window.supabaseClient;
+const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 let trabajadorEditandoId = null;
 let todosTrabajadores = [];
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '../'; return; }
-  const { data: u } = await sb.from('usuarios_app').select('rol').eq('auth_user_id', session.user.id).single();
+
+  const { data: u } = await sb
+    .from('usuarios_app')
+    .select('rol')
+    .eq('auth_user_id', session.user.id)
+    .single();
+
   if (!u || u.rol !== 'admin') { window.location.href = '../'; return; }
+
   await cargarTrabajadores();
 })();
 
-document.getElementById('btn-salir').addEventListener('click', async () => {
-  await sb.auth.signOut(); window.location.href = '../';
-});
+document.getElementById('btn-salir').onclick = async () => {
+  await sb.auth.signOut();
+  window.location.href = '../';
+};
 
 async function cargarTrabajadores() {
   const { data, error } = await sb
@@ -179,28 +200,42 @@ async function cargarTrabajadores() {
 
 function rellenarFiltroObras(trabajadores) {
   const mapa = new Map();
-  trabajadores.forEach(t => (t.validaciones_obra || []).forEach(v => {
-    if (v.obra?.id && !mapa.has(v.obra.id)) mapa.set(v.obra.id, v.obra.nombre);
-  }));
+
+  trabajadores.forEach(t => {
+    (t.validaciones_obra || []).forEach(v => {
+      if (v.obra?.id && !mapa.has(v.obra.id)) {
+        mapa.set(v.obra.id, v.obra.nombre);
+      }
+    });
+  });
+
   const obras = [...mapa.entries()].sort((a, b) => a[1].localeCompare(b[1], 'es'));
   const sel = document.getElementById('filtro-obra');
   const actual = sel.value;
+
   sel.innerHTML = '<option value="">Todas las obras</option>' +
     obras.map(([id, nombre]) => `<option value="${id}">${esc(nombre)}</option>`).join('');
+
   if (actual && mapa.has(actual)) sel.value = actual;
 }
 
 function aplicarFiltros() {
   const q = document.getElementById('filtro').value.toLowerCase();
   const obraId = document.getElementById('filtro-obra').value;
+
   const filtrados = todosTrabajadores.filter(t => {
+    const nombreCompleto = `${t.nombre || ''} ${t.apellidos || ''}`.toLowerCase();
+
     const coincideTexto = !q ||
-      (t.nombre + ' ' + t.apellidos).toLowerCase().includes(q) ||
+      nombreCompleto.includes(q) ||
       (t.dni || '').toLowerCase().includes(q);
+
     const coincideObra = !obraId ||
       (t.validaciones_obra || []).some(v => v.obra?.id === obraId);
+
     return coincideTexto && coincideObra;
   });
+
   renderTabla(filtrados);
 }
 
@@ -212,15 +247,24 @@ function renderTabla(data) {
 
   document.getElementById('tabla-trabajadores').innerHTML = `
     <table>
-      <thead><tr>
-        <th>Nombre</th><th>DNI</th><th>Teléfono</th><th>Estado doc.</th><th>Obras</th><th>Activo</th><th>Acciones</th>
-      </tr></thead>
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>DNI</th>
+          <th>Teléfono</th>
+          <th>Estado doc.</th>
+          <th>Obras</th>
+          <th>Activo</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
       <tbody>
         ${data.map(t => {
           const estadoGeneral = estadoDocumental(t.validaciones_obra);
           const obras = (t.validaciones_obra || []).map(v =>
-            `<span class="pill ${v.estado}">${esc(v.obra?.nombre)}</span>`
+            `<span class="pill ${esc(v.estado)}">${esc(v.obra?.nombre)}</span>`
           ).join(' ') || '—';
+
           return `
             <tr>
               <td><strong>${esc(t.nombre)} ${esc(t.apellidos)}</strong></td>
@@ -231,7 +275,7 @@ function renderTabla(data) {
               <td><span class="pill ${t.activo ? 'verde' : 'gris'}">${t.activo ? 'Sí' : 'No'}</span></td>
               <td>
                 <div class="acciones">
-                  <button class="btn-secundario" onclick="abrirEditar(${JSON.stringify(t).replace(/"/g, '&quot;')})">Editar</button>
+                  <button class="btn-secundario" onclick="abrirEditar(${escAttr(JSON.stringify(t))})">Editar</button>
                 </div>
               </td>
             </tr>`;
@@ -242,18 +286,15 @@ function renderTabla(data) {
 
 function estadoDocumental(validaciones) {
   if (!validaciones || validaciones.length === 0) return 'gris';
-  if (validaciones.some(v => v.estado === 'rojo'))    return 'rojo';
+  if (validaciones.some(v => v.estado === 'rojo')) return 'rojo';
   if (validaciones.some(v => v.estado === 'naranja')) return 'naranja';
   return 'verde';
 }
 
-// Filtro búsqueda
-// Filtros búsqueda y obra
 document.getElementById('filtro').addEventListener('input', aplicarFiltros);
 document.getElementById('filtro-obra').addEventListener('change', aplicarFiltros);
 
-// MODAL
-document.getElementById('btn-nuevo').addEventListener('click', () => {
+document.getElementById('btn-nuevo').onclick = () => {
   trabajadorEditandoId = null;
   document.getElementById('modal-titulo').textContent = 'Nuevo trabajador';
   document.getElementById('f-nombre').value = '';
@@ -263,7 +304,7 @@ document.getElementById('btn-nuevo').addEventListener('click', () => {
   document.getElementById('f-activo').value = 'true';
   ocultarError();
   document.getElementById('modal-trabajador').classList.add('visible');
-});
+};
 
 function abrirEditar(t) {
   trabajadorEditandoId = t.id;
@@ -277,24 +318,25 @@ function abrirEditar(t) {
   document.getElementById('modal-trabajador').classList.add('visible');
 }
 
-document.getElementById('btn-cancelar').addEventListener('click', () => {
+document.getElementById('btn-cancelar').onclick = () => {
   document.getElementById('modal-trabajador').classList.remove('visible');
-});
+};
 
-document.getElementById('btn-guardar').addEventListener('click', async () => {
-  const nombre   = document.getElementById('f-nombre').value.trim();
-  const apellidos= document.getElementById('f-apellidos').value.trim();
-  const dni      = document.getElementById('f-dni').value.trim().toUpperCase();
+document.getElementById('btn-guardar').onclick = async () => {
+  const nombre = document.getElementById('f-nombre').value.trim();
+  const apellidos = document.getElementById('f-apellidos').value.trim();
+  const dni = document.getElementById('f-dni').value.trim().toUpperCase();
   const telefono = document.getElementById('f-telefono').value.trim();
-  const activo   = document.getElementById('f-activo').value === 'true';
+  const activo = document.getElementById('f-activo').value === 'true';
 
   if (!nombre) { mostrarError('El nombre es obligatorio.'); return; }
-  if (!dni)    { mostrarError('El DNI es obligatorio.'); return; }
+  if (!dni) { mostrarError('El DNI es obligatorio.'); return; }
 
   const payload = { nombre, apellidos, dni, activo };
-  if (telefono) payload.telefono = telefono;
+  payload.telefono = telefono || null;
 
   let error;
+
   if (trabajadorEditandoId) {
     ({ error } = await sb.from('trabajadores').update(payload).eq('id', trabajadorEditandoId));
   } else {
@@ -305,23 +347,31 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     mostrarError(error.code === '23505' ? 'Ya existe un trabajador con ese DNI.' : 'Error al guardar: ' + error.message);
     return;
   }
+
   document.getElementById('modal-trabajador').classList.remove('visible');
   await cargarTrabajadores();
-});
+};
 
 function mostrarError(msg) {
   const el = document.getElementById('error-modal');
   el.textContent = msg;
   el.style.display = 'block';
 }
+
 function ocultarError() {
   document.getElementById('error-modal').style.display = 'none';
 }
+
 function esc(txt) {
   const d = document.createElement('div');
   d.textContent = String(txt || '');
   return d.innerHTML;
 }
+
+function escAttr(txt) {
+  return esc(txt).replace(/'/g, '&#39;');
+}
 </script>
+
 </body>
 </html>
