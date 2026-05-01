@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Jefe de Obra — Fichaje Obras</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
 <script src="../js/branding.js"></script>
 <style>
   :root {
@@ -125,7 +125,7 @@
   <div class="modal-qr">
     <h3 id="qr-obra-nombre">Obra</h3>
     <p>Escanea este código para fichar</p>
-    <div id="qr-canvas"></div>
+    <canvas id="qr-canvas"></canvas>
     <div class="modal-qr-btns">
       <button class="btn-imprimir" onclick="imprimirQR()">🖨️ Imprimir</button>
       <button class="btn-cerrar-modal" onclick="cerrarQR()">Cerrar</button>
@@ -290,8 +290,13 @@ function abrirQR(obraId, obraNombre) {
   const url = `https://canostboi.github.io/fichaje-obras-bp-recop/fichaje/?obra=${obraId}`;
   document.getElementById('qr-obra-nombre').textContent = obraNombre;
   const canvas = document.getElementById('qr-canvas');
-  canvas.innerHTML = '';
-  new QRCode(canvas, { text: url, width: 280, height: 280 });
+  new QRious({
+    element: canvas,
+    value: url,
+    size: 280,
+    background: 'white',
+    foreground: 'black'
+  });
   document.getElementById('modal-qr').classList.add('visible');
 }
 
@@ -301,8 +306,8 @@ function cerrarQR() {
 
 function imprimirQR() {
   const obraNombre = document.getElementById('qr-obra-nombre').textContent;
-  const img = document.querySelector('#qr-canvas img');
-  const dataUrl = img ? img.src : '';
+  const canvas = document.getElementById('qr-canvas');
+  const dataUrl = canvas ? canvas.toDataURL('image/png') : '';
 
   const logoUrl = brandingActual
     ? window.location.origin + window.location.pathname.replace(/jefe\/.*$/, '') + brandingActual.logo
