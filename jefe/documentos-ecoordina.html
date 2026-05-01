@@ -241,6 +241,11 @@
 <script>
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
+
+if (!window.supabase || !window.supabase.createClient) {
+  alert('No se ha cargado la librería de Supabase. Revisa la conexión o recarga la página.');
+}
+
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -253,48 +258,130 @@ let resultadoFinal = []; // trabajadores con semáforo calculado
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 async function init() {
-  const { data: { session: s } } = await sb.auth.getSession();
-  if (!s) { window.location.href = '../index.html'; return; }
-  session = s;
+  try {
+    const { data: { session: s }, error: sessionError } = await sb.auth.getSession();
 
-  // Verificar rol
-  const { data: ua } = await sb.from('usuarios_app')
-    .select('rol').eq('auth_user_id', s.user.id).single();
-  if (!ua || (ua.rol !== 'admin' && ua.rol !== 'jefe_obra')) {
-    window.location.href = '../index.html'; return;
+    if (sessionError) {
+      console.error('Error leyendo sesión:', sessionError);
+    }
+
+    if (!s) {
+      window.location.href = '../index.html';
+      return;
+    }
+
+    session = s;
+
+    // Verificar rol de forma flexible y con mensaje claro si algo falla
+    const { data: ua, error: uaError } = await sb.from('usuarios_app')
+      .select('id, rol')
+      .eq('auth_user_id', s.user.id)
+      .maybeSingle();
+
+    if (uaError) {
+      console.error('Error leyendo usuarios_app:', uaError);
+      alert('No se ha podido comprobar tu usuario. Revisa la consola del navegador.');
+      return;
+    }
+
+    if (!ua) {
+      alert('Tu usuario no está encontrado en usuarios_app.');
+      return;
+    }
+
+    // Por seguridad permitimos las variantes que hemos usado en el proyecto.
+    if (!['admin', 'jefe_obra', 'jefe'].includes(ua.rol)) {
+      alert('Tu usuario no tiene permiso para entrar en e-Coordina. Rol detectado: ' + ua.rol);
+      return;
+    }
+
+    await cargarObras();
+    await cargarReglas();
+
+  } catch (err) {
+    console.error('Error arrancando e-Coordina:', err);
+    alert('Error arrancando e-Coordina: ' + (err.message || err));
   }
-
-  await cargarObras();
-  await cargarReglas();
 }
 
 // Aplica branding (colores + logo sidebar) según la marca de la obra
 function aplicarBrandingObra(marca) {
+  if (typeof aplicarBranding !== 'function') {
+    console.warn('branding.js no está cargado o aplicarBranding no existe. Se continúa con colores por defecto.');
+    return;
+  }
+
   const branding = aplicarBranding(marca);
   window.brandingActual = branding;
   const logoImg = document.getElementById('sidebar-logo');
-  if (logoImg && branding.logo_blanco) {
+  if (logoImg && branding && branding.logo_blanco) {
     logoImg.src = '../' + branding.logo_blanco;
   }
 }
 
 async function cargarObras() {
   const { data: { session: s } } = await sb.auth.getSession();
-  const { data: ua } = await sb.from('usuarios_app')
-    .select('id, rol').eq('auth_user_id', s.user.id).single();
 
-  let obras;
+  if (!s) {
+    window.location.href = '../index.html';
+    return;
+  }
+
+  const { data: ua, error: uaError } = await sb.from('usuarios_app')
+    .select('id, rol')
+    .eq('auth_user_id', s.user.id)
+    .maybeSingle();
+
+  if (uaError || !ua) {
+    console.error('Error cargando usuarios_app en cargarObras:', uaError);
+    misObras = [];
+    document.getElementById('obraSelect').innerHTML = '<option value="">No se ha podido cargar el usuario</option>';
+    return;
+  }
+
+  let obras = [];
   if (ua.rol === 'admin') {
-    const { data } = await sb.from('obras').select('id, nombre, empresa_marca').eq('activa', true).order('nombre');
-    obras = data;
+    const { data, error } = await sb.from('obras')
+      .select('id, nombre, empresa_marca')
+      .eq('activa', true)
+      .order('nombre');
+
+    if (error) {
+      console.error('Error cargando obras como admin:', error);
+      document.getElementById('obraSelect').innerHTML = '<option value="">Error cargando obras</option>';
+      return;
+    }
+
+    obras = data || [];
   } else {
-    const { data: uo } = await sb.from('usuarios_obra')
-      .select('obra_id').eq('usuario_app_id', ua.id).eq('rol_en_obra', 'jefe_obra');
+    const { data: uo, error: uoError } = await sb.from('usuarios_obra')
+      .select('obra_id')
+      .eq('usuario_app_id', ua.id)
+      .in('rol_en_obra', ['jefe_obra', 'jefe']);
+
+    if (uoError) {
+      console.error('Error cargando usuarios_obra:', uoError);
+      document.getElementById('obraSelect').innerHTML = '<option value="">Error cargando obras asignadas</option>';
+      return;
+    }
+
     const ids = (uo || []).map(r => r.obra_id);
-    if (!ids.length) { obras = []; }
-    else {
-      const { data } = await sb.from('obras').select('id, nombre, empresa_marca').in('id', ids).eq('activa', true).order('nombre');
-      obras = data;
+    if (!ids.length) {
+      obras = [];
+    } else {
+      const { data, error } = await sb.from('obras')
+        .select('id, nombre, empresa_marca')
+        .in('id', ids)
+        .eq('activa', true)
+        .order('nombre');
+
+      if (error) {
+        console.error('Error cargando obras:', error);
+        document.getElementById('obraSelect').innerHTML = '<option value="">Error cargando obras</option>';
+        return;
+      }
+
+      obras = data || [];
     }
   }
 
@@ -317,7 +404,13 @@ async function cargarObras() {
 }
 
 async function cargarReglas() {
-  const { data } = await sb.from('reglas_documentales').select('*');
+  const { data, error } = await sb.from('reglas_documentales').select('*');
+  if (error) {
+    console.error('Error cargando reglas documentales:', error);
+    reglas = [];
+    alert('No se han podido cargar las reglas documentales. Revisa la consola.');
+    return;
+  }
   reglas = data || [];
 }
 
@@ -338,6 +431,10 @@ fileInput.addEventListener('change', () => {
 
 function convertirWorkbookAFilas(wb) {
   const ws = wb.Sheets[wb.SheetNames[0]];
+
+  if (!ws) {
+    throw new Error('El archivo no contiene ninguna hoja o tabla legible.');
+  }
 
   // Leemos como matriz para poder ignorar la primera fila de fecha de e-Coordina.
   // Sirve tanto para Excel como para CSV.
@@ -485,7 +582,7 @@ function peorEstado(a, b) {
   return (orden[a] || 0) >= (orden[b] || 0) ? a : b;
 }
 
-// ── PROCESAR EXCEL ────────────────────────────────────────────────────────────
+// ── PROCESAR ARCHIVO ──────────────────────────────────────────────────────────
 async function procesarExcel() {
   const obraId = document.getElementById('obraSelect').value;
   if (!obraId) { alert('Selecciona una obra primero'); return; }
@@ -496,10 +593,20 @@ async function procesarExcel() {
   btn.innerHTML = '<span class="spinner"></span> Procesando...';
 
   // Cargar trabajadores de la app
-  const { data: trabApp } = await sb.from('trabajadores').select('id, nombre, dni');
+  const { data: trabApp, error: trabErr } = await sb.from('trabajadores').select('id, nombre, dni');
+  if (trabErr) {
+    console.error('Error cargando trabajadores:', trabErr);
+    alert('No se han podido cargar los trabajadores de la app.');
+    btn.disabled = false;
+    btn.innerHTML = 'Procesar archivo';
+    return;
+  }
+
   trabajadoresApp = {};
   (trabApp || []).forEach(t => {
-    trabajadoresApp[t.dni.toUpperCase()] = { id: t.id, nombre: t.nombre };
+    if (t.dni) {
+      trabajadoresApp[String(t.dni).toUpperCase()] = { id: t.id, nombre: t.nombre };
+    }
   });
 
   // Separar filas: con DNI (trabajador) vs sin DNI (empresa)
@@ -537,7 +644,6 @@ async function procesarExcel() {
   }
 
   // Agrupar filas por trabajador (dni)
-  // FIX: guardamos empresaRaw (texto completo con CIF) aquí mismo para usarlo después
   const porTrabajador = {};
   for (const fila of filasTrabajador) {
     const dni = fila._dni;
@@ -546,7 +652,7 @@ async function procesarExcel() {
         dni,
         nombre: fila._nombreTrabajador,
         empresa: extraerNombreEmpresa(fila['Empresa'] || ''),
-        empresaRaw: String(fila['Empresa'] || ''), // ← texto completo "EMPRESA SL - B12345678"
+        empresaRaw: String(fila['Empresa'] || ''), // texto completo "EMPRESA SL - B12345678"
         docs: []
       };
     }
@@ -584,7 +690,7 @@ async function procesarExcel() {
       dni,
       nombre: info.nombre,
       empresa: info.empresa,
-      empresaRaw: info.empresaRaw, // ← FIX: viene de info, no de fila (que no existe aquí)
+      empresaRaw: info.empresaRaw,
       estadoCalculado: estadoFinal,
       estadoManual: estadoFinal,
       motivos,
