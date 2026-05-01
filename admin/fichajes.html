@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fichajes — Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -34,10 +35,17 @@
     color: var(--texto); font-size: 14px; padding: 9px 14px; font-family: inherit;
   }
   .barra-filtros input[type="date"] { width: 160px; color-scheme: dark; }
-  .barra-filtros select { width: 200px; }
+  .barra-filtros input[type="month"] { width: 160px; color-scheme: dark; }
+  .barra-filtros select { width: 230px; }
   .barra-filtros input:focus, .barra-filtros select:focus { outline: none; border-color: var(--azul); }
   .btn-secundario { background: transparent; color: var(--texto2); border: 1px solid var(--borde); padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
   .btn-secundario:hover { background: var(--bg3); color: var(--texto); }
+  .btn-exportar { background: var(--verde); color: white; border: none; padding: 9px 15px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .btn-exportar:hover { opacity: 0.9; }
+  .btn-exportar:disabled { opacity: 0.5; cursor: not-allowed; }
+  .msg-export { font-size: 12px; color: var(--texto2); }
+  .msg-export.err { color: var(--rojo); }
+  .msg-export.ok { color: var(--verde); }
   .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
   .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; }
   .seccion-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -54,7 +62,6 @@
   .pill.gris   { background: rgba(139,144,158,0.15); color: var(--texto2); }
   .vacio { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); }
-  .aviso { font-size: 12px; color: var(--naranja); margin-left: 6px; }
 </style>
 </head>
 <body>
@@ -89,11 +96,17 @@
   <div class="contenido">
     <div class="barra-filtros">
       <input type="date" id="filtro-fecha">
+
       <select id="filtro-obra">
         <option value="">Todas las obras</option>
       </select>
+
       <button class="btn-secundario" id="btn-buscar">Buscar</button>
       <button class="btn-secundario" id="btn-hoy">Hoy</button>
+
+      <input type="month" id="filtro-mes">
+      <button class="btn-exportar" id="btn-exportar">Exportar Excel</button>
+      <span class="msg-export" id="msg-export"></span>
     </div>
 
     <div class="seccion">
@@ -124,7 +137,8 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   if (!u || u.rol !== 'admin') { window.location.href = '../'; return; }
 
-  document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('filtro-fecha').value = fechaHoy();
+  document.getElementById('filtro-mes').value = mesActual();
 
   await cargarObras();
   await buscar();
@@ -154,9 +168,10 @@ async function cargarObras() {
 
 document.getElementById('btn-buscar').onclick = buscar;
 document.getElementById('btn-hoy').onclick = () => {
-  document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('filtro-fecha').value = fechaHoy();
   buscar();
 };
+document.getElementById('btn-exportar').onclick = exportarExcelMensual;
 
 async function buscar() {
   document.getElementById('tabla-fichajes').innerHTML = '<div class="cargando">Cargando…</div>';
@@ -220,6 +235,421 @@ async function buscar() {
         }).join('')}
       </tbody>
     </table>`;
+}
+
+async function exportarExcelMensual() {
+  const msg = document.getElementById('msg-export');
+  const btn = document.getElementById('btn-exportar');
+
+  msg.className = 'msg-export';
+  msg.textContent = '';
+
+  const obraId = document.getElementById('filtro-obra').value;
+  const mes = document.getElementById('filtro-mes').value;
+
+  if (!obraId) {
+    msg.className = 'msg-export err';
+    msg.textContent = 'Selecciona una obra para exportar.';
+    return;
+  }
+
+  if (!mes) {
+    msg.className = 'msg-export err';
+    msg.textContent = 'Selecciona un mes.';
+    return;
+  }
+
+  if (!window.XLSX) {
+    msg.className = 'msg-export err';
+    msg.textContent = 'No se ha cargado la librería Excel. Recarga la página.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Exportando…';
+  msg.textContent = 'Preparando Excel…';
+
+  try {
+    const obra = await obtenerObra(obraId);
+    const datos = await obtenerFichajesMes(obraId, mes);
+
+    if (!datos || datos.length === 0) {
+      msg.className = 'msg-export err';
+      msg.textContent = 'No hay fichajes en ese mes para esa obra.';
+      btn.disabled = false;
+      btn.textContent = 'Exportar Excel';
+      return;
+    }
+
+    const wb = XLSX.utils.book_new();
+    const grupos = agruparPorEmpresa(datos);
+    const [year, month] = mes.split('-').map(Number);
+    const diasMes = new Date(year, month, 0).getDate();
+
+    Object.keys(grupos).sort((a, b) => a.localeCompare(b, 'es')).forEach(nombreEmpresa => {
+      const trabajadores = construirResumenTrabajadores(grupos[nombreEmpresa], diasMes, year, month);
+      const aoa = construirHojaEmpresa({
+        obra,
+        nombreEmpresa,
+        mes,
+        diasMes,
+        year,
+        month,
+        trabajadores
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!merges'] = construirMerges(diasMes, aoa.length);
+      ws['!cols'] = construirAnchos(diasMes);
+      ws['!freeze'] = { xSplit: 9, ySplit: 8 };
+      aplicarFormatosBasicos(ws, diasMes, aoa.length);
+
+      XLSX.utils.book_append_sheet(wb, ws, nombreHojaSeguro(nombreEmpresa));
+    });
+
+    const nombreArchivo = `control_personal_${limpiarNombreArchivo(obra?.nombre || 'obra')}_${mes}.xlsx`;
+    XLSX.writeFile(wb, nombreArchivo);
+
+    msg.className = 'msg-export ok';
+    msg.textContent = 'Excel generado.';
+  } catch (err) {
+    console.error(err);
+    msg.className = 'msg-export err';
+    msg.textContent = 'Error al exportar: ' + (err.message || err);
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Exportar Excel';
+}
+
+async function obtenerObra(obraId) {
+  const { data, error } = await sb
+    .from('obras')
+    .select('id, nombre')
+    .eq('id', obraId)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function obtenerFichajesMes(obraId, mes) {
+  const [year, month] = mes.split('-').map(Number);
+  const inicio = `${mes}-01T00:00:00`;
+  const finDate = new Date(year, month, 1);
+  const fin = `${finDate.getFullYear()}-${String(finDate.getMonth() + 1).padStart(2, '0')}-01T00:00:00`;
+
+  let { data, error } = await sb
+    .from('fichajes')
+    .select(`
+      id,
+      tipo,
+      hora,
+      trabajador_id,
+      trabajador:trabajador_id(
+        id,
+        nombre,
+        apellidos,
+        dni,
+        categoria,
+        precio_hora_personalizado,
+        empresa:empresa_id(nombre)
+      )
+    `)
+    .eq('obra_id', obraId)
+    .gte('hora', inicio)
+    .lt('hora', fin)
+    .order('hora', { ascending: true });
+
+  if (!error) return data || [];
+
+  const fallback = await sb
+    .from('fichajes')
+    .select(`
+      id,
+      tipo,
+      hora,
+      trabajador_id,
+      trabajador:trabajador_id(
+        id,
+        nombre,
+        apellidos,
+        dni,
+        categoria,
+        precio_hora_personalizado
+      )
+    `)
+    .eq('obra_id', obraId)
+    .gte('hora', inicio)
+    .lt('hora', fin)
+    .order('hora', { ascending: true });
+
+  if (fallback.error) throw fallback.error;
+  return fallback.data || [];
+}
+
+function agruparPorEmpresa(fichajes) {
+  const grupos = {};
+
+  fichajes.forEach(f => {
+    const empresa = f.trabajador?.empresa?.nombre || 'Sin empresa';
+    if (!grupos[empresa]) grupos[empresa] = [];
+    grupos[empresa].push(f);
+  });
+
+  return grupos;
+}
+
+function construirResumenTrabajadores(fichajes, diasMes, year, month) {
+  const mapa = new Map();
+
+  fichajes.forEach(f => {
+    const t = f.trabajador;
+    if (!t) return;
+
+    if (!mapa.has(t.id)) {
+      mapa.set(t.id, {
+        id: t.id,
+        nombre: nombreCompleto(t),
+        dni: t.dni || '',
+        categoria: t.categoria || '',
+        precio_hora: t.precio_hora_personalizado ?? null,
+        fichajes: []
+      });
+    }
+
+    mapa.get(t.id).fichajes.push(f);
+  });
+
+  const trabajadores = [...mapa.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+
+  trabajadores.forEach(t => {
+    t.dias = {};
+    for (let d = 1; d <= diasMes; d++) t.dias[d] = 0;
+
+    const porDia = {};
+
+    t.fichajes.forEach(f => {
+      const d = new Date(f.hora);
+      const dia = d.getDate();
+      if (!porDia[dia]) porDia[dia] = [];
+      porDia[dia].push({ tipo: f.tipo, hora: d });
+    });
+
+    Object.keys(porDia).forEach(diaStr => {
+      const dia = Number(diaStr);
+      const eventos = porDia[dia].sort((a, b) => a.hora - b.hora);
+      let entrada = null;
+      let horas = 0;
+
+      eventos.forEach(ev => {
+        if (ev.tipo === 'entrada') {
+          if (!entrada) entrada = ev.hora;
+        } else if (ev.tipo === 'salida') {
+          if (entrada) {
+            const diff = (ev.hora - entrada) / 3600000;
+            if (diff > 0 && diff < 24) horas += diff;
+            entrada = null;
+          }
+        }
+      });
+
+      t.dias[dia] = redondear2(horas);
+    });
+
+    t.horas_mes = redondear2(Object.values(t.dias).reduce((a, b) => a + b, 0));
+    t.total = t.precio_hora ? redondear2(t.horas_mes * Number(t.precio_hora)) : 0;
+  });
+
+  return trabajadores;
+}
+
+function construirHojaEmpresa({ obra, nombreEmpresa, mes, diasMes, year, month, trabajadores }) {
+  const totalCols = 9 + diasMes + 3;
+  const lastColIndex = totalCols - 1;
+
+  const rows = [];
+
+  rows.push(['CONTROL DE PERSONAL DE OBRA']);
+  rows.push([]);
+  rows.push(['Nº OBRA', '', 'DENOMINACIÓN', obra?.nombre || '', 'EMPRESA', nombreEmpresa, 'MES', nombreMes(mes)]);
+  rows.push([]);
+
+  const filaDiasSemana = ['NOMBRE', 'DNI', 'CATEGORÍA', 'FORM.', 'EPIS', 'USO MAQ.', 'FIRMA (*)', 'TC2 MES ANT.', 'ALTA S.S. MES ACTUAL'];
+  for (let d = 1; d <= diasMes; d++) filaDiasSemana.push(letraDiaSemana(year, month, d));
+  filaDiasSemana.push('HORAS MES', 'PRECIO HORA', '€');
+  rows.push(filaDiasSemana);
+
+  const filaDiasNumero = ['', '', '', '', '', '', '', '', ''];
+  for (let d = 1; d <= diasMes; d++) filaDiasNumero.push(d);
+  filaDiasNumero.push('', '', '');
+  rows.push(filaDiasNumero);
+
+  if (trabajadores.length === 0) {
+    const vacia = ['Sin trabajadores con fichajes en este mes', '', '', '', '', '', '', '', ''];
+    for (let d = 1; d <= diasMes; d++) vacia.push('');
+    vacia.push('', '', '');
+    rows.push(vacia);
+  } else {
+    trabajadores.forEach(t => {
+      const row = [
+        t.nombre,
+        t.dni,
+        t.categoria || '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        ''
+      ];
+
+      for (let d = 1; d <= diasMes; d++) {
+        row.push(t.dias[d] ? t.dias[d] : '');
+      }
+
+      row.push(t.horas_mes || '');
+      row.push(t.precio_hora ?? '');
+      row.push(t.total || '');
+      rows.push(row);
+    });
+  }
+
+  rows.push([]);
+  rows.push([textoLegal()]);
+  rows.push([]);
+  rows.push(['CONFORME ENCARGADO', '', '', '', '', '', '', '', '', 'EMPRESA SUBCONTRATISTA']);
+  rows.push([]);
+  rows.push([]);
+  rows.push(['Fdo.:', '', '', '', '', '', '', '', '', 'Fdo.:']);
+  rows.push([]);
+  rows.push(['(*) La firma del trabajador acredita su presencia en obra durante la jornada indicada.']);
+
+  return rows;
+}
+
+function construirMerges(diasMes, totalRows) {
+  const totalCols = 9 + diasMes + 3;
+  const last = totalCols - 1;
+  const merges = [];
+
+  merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: last } });
+  merges.push({ s: { r: 2, c: 3 }, e: { r: 2, c: 4 } });
+  merges.push({ s: { r: 2, c: 5 }, e: { r: 2, c: 6 } });
+
+  const legalRow = 6 + Math.max(1, totalRows - 12);
+  return merges;
+}
+
+function construirAnchos(diasMes) {
+  const cols = [
+    { wch: 28 },
+    { wch: 13 },
+    { wch: 14 },
+    { wch: 7 },
+    { wch: 7 },
+    { wch: 9 },
+    { wch: 13 },
+    { wch: 12 },
+    { wch: 16 }
+  ];
+
+  for (let d = 1; d <= diasMes; d++) cols.push({ wch: 4 });
+
+  cols.push({ wch: 11 });
+  cols.push({ wch: 11 });
+  cols.push({ wch: 11 });
+
+  return cols;
+}
+
+function aplicarFormatosBasicos(ws, diasMes, totalRows) {
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const addr = XLSX.utils.encode_cell({ r: R, c: C });
+      if (!ws[addr]) continue;
+      ws[addr].s = ws[addr].s || {};
+    }
+  }
+
+  for (let d = 1; d <= diasMes; d++) {
+    const col = 8 + d;
+    const addrSemana = XLSX.utils.encode_cell({ r: 4, c: col });
+    const addrNumero = XLSX.utils.encode_cell({ r: 5, c: col });
+    if (ws[addrSemana]) ws[addrSemana].t = 's';
+    if (ws[addrNumero]) ws[addrNumero].t = 'n';
+  }
+
+  const firstDataRow = 6;
+  const lastDataRow = totalRows - 8;
+  const horasCol = 9 + diasMes;
+  const precioCol = 10 + diasMes;
+  const totalCol = 11 + diasMes;
+
+  for (let r = firstDataRow; r <= lastDataRow; r++) {
+    const horasAddr = XLSX.utils.encode_cell({ r, c: horasCol });
+    const precioAddr = XLSX.utils.encode_cell({ r, c: precioCol });
+    const totalAddr = XLSX.utils.encode_cell({ r, c: totalCol });
+
+    if (ws[horasAddr]) ws[horasAddr].z = '0.00';
+    if (ws[precioAddr]) ws[precioAddr].z = '0.00 €';
+    if (ws[totalAddr]) ws[totalAddr].z = '0.00 €';
+
+    for (let d = 1; d <= diasMes; d++) {
+      const addr = XLSX.utils.encode_cell({ r, c: 8 + d });
+      if (ws[addr]) ws[addr].z = '0.00';
+    }
+  }
+}
+
+function textoLegal() {
+  return 'El trabajador firmante declara haber recibido la información/formación preventiva necesaria, disponer de los EPIs requeridos y encontrarse autorizado para el acceso a obra conforme a la documentación aportada por su empresa.';
+}
+
+function nombreCompleto(t) {
+  return [t.nombre, t.apellidos].filter(Boolean).join(' ').trim() || '(sin nombre)';
+}
+
+function nombreHojaSeguro(nombre) {
+  return String(nombre || 'Sin empresa')
+    .replace(/[\\/?*\[\]:]/g, ' ')
+    .substring(0, 31)
+    .trim() || 'Sin empresa';
+}
+
+function limpiarNombreArchivo(txt) {
+  return String(txt || 'archivo')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function letraDiaSemana(year, month, day) {
+  const d = new Date(year, month - 1, day);
+  const letras = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+  return letras[d.getDay()];
+}
+
+function nombreMes(mes) {
+  const [year, month] = mes.split('-').map(Number);
+  const d = new Date(year, month - 1, 1);
+  return d.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).toUpperCase();
+}
+
+function redondear2(n) {
+  return Math.round((Number(n) || 0) * 100) / 100;
+}
+
+function fechaHoy() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function mesActual() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
 
 function esc(txt) {
