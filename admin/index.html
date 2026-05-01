@@ -126,6 +126,15 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Devuelve { desdeISO, hastaISO } del día actual en hora LOCAL convertido a UTC.
+// Esto evita perder registros de medianoche en CET/CEST.
+function rangoHoyLocal() {
+  const ahora = new Date();
+  const desde = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 0, 0, 0, 0);
+  const hasta = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 23, 59, 59, 999);
+  return { desdeISO: desde.toISOString(), hastaISO: hasta.toISOString() };
+}
+
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '../'; return; }
@@ -140,10 +149,10 @@ document.getElementById('btn-salir').addEventListener('click', async () => {
 });
 
 async function cargarFichajes() {
-  const hoy = new Date().toISOString().split('T')[0];
+  const { desdeISO, hastaISO } = rangoHoyLocal();
   const { data } = await sb.from('fichajes')
     .select('tipo, hora, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)')
-    .gte('hora', hoy + 'T00:00:00').lte('hora', hoy + 'T23:59:59')
+    .gte('hora', desdeISO).lte('hora', hastaISO)
     .order('hora', { ascending: false }).limit(50);
   const n = data ? data.length : 0;
   document.getElementById('stat-fichajes').textContent = n;
@@ -171,13 +180,16 @@ async function cargarRojos() {
 }
 
 async function cargarIncidencias() {
-  const hoy = new Date().toISOString().split('T')[0];
-  const { data } = await sb.from('incidencias').select('tipo, descripcion, creado_en, trabajador:trabajador_id(nombre, apellidos), obra:obra_id(nombre)').gte('creado_en', hoy + 'T00:00:00').order('creado_en', { ascending: false }).limit(50);
+  const { desdeISO, hastaISO } = rangoHoyLocal();
+  const { data } = await sb.from('incidencias')
+    .select('tipo, detalle, comentario, created_at, trabajador:trabajador_id(nombre, apellidos), obra:obra_id(nombre)')
+    .gte('created_at', desdeISO).lte('created_at', hastaISO)
+    .order('created_at', { ascending: false }).limit(50);
   const n = data ? data.length : 0;
   document.getElementById('stat-incidencias').textContent = n;
   document.getElementById('badge-incidencias').textContent = n + ' hoy';
   if (!data || data.length === 0) { document.getElementById('tabla-incidencias').innerHTML = '<div class="vacio">No hay incidencias hoy</div>'; return; }
-  document.getElementById('tabla-incidencias').innerHTML = `<table><thead><tr><th>Trabajador</th><th>Obra</th><th>Tipo</th><th>Descripción</th><th>Hora</th></tr></thead><tbody>${data.map(i => `<tr><td><strong>${esc(i.trabajador?.nombre)} ${esc(i.trabajador?.apellidos)}</strong></td><td>${esc(i.obra?.nombre)}</td><td><span class="pill naranja">${esc(i.tipo)}</span></td><td>${esc(i.descripcion || '—')}</td><td>${formatHora(i.creado_en)}</td></tr>`).join('')}</tbody></table>`;
+  document.getElementById('tabla-incidencias').innerHTML = `<table><thead><tr><th>Trabajador</th><th>Obra</th><th>Tipo</th><th>Detalle</th><th>Hora</th></tr></thead><tbody>${data.map(i => `<tr><td><strong>${esc(i.trabajador?.nombre)} ${esc(i.trabajador?.apellidos)}</strong></td><td>${esc(i.obra?.nombre)}</td><td><span class="pill naranja">${esc(i.tipo)}</span></td><td>${esc(i.detalle || '—')}${i.comentario ? '<br><small style="color:var(--texto2)">' + esc(i.comentario) + '</small>' : ''}</td><td>${formatHora(i.created_at)}</td></tr>`).join('')}</tbody></table>`;
 }
 
 function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
