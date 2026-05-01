@@ -36,10 +36,12 @@
   .selector-obra:focus { outline: none; border-color: var(--color-acento); }
   .contenido { padding: 0 28px 28px; }
   .barra-filtros { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
-  .barra-filtros input { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 14px; font-family: inherit; width: 160px; }
+  .barra-filtros input { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 14px; font-family: inherit; width: 160px; color-scheme: dark; }
   .barra-filtros input:focus { outline: none; border-color: var(--color-acento); }
   .btn-secundario { background: transparent; color: var(--texto2); border: 1px solid var(--borde); padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
   .btn-secundario:hover { background: var(--bg3); color: var(--texto); }
+  .btn-manual { background: var(--color-acento); color: white; border: none; padding: 9px 15px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .btn-manual:hover { opacity: 0.9; }
   .btn-naranja { background: var(--naranja); color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
   .btn-naranja:hover { opacity: 0.9; }
   .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
@@ -59,15 +61,19 @@
   .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
   .modal-overlay.visible { display: flex; }
-  .modal { background: var(--bg2); border: 1px solid var(--borde); border-radius: 14px; padding: 28px; width: 100%; max-width: 420px; }
+  .modal { background: var(--bg2); border: 1px solid var(--borde); border-radius: 14px; padding: 28px; width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; }
   .modal h2 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
   .modal .subtitulo { font-size: 13px; color: var(--texto2); margin-bottom: 22px; }
   .campo { margin-bottom: 16px; }
   .campo label { display: block; font-size: 12px; font-weight: 600; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
-  .campo input, .campo textarea { width: 100%; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 12px; font-family: inherit; }
+  .campo input, .campo textarea, .campo select { width: 100%; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 12px; font-family: inherit; }
+  .campo input[type="date"], .campo input[type="time"] { color-scheme: dark; }
   .campo textarea { resize: vertical; min-height: 70px; }
+  .campo input:focus, .campo textarea:focus, .campo select:focus { outline: none; border-color: var(--color-acento); }
+  .campo-fila { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .modal-acciones { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
   .btn-primario { background: var(--naranja); color: white; border: none; padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .btn-primario:disabled { opacity: 0.45; cursor: not-allowed; }
   .error-modal { background: rgba(244,67,54,0.1); color: var(--rojo); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; display: none; }
   .ok-modal { background: rgba(76,175,80,0.1); color: var(--verde); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; display: none; }
 </style>
@@ -98,12 +104,15 @@
       <span class="usuario" id="usuario-nombre"></span>
     </div>
   </div>
+
   <div class="contenido">
     <div class="barra-filtros">
       <input type="date" id="filtro-fecha">
       <button class="btn-secundario" id="btn-hoy">Hoy</button>
       <button class="btn-secundario" id="btn-buscar">Buscar</button>
+      <button class="btn-manual" id="btn-manual">+ Fichar por trabajador</button>
     </div>
+
     <div class="seccion">
       <div class="seccion-cab">
         <h2>Historial de fichajes</h2>
@@ -120,17 +129,65 @@
     <div class="subtitulo" id="correccion-subtitulo"></div>
     <div class="error-modal" id="error-correccion"></div>
     <div class="ok-modal" id="ok-correccion"></div>
+
     <div class="campo">
       <label>Nueva hora</label>
       <input type="time" id="f-hora">
     </div>
+
     <div class="campo">
       <label>Motivo</label>
       <textarea id="f-motivo" placeholder="Ej: El trabajador olvidó fichar la salida"></textarea>
     </div>
+
     <div class="modal-acciones">
       <button class="btn-secundario" id="btn-cancelar">Cancelar</button>
       <button class="btn-primario" id="btn-guardar">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-manual">
+  <div class="modal">
+    <h2>Fichar por trabajador</h2>
+    <div class="subtitulo">Registra una entrada o salida manual cuando el trabajador no pueda fichar desde su móvil.</div>
+    <div class="error-modal" id="error-manual"></div>
+    <div class="ok-modal" id="ok-manual"></div>
+
+    <div class="campo">
+      <label>Trabajador</label>
+      <select id="manual-trabajador">
+        <option value="">Cargando trabajadores…</option>
+      </select>
+    </div>
+
+    <div class="campo">
+      <label>Tipo de fichaje</label>
+      <select id="manual-tipo">
+        <option value="entrada">Entrada</option>
+        <option value="salida">Salida</option>
+      </select>
+    </div>
+
+    <div class="campo-fila">
+      <div class="campo">
+        <label>Fecha</label>
+        <input type="date" id="manual-fecha">
+      </div>
+      <div class="campo">
+        <label>Hora</label>
+        <input type="time" id="manual-hora">
+      </div>
+    </div>
+
+    <div class="campo">
+      <label>Motivo</label>
+      <textarea id="manual-motivo" placeholder="Ej: trabajador sin móvil / móvil sin batería / problema puntual con QR"></textarea>
+    </div>
+
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cancelar-manual">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar-manual">Registrar fichaje</button>
     </div>
   </div>
 </div>
@@ -145,6 +202,7 @@ let obraActual = null;
 let brandingActual = null;
 let fichajeCorrigiendoId = null;
 let fichajeCorrigiendoHora = null;
+let trabajadoresObra = [];
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -178,13 +236,15 @@ let fichajeCorrigiendoHora = null;
 
   obraActual = misObras[0].obra.id;
   aplicarBrandingObra(misObras[0].obra.empresa_marca);
-  document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('filtro-fecha').value = fechaHoy();
+  await cargarTrabajadoresObra();
   await buscar();
 
   selector.addEventListener('change', async () => {
     obraActual = selector.value;
     const marca = selector.options[selector.selectedIndex].dataset.marca;
     aplicarBrandingObra(marca);
+    await cargarTrabajadoresObra();
     await buscar();
   });
 })();
@@ -199,12 +259,15 @@ function aplicarBrandingObra(empresaMarca) {
 }
 
 document.getElementById('btn-salir').addEventListener('click', async () => {
-  await sb.auth.signOut(); window.location.href = '../';
+  await sb.auth.signOut();
+  window.location.href = '../';
 });
+
 document.getElementById('btn-hoy').addEventListener('click', () => {
-  document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('filtro-fecha').value = fechaHoy();
   buscar();
 });
+
 document.getElementById('btn-buscar').addEventListener('click', buscar);
 
 async function buscar() {
@@ -231,18 +294,25 @@ async function buscar() {
   document.getElementById('badge-total').textContent = data.length + ' registros';
   document.getElementById('tabla-fichajes').innerHTML = `
     <table>
-      <thead><tr>
-        <th>Trabajador</th><th>DNI</th><th>Tipo</th><th>Hora</th><th>Avisos</th><th>Acción</th>
-      </tr></thead>
+      <thead>
+        <tr>
+          <th>Trabajador</th>
+          <th>DNI</th>
+          <th>Tipo</th>
+          <th>Hora</th>
+          <th>Avisos</th>
+          <th>Acción</th>
+        </tr>
+      </thead>
       <tbody>
         ${data.map(f => {
           const avisos = [];
           if (f.cierre_automatico) avisos.push('⏰ Autocierre');
-          if (f.es_manual) avisos.push('✏️ Corregido');
+          if (f.es_manual) avisos.push('✍️ Manual');
           return `<tr>
             <td><strong>${esc(f.trabajador?.nombre)} ${esc(f.trabajador?.apellidos)}</strong></td>
             <td>${esc(f.trabajador?.dni)}</td>
-            <td><span class="pill ${f.tipo === 'entrada' ? 'verde' : 'azul'}">${f.tipo}</span></td>
+            <td><span class="pill ${f.tipo === 'entrada' ? 'verde' : 'azul'}">${esc(f.tipo)}</span></td>
             <td>${formatFechaHora(f.hora)}</td>
             <td>${avisos.join(' ') || '—'}</td>
             <td><button class="btn-naranja" onclick="abrirCorreccion('${f.id}', '${esc(f.trabajador?.nombre)} ${esc(f.trabajador?.apellidos)}', '${f.hora}')">Corregir</button></td>
@@ -251,6 +321,127 @@ async function buscar() {
       </tbody>
     </table>`;
 }
+
+async function cargarTrabajadoresObra() {
+  const { data, error } = await sb
+    .from('validaciones_obra')
+    .select('estado, trabajador:trabajador_id(id, nombre, apellidos, dni, activo)')
+    .eq('obra_id', obraActual);
+
+  if (error || !data) {
+    trabajadoresObra = [];
+    return;
+  }
+
+  const mapa = new Map();
+
+  data.forEach(v => {
+    const t = v.trabajador;
+    if (!t || !t.id || t.activo === false) return;
+    if (!mapa.has(t.id)) {
+      mapa.set(t.id, {
+        id: t.id,
+        nombre: t.nombre || '',
+        apellidos: t.apellidos || '',
+        dni: t.dni || '',
+        estado: v.estado || 'verde'
+      });
+    }
+  });
+
+  trabajadoresObra = [...mapa.values()].sort((a, b) =>
+    (`${a.apellidos} ${a.nombre}`).localeCompare(`${b.apellidos} ${b.nombre}`, 'es')
+  );
+}
+
+document.getElementById('btn-manual').addEventListener('click', async () => {
+  await cargarTrabajadoresObra();
+
+  document.getElementById('error-manual').style.display = 'none';
+  document.getElementById('ok-manual').style.display = 'none';
+  document.getElementById('manual-fecha').value = document.getElementById('filtro-fecha').value || fechaHoy();
+  document.getElementById('manual-hora').value = horaAhora();
+  document.getElementById('manual-tipo').value = 'entrada';
+  document.getElementById('manual-motivo').value = '';
+  document.getElementById('btn-guardar-manual').disabled = false;
+
+  rellenarSelectTrabajadoresManual();
+  document.getElementById('modal-manual').classList.add('visible');
+});
+
+function rellenarSelectTrabajadoresManual() {
+  const select = document.getElementById('manual-trabajador');
+  select.innerHTML = '<option value="">Selecciona trabajador…</option>';
+
+  trabajadoresObra.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = `${t.apellidos ? t.apellidos + ', ' : ''}${t.nombre} — ${t.dni} (${t.estado})`;
+    select.appendChild(opt);
+  });
+
+  if (trabajadoresObra.length === 0) {
+    select.innerHTML = '<option value="">No hay trabajadores asociados a esta obra</option>';
+  }
+}
+
+document.getElementById('btn-cancelar-manual').addEventListener('click', () => {
+  document.getElementById('modal-manual').classList.remove('visible');
+});
+
+document.getElementById('btn-guardar-manual').addEventListener('click', async () => {
+  const trabajadorId = document.getElementById('manual-trabajador').value;
+  const tipo = document.getElementById('manual-tipo').value;
+  const fecha = document.getElementById('manual-fecha').value;
+  const hora = document.getElementById('manual-hora').value;
+  const motivo = document.getElementById('manual-motivo').value.trim();
+
+  if (!trabajadorId) { mostrarErrorManual('Selecciona un trabajador.'); return; }
+  if (!tipo) { mostrarErrorManual('Selecciona entrada o salida.'); return; }
+  if (!fecha) { mostrarErrorManual('La fecha es obligatoria.'); return; }
+  if (!hora) { mostrarErrorManual('La hora es obligatoria.'); return; }
+  if (!motivo) { mostrarErrorManual('El motivo es obligatorio.'); return; }
+
+  const horaLocal = new Date(`${fecha}T${hora}:00`);
+
+  if (isNaN(horaLocal.getTime())) {
+    mostrarErrorManual('La fecha u hora no son válidas.');
+    return;
+  }
+
+  document.getElementById('btn-guardar-manual').disabled = true;
+
+  const { data, error } = await sb.rpc('registrar_fichaje_manual', {
+    p_trabajador_id: trabajadorId,
+    p_obra_id: obraActual,
+    p_tipo: tipo,
+    p_hora: horaLocal.toISOString(),
+    p_motivo: motivo
+  });
+
+  if (error) {
+    document.getElementById('btn-guardar-manual').disabled = false;
+    mostrarErrorManual('Error al registrar: ' + error.message);
+    return;
+  }
+
+  if (!data || data.success !== true) {
+    document.getElementById('btn-guardar-manual').disabled = false;
+    mostrarErrorManual((data && data.error) ? data.error : 'No se ha podido registrar el fichaje.');
+    return;
+  }
+
+  document.getElementById('ok-manual').textContent = 'Fichaje manual registrado correctamente.';
+  document.getElementById('ok-manual').style.display = 'block';
+  document.getElementById('error-manual').style.display = 'none';
+
+  document.getElementById('filtro-fecha').value = fecha;
+
+  setTimeout(async () => {
+    document.getElementById('modal-manual').classList.remove('visible');
+    await buscar();
+  }, 900);
+});
 
 function abrirCorreccion(id, nombre, hora) {
   fichajeCorrigiendoId = id;
@@ -271,8 +462,9 @@ document.getElementById('btn-cancelar').addEventListener('click', () => {
 document.getElementById('btn-guardar').addEventListener('click', async () => {
   const nuevaHora = document.getElementById('f-hora').value;
   const motivo = document.getElementById('f-motivo').value.trim();
+
   if (!nuevaHora) { mostrarError('La hora es obligatoria.'); return; }
-  if (!motivo)    { mostrarError('El motivo es obligatorio.'); return; }
+  if (!motivo) { mostrarError('El motivo es obligatorio.'); return; }
 
   const { data: { session } } = await sb.auth.getSession();
   const fechaBase = fichajeCorrigiendoHora.substring(0, 10);
@@ -293,6 +485,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   document.getElementById('ok-correccion').textContent = 'Corrección guardada.';
   document.getElementById('ok-correccion').style.display = 'block';
   document.getElementById('btn-guardar').disabled = true;
+
   setTimeout(async () => {
     document.getElementById('modal-correccion').classList.remove('visible');
     await buscar();
@@ -304,16 +497,34 @@ function mostrarError(msg) {
   el.textContent = msg;
   el.style.display = 'block';
 }
+
+function mostrarErrorManual(msg) {
+  const el = document.getElementById('error-manual');
+  el.textContent = msg;
+  el.style.display = 'block';
+  document.getElementById('ok-manual').style.display = 'none';
+}
+
 function esc(txt) {
   const d = document.createElement('div');
   d.textContent = String(txt || '');
   return d.innerHTML;
 }
+
 function formatFechaHora(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
   return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' +
          d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+}
+
+function fechaHoy() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function horaAhora() {
+  const d = new Date();
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
 }
 </script>
 </body>
