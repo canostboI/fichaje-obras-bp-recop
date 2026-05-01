@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Panel Encargado</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
   <script src="../js/branding.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -111,7 +111,7 @@
     .modal-qr { background: white; color: #111; border-radius: 14px; padding: 32px; max-width: 380px; width: 90%; text-align: center; }
     .modal-qr h3 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
     .modal-qr p { font-size: 13px; color: #666; margin-bottom: 20px; }
-    .modal-qr canvas { display: block; margin: 0 auto 20px; }
+    .modal-qr canvas { display: block; margin: 0 auto 20px; background: white; padding: 8px; border-radius: 8px; }
     .modal-qr-btns { display: flex; gap: 10px; justify-content: center; }
     .btn-imprimir { background: var(--color-principal); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; }
     .btn-cerrar-modal { background: #f1f5f9; color: #333; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; }
@@ -625,20 +625,20 @@
 
     document.getElementById('qr-obra-nombre').textContent = obraNombre || 'Obra';
 
-    if (!window.QRCode || !QRCode.toCanvas) {
+    if (!window.QRious) {
       alert('No se ha podido cargar la librería del QR. Recarga la página e inténtalo de nuevo.');
       return;
     }
 
-    QRCode.toCanvas(canvas, url, { width: 280, margin: 2 }, err => {
-      if (err) {
-        alert('Error al generar el QR.');
-        console.error(err);
-        return;
-      }
-
-      document.getElementById('modal-qr').classList.add('visible');
+    new QRious({
+      element: canvas,
+      value: url,
+      size: 280,
+      background: 'white',
+      foreground: 'black'
     });
+
+    document.getElementById('modal-qr').classList.add('visible');
   }
 
   function cerrarQR() {
