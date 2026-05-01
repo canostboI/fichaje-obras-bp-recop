@@ -16,7 +16,7 @@
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
   .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
   .sidebar-brand { padding: 18px 16px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: center; gap: 14px; }
-.sidebar-brand img { height: 22px; width: auto; opacity: 0.9; }
+  .sidebar-brand img { height: 22px; width: auto; opacity: 0.9; }
   .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
   .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
   .sidebar a:hover { background: var(--bg3); color: var(--texto); }
@@ -60,9 +60,8 @@
   .error-modal { background: rgba(244,67,54,0.1); color: var(--rojo); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; display: none; }
   .modal-qr { text-align: center; }
   .url-qr { font-size: 12px; color: var(--texto2); word-break: break-all; margin: 14px 0; padding: 10px; background: var(--bg3); border-radius: 8px; }
-  #qr-img { margin: 16px auto; display: block; border-radius: 8px; background: white; padding: 8px; }
+  #qr-canvas { margin: 16px auto; display: block; border-radius: 8px; background: white; padding: 8px; }
 
-  /* Equipo modal */
   .equipo-lista { margin-bottom: 20px; }
   .equipo-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg3); border-radius: 8px; margin-bottom: 8px; }
   .equipo-item-info { display: flex; flex-direction: column; gap: 2px; }
@@ -79,9 +78,9 @@
 
 <div class="sidebar">
   <div class="sidebar-brand">
-  <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
-  <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
-</div>
+    <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
+    <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
+  </div>
   <div class="sidebar-section">Principal</div>
   <a href="index.html"><span class="ico">📊</span> Dashboard</a>
   <div class="sidebar-section">Gestión</div>
@@ -108,19 +107,21 @@
   </div>
 </div>
 
-<!-- MODAL CREAR/EDITAR OBRA -->
 <div class="modal-overlay" id="modal-obra">
   <div class="modal">
     <h2 id="modal-titulo">Nueva obra</h2>
     <div class="error-modal" id="error-modal"></div>
+
     <div class="campo">
       <label>Nombre de la obra</label>
       <input type="text" id="f-nombre" placeholder="Ej: Edificio Torres 3">
     </div>
+
     <div class="campo">
       <label>Dirección</label>
       <input type="text" id="f-direccion" placeholder="Calle, ciudad">
     </div>
+
     <div class="campo-fila">
       <div class="campo">
         <label>Latitud</label>
@@ -131,10 +132,12 @@
         <input type="number" id="f-longitud" placeholder="2.1234" step="0.0001">
       </div>
     </div>
+
     <div class="campo">
       <label>Radio GPS (metros)</label>
       <input type="number" id="f-radio" placeholder="100" min="10" max="1000">
     </div>
+
     <div class="campo-fila">
       <div class="campo">
         <label>Hora entrada</label>
@@ -145,6 +148,7 @@
         <input type="time" id="f-salida">
       </div>
     </div>
+
     <div class="campo">
       <label>Empresa / Marca</label>
       <select id="f-empresa">
@@ -152,6 +156,7 @@
         <option value="recop">RECOP</option>
       </select>
     </div>
+
     <div class="campo">
       <label>Estado</label>
       <select id="f-activa">
@@ -159,6 +164,7 @@
         <option value="false">Inactiva</option>
       </select>
     </div>
+
     <div class="modal-acciones">
       <button class="btn-secundario" id="btn-cancelar">Cancelar</button>
       <button class="btn-primario" id="btn-guardar">Guardar</button>
@@ -166,7 +172,6 @@
   </div>
 </div>
 
-<!-- MODAL QR -->
 <div class="modal-overlay" id="modal-qr">
   <div class="modal modal-qr">
     <h2 id="qr-titulo">QR de la obra</h2>
@@ -179,7 +184,6 @@
   </div>
 </div>
 
-<!-- MODAL EQUIPO -->
 <div class="modal-overlay" id="modal-equipo">
   <div class="modal">
     <h2 id="equipo-titulo">Equipo de la obra</h2>
@@ -215,25 +219,38 @@
   </div>
 </div>
 
-<script src="../js/supabase-client.js"></script>
 <script>
-const sb = window.supabaseClient;
+const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 let obraEditandoId = null;
 let obraEquipoId = null;
 let todosUsuarios = [];
+let todasObras = [];
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '../'; return; }
-  const { data: u } = await sb.from('usuarios_app').select('rol').eq('auth_user_id', session.user.id).single();
+
+  const { data: u } = await sb
+    .from('usuarios_app')
+    .select('rol')
+    .eq('auth_user_id', session.user.id)
+    .single();
+
   if (!u || u.rol !== 'admin') { window.location.href = '../'; return; }
+
   await cargarObras();
   await cargarUsuarios();
 })();
 
-document.getElementById('btn-salir').addEventListener('click', async () => {
-  await sb.auth.signOut(); window.location.href = '../';
-});
+document.getElementById('btn-salir').onclick = async () => {
+  await sb.auth.signOut();
+  window.location.href = '../';
+};
 
 async function cargarObras() {
   const { data, error } = await sb
@@ -241,30 +258,45 @@ async function cargarObras() {
     .select('id, nombre, direccion, latitud, longitud, empresa_marca, radio_gps, hora_entrada_default, hora_salida_default, activa')
     .order('nombre');
 
-  if (error || !data || data.length === 0) {
+  if (error) {
+    document.getElementById('tabla-obras').innerHTML = '<div class="vacio">Error al cargar obras</div>';
+    return;
+  }
+
+  todasObras = data || [];
+
+  if (todasObras.length === 0) {
     document.getElementById('tabla-obras').innerHTML = '<div class="vacio">No hay obras todavía</div>';
     return;
   }
 
   document.getElementById('tabla-obras').innerHTML = `
     <table>
-      <thead><tr>
-        <th>Nombre</th><th>Dirección</th><th>Empresa</th><th>Radio GPS</th><th>Horario</th><th>Estado</th><th>Acciones</th>
-      </tr></thead>
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Dirección</th>
+          <th>Empresa</th>
+          <th>Radio GPS</th>
+          <th>Horario</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
       <tbody>
-        ${data.map(o => `
+        ${todasObras.map(o => `
           <tr>
             <td><strong>${esc(o.nombre)}</strong></td>
             <td>${esc(o.direccion || '—')}</td>
             <td>${esc(o.empresa_marca || '—')}</td>
-            <td>${o.radio_gps}m</td>
+            <td>${esc(o.radio_gps || '—')}m</td>
             <td>${hora(o.hora_entrada_default)} – ${hora(o.hora_salida_default)}</td>
             <td><span class="pill ${o.activa ? 'verde' : 'gris'}">${o.activa ? 'Activa' : 'Inactiva'}</span></td>
             <td>
               <div class="acciones">
-                <button class="btn-secundario" onclick="abrirEquipo('${o.id}', '${esc(o.nombre)}')">👥 Equipo</button>
-                <button class="btn-secundario" onclick="abrirQR('${o.id}', '${esc(o.nombre)}')">QR</button>
-                <button class="btn-secundario" onclick="abrirEditar(${JSON.stringify(o).replace(/"/g, '&quot;')})">Editar</button>
+                <button class="btn-secundario" onclick="abrirEquipoPorId('${o.id}')">👥 Equipo</button>
+                <button class="btn-secundario" onclick="abrirQRPorId('${o.id}')">QR</button>
+                <button class="btn-secundario" onclick="abrirEditarPorId('${o.id}')">Editar</button>
               </div>
             </td>
           </tr>`).join('')}
@@ -279,11 +311,11 @@ async function cargarUsuarios() {
     .eq('activo', true)
     .in('rol', ['jefe_obra', 'encargado'])
     .order('nombre');
+
   todosUsuarios = data || [];
 }
 
-// ─── MODAL OBRA ───────────────────────────────────────────
-document.getElementById('btn-nueva').addEventListener('click', () => {
+document.getElementById('btn-nueva').onclick = () => {
   obraEditandoId = null;
   document.getElementById('modal-titulo').textContent = 'Nueva obra';
   document.getElementById('f-nombre').value = '';
@@ -297,9 +329,15 @@ document.getElementById('btn-nueva').addEventListener('click', () => {
   document.getElementById('f-activa').value = 'true';
   ocultarError();
   document.getElementById('modal-obra').classList.add('visible');
-});
+};
 
-function abrirEditar(o) {
+function abrirEditarPorId(id) {
+  const o = todasObras.find(x => x.id === id);
+  if (!o) {
+    alert('No se ha encontrado la obra.');
+    return;
+  }
+
   obraEditandoId = o.id;
   document.getElementById('modal-titulo').textContent = 'Editar obra';
   document.getElementById('f-nombre').value = o.nombre || '';
@@ -315,60 +353,102 @@ function abrirEditar(o) {
   document.getElementById('modal-obra').classList.add('visible');
 }
 
-document.getElementById('btn-cancelar').addEventListener('click', () => {
+document.getElementById('btn-cancelar').onclick = () => {
   document.getElementById('modal-obra').classList.remove('visible');
-});
+};
 
-document.getElementById('btn-guardar').addEventListener('click', async () => {
-  const nombre    = document.getElementById('f-nombre').value.trim();
+document.getElementById('btn-guardar').onclick = async () => {
+  const nombre = document.getElementById('f-nombre').value.trim();
   const direccion = document.getElementById('f-direccion').value.trim();
-  const latitud   = parseFloat(parseFloat(document.getElementById('f-latitud').value).toFixed(4));
-  const longitud  = parseFloat(parseFloat(document.getElementById('f-longitud').value).toFixed(4));
-  const radio_gps = parseInt(document.getElementById('f-radio').value);
-  const hora_entrada_default = document.getElementById('f-entrada').value + ':00';
-  const hora_salida_default  = document.getElementById('f-salida').value + ':00';
+  const latitudRaw = document.getElementById('f-latitud').value;
+  const longitudRaw = document.getElementById('f-longitud').value;
+  const radioRaw = document.getElementById('f-radio').value;
+  const entradaRaw = document.getElementById('f-entrada').value;
+  const salidaRaw = document.getElementById('f-salida').value;
   const empresa_marca = document.getElementById('f-empresa').value;
   const activa = document.getElementById('f-activa').value === 'true';
 
+  const latitud = parseFloat(latitudRaw);
+  const longitud = parseFloat(longitudRaw);
+  const radio_gps = parseInt(radioRaw, 10);
+
   if (!nombre) { mostrarError('El nombre es obligatorio.'); return; }
   if (isNaN(latitud) || isNaN(longitud)) { mostrarError('Las coordenadas son obligatorias.'); return; }
+  if (isNaN(radio_gps)) { mostrarError('El radio GPS es obligatorio.'); return; }
+  if (!entradaRaw || !salidaRaw) { mostrarError('El horario es obligatorio.'); return; }
 
-  const payload = { nombre, direccion, latitud, longitud, radio_gps, hora_entrada_default, hora_salida_default, empresa_marca, activa };
+  const payload = {
+    nombre,
+    direccion,
+    latitud: Number(latitud.toFixed(4)),
+    longitud: Number(longitud.toFixed(4)),
+    radio_gps,
+    hora_entrada_default: entradaRaw + ':00',
+    hora_salida_default: salidaRaw + ':00',
+    empresa_marca,
+    activa
+  };
 
   let error;
+
   if (obraEditandoId) {
     ({ error } = await sb.from('obras').update(payload).eq('id', obraEditandoId));
   } else {
     ({ error } = await sb.from('obras').insert(payload));
   }
 
-  if (error) { mostrarError('Error al guardar: ' + error.message); return; }
+  if (error) {
+    mostrarError('Error al guardar: ' + error.message);
+    return;
+  }
+
   document.getElementById('modal-obra').classList.remove('visible');
   await cargarObras();
-});
+};
 
-// ─── MODAL QR ─────────────────────────────────────────────
-function abrirQR(obraId, nombre) {
-  const url = `https://canostboi.github.io/fichaje-obras-bp-recop/fichaje/?obra=${obraId}`;
-  document.getElementById('qr-titulo').textContent = 'QR — ' + nombre;
+function abrirQRPorId(id) {
+  const o = todasObras.find(x => x.id === id);
+  if (!o) {
+    alert('No se ha encontrado la obra.');
+    return;
+  }
+
+  const url = `https://canostboi.github.io/fichaje-obras-bp-recop/fichaje/?obra=${o.id}`;
+  document.getElementById('qr-titulo').textContent = 'QR — ' + (o.nombre || 'Obra');
   document.getElementById('qr-url').textContent = url;
+
   const canvas = document.getElementById('qr-canvas');
-  new QRious({ element: canvas, value: url, size: 220, background: 'white', foreground: 'black' });
+  new QRious({
+    element: canvas,
+    value: url,
+    size: 220,
+    background: 'white',
+    foreground: 'black'
+  });
+
   const btn = document.getElementById('btn-descargar-qr');
   btn.href = canvas.toDataURL('image/png');
+  btn.download = 'qr-' + limpiarNombreArchivo(o.nombre || 'obra') + '.png';
+
   document.getElementById('modal-qr').classList.add('visible');
 }
 
-document.getElementById('btn-cerrar-qr').addEventListener('click', () => {
+document.getElementById('btn-cerrar-qr').onclick = () => {
   document.getElementById('modal-qr').classList.remove('visible');
-});
+};
 
-// ─── MODAL EQUIPO ─────────────────────────────────────────
-async function abrirEquipo(obraId, nombreObra) {
-  obraEquipoId = obraId;
-  document.getElementById('equipo-titulo').textContent = '👥 Equipo — ' + nombreObra;
+async function abrirEquipoPorId(id) {
+  const o = todasObras.find(x => x.id === id);
+  if (!o) {
+    alert('No se ha encontrado la obra.');
+    return;
+  }
+
+  obraEquipoId = o.id;
+  document.getElementById('equipo-titulo').textContent = '👥 Equipo — ' + (o.nombre || 'Obra');
   document.getElementById('error-equipo').style.display = 'none';
   document.getElementById('modal-equipo').classList.add('visible');
+
   await cargarEquipo();
   rellenarSelectUsuarios();
 }
@@ -395,7 +475,13 @@ async function cargarEquipo() {
     <div class="equipo-item">
       <div class="equipo-item-info">
         <span class="equipo-item-nombre">${esc(item.usuario_app?.nombre || '—')}</span>
-        <span class="equipo-item-email">${esc(item.usuario_app?.email || '')} · <span class="pill ${item.rol_en_obra === 'jefe_obra' ? 'azul' : 'naranja'}">${item.rol_en_obra === 'jefe_obra' ? 'Jefe de obra' : 'Encargado'}</span></span>
+        <span class="equipo-item-email">
+          ${esc(item.usuario_app?.email || '')}
+          ·
+          <span class="pill ${item.rol_en_obra === 'jefe_obra' ? 'azul' : 'naranja'}">
+            ${item.rol_en_obra === 'jefe_obra' ? 'Jefe de obra' : 'Encargado'}
+          </span>
+        </span>
       </div>
       <button class="btn-peligro" onclick="quitarDelEquipo('${item.id}')">Quitar</button>
     </div>
@@ -405,15 +491,16 @@ async function cargarEquipo() {
 function rellenarSelectUsuarios() {
   const select = document.getElementById('eq-usuario');
   select.innerHTML = '<option value="">Selecciona un usuario…</option>';
+
   todosUsuarios.forEach(u => {
     const opt = document.createElement('option');
     opt.value = u.id;
-    opt.textContent = `${u.nombre} (${u.email})`;
+    opt.textContent = `${u.nombre || 'Sin nombre'} (${u.email || 'sin email'})`;
     select.appendChild(opt);
   });
 }
 
-document.getElementById('btn-anadir-equipo').addEventListener('click', async () => {
+document.getElementById('btn-anadir-equipo').onclick = async () => {
   const usuarioAppId = document.getElementById('eq-usuario').value;
   const rol = document.getElementById('eq-rol').value;
   const errEl = document.getElementById('error-equipo');
@@ -441,42 +528,60 @@ document.getElementById('btn-anadir-equipo').addEventListener('click', async () 
 
   document.getElementById('eq-usuario').value = '';
   await cargarEquipo();
-});
+};
 
 async function quitarDelEquipo(usuariosObraId) {
   if (!confirm('¿Quitar este usuario de la obra?')) return;
-  const { error } = await sb.from('usuarios_obra').delete().eq('id', usuariosObraId);
+
+  const { error } = await sb
+    .from('usuarios_obra')
+    .delete()
+    .eq('id', usuariosObraId);
+
   if (error) {
     const errEl = document.getElementById('error-equipo');
     errEl.textContent = 'Error al quitar: ' + error.message;
     errEl.style.display = 'block';
     return;
   }
+
   await cargarEquipo();
 }
 
-document.getElementById('btn-cerrar-equipo').addEventListener('click', () => {
+document.getElementById('btn-cerrar-equipo').onclick = () => {
   document.getElementById('modal-equipo').classList.remove('visible');
-});
+};
 
-// ─── UTILIDADES ───────────────────────────────────────────
 function mostrarError(msg) {
   const el = document.getElementById('error-modal');
   el.textContent = msg;
   el.style.display = 'block';
 }
+
 function ocultarError() {
   document.getElementById('error-modal').style.display = 'none';
 }
+
 function esc(txt) {
   const d = document.createElement('div');
   d.textContent = String(txt || '');
   return d.innerHTML;
 }
+
 function hora(t) {
   if (!t) return '—';
-  return t.substring(0, 5);
+  return String(t).substring(0, 5);
+}
+
+function limpiarNombreArchivo(txt) {
+  return String(txt || 'obra')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 </script>
+
 </body>
 </html>
