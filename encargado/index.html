@@ -29,7 +29,7 @@
       display: none;
     }
     header h1 { font-size: 1.1rem; }
-    .header-right { display: flex; align-items: center; gap: 10px; }
+    .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     header button {
       background: transparent; border: 1px solid #fff;
       color: white; padding: 0.3rem 0.8rem;
@@ -52,10 +52,16 @@
 
     h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #333; }
 
-    select, input {
+    select, input, textarea {
       width: 100%; padding: 0.6rem;
       border: 1px solid #ccc; border-radius: 6px;
       font-size: 1rem; margin-top: 0.3rem;
+      font-family: inherit;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 70px;
     }
 
     .btn {
@@ -67,6 +73,14 @@
     .btn-primary { background: var(--color-principal); color: white; }
     .btn-green { background: #28a745; color: white; width: 100%; padding: 1rem; font-size: 1.1rem; }
     .btn-green:disabled { background: #aaa; cursor: not-allowed; }
+    .btn-manual {
+      background: var(--color-principal);
+      color: white;
+      width: 100%;
+      padding: 1rem;
+      font-size: 1.05rem;
+    }
+    .btn-manual:disabled { background: #aaa; cursor: not-allowed; }
 
     .trabajador-row {
       display: flex; justify-content: space-between; align-items: center;
@@ -91,9 +105,9 @@
 
     .loading { color: #888; font-style: italic; }
 
-    /* Modal QR */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
     .modal-overlay.visible { display: flex; }
+
     .modal-qr { background: white; color: #111; border-radius: 14px; padding: 32px; max-width: 380px; width: 90%; text-align: center; }
     .modal-qr h3 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
     .modal-qr p { font-size: 13px; color: #666; margin-bottom: 20px; }
@@ -101,6 +115,91 @@
     .modal-qr-btns { display: flex; gap: 10px; justify-content: center; }
     .btn-imprimir { background: var(--color-principal); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; }
     .btn-cerrar-modal { background: #f1f5f9; color: #333; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+
+    .modal-manual {
+      background: white;
+      color: #111;
+      border-radius: 14px;
+      padding: 28px;
+      max-width: 460px;
+      width: 92%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-manual h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .modal-manual .sub {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 18px;
+      line-height: 1.4;
+    }
+    .campo {
+      margin-bottom: 14px;
+    }
+    .campo label {
+      display: block;
+      font-size: 12px;
+      font-weight: bold;
+      color: #555;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .campo-fila {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .modal-actions button {
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    .btn-modal-primary {
+      background: var(--color-principal);
+      color: white;
+    }
+    .btn-modal-primary:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+    .btn-modal-secondary {
+      background: #f1f5f9;
+      color: #333;
+    }
+    .msg-modal {
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .msg-modal.ok {
+      background: #d4edda;
+      color: #155724;
+    }
+    .msg-modal.err {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    @media (max-width: 600px) {
+      header { align-items: flex-start; flex-direction: column; }
+      .header-right { width: 100%; }
+      .campo-fila { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -117,7 +216,6 @@
 </header>
 
 <main>
-  <!-- Selector de obra -->
   <div class="card" id="card-selector" style="display:none">
     <h2>Selecciona una obra</h2>
     <select id="select-obra">
@@ -127,7 +225,6 @@
     <button class="btn btn-primary" style="margin-top:1rem" id="btn-elegir-obra">Ver presencia</button>
   </div>
 
-  <!-- Panel principal -->
   <div id="panel-obra" style="display:none">
 
     <div class="card">
@@ -138,6 +235,14 @@
     <div class="card">
       <h2>👷 Trabajadores presentes ahora</h2>
       <div id="lista-presencia"><p class="loading">Cargando...</p></div>
+    </div>
+
+    <div class="card">
+      <h2>🕐 Fichaje manual</h2>
+      <p style="color:#666; font-size:0.9rem; margin-bottom:0.8rem;">
+        Para registrar entrada o salida cuando un trabajador no pueda fichar desde su móvil.
+      </p>
+      <button class="btn btn-manual" id="btn-abrir-manual">Fichar por trabajador</button>
     </div>
 
     <div class="card">
@@ -155,7 +260,6 @@
   <p id="msg-error" style="color:red; display:none"></p>
 </main>
 
-<!-- Modal QR -->
 <div class="modal-overlay" id="modal-qr">
   <div class="modal-qr">
     <h3 id="qr-obra-nombre">Obra</h3>
@@ -168,6 +272,52 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-manual">
+  <div class="modal-manual">
+    <h3>Fichar por trabajador</h3>
+    <div class="sub">Registra una entrada o salida manual en la obra actual.</div>
+
+    <div class="msg-modal err" id="msg-manual-err"></div>
+    <div class="msg-modal ok" id="msg-manual-ok"></div>
+
+    <div class="campo">
+      <label>Trabajador</label>
+      <select id="manual-trabajador">
+        <option value="">Cargando trabajadores…</option>
+      </select>
+    </div>
+
+    <div class="campo">
+      <label>Tipo de fichaje</label>
+      <select id="manual-tipo">
+        <option value="entrada">Entrada</option>
+        <option value="salida">Salida</option>
+      </select>
+    </div>
+
+    <div class="campo-fila">
+      <div class="campo">
+        <label>Fecha</label>
+        <input type="date" id="manual-fecha">
+      </div>
+      <div class="campo">
+        <label>Hora</label>
+        <input type="time" id="manual-hora">
+      </div>
+    </div>
+
+    <div class="campo">
+      <label>Motivo</label>
+      <textarea id="manual-motivo" placeholder="Ej: trabajador sin móvil / móvil sin batería / problema puntual con QR"></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-modal-secondary" id="btn-cancelar-manual">Cancelar</button>
+      <button class="btn-modal-primary" id="btn-guardar-manual">Registrar fichaje</button>
+    </div>
+  </div>
+</div>
+
 <script>
   const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
@@ -176,7 +326,8 @@
 
   let obraActualId = null;
   let obraActualNombre = '';
-  let brandingActual = null; // Branding de la obra activa
+  let brandingActual = null;
+  let trabajadoresObra = [];
 
   async function init() {
     const { data: { session } } = await sb.auth.getSession();
@@ -231,11 +382,10 @@
     cargarObra(obraId, nombre, marca);
   });
 
-  function cargarObra(obraId, obraNombre, empresaMarca) {
+  async function cargarObra(obraId, obraNombre, empresaMarca) {
     obraActualId = obraId;
     obraActualNombre = obraNombre;
 
-    // Aplicar branding de la obra
     const marca = empresaMarca || 'bosch_pascual';
     brandingActual = aplicarBranding(marca);
     const logoImg = document.getElementById('header-logo');
@@ -248,7 +398,9 @@
     document.getElementById('fecha-hoy').textContent = hoy.charAt(0).toUpperCase() + hoy.slice(1);
     document.getElementById('panel-obra').style.display = 'block';
     document.getElementById('btn-ver-qr').style.display = 'inline-block';
-    cargarPresencia(obraId);
+
+    await cargarTrabajadoresObra();
+    await cargarPresencia(obraId);
   }
 
   async function cargarPresencia(obraId) {
@@ -293,14 +445,136 @@
       row.className = 'trabajador-row';
       row.innerHTML = `
         <div>
-          <div class="nombre">${t.nombre}</div>
-          <div class="hora">Entrada: ${t.hora}</div>
+          <div class="nombre">${esc(t.nombre)}</div>
+          <div class="hora">Entrada: ${esc(t.hora)}</div>
         </div>
         <span class="badge badge-verde">En obra</span>
       `;
       lista.appendChild(row);
     });
   }
+
+  async function cargarTrabajadoresObra() {
+    const { data, error } = await sb
+      .from('validaciones_obra')
+      .select('estado, trabajador:trabajador_id(id, nombre, apellidos, dni, activo)')
+      .eq('obra_id', obraActualId);
+
+    if (error || !data) {
+      trabajadoresObra = [];
+      return;
+    }
+
+    const mapa = new Map();
+
+    data.forEach(v => {
+      const t = v.trabajador;
+      if (!t || !t.id || t.activo === false) return;
+
+      if (!mapa.has(t.id)) {
+        mapa.set(t.id, {
+          id: t.id,
+          nombre: t.nombre || '',
+          apellidos: t.apellidos || '',
+          dni: t.dni || '',
+          estado: v.estado || 'verde'
+        });
+      }
+    });
+
+    trabajadoresObra = [...mapa.values()].sort((a, b) =>
+      (`${a.apellidos} ${a.nombre}`).localeCompare(`${b.apellidos} ${b.nombre}`, 'es')
+    );
+  }
+
+  document.getElementById('btn-abrir-manual').addEventListener('click', async () => {
+    if (!obraActualId) return;
+
+    await cargarTrabajadoresObra();
+
+    document.getElementById('msg-manual-err').style.display = 'none';
+    document.getElementById('msg-manual-ok').style.display = 'none';
+    document.getElementById('manual-fecha').value = fechaHoy();
+    document.getElementById('manual-hora').value = horaAhora();
+    document.getElementById('manual-tipo').value = 'entrada';
+    document.getElementById('manual-motivo').value = '';
+    document.getElementById('btn-guardar-manual').disabled = false;
+
+    rellenarSelectTrabajadoresManual();
+    document.getElementById('modal-manual').classList.add('visible');
+  });
+
+  function rellenarSelectTrabajadoresManual() {
+    const select = document.getElementById('manual-trabajador');
+    select.innerHTML = '<option value="">Selecciona trabajador…</option>';
+
+    trabajadoresObra.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.id;
+      opt.textContent = `${t.apellidos ? t.apellidos + ', ' : ''}${t.nombre} — ${t.dni} (${t.estado})`;
+      select.appendChild(opt);
+    });
+
+    if (trabajadoresObra.length === 0) {
+      select.innerHTML = '<option value="">No hay trabajadores asociados a esta obra</option>';
+    }
+  }
+
+  document.getElementById('btn-cancelar-manual').addEventListener('click', () => {
+    document.getElementById('modal-manual').classList.remove('visible');
+  });
+
+  document.getElementById('btn-guardar-manual').addEventListener('click', async () => {
+    const trabajadorId = document.getElementById('manual-trabajador').value;
+    const tipo = document.getElementById('manual-tipo').value;
+    const fecha = document.getElementById('manual-fecha').value;
+    const hora = document.getElementById('manual-hora').value;
+    const motivo = document.getElementById('manual-motivo').value.trim();
+
+    if (!trabajadorId) { mostrarErrorManual('Selecciona un trabajador.'); return; }
+    if (!tipo) { mostrarErrorManual('Selecciona entrada o salida.'); return; }
+    if (!fecha) { mostrarErrorManual('La fecha es obligatoria.'); return; }
+    if (!hora) { mostrarErrorManual('La hora es obligatoria.'); return; }
+    if (!motivo) { mostrarErrorManual('El motivo es obligatorio.'); return; }
+
+    const horaLocal = new Date(`${fecha}T${hora}:00`);
+
+    if (isNaN(horaLocal.getTime())) {
+      mostrarErrorManual('La fecha u hora no son válidas.');
+      return;
+    }
+
+    document.getElementById('btn-guardar-manual').disabled = true;
+
+    const { data, error } = await sb.rpc('registrar_fichaje_manual', {
+      p_trabajador_id: trabajadorId,
+      p_obra_id: obraActualId,
+      p_tipo: tipo,
+      p_hora: horaLocal.toISOString(),
+      p_motivo: motivo
+    });
+
+    if (error) {
+      document.getElementById('btn-guardar-manual').disabled = false;
+      mostrarErrorManual('Error al registrar: ' + error.message);
+      return;
+    }
+
+    if (!data || data.success !== true) {
+      document.getElementById('btn-guardar-manual').disabled = false;
+      mostrarErrorManual((data && data.error) ? data.error : 'No se ha podido registrar el fichaje.');
+      return;
+    }
+
+    document.getElementById('msg-manual-ok').textContent = 'Fichaje manual registrado correctamente.';
+    document.getElementById('msg-manual-ok').style.display = 'block';
+    document.getElementById('msg-manual-err').style.display = 'none';
+
+    setTimeout(async () => {
+      document.getElementById('modal-manual').classList.remove('visible');
+      await cargarPresencia(obraActualId);
+    }, 900);
+  });
 
   document.getElementById('btn-ronda').addEventListener('click', async () => {
     if (!obraActualId) return;
@@ -341,7 +615,6 @@
     abrirQR(obraActualId, obraActualNombre);
   });
 
-  // ── QR ──────────────────────────────────────────────────────────────────────
   function abrirQR(obraId, obraNombre) {
     const url = `https://canostboi.github.io/fichaje-obras-bp-recop/fichaje/?obra=${obraId}`;
     document.getElementById('qr-obra-nombre').textContent = obraNombre;
@@ -360,7 +633,6 @@
     const obraNombre = document.getElementById('qr-obra-nombre').textContent;
     const dataUrl = canvas.toDataURL('image/png');
 
-    // Logo de la obra activa para el cartel imprimible (versión color, no blanco)
     const logoUrl = brandingActual
       ? window.location.origin + window.location.pathname.replace(/encargado\/.*$/, '') + brandingActual.logo
       : '';
@@ -393,10 +665,38 @@
     if (e.target === document.getElementById('modal-qr')) cerrarQR();
   });
 
+  document.getElementById('modal-manual').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-manual')) {
+      document.getElementById('modal-manual').classList.remove('visible');
+    }
+  });
+
   function mostrarError(texto) {
     const el = document.getElementById('msg-error');
     el.textContent = texto;
     el.style.display = 'block';
+  }
+
+  function mostrarErrorManual(texto) {
+    const el = document.getElementById('msg-manual-err');
+    el.textContent = texto;
+    el.style.display = 'block';
+    document.getElementById('msg-manual-ok').style.display = 'none';
+  }
+
+  function esc(txt) {
+    const d = document.createElement('div');
+    d.textContent = String(txt || '');
+    return d.innerHTML;
+  }
+
+  function fechaHoy() {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  function horaAhora() {
+    const d = new Date();
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
   }
 
   init();
