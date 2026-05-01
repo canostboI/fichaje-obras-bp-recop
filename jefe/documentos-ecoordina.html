@@ -170,16 +170,16 @@
 
     <!-- PASO 1: Subir archivo -->
     <div class="card" id="paso-upload">
-      <h2>📥 Paso 1 — Sube el Excel de e-Coordina</h2>
+      <h2>📥 Paso 1 — Sube el archivo de e-Coordina</h2>
       <p class="ayuda">
-        Exporta desde e-Coordina: <strong>Informes → Lista de obra</strong> en formato Excel (.xlsx).
+        Exporta desde e-Coordina: <strong>Informes → Lista de obra</strong> en formato CSV (.csv) o Excel (.xlsx).
       </p>
       <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
         <div class="icon">📊</div>
-        <p>Haz clic aquí o arrastra el archivo Excel</p>
-        <p style="font-size:12px;margin-top:4px;">Solo archivos .xlsx</p>
+        <p>Haz clic aquí o arrastra el archivo CSV o Excel de e-Coordina</p>
+        <p style="font-size:12px;margin-top:4px;">Archivos admitidos: .csv, .xlsx, .xls</p>
       </div>
-      <input type="file" id="fileInput" accept=".xlsx" />
+      <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" />
     </div>
 
     <!-- PASO 2: Seleccionar obra -->
@@ -192,7 +192,7 @@
         </select>
       </div>
       <button class="btn btn-primary" id="btnProcesar" onclick="procesarExcel()">
-        Procesar Excel
+        Procesar archivo
       </button>
     </div>
 
@@ -240,7 +240,7 @@
 
 <script>
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -248,7 +248,7 @@ let session = null;
 let misObras = [];
 let reglas = [];
 let trabajadoresApp = {}; // dni -> {id, nombre}
-let datosExcel = null; // filas parseadas
+let datosExcel = null; // filas parseadas desde CSV o Excel
 let resultadoFinal = []; // trabajadores con semáforo calculado
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
@@ -336,33 +336,105 @@ fileInput.addEventListener('change', () => {
   if (fileInput.files[0]) procesarArchivo(fileInput.files[0]);
 });
 
+function convertirWorkbookAFilas(wb) {
+  const ws = wb.Sheets[wb.SheetNames[0]];
+
+  // Leemos como matriz para poder ignorar la primera fila de fecha de e-Coordina.
+  // Sirve tanto para Excel como para CSV.
+  const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+
+  // e-Coordina suele traer:
+  // Fila 0: "Fecha: 28/04/2026"
+  // Fila 1: cabeceras reales
+  // Pero lo buscamos de forma flexible por si cambia un poco.
+  const headerIndex = rawRows.findIndex(row => {
+    const cols = row.map(c => String(c).trim());
+    return cols.includes('Documento') &&
+           cols.includes('Estado') &&
+           cols.includes('Empresa') &&
+           cols.includes('Trabajador');
+  });
+
+  if (headerIndex === -1) {
+    throw new Error('No se han encontrado las cabeceras esperadas de e-Coordina: Documento, Estado, Empresa y Trabajador.');
+  }
+
+  const headers = rawRows[headerIndex].map(h => String(h).trim());
+
+  return rawRows.slice(headerIndex + 1)
+    .map(row => {
+      const obj = {};
+      headers.forEach((h, i) => {
+        if (!h) return;
+        obj[h] = row[i] ?? '';
+      });
+      return obj;
+    })
+    .filter(obj => Object.values(obj).some(v => String(v).trim() !== ''));
+}
+
 function procesarArchivo(file) {
-  if (!file.name.endsWith('.xlsx')) {
-    alert('Solo se aceptan archivos .xlsx'); return;
+  const nombre = file.name.toLowerCase();
+  const esCsv = nombre.endsWith('.csv');
+  const esExcel = nombre.endsWith('.xlsx') || nombre.endsWith('.xls');
+
+  if (!esCsv && !esExcel) {
+    alert('Solo se aceptan archivos .csv, .xlsx o .xls');
+    return;
   }
 
   const reader = new FileReader();
+
   reader.onload = e => {
-    const wb = XLSX.read(e.target.result, { type: 'array' });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    // El Excel de e-Coordina tiene una fila extra al inicio con la fecha.
-    // Fila 0: "Fecha: 21/04/2026" → ignorar. Fila 1: cabeceras. Fila 2+: datos.
-    const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-    const headers = rawRows[1] || [];
-    const filas = rawRows.slice(2).map(row => {
-      const obj = {};
-      headers.forEach((h, i) => { obj[String(h).trim()] = row[i] ?? ''; });
-      return obj;
-    });
-    datosExcel = filas;
+    try {
+      let wb;
 
-    // Mostrar nombre del archivo en drop zone
-    dropZone.innerHTML = `<div class="icon">✅</div><p><strong>${file.name}</strong> cargado</p>`;
+      if (esCsv) {
+        // El CSV real de e-Coordina viene en codificación española/Latin-1
+        // y separado por punto y coma (;).
+        wb = XLSX.read(e.target.result, {
+          type: 'string',
+          raw: false,
+          FS: ';'
+        });
+      } else {
+        wb = XLSX.read(e.target.result, { type: 'array' });
+      }
 
-    // Mostrar paso 2
-    document.getElementById('paso-obra').style.display = 'block';
+      const filas = convertirWorkbookAFilas(wb);
+
+      if (!filas.length) {
+        alert('El archivo se ha leído, pero no se han encontrado filas de datos.');
+        return;
+      }
+
+      datosExcel = filas;
+
+      // Mostrar nombre del archivo en drop zone
+      dropZone.innerHTML = `
+        <div class="icon">✅</div>
+        <p><strong>${file.name}</strong> cargado</p>
+        <p style="font-size:12px;margin-top:4px;">${filas.length} registros leídos</p>
+      `;
+
+      // Mostrar paso 2
+      document.getElementById('paso-obra').style.display = 'block';
+    } catch (err) {
+      console.error(err);
+      alert('No se ha podido leer el archivo de e-Coordina: ' + (err.message || err));
+    }
   };
-  reader.readAsArrayBuffer(file);
+
+  reader.onerror = () => {
+    alert('No se ha podido leer el archivo seleccionado.');
+  };
+
+  if (esCsv) {
+    // Importante: el CSV de e-Coordina no viene en UTF-8, viene en ISO-8859-1/Latin-1.
+    reader.readAsText(file, 'ISO-8859-1');
+  } else {
+    reader.readAsArrayBuffer(file);
+  }
 }
 
 // ── EXTRAER DNI ───────────────────────────────────────────────────────────────
@@ -417,7 +489,7 @@ function peorEstado(a, b) {
 async function procesarExcel() {
   const obraId = document.getElementById('obraSelect').value;
   if (!obraId) { alert('Selecciona una obra primero'); return; }
-  if (!datosExcel) { alert('Primero sube el archivo Excel'); return; }
+  if (!datosExcel) { alert('Primero sube el archivo de e-Coordina'); return; }
 
   const btn = document.getElementById('btnProcesar');
   btn.disabled = true;
@@ -530,7 +602,7 @@ async function procesarExcel() {
   renderStats();
 
   btn.disabled = false;
-  btn.innerHTML = 'Procesar Excel';
+  btn.innerHTML = 'Procesar archivo';
   document.getElementById('resultado').style.display = 'block';
   document.getElementById('resultado').scrollIntoView({ behavior: 'smooth' });
 }
