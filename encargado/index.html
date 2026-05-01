@@ -611,17 +611,34 @@
   });
 
   document.getElementById('btn-ver-qr').addEventListener('click', () => {
-    if (!obraActualId) return;
+    if (!obraActualId) {
+      alert('No hay obra seleccionada.');
+      return;
+    }
+
     abrirQR(obraActualId, obraActualNombre);
   });
 
   function abrirQR(obraId, obraNombre) {
     const url = `https://canostboi.github.io/fichaje-obras-bp-recop/fichaje/?obra=${obraId}`;
-    document.getElementById('qr-obra-nombre').textContent = obraNombre;
-    QRCode.toCanvas(document.getElementById('qr-canvas'), url, { width: 280, margin: 2 }, err => {
-      if (err) console.error(err);
+    const canvas = document.getElementById('qr-canvas');
+
+    document.getElementById('qr-obra-nombre').textContent = obraNombre || 'Obra';
+
+    if (!window.QRCode || !QRCode.toCanvas) {
+      alert('No se ha podido cargar la librería del QR. Recarga la página e inténtalo de nuevo.');
+      return;
+    }
+
+    QRCode.toCanvas(canvas, url, { width: 280, margin: 2 }, err => {
+      if (err) {
+        alert('Error al generar el QR.');
+        console.error(err);
+        return;
+      }
+
+      document.getElementById('modal-qr').classList.add('visible');
     });
-    document.getElementById('modal-qr').classList.add('visible');
   }
 
   function cerrarQR() {
