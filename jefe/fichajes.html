@@ -203,6 +203,7 @@ let brandingActual = null;
 let fichajeCorrigiendoId = null;
 let fichajeCorrigiendoHora = null;
 let trabajadoresObra = [];
+let miUsuarioAppId = null;
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -215,6 +216,7 @@ let trabajadoresObra = [];
     .single();
 
   if (!miUsuario) { window.location.href = '../'; return; }
+  miUsuarioAppId = miUsuario.id;
   document.getElementById('usuario-nombre').textContent = miUsuario.nombre || session.user.email;
 
   const { data: misObras } = await sb
@@ -276,12 +278,17 @@ async function buscar() {
 
   let query = sb
     .from('fichajes')
-    .select('id, tipo, hora, es_manual, cierre_automatico, trabajador:trabajador_id(nombre, apellidos, dni)')
+    .select('id, tipo, hora, es_manual, cierre_automatico, corregido_por, trabajador:trabajador_id(nombre, apellidos, dni)')
     .eq('obra_id', obraActual)
     .order('hora', { ascending: false })
     .limit(200);
 
-  if (fecha) query = query.gte('hora', fecha + 'T00:00:00').lte('hora', fecha + 'T23:59:59');
+  if (fecha) {
+    const [y, m, d] = fecha.split('-').map(Number);
+    const desde = new Date(y, m - 1, d, 0, 0, 0, 0);
+    const hasta = new Date(y, m - 1, d, 23, 59, 59, 999);
+    query = query.gte('hora', desde.toISOString()).lte('hora', hasta.toISOString());
+  }
 
   const { data, error } = await query;
 
@@ -309,6 +316,7 @@ async function buscar() {
           const avisos = [];
           if (f.cierre_automatico) avisos.push('⏰ Autocierre');
           if (f.es_manual) avisos.push('✍️ Manual');
+          if (f.corregido_por) avisos.push('🛠️ Corregido');
           return `<tr>
             <td><strong>${esc(f.trabajador?.nombre)} ${esc(f.trabajador?.apellidos)}</strong></td>
             <td>${esc(f.trabajador?.dni)}</td>
@@ -447,7 +455,11 @@ function abrirCorreccion(id, nombre, hora) {
   fichajeCorrigiendoId = id;
   fichajeCorrigiendoHora = hora;
   document.getElementById('correccion-subtitulo').textContent = nombre;
-  document.getElementById('f-hora').value = hora ? hora.substring(11, 16) : '';
+  // Mostrar la hora original en hora LOCAL del navegador (no del ISO crudo)
+  const d = new Date(hora);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  document.getElementById('f-hora').value = isNaN(d.getTime()) ? '' : `${hh}:${mi}`;
   document.getElementById('f-motivo').value = '';
   document.getElementById('error-correccion').style.display = 'none';
   document.getElementById('ok-correccion').style.display = 'none';
@@ -466,25 +478,49 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   if (!nuevaHora) { mostrarError('La hora es obligatoria.'); return; }
   if (!motivo) { mostrarError('El motivo es obligatorio.'); return; }
 
-  const { data: { session } } = await sb.auth.getSession();
-  const fechaBase = fichajeCorrigiendoHora.substring(0, 10);
+  if (!miUsuarioAppId) {
+    mostrarError('No se ha podido identificar al usuario.');
+    return;
+  }
+
+  // Construir la nueva hora respetando zona horaria local del navegador
+  // La fecha base se toma del fichaje original (en hora local del navegador)
+  const dOriginal = new Date(fichajeCorrigiendoHora);
+  if (isNaN(dOriginal.getTime())) {
+    mostrarError('La fecha original del fichaje no es válida.');
+    return;
+  }
+  const yy = dOriginal.getFullYear();
+  const mm = dOriginal.getMonth();
+  const dd = dOriginal.getDate();
+  const [hh, mi] = nuevaHora.split(':').map(Number);
+  const horaLocal = new Date(yy, mm, dd, hh, mi, 0, 0);
+
+  if (isNaN(horaLocal.getTime())) {
+    mostrarError('La hora no es válida.');
+    return;
+  }
+
+  document.getElementById('btn-guardar').disabled = true;
 
   const { error } = await sb
     .from('fichajes')
     .update({
-      hora: fechaBase + 'T' + nuevaHora + ':00',
-      es_manual: true,
+      hora: horaLocal.toISOString(),
       motivo_correccion: motivo,
-      corregido_por: session.user.id,
+      corregido_por: miUsuarioAppId,
       corregido_en: new Date().toISOString()
     })
     .eq('id', fichajeCorrigiendoId);
 
-  if (error) { mostrarError('Error al guardar: ' + error.message); return; }
+  if (error) {
+    document.getElementById('btn-guardar').disabled = false;
+    mostrarError('Error al guardar: ' + error.message);
+    return;
+  }
 
   document.getElementById('ok-correccion').textContent = 'Corrección guardada.';
   document.getElementById('ok-correccion').style.display = 'block';
-  document.getElementById('btn-guardar').disabled = true;
 
   setTimeout(async () => {
     document.getElementById('modal-correccion').classList.remove('visible');
