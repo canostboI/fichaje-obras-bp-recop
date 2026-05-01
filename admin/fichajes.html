@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fichajes — Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -58,8 +58,6 @@
   .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
   .pill.verde  { background: rgba(76,175,80,0.15);  color: var(--verde); }
   .pill.azul   { background: rgba(33,150,243,0.15); color: var(--azul); }
-  .pill.naranja{ background: rgba(255,152,0,0.15);  color: var(--naranja); }
-  .pill.gris   { background: rgba(139,144,158,0.15); color: var(--texto2); }
   .vacio { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); }
 </style>
@@ -259,9 +257,9 @@ async function exportarExcelMensual() {
     return;
   }
 
-  if (!window.XLSX) {
+  if (!window.ExcelJS) {
     msg.className = 'msg-export err';
-    msg.textContent = 'No se ha cargado la librería Excel. Recarga la página.';
+    msg.textContent = 'No se ha cargado ExcelJS. Recarga la página.';
     return;
   }
 
@@ -281,34 +279,30 @@ async function exportarExcelMensual() {
       return;
     }
 
-    const wb = XLSX.utils.book_new();
     const grupos = agruparPorEmpresa(datos);
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Fichaje Obras';
+    workbook.created = new Date();
+
     const [year, month] = mes.split('-').map(Number);
     const diasMes = new Date(year, month, 0).getDate();
 
     Object.keys(grupos).sort((a, b) => a.localeCompare(b, 'es')).forEach(nombreEmpresa => {
-      const trabajadores = construirResumenTrabajadores(grupos[nombreEmpresa], diasMes, year, month);
-      const aoa = construirHojaEmpresa({
+      const trabajadores = construirResumenTrabajadores(grupos[nombreEmpresa], diasMes);
+      crearHojaEmpresa(workbook, {
         obra,
         nombreEmpresa,
         mes,
-        diasMes,
         year,
         month,
+        diasMes,
         trabajadores
       });
-
-      const ws = XLSX.utils.aoa_to_sheet(aoa);
-      ws['!merges'] = construirMerges(diasMes, aoa.length);
-      ws['!cols'] = construirAnchos(diasMes);
-      ws['!freeze'] = { xSplit: 9, ySplit: 8 };
-      aplicarFormatosBasicos(ws, diasMes, aoa.length);
-
-      XLSX.utils.book_append_sheet(wb, ws, nombreHojaSeguro(nombreEmpresa));
     });
 
+    const buffer = await workbook.xlsx.writeBuffer();
     const nombreArchivo = `control_personal_${limpiarNombreArchivo(obra?.nombre || 'obra')}_${mes}.xlsx`;
-    XLSX.writeFile(wb, nombreArchivo);
+    descargarBuffer(buffer, nombreArchivo);
 
     msg.className = 'msg-export ok';
     msg.textContent = 'Excel generado.';
@@ -400,7 +394,7 @@ function agruparPorEmpresa(fichajes) {
   return grupos;
 }
 
-function construirResumenTrabajadores(fichajes, diasMes, year, month) {
+function construirResumenTrabajadores(fichajes, diasMes) {
   const mapa = new Map();
 
   fichajes.forEach(f => {
@@ -464,147 +458,252 @@ function construirResumenTrabajadores(fichajes, diasMes, year, month) {
   return trabajadores;
 }
 
-function construirHojaEmpresa({ obra, nombreEmpresa, mes, diasMes, year, month, trabajadores }) {
+function crearHojaEmpresa(workbook, { obra, nombreEmpresa, mes, year, month, diasMes, trabajadores }) {
+  const sheetName = nombreHojaSeguro(nombreEmpresa);
+  const ws = workbook.addWorksheet(sheetName, {
+    pageSetup: {
+      paperSize: 9,
+      orientation: 'landscape',
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 }
+    }
+  });
+
   const totalCols = 9 + diasMes + 3;
-  const lastColIndex = totalCols - 1;
+  const colHoras = 10 + diasMes;
+  const colPrecio = 11 + diasMes;
+  const colTotal = 12 + diasMes;
 
-  const rows = [];
+  ws.columns = construirColumnas(diasMes);
 
-  rows.push(['CONTROL DE PERSONAL DE OBRA']);
-  rows.push([]);
-  rows.push(['Nº OBRA', '', 'DENOMINACIÓN', obra?.nombre || '', 'EMPRESA', nombreEmpresa, 'MES', nombreMes(mes)]);
-  rows.push([]);
+  ws.mergeCells(1, 1, 1, totalCols);
+  const title = ws.getCell(1, 1);
+  title.value = 'CONTROL DE PERSONAL DE OBRA';
+  title.font = { bold: true, size: 16 };
+  title.alignment = { horizontal: 'center', vertical: 'middle' };
+  title.fill = fill('D9EAD3');
+  title.border = borderMedium();
 
-  const filaDiasSemana = ['NOMBRE', 'DNI', 'CATEGORÍA', 'FORM.', 'EPIS', 'USO MAQ.', 'FIRMA (*)', 'TC2 MES ANT.', 'ALTA S.S. MES ACTUAL'];
-  for (let d = 1; d <= diasMes; d++) filaDiasSemana.push(letraDiaSemana(year, month, d));
-  filaDiasSemana.push('HORAS MES', 'PRECIO HORA', '€');
-  rows.push(filaDiasSemana);
+  ws.getRow(1).height = 26;
 
-  const filaDiasNumero = ['', '', '', '', '', '', '', '', ''];
-  for (let d = 1; d <= diasMes; d++) filaDiasNumero.push(d);
-  filaDiasNumero.push('', '', '');
-  rows.push(filaDiasNumero);
+  ws.getCell(3, 1).value = 'Nº OBRA';
+  ws.getCell(3, 2).value = '';
+  ws.getCell(3, 3).value = 'DENOMINACIÓN';
+  ws.mergeCells(3, 4, 3, 6);
+  ws.getCell(3, 4).value = obra?.nombre || '';
+  ws.getCell(3, 7).value = 'EMPRESA';
+  ws.mergeCells(3, 8, 3, 11);
+  ws.getCell(3, 8).value = nombreEmpresa;
+  ws.getCell(3, 12).value = 'MES';
+  ws.mergeCells(3, 13, 3, Math.min(totalCols, 16));
+  ws.getCell(3, 13).value = nombreMes(mes);
+
+  for (let c = 1; c <= totalCols; c++) {
+    const cell = ws.getCell(3, c);
+    cell.border = borderThin();
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    if ([1,3,7,12].includes(c)) {
+      cell.font = { bold: true };
+      cell.fill = fill('E2F0D9');
+    }
+  }
+
+  const header1 = ws.getRow(5);
+  const fixedHeaders = ['NOMBRE', 'DNI', 'CATEGORÍA', 'FORM.', 'EPIS', 'USO MAQ.', 'FIRMA (*)', 'TC2 MES ANT.', 'ALTA S.S. MES ACTUAL'];
+
+  fixedHeaders.forEach((h, i) => {
+    header1.getCell(i + 1).value = h;
+  });
+
+  for (let d = 1; d <= diasMes; d++) {
+    header1.getCell(9 + d).value = letraDiaSemana(year, month, d);
+  }
+
+  header1.getCell(colHoras).value = 'HORAS MES';
+  header1.getCell(colPrecio).value = 'PRECIO HORA';
+  header1.getCell(colTotal).value = '€';
+
+  const header2 = ws.getRow(6);
+  for (let d = 1; d <= diasMes; d++) {
+    header2.getCell(9 + d).value = d;
+  }
+
+  [5, 6].forEach(r => {
+    const row = ws.getRow(r);
+    row.height = r === 5 ? 34 : 20;
+    for (let c = 1; c <= totalCols; c++) {
+      const cell = row.getCell(c);
+      cell.font = { bold: true, size: 9 };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      cell.fill = fill('D9EAD3');
+      cell.border = borderThin();
+    }
+  });
+
+  let rowIndex = 7;
 
   if (trabajadores.length === 0) {
-    const vacia = ['Sin trabajadores con fichajes en este mes', '', '', '', '', '', '', '', ''];
-    for (let d = 1; d <= diasMes; d++) vacia.push('');
-    vacia.push('', '', '');
-    rows.push(vacia);
+    const row = ws.getRow(rowIndex);
+    row.getCell(1).value = 'Sin trabajadores con fichajes en este mes';
+    rowIndex++;
   } else {
     trabajadores.forEach(t => {
-      const row = [
-        t.nombre,
-        t.dni,
-        t.categoria || '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        ''
-      ];
+      const row = ws.getRow(rowIndex);
+      row.height = 24;
+
+      row.getCell(1).value = t.nombre;
+      row.getCell(2).value = t.dni;
+      row.getCell(3).value = t.categoria || '';
+      row.getCell(4).value = '';
+      row.getCell(5).value = '';
+      row.getCell(6).value = '';
+      row.getCell(7).value = '';
+      row.getCell(8).value = '';
+      row.getCell(9).value = '';
 
       for (let d = 1; d <= diasMes; d++) {
-        row.push(t.dias[d] ? t.dias[d] : '');
+        const v = t.dias[d] || '';
+        row.getCell(9 + d).value = v;
+        row.getCell(9 + d).numFmt = '0.00';
       }
 
-      row.push(t.horas_mes || '');
-      row.push(t.precio_hora ?? '');
-      row.push(t.total || '');
-      rows.push(row);
+      row.getCell(colHoras).value = t.horas_mes || '';
+      row.getCell(colHoras).numFmt = '0.00';
+
+      row.getCell(colPrecio).value = t.precio_hora !== null && t.precio_hora !== undefined ? Number(t.precio_hora) : '';
+      row.getCell(colPrecio).numFmt = '#,##0.00 €';
+
+      row.getCell(colTotal).value = t.total || '';
+      row.getCell(colTotal).numFmt = '#,##0.00 €';
+
+      for (let c = 1; c <= totalCols; c++) {
+        const cell = row.getCell(c);
+        cell.border = borderThin();
+        cell.alignment = { horizontal: c <= 3 ? 'left' : 'center', vertical: 'middle', wrapText: true };
+        if (c === colHoras || c === colPrecio || c === colTotal) {
+          cell.fill = fill('FFF2CC');
+          cell.font = { bold: true };
+        }
+      }
+
+      rowIndex++;
     });
   }
 
-  rows.push([]);
-  rows.push([textoLegal()]);
-  rows.push([]);
-  rows.push(['CONFORME ENCARGADO', '', '', '', '', '', '', '', '', 'EMPRESA SUBCONTRATISTA']);
-  rows.push([]);
-  rows.push([]);
-  rows.push(['Fdo.:', '', '', '', '', '', '', '', '', 'Fdo.:']);
-  rows.push([]);
-  rows.push(['(*) La firma del trabajador acredita su presencia en obra durante la jornada indicada.']);
+  rowIndex += 1;
 
-  return rows;
+  ws.mergeCells(rowIndex, 1, rowIndex + 2, totalCols);
+  const legal = ws.getCell(rowIndex, 1);
+  legal.value = textoLegal();
+  legal.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+  legal.font = { size: 9 };
+  legal.border = borderThin();
+  rowIndex += 4;
+
+  ws.mergeCells(rowIndex, 1, rowIndex, 6);
+  ws.mergeCells(rowIndex, 8, rowIndex, 14);
+  ws.getCell(rowIndex, 1).value = 'CONFORME ENCARGADO';
+  ws.getCell(rowIndex, 8).value = 'EMPRESA SUBCONTRATISTA';
+
+  [ws.getCell(rowIndex, 1), ws.getCell(rowIndex, 8)].forEach(cell => {
+    cell.font = { bold: true };
+    cell.alignment = { horizontal: 'center' };
+    cell.fill = fill('D9EAD3');
+    cell.border = borderThin();
+  });
+
+  rowIndex += 4;
+
+  ws.mergeCells(rowIndex, 1, rowIndex, 6);
+  ws.mergeCells(rowIndex, 8, rowIndex, 14);
+  ws.getCell(rowIndex, 1).value = 'Fdo.:';
+  ws.getCell(rowIndex, 8).value = 'Fdo.:';
+
+  [ws.getCell(rowIndex, 1), ws.getCell(rowIndex, 8)].forEach(cell => {
+    cell.border = {
+      top: { style: 'thin', color: { argb: '000000' } }
+    };
+  });
+
+  rowIndex += 2;
+  ws.mergeCells(rowIndex, 1, rowIndex, totalCols);
+  ws.getCell(rowIndex, 1).value = '(*) La firma del trabajador acredita su presencia en obra durante la jornada indicada.';
+  ws.getCell(rowIndex, 1).font = { size: 8, italic: true };
+  ws.getCell(rowIndex, 1).alignment = { wrapText: true };
+
+  ws.views = [{ state: 'frozen', xSplit: 9, ySplit: 6 }];
+
+  for (let r = 1; r <= rowIndex; r++) {
+    ws.getRow(r).commit();
+  }
 }
 
-function construirMerges(diasMes, totalRows) {
-  const totalCols = 9 + diasMes + 3;
-  const last = totalCols - 1;
-  const merges = [];
-
-  merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: last } });
-  merges.push({ s: { r: 2, c: 3 }, e: { r: 2, c: 4 } });
-  merges.push({ s: { r: 2, c: 5 }, e: { r: 2, c: 6 } });
-
-  const legalRow = 6 + Math.max(1, totalRows - 12);
-  return merges;
-}
-
-function construirAnchos(diasMes) {
+function construirColumnas(diasMes) {
   const cols = [
-    { wch: 28 },
-    { wch: 13 },
-    { wch: 14 },
-    { wch: 7 },
-    { wch: 7 },
-    { wch: 9 },
-    { wch: 13 },
-    { wch: 12 },
-    { wch: 16 }
+    { width: 30 },
+    { width: 13 },
+    { width: 14 },
+    { width: 7 },
+    { width: 7 },
+    { width: 9 },
+    { width: 13 },
+    { width: 12 },
+    { width: 16 }
   ];
 
-  for (let d = 1; d <= diasMes; d++) cols.push({ wch: 4 });
+  for (let d = 1; d <= diasMes; d++) cols.push({ width: 4 });
 
-  cols.push({ wch: 11 });
-  cols.push({ wch: 11 });
-  cols.push({ wch: 11 });
+  cols.push({ width: 11 });
+  cols.push({ width: 12 });
+  cols.push({ width: 11 });
 
   return cols;
 }
 
-function aplicarFormatosBasicos(ws, diasMes, totalRows) {
-  const range = XLSX.utils.decode_range(ws['!ref']);
-  for (let R = range.s.r; R <= range.e.r; ++R) {
-    for (let C = range.s.c; C <= range.e.c; ++C) {
-      const addr = XLSX.utils.encode_cell({ r: R, c: C });
-      if (!ws[addr]) continue;
-      ws[addr].s = ws[addr].s || {};
-    }
-  }
-
-  for (let d = 1; d <= diasMes; d++) {
-    const col = 8 + d;
-    const addrSemana = XLSX.utils.encode_cell({ r: 4, c: col });
-    const addrNumero = XLSX.utils.encode_cell({ r: 5, c: col });
-    if (ws[addrSemana]) ws[addrSemana].t = 's';
-    if (ws[addrNumero]) ws[addrNumero].t = 'n';
-  }
-
-  const firstDataRow = 6;
-  const lastDataRow = totalRows - 8;
-  const horasCol = 9 + diasMes;
-  const precioCol = 10 + diasMes;
-  const totalCol = 11 + diasMes;
-
-  for (let r = firstDataRow; r <= lastDataRow; r++) {
-    const horasAddr = XLSX.utils.encode_cell({ r, c: horasCol });
-    const precioAddr = XLSX.utils.encode_cell({ r, c: precioCol });
-    const totalAddr = XLSX.utils.encode_cell({ r, c: totalCol });
-
-    if (ws[horasAddr]) ws[horasAddr].z = '0.00';
-    if (ws[precioAddr]) ws[precioAddr].z = '0.00 €';
-    if (ws[totalAddr]) ws[totalAddr].z = '0.00 €';
-
-    for (let d = 1; d <= diasMes; d++) {
-      const addr = XLSX.utils.encode_cell({ r, c: 8 + d });
-      if (ws[addr]) ws[addr].z = '0.00';
-    }
-  }
-}
-
 function textoLegal() {
   return 'El trabajador firmante declara haber recibido la información/formación preventiva necesaria, disponer de los EPIs requeridos y encontrarse autorizado para el acceso a obra conforme a la documentación aportada por su empresa.';
+}
+
+function fill(color) {
+  return {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: color }
+  };
+}
+
+function borderThin() {
+  return {
+    top: { style: 'thin', color: { argb: '000000' } },
+    left: { style: 'thin', color: { argb: '000000' } },
+    bottom: { style: 'thin', color: { argb: '000000' } },
+    right: { style: 'thin', color: { argb: '000000' } }
+  };
+}
+
+function borderMedium() {
+  return {
+    top: { style: 'medium', color: { argb: '000000' } },
+    left: { style: 'medium', color: { argb: '000000' } },
+    bottom: { style: 'medium', color: { argb: '000000' } },
+    right: { style: 'medium', color: { argb: '000000' } }
+  };
+}
+
+function descargarBuffer(buffer, filename) {
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
+
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+
+  setTimeout(() => window.URL.revokeObjectURL(url), 1000);
 }
 
 function nombreCompleto(t) {
