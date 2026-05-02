@@ -482,11 +482,11 @@
 
     const { data, error } = await sb
       .from('incidencias')
-      .select('id, descripcion, creado_en, trabajador_id, trabajadores(nombre, apellidos)')
+      .select('id, detalle, created_at, trabajador_id, trabajadores(nombre, apellidos)')
       .eq('obra_id', obraActualId)
       .eq('tipo', 'autocierre')
       .eq('estado', 'nueva')
-      .order('creado_en', { ascending: false });
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error cargando avisos:', error);
@@ -511,8 +511,8 @@
       const nombre = t
         ? `${t.nombre || ''} ${t.apellidos || ''}`.trim() || 'Trabajador desconocido'
         : 'Trabajador desconocido';
-      const fecha = formatFecha(inc.creado_en);
-      const desc = inc.descripcion || 'Cierre automático de jornada';
+      const fecha = formatFecha(inc.created_at);
+      const desc = inc.detalle || 'Cierre automático de jornada';
 
       html += `
         <div class="aviso-item" data-id="${inc.id}">
