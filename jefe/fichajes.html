@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fichajes — Jefe de Obra</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="../js/branding.js"></script>
+<script src="../js/excel-proforma.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -44,6 +46,20 @@
   .btn-manual:hover { opacity: 0.9; }
   .btn-naranja { background: var(--naranja); color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
   .btn-naranja:hover { opacity: 0.9; }
+
+  /* === Bloque de exportación mensual (segunda barra) === */
+  .bloque-export { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 14px 20px; margin-bottom: 16px; }
+  .bloque-export-titulo { font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; }
+  .bloque-export-fila { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .bloque-export-fila input[type="month"] { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 14px; font-family: inherit; width: 160px; color-scheme: dark; }
+  .bloque-export-fila input[type="month"]:focus { outline: none; border-color: var(--color-acento); }
+  .btn-exportar { background: var(--verde); color: white; border: none; padding: 9px 15px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .btn-exportar:hover { opacity: 0.9; }
+  .btn-exportar:disabled { opacity: 0.5; cursor: not-allowed; }
+  .msg-export { font-size: 12px; color: var(--texto2); }
+  .msg-export.err { color: var(--rojo); }
+  .msg-export.ok { color: var(--verde); }
+
   .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
   .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; }
   .seccion-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -111,6 +127,15 @@
       <button class="btn-secundario" id="btn-hoy">Hoy</button>
       <button class="btn-secundario" id="btn-buscar">Buscar</button>
       <button class="btn-manual" id="btn-manual">+ Fichar por trabajador</button>
+    </div>
+
+    <div class="bloque-export">
+      <div class="bloque-export-titulo">Exportación mensual</div>
+      <div class="bloque-export-fila">
+        <input type="month" id="filtro-mes">
+        <button class="btn-exportar" id="btn-exportar">Exportar Excel</button>
+        <span class="msg-export" id="msg-export"></span>
+      </div>
     </div>
 
     <div class="seccion">
@@ -239,6 +264,7 @@ let miUsuarioAppId = null;
   obraActual = misObras[0].obra.id;
   aplicarBrandingObra(misObras[0].obra.empresa_marca);
   document.getElementById('filtro-fecha').value = fechaHoy();
+  document.getElementById('filtro-mes').value = mesActual();
   await cargarTrabajadoresObra();
   await buscar();
 
@@ -246,6 +272,10 @@ let miUsuarioAppId = null;
     obraActual = selector.value;
     const marca = selector.options[selector.selectedIndex].dataset.marca;
     aplicarBrandingObra(marca);
+    // Limpiar mensaje de export al cambiar de obra
+    const msg = document.getElementById('msg-export');
+    msg.className = 'msg-export';
+    msg.textContent = '';
     await cargarTrabajadoresObra();
     await buscar();
   });
@@ -271,6 +301,7 @@ document.getElementById('btn-hoy').addEventListener('click', () => {
 });
 
 document.getElementById('btn-buscar').addEventListener('click', buscar);
+document.getElementById('btn-exportar').addEventListener('click', exportarExcelMensual);
 
 async function buscar() {
   document.getElementById('tabla-fichajes').innerHTML = '<div class="cargando">Cargando…</div>';
@@ -527,6 +558,185 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     await buscar();
   }, 1200);
 });
+
+// =====================================================================
+// EXPORTACIÓN EXCEL MENSUAL
+// =====================================================================
+// El generador del Excel vive en js/excel-proforma.js (window.ExcelProforma).
+// Aquí solo:
+//   1) validamos formulario,
+//   2) consultamos los datos a Supabase con permisos de jefe (RLS aplica),
+//   3) llamamos al módulo,
+//   4) descargamos el archivo.
+// =====================================================================
+
+async function exportarExcelMensual() {
+  const msg = document.getElementById('msg-export');
+  const btn = document.getElementById('btn-exportar');
+
+  msg.className = 'msg-export';
+  msg.textContent = '';
+
+  const obraId = obraActual;
+  const mes = document.getElementById('filtro-mes').value;
+
+  if (!obraId) {
+    msg.className = 'msg-export err';
+    msg.textContent = 'No hay obra seleccionada.';
+    return;
+  }
+
+  if (!mes) {
+    msg.className = 'msg-export err';
+    msg.textContent = 'Selecciona un mes.';
+    return;
+  }
+
+  if (!window.ExcelJS) {
+    msg.className = 'msg-export err';
+    msg.textContent = 'No se ha cargado ExcelJS. Recarga la página.';
+    return;
+  }
+
+  if (!window.ExcelProforma) {
+    msg.className = 'msg-export err';
+    msg.textContent = 'No se ha cargado js/excel-proforma.js. Recarga la página.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Exportando…';
+  msg.textContent = 'Preparando Excel…';
+
+  try {
+    const obra = await obtenerObra(obraId);
+    const fichajes = await obtenerFichajesMes(obraId, mes);
+
+    if (!fichajes || fichajes.length === 0) {
+      msg.className = 'msg-export err';
+      msg.textContent = 'No hay fichajes en ese mes para esa obra.';
+      btn.disabled = false;
+      btn.textContent = 'Exportar Excel';
+      return;
+    }
+
+    const buffer = await window.ExcelProforma.generar({ obra, mes, fichajes });
+    const nombreArchivo = `control_personal_${limpiarNombreArchivo(obra?.nombre || 'obra')}_${mes}.xlsx`;
+    descargarBuffer(buffer, nombreArchivo);
+
+    msg.className = 'msg-export ok';
+    msg.textContent = 'Excel generado.';
+  } catch (err) {
+    console.error(err);
+    msg.className = 'msg-export err';
+    msg.textContent = 'Error al exportar: ' + (err.message || err);
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Exportar Excel';
+}
+
+async function obtenerObra(obraId) {
+  const { data, error } = await sb
+    .from('obras')
+    .select('id, nombre, numero_obra')
+    .eq('id', obraId)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function obtenerFichajesMes(obraId, mes) {
+  // I1: rango del mes en hora local española (Europe/Madrid).
+  // El primer día del mes a las 00:00 local y el primer día del mes siguiente a las 00:00 local,
+  // luego se convierten a UTC ISO para enviar a Supabase.
+  const [year, month] = mes.split('-').map(Number);
+  const desde = new Date(year, month - 1, 1, 0, 0, 0, 0);
+  const hasta = new Date(year, month, 1, 0, 0, 0, 0);
+  const inicio = desde.toISOString();
+  const fin = hasta.toISOString();
+
+  // Intento 1: con join a empresa
+  let { data, error } = await sb
+    .from('fichajes')
+    .select(`
+      id,
+      tipo,
+      hora,
+      trabajador_id,
+      trabajador:trabajador_id(
+        id,
+        nombre,
+        apellidos,
+        dni,
+        categoria,
+        precio_hora_personalizado,
+        empresa:empresa_id(nombre)
+      )
+    `)
+    .eq('obra_id', obraId)
+    .gte('hora', inicio)
+    .lt('hora', fin)
+    .order('hora', { ascending: true });
+
+  if (!error) return data || [];
+
+  // Fallback: sin empresa (por si el FK no existe en algún entorno)
+  const fallback = await sb
+    .from('fichajes')
+    .select(`
+      id,
+      tipo,
+      hora,
+      trabajador_id,
+      trabajador:trabajador_id(
+        id,
+        nombre,
+        apellidos,
+        dni,
+        categoria,
+        precio_hora_personalizado
+      )
+    `)
+    .eq('obra_id', obraId)
+    .gte('hora', inicio)
+    .lt('hora', fin)
+    .order('hora', { ascending: true });
+
+  if (fallback.error) throw fallback.error;
+  return fallback.data || [];
+}
+
+// =====================================================================
+// Helpers locales
+// =====================================================================
+
+function descargarBuffer(buffer, filename) {
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+}
+
+function limpiarNombreArchivo(txt) {
+  return String(txt || 'archivo')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function mesActual() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
 
 function mostrarError(msg) {
   const el = document.getElementById('error-correccion');
