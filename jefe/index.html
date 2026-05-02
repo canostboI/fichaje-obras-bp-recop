@@ -62,6 +62,20 @@
   .vacio { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
 
+  /* Panel avisos autocierre */
+  .panel-avisos { background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.4); border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; }
+  .panel-avisos.oculto { display: none; }
+  .panel-avisos h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--naranja); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .aviso-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-top: 1px solid rgba(255,152,0,0.2); gap: 12px; }
+  .aviso-item:first-of-type { border-top: none; padding-top: 0; }
+  .aviso-item:last-of-type { padding-bottom: 0; }
+  .aviso-info { font-size: 14px; line-height: 1.5; }
+  .aviso-info strong { color: var(--texto); }
+  .aviso-info .detalle { color: var(--texto2); font-size: 13px; }
+  .btn-visto { background: var(--bg2); border: 1px solid var(--borde); color: var(--texto); font-size: 13px; padding: 7px 14px; border-radius: 8px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+  .btn-visto:hover { background: var(--bg3); }
+  .btn-visto:disabled { opacity: 0.5; cursor: default; }
+
   /* Modal QR */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
   .modal-overlay.visible { display: flex; }
@@ -110,6 +124,13 @@
       <div class="stat"><div class="numero rojo" id="stat-rojo">—</div><div class="etiqueta">Documentación roja</div></div>
     </div>
     <div style="height:20px"></div>
+
+    <!-- Panel de avisos de autocierre -->
+    <div class="panel-avisos oculto" id="panel-avisos">
+      <h3>⚠️ <span id="avisos-titulo">Jornadas cerradas automáticamente</span></h3>
+      <div id="avisos-lista"></div>
+    </div>
+
     <div class="seccion">
       <div class="seccion-cab">
         <h2>Trabajadores en obra ahora</h2>
@@ -180,12 +201,14 @@ let brandingActual = null;
   obraActual = misObras[0].obra.id;
   aplicarBrandingObra(misObras[0].obra.empresa_marca);
   await cargarPresencia();
+  await cargarAvisosAutocierre();
 
   selector.addEventListener('change', async () => {
     obraActual = selector.value;
     const marca = selector.options[selector.selectedIndex].dataset.marca;
     aplicarBrandingObra(marca);
     await cargarPresencia();
+    await cargarAvisosAutocierre();
   });
 })();
 
@@ -285,6 +308,77 @@ async function cargarPresencia() {
     </table>`;
 }
 
+// ── Avisos de autocierre ──────────────────────────────────────────────────────
+async function cargarAvisosAutocierre() {
+  const panel = document.getElementById('panel-avisos');
+  const lista = document.getElementById('avisos-lista');
+  const titulo = document.getElementById('avisos-titulo');
+
+  panel.classList.add('oculto');
+  lista.innerHTML = '';
+
+  if (!obraActual) return;
+
+  const { data: incidencias, error } = await sb
+    .from('incidencias')
+    .select('id, detalle, created_at, trabajador:trabajador_id(id, nombre, apellidos, dni)')
+    .eq('obra_id', obraActual)
+    .eq('tipo', 'autocierre')
+    .eq('estado', 'nueva')
+    .order('created_at', { ascending: false });
+
+  if (error || !incidencias || incidencias.length === 0) return;
+
+  titulo.textContent = incidencias.length === 1
+    ? '1 jornada cerrada automáticamente sin atender'
+    : `${incidencias.length} jornadas cerradas automáticamente sin atender`;
+
+  lista.innerHTML = incidencias.map(inc => {
+    const t = inc.trabajador || {};
+    const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || '(sin nombre)';
+    const fecha = formatFecha(inc.created_at);
+    return `
+      <div class="aviso-item" data-id="${inc.id}">
+        <div class="aviso-info">
+          <strong>${esc(nombre)}</strong>
+          <div class="detalle">${esc(fecha)} — ${esc(inc.detalle || 'Cierre automático')}</div>
+        </div>
+        <button class="btn-visto" onclick="marcarVisto('${inc.id}', this)">✓ Visto</button>
+      </div>`;
+  }).join('');
+
+  panel.classList.remove('oculto');
+}
+
+async function marcarVisto(incidenciaId, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Marcando…';
+
+  const { data, error } = await sb.rpc('marcar_incidencia_vista', {
+    p_incidencia_id: incidenciaId
+  });
+
+  if (error || !data?.success) {
+    btn.disabled = false;
+    btn.textContent = '✓ Visto';
+    alert('Error: ' + (error?.message || data?.error || 'No se pudo marcar como vista'));
+    return;
+  }
+
+  // Quitar el item del DOM y ocultar panel si era el último
+  const item = document.querySelector(`.aviso-item[data-id="${incidenciaId}"]`);
+  if (item) item.remove();
+
+  const restantes = document.querySelectorAll('.aviso-item').length;
+  if (restantes === 0) {
+    document.getElementById('panel-avisos').classList.add('oculto');
+  } else {
+    document.getElementById('avisos-titulo').textContent = restantes === 1
+      ? '1 jornada cerrada automáticamente sin atender'
+      : `${restantes} jornadas cerradas automáticamente sin atender`;
+  }
+}
+
 // ── QR ────────────────────────────────────────────────────────────────────────
 function abrirQR(obraId, obraNombre) {
   const url = `https://canostboi.github.io/fichaje-obras-bp-recop/fichaje/?obra=${obraId}`;
@@ -350,6 +444,12 @@ function esc(txt) {
 function formatHora(iso) {
   if (!iso) return '—';
   return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatFecha(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 </script>
 </body>
