@@ -324,7 +324,7 @@ async function exportarExcelMensual() {
 async function obtenerObra(obraId) {
   const { data, error } = await sb
     .from('obras')
-    .select('id, nombre')
+    .select('id, nombre, numero_obra')
     .eq('id', obraId)
     .single();
 
@@ -500,7 +500,7 @@ function crearHojaEmpresa(workbook, { obra, nombreEmpresa, mes, year, month, dia
   ws.getRow(1).height = 26;
 
   ws.getCell(3, 1).value = 'Nº OBRA';
-  ws.getCell(3, 2).value = '';
+  ws.getCell(3, 2).value = obra?.numero_obra || '';
   ws.getCell(3, 3).value = 'DENOMINACIÓN';
   ws.mergeCells(3, 4, 3, 6);
   ws.getCell(3, 4).value = obra?.nombre || '';
