@@ -44,6 +44,7 @@
   .pill.gris { background: rgba(139,144,158,0.15); color: var(--texto2); }
   .pill.azul { background: rgba(33,150,243,0.15); color: var(--azul); }
   .pill.naranja { background: rgba(255,152,0,0.15); color: var(--naranja); }
+  .num-obra { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: var(--texto2); }
   .acciones { display: flex; gap: 8px; flex-wrap: wrap; }
   .vacio { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); }
@@ -111,6 +112,11 @@
   <div class="modal">
     <h2 id="modal-titulo">Nueva obra</h2>
     <div class="error-modal" id="error-modal"></div>
+
+    <div class="campo">
+      <label>Nº de obra</label>
+      <input type="text" id="f-numero" placeholder="Ej: 32510" autocomplete="off">
+    </div>
 
     <div class="campo">
       <label>Nombre de la obra</label>
@@ -255,7 +261,7 @@ document.getElementById('btn-salir').onclick = async () => {
 async function cargarObras() {
   const { data, error } = await sb
     .from('obras')
-    .select('id, nombre, direccion, latitud, longitud, empresa_marca, radio_gps, hora_entrada_default, hora_salida_default, activa')
+    .select('id, numero_obra, nombre, direccion, latitud, longitud, empresa_marca, radio_gps, hora_entrada_default, hora_salida_default, activa')
     .order('nombre');
 
   if (error) {
@@ -274,6 +280,7 @@ async function cargarObras() {
     <table>
       <thead>
         <tr>
+          <th>Nº</th>
           <th>Nombre</th>
           <th>Dirección</th>
           <th>Empresa</th>
@@ -286,6 +293,7 @@ async function cargarObras() {
       <tbody>
         ${todasObras.map(o => `
           <tr>
+            <td><span class="num-obra">${esc(o.numero_obra || '—')}</span></td>
             <td><strong>${esc(o.nombre)}</strong></td>
             <td>${esc(o.direccion || '—')}</td>
             <td>${esc(o.empresa_marca || '—')}</td>
@@ -318,6 +326,7 @@ async function cargarUsuarios() {
 document.getElementById('btn-nueva').onclick = () => {
   obraEditandoId = null;
   document.getElementById('modal-titulo').textContent = 'Nueva obra';
+  document.getElementById('f-numero').value = '';
   document.getElementById('f-nombre').value = '';
   document.getElementById('f-direccion').value = '';
   document.getElementById('f-latitud').value = '';
@@ -340,6 +349,7 @@ function abrirEditarPorId(id) {
 
   obraEditandoId = o.id;
   document.getElementById('modal-titulo').textContent = 'Editar obra';
+  document.getElementById('f-numero').value = o.numero_obra || '';
   document.getElementById('f-nombre').value = o.nombre || '';
   document.getElementById('f-direccion').value = o.direccion || '';
   document.getElementById('f-latitud').value = o.latitud || '';
@@ -358,6 +368,7 @@ document.getElementById('btn-cancelar').onclick = () => {
 };
 
 document.getElementById('btn-guardar').onclick = async () => {
+  const numeroRaw = document.getElementById('f-numero').value.trim();
   const nombre = document.getElementById('f-nombre').value.trim();
   const direccion = document.getElementById('f-direccion').value.trim();
   const latitudRaw = document.getElementById('f-latitud').value;
@@ -378,6 +389,7 @@ document.getElementById('btn-guardar').onclick = async () => {
   if (!entradaRaw || !salidaRaw) { mostrarError('El horario es obligatorio.'); return; }
 
   const payload = {
+    numero_obra: numeroRaw === '' ? null : numeroRaw,
     nombre,
     direccion,
     latitud: Number(latitud.toFixed(4)),
