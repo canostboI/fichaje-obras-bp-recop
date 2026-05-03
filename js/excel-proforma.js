@@ -37,6 +37,11 @@
 (function () {
   'use strict';
 
+  // FIX 2026-05-03:
+  // Se mantiene el branding por colores, pero se desactiva la inserción de logos.
+  // El intento de convertir SVG a PNG e insertarlo en el XLSX puede generar archivos
+  // que Microsoft Excel no abre correctamente en algunos entornos.
+
   // ===== Estilo Excel: base neutra + branding sutil por marca de obra =====
   const FUENTE_EXCEL  = 'Arial';
   const COLOR_OSCURO  = '404040';   // título y cabeceras
@@ -280,8 +285,8 @@
     }
     ws.getRow(2).height = 5;
 
-    // Logo corporativo, si el navegador permite cargarlo y convertirlo para Excel.
-    await insertarLogoSiDisponible(workbook, ws, marca);
+    // Logo corporativo desactivado temporalmente: la inserción de imágenes desde SVG
+    // puede corromper el XLSX en algunos navegadores/ExcelJS. Mantenemos colores de marca.
 
     // ===== Fila 3: INFO CABECERA =====
     pintarLabel(ws.getCell(3, 1), 'Nº OBRA');
