@@ -47,7 +47,6 @@
   .msg-export { font-size: 12px; color: var(--texto2); }
   .msg-export.err { color: var(--rojo); }
   .msg-export.ok { color: var(--verde); }
-  .msg-export.aviso { color: var(--naranja); }
   .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
   .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; }
   .seccion-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -249,9 +248,8 @@ async function buscar() {
 // Aquí solo:
 //   1) validamos formulario,
 //   2) consultamos los datos a Supabase con permisos de admin,
-//   3) llamamos al módulo (que devuelve { buffer, autocierres }),
-//   4) si hay autocierres avisamos al usuario y le dejamos cancelar,
-//   5) descargamos el archivo.
+//   3) llamamos al módulo,
+//   4) descargamos el archivo.
 // =====================================================================
 
 async function exportarExcelMensual() {
@@ -304,38 +302,12 @@ async function exportarExcelMensual() {
       return;
     }
 
-    // El módulo devuelve { buffer, autocierres }. autocierres es el número
-    // total de salidas con cierre_automatico = true en el mes.
-    const { buffer, autocierres } = await window.ExcelProforma.generar({ obra, mes, fichajes });
-
-    // Aviso previo: si hay autocierres, preguntar antes de descargar.
-    if (autocierres > 0) {
-      const seguir = window.confirm(
-        `Atención: se han detectado ${autocierres} ${autocierres === 1 ? 'salida' : 'salidas'} con cierre automático en este mes.\n\n` +
-        'Conviene revisarlas con el encargado o el trabajador antes de enviar el Excel a la propiedad. ' +
-        'En el archivo, esos días aparecen marcados en naranja claro con un comentario.\n\n' +
-        '¿Quieres exportar igualmente?'
-      );
-
-      if (!seguir) {
-        msg.className = 'msg-export aviso';
-        msg.textContent = 'Exportación cancelada.';
-        btn.disabled = false;
-        btn.textContent = 'Exportar Excel';
-        return;
-      }
-    }
-
+    const buffer = await window.ExcelProforma.generar({ obra, mes, fichajes });
     const nombreArchivo = `control_personal_${limpiarNombreArchivo(obra?.nombre || 'obra')}_${mes}.xlsx`;
     descargarBuffer(buffer, nombreArchivo);
 
-    if (autocierres > 0) {
-      msg.className = 'msg-export aviso';
-      msg.textContent = `Excel generado con ${autocierres} ${autocierres === 1 ? 'salida marcada' : 'salidas marcadas'} en naranja para revisar.`;
-    } else {
-      msg.className = 'msg-export ok';
-      msg.textContent = 'Excel generado.';
-    }
+    msg.className = 'msg-export ok';
+    msg.textContent = 'Excel generado.';
   } catch (err) {
     console.error(err);
     msg.className = 'msg-export err';
@@ -349,7 +321,7 @@ async function exportarExcelMensual() {
 async function obtenerObra(obraId) {
   const { data, error } = await sb
     .from('obras')
-    .select('id, nombre, numero_obra')
+    .select('id, nombre, numero_obra, empresa_marca')
     .eq('id', obraId)
     .single();
 
