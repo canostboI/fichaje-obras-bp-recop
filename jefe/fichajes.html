@@ -667,7 +667,7 @@ async function exportarExcelMensual() {
 async function obtenerObra(obraId) {
   const { data, error } = await sb
     .from('obras')
-    .select('id, nombre, numero_obra')
+    .select('id, nombre, numero_obra, empresa_marca')
     .eq('id', obraId)
     .single();
 
