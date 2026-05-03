@@ -10,7 +10,7 @@
  *
  *   2) Llamar al generador:
  *        const { buffer, autocierres } = await window.ExcelProforma.generar({
- *          obra: { id, nombre, numero_obra },
+ *          obra: { id, nombre, numero_obra, empresa_marca },
  *          mes: '2026-04',           // 'YYYY-MM'
  *          fichajes: [...]           // ya filtrados (permisos, RLS, etc.)
  *        });
@@ -37,7 +37,7 @@
 (function () {
   'use strict';
 
-  // ===== Estilo Excel: paleta gris oscuro neutro (sirve para BP y Rècop) =====
+  // ===== Estilo Excel: base neutra + branding sutil por marca de obra =====
   const FUENTE_EXCEL  = 'Arial';
   const COLOR_OSCURO  = '404040';   // título y cabeceras
   const COLOR_MEDIO   = '808080';   // etiquetas info
@@ -48,6 +48,29 @@
   const COLOR_ALERTA  = 'FFE0B2';   // naranja claro: días con autocierre
   const COLOR_BLANCO  = 'FFFFFF';
   const COLOR_BORDE   = 'BFBFBF';   // bordes grises (no negros)
+
+  // Colores corporativos actuales de js/branding.js, preparados para Excel.
+  // Se usa el logo blanco porque va sobre una cabecera oscura/profesional.
+  const BRANDING_EXCEL = {
+    bosch_pascual: {
+      nombre: 'Bosch Pascual',
+      color_principal: '1A1A1A',
+      color_acento: 'C8102E',
+      logo_blanco: '../assets/logos/bosch_pascual_logo_white.svg'
+    },
+    recop: {
+      nombre: 'Rècop',
+      color_principal: '6B3410',
+      color_acento: 'C9A876',
+      logo_blanco: '../assets/logos/recop_logo_white.svg'
+    }
+  };
+
+  // Estos colores se actualizan al crear cada hoja según obra.empresa_marca.
+  // El generador se ejecuta secuencialmente, no en paralelo.
+  let COLOR_CABECERA_ACTUAL = COLOR_OSCURO;
+  let COLOR_LABEL_ACTUAL = COLOR_MEDIO;
+  let COLOR_LABEL_TEXTO_ACTUAL = COLOR_BLANCO;
 
   // ===== Función pública =====
 
@@ -64,8 +87,11 @@
 
     const grupos = agruparPorEmpresa(fichajes);
     const workbook = new window.ExcelJS.Workbook();
+    const marca = obtenerBrandingExcel(obra?.empresa_marca);
+
     workbook.creator = 'Fichaje Obras';
     workbook.created = new Date();
+    workbook.company = marca.nombre;
 
     const [year, month] = mes.split('-').map(Number);
     const diasMes = new Date(year, month, 0).getDate();
@@ -78,8 +104,9 @@
 
     if (nombresEmpresa.length === 0) {
       // Sin datos: hoja vacía pero válida
-      crearHojaEmpresa(workbook, {
+      await crearHojaEmpresa(workbook, {
         obra,
+        marca,
         nombreEmpresa: 'Sin empresa',
         mes,
         year,
@@ -88,22 +115,21 @@
         trabajadores: []
       });
     } else {
-      nombresEmpresa
-        .sort((a, b) => a.localeCompare(b, 'es'))
-        .forEach(nombreEmpresa => {
-          const trabajadores = construirResumenTrabajadores(grupos[nombreEmpresa], diasMes);
-          // Sumar autocierres de cada trabajador al contador global
-          trabajadores.forEach(t => { totalAutocierres += (t.autocierres_mes || 0); });
-          crearHojaEmpresa(workbook, {
-            obra,
-            nombreEmpresa,
-            mes,
-            year,
-            month,
-            diasMes,
-            trabajadores
-          });
+      for (const nombreEmpresa of nombresEmpresa.sort((a, b) => a.localeCompare(b, 'es'))) {
+        const trabajadores = construirResumenTrabajadores(grupos[nombreEmpresa], diasMes);
+        // Sumar autocierres de cada trabajador al contador global
+        trabajadores.forEach(t => { totalAutocierres += (t.autocierres_mes || 0); });
+        await crearHojaEmpresa(workbook, {
+          obra,
+          marca,
+          nombreEmpresa,
+          mes,
+          year,
+          month,
+          diasMes,
+          trabajadores
         });
+      }
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -211,7 +237,10 @@
 
   // ===== Construcción de la hoja =====
 
-  function crearHojaEmpresa(workbook, { obra, nombreEmpresa, mes, year, month, diasMes, trabajadores }) {
+  async function crearHojaEmpresa(workbook, { obra, marca, nombreEmpresa, mes, year, month, diasMes, trabajadores }) {
+    COLOR_CABECERA_ACTUAL = marca?.color_principal || COLOR_OSCURO;
+    COLOR_LABEL_ACTUAL = marca?.color_acento || COLOR_MEDIO;
+    COLOR_LABEL_TEXTO_ACTUAL = colorTextoLegible(COLOR_LABEL_ACTUAL);
     const sheetName = nombreHojaSeguro(nombreEmpresa);
     const ws = workbook.addWorksheet(sheetName, {
       pageSetup: {
@@ -225,47 +254,60 @@
       }
     });
 
-    const totalCols = 9 + diasMes + 3;
-    const colHoras = 10 + diasMes;
-    const colPrecio = 11 + diasMes;
-    const colTotal = 12 + diasMes;
+    // Columnas fijas visibles antes de los días del mes.
+    // Antes esta plantilla traía columnas de documentación (FORM., EPIS, USO MAQ., FIRMA, TC2, ALTA S.S.).
+    // Para este Excel de horas/fichajes no aportaban valor, así que se dejan solo las columnas útiles.
+    const fixedCols = 3; // NOMBRE, DNI, CATEGORÍA
+    const totalCols = fixedCols + diasMes + 3;
+    const colHoras = fixedCols + diasMes + 1;
+    const colPrecio = fixedCols + diasMes + 2;
+    const colTotal = fixedCols + diasMes + 3;
 
     ws.columns = construirColumnas(diasMes);
 
     // ===== Fila 1: TÍTULO =====
     ws.mergeCells(1, 1, 1, totalCols);
     const title = ws.getCell(1, 1);
-    title.value = 'CONTROL DE PERSONAL DE OBRA';
+    title.value = 'CONTROL DE HORAS DE PERSONAL EN OBRA';
     title.font = { name: FUENTE_EXCEL, bold: true, size: 16, color: { argb: COLOR_BLANCO } };
     title.alignment = { horizontal: 'center', vertical: 'middle' };
-    title.fill = fillSolid(COLOR_OSCURO);
-    ws.getRow(1).height = 32;
+    title.fill = fillSolid(COLOR_CABECERA_ACTUAL);
+    ws.getRow(1).height = 36;
+
+    // Línea fina de acento corporativo bajo la cabecera.
+    for (let c = 1; c <= totalCols; c++) {
+      ws.getCell(2, c).fill = fillSolid(COLOR_LABEL_ACTUAL);
+    }
+    ws.getRow(2).height = 5;
+
+    // Logo corporativo, si el navegador permite cargarlo y convertirlo para Excel.
+    await insertarLogoSiDisponible(workbook, ws, marca);
 
     // ===== Fila 3: INFO CABECERA =====
     pintarLabel(ws.getCell(3, 1), 'Nº OBRA');
     pintarValor(ws.getCell(3, 2), obra?.numero_obra || '');
 
     pintarLabel(ws.getCell(3, 3), 'DENOMINACIÓN');
-    ws.mergeCells(3, 4, 3, 6);
+    ws.mergeCells(3, 4, 3, 10);
     pintarValor(ws.getCell(3, 4), obra?.nombre || '');
-    for (let c = 4; c <= 6; c++) {
+    for (let c = 4; c <= 10; c++) {
       ws.getCell(3, c).border = borderThinGris();
       ws.getCell(3, c).fill = fillSolid(COLOR_BLANCO);
     }
 
-    pintarLabel(ws.getCell(3, 7), 'EMPRESA');
-    ws.mergeCells(3, 8, 3, 11);
-    pintarValor(ws.getCell(3, 8), nombreEmpresa);
-    for (let c = 8; c <= 11; c++) {
+    pintarLabel(ws.getCell(3, 11), 'EMPRESA');
+    ws.mergeCells(3, 12, 3, 18);
+    pintarValor(ws.getCell(3, 12), nombreEmpresa);
+    for (let c = 12; c <= 18; c++) {
       ws.getCell(3, c).border = borderThinGris();
       ws.getCell(3, c).fill = fillSolid(COLOR_BLANCO);
     }
 
-    pintarLabel(ws.getCell(3, 12), 'MES');
-    const mesEnd = Math.min(totalCols, 16);
-    ws.mergeCells(3, 13, 3, mesEnd);
-    pintarValor(ws.getCell(3, 13), nombreMes(mes));
-    for (let c = 13; c <= mesEnd; c++) {
+    pintarLabel(ws.getCell(3, 19), 'MES');
+    const mesEnd = totalCols;
+    ws.mergeCells(3, 20, 3, mesEnd);
+    pintarValor(ws.getCell(3, 20), nombreMes(mes));
+    for (let c = 20; c <= mesEnd; c++) {
       ws.getCell(3, c).border = borderThinGris();
       ws.getCell(3, c).fill = fillSolid(COLOR_BLANCO);
     }
@@ -273,7 +315,7 @@
     ws.getRow(3).height = 22;
 
     // ===== Filas 5-6: CABECERA TABLA =====
-    const fixedHeaders = ['NOMBRE', 'DNI', 'CATEGORÍA', 'FORM.', 'EPIS', 'USO MAQ.', 'FIRMA (*)', 'TC2 MES ANT.', 'ALTA S.S. MES ACTUAL'];
+    const fixedHeaders = ['NOMBRE', 'DNI', 'CATEGORÍA'];
     const dasFinde = new Set();
     for (let d = 1; d <= diasMes; d++) {
       if (esFindeSemana(year, month, d)) dasFinde.add(d);
@@ -286,7 +328,7 @@
     });
 
     for (let d = 1; d <= diasMes; d++) {
-      const cell = ws.getCell(5, 9 + d);
+      const cell = ws.getCell(5, fixedCols + d);
       cell.value = letraDiaSemana(year, month, d);
       pintarHeader(cell);
     }
@@ -299,19 +341,19 @@
 
     // Fila 6: número de día
     for (let d = 1; d <= diasMes; d++) {
-      const cell = ws.getCell(6, 9 + d);
+      const cell = ws.getCell(6, fixedCols + d);
       cell.value = d;
       pintarHeader(cell);
     }
     // Resto de fila 6: relleno cabecera (continuidad visual)
-    for (let c = 1; c <= 9; c++) {
+    for (let c = 1; c <= fixedCols; c++) {
       const cell = ws.getCell(6, c);
-      cell.fill = fillSolid(COLOR_OSCURO);
+      cell.fill = fillSolid(COLOR_CABECERA_ACTUAL);
       cell.border = borderThinGris();
     }
     [colHoras, colPrecio, colTotal].forEach(c => {
       const cell = ws.getCell(6, c);
-      cell.fill = fillSolid(COLOR_OSCURO);
+      cell.fill = fillSolid(COLOR_CABECERA_ACTUAL);
       cell.border = borderThinGris();
     });
     ws.getRow(6).height = 18;
@@ -345,16 +387,9 @@
           cell.border = borderThinGris();
         });
 
-        // FORM/EPIS/USO MAQ/FIRMA/TC2/ALTA SS — vacías con banding
-        for (let c = 4; c <= 9; c++) {
-          const cell = row.getCell(c);
-          cell.fill = fillSolid(bandColor);
-          cell.border = borderThinGris();
-        }
-
         // Días
         for (let d = 1; d <= diasMes; d++) {
-          const col = 9 + d;
+          const col = fixedCols + d;
           const v = t.dias[d];
           const tieneAutocierre = t.dias_autocierre[d] > 0;
           const cell = row.getCell(col);
@@ -391,8 +426,8 @@
         }
 
         // HORAS MES (fórmula)
-        const colDiaIni = letraExcel(10);
-        const colDiaFin = letraExcel(9 + diasMes);
+        const colDiaIni = letraExcel(fixedCols + 1);
+        const colDiaFin = letraExcel(fixedCols + diasMes);
         const cellHoras = row.getCell(colHoras);
         cellHoras.value = { formula: `SUM(${colDiaIni}${rowIndex}:${colDiaFin}${rowIndex})` };
         cellHoras.numFmt = '0.00;-0.00;-';
@@ -434,21 +469,21 @@
       filaTot.height = 26;
 
       // Etiqueta TOTALES
-      ws.mergeCells(rowIndex, 1, rowIndex, 9);
+      ws.mergeCells(rowIndex, 1, rowIndex, fixedCols);
       const cellLabel = ws.getCell(rowIndex, 1);
       cellLabel.value = 'TOTALES';
       cellLabel.font = { name: FUENTE_EXCEL, bold: true, size: 11, color: { argb: COLOR_BLANCO } };
-      cellLabel.fill = fillSolid(COLOR_OSCURO);
+      cellLabel.fill = fillSolid(COLOR_CABECERA_ACTUAL);
       cellLabel.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
       cellLabel.border = borderThinGris();
-      for (let c = 1; c <= 9; c++) {
+      for (let c = 1; c <= fixedCols; c++) {
         ws.getCell(rowIndex, c).border = borderThinGris();
-        ws.getCell(rowIndex, c).fill = fillSolid(COLOR_OSCURO);
+        ws.getCell(rowIndex, c).fill = fillSolid(COLOR_CABECERA_ACTUAL);
       }
 
       // Suma por día (fórmula)
       for (let d = 1; d <= diasMes; d++) {
-        const col = 9 + d;
+        const col = fixedCols + d;
         const colLetter = letraExcel(col);
         const cell = ws.getCell(rowIndex, col);
         cell.value = { formula: `SUM(${colLetter}${filaInicio}:${colLetter}${filaFin})` };
@@ -507,11 +542,11 @@
     const cabFirma1 = ws.getCell(rowIndex, 1);
     cabFirma1.value = 'CONFORME ENCARGADO';
     cabFirma1.font = { name: FUENTE_EXCEL, bold: true, size: 10, color: { argb: COLOR_BLANCO } };
-    cabFirma1.fill = fillSolid(COLOR_OSCURO);
+    cabFirma1.fill = fillSolid(COLOR_CABECERA_ACTUAL);
     cabFirma1.alignment = { horizontal: 'center', vertical: 'middle' };
     cabFirma1.border = borderThinGris();
     for (let c = 1; c <= firmaW; c++) {
-      ws.getCell(rowIndex, c).fill = fillSolid(COLOR_OSCURO);
+      ws.getCell(rowIndex, c).fill = fillSolid(COLOR_CABECERA_ACTUAL);
       ws.getCell(rowIndex, c).border = borderThinGris();
     }
 
@@ -519,11 +554,11 @@
     const cabFirma2 = ws.getCell(rowIndex, colDStart);
     cabFirma2.value = 'EMPRESA SUBCONTRATISTA';
     cabFirma2.font = { name: FUENTE_EXCEL, bold: true, size: 10, color: { argb: COLOR_BLANCO } };
-    cabFirma2.fill = fillSolid(COLOR_OSCURO);
+    cabFirma2.fill = fillSolid(COLOR_CABECERA_ACTUAL);
     cabFirma2.alignment = { horizontal: 'center', vertical: 'middle' };
     cabFirma2.border = borderThinGris();
     for (let c = colDStart; c <= totalCols; c++) {
-      ws.getCell(rowIndex, c).fill = fillSolid(COLOR_OSCURO);
+      ws.getCell(rowIndex, c).fill = fillSolid(COLOR_CABECERA_ACTUAL);
       ws.getCell(rowIndex, c).border = borderThinGris();
     }
 
@@ -564,12 +599,12 @@
     // Nota final
     ws.mergeCells(rowIndex, 1, rowIndex, totalCols);
     const nota = ws.getCell(rowIndex, 1);
-    nota.value = '(*) La firma del trabajador acredita su presencia en obra durante la jornada indicada.';
+    nota.value = 'Resumen mensual de horas registradas mediante fichajes de entrada y salida.';
     nota.font = { name: FUENTE_EXCEL, size: 8, italic: true, color: { argb: COLOR_MEDIO } };
     nota.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true, indent: 1 };
 
-    // Congelar paneles: dejar visibles las primeras 9 columnas (info trabajador) y las 6 primeras filas (cabeceras)
-    ws.views = [{ state: 'frozen', xSplit: 9, ySplit: 6 }];
+    // Congelar paneles: dejar visibles las columnas de identificación y las cabeceras.
+    ws.views = [{ state: 'frozen', xSplit: fixedCols, ySplit: 6 }];
   }
 
   // ===== Helpers de estilo =====
@@ -577,15 +612,15 @@
   function pintarHeader(cell, valor) {
     if (valor !== undefined) cell.value = valor;
     cell.font = { name: FUENTE_EXCEL, bold: true, size: 9, color: { argb: COLOR_BLANCO } };
-    cell.fill = fillSolid(COLOR_OSCURO);
+    cell.fill = fillSolid(COLOR_CABECERA_ACTUAL);
     cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     cell.border = borderThinGris();
   }
 
   function pintarLabel(cell, texto) {
     cell.value = texto;
-    cell.font = { name: FUENTE_EXCEL, bold: true, size: 10, color: { argb: COLOR_BLANCO } };
-    cell.fill = fillSolid(COLOR_MEDIO);
+    cell.font = { name: FUENTE_EXCEL, bold: true, size: 10, color: { argb: COLOR_LABEL_TEXTO_ACTUAL } };
+    cell.fill = fillSolid(COLOR_LABEL_ACTUAL);
     cell.alignment = { horizontal: 'center', vertical: 'middle' };
     cell.border = borderThinGris();
   }
@@ -632,13 +667,7 @@
     const cols = [
       { width: 30 }, // NOMBRE
       { width: 13 }, // DNI
-      { width: 14 }, // CATEGORÍA
-      { width: 6  }, // FORM.
-      { width: 6  }, // EPIS
-      { width: 8  }, // USO MAQ.
-      { width: 12 }, // FIRMA
-      { width: 11 }, // TC2 MES ANT.
-      { width: 15 }  // ALTA S.S.
+      { width: 14 }  // CATEGORÍA
     ];
 
     for (let d = 1; d <= diasMes; d++) cols.push({ width: 4 });
@@ -651,7 +680,84 @@
   }
 
   function textoLegal() {
-    return 'El trabajador firmante declara haber recibido la información/formación preventiva necesaria, disponer de los EPIs requeridos y encontrarse autorizado para el acceso a obra conforme a la documentación aportada por su empresa.';
+    return 'El presente resumen recoge las horas registradas mediante fichajes de entrada y salida en la obra indicada. Los días marcados en naranja corresponden a salidas cerradas automáticamente y deben revisarse antes de validar el resumen mensual.';
+  }
+
+  function obtenerBrandingExcel(empresaMarca) {
+    return BRANDING_EXCEL[empresaMarca] || BRANDING_EXCEL.bosch_pascual;
+  }
+
+  function colorTextoLegible(hex) {
+    const clean = String(hex || '').replace('#', '').substring(0, 6);
+    if (clean.length !== 6) return COLOR_BLANCO;
+    const r = parseInt(clean.substring(0, 2), 16);
+    const g = parseInt(clean.substring(2, 4), 16);
+    const b = parseInt(clean.substring(4, 6), 16);
+    // Fórmula simple de luminancia percibida. Si el fondo es claro, texto negro.
+    const luminancia = (0.299 * r + 0.587 * g + 0.114 * b);
+    return luminancia > 150 ? '000000' : COLOR_BLANCO;
+  }
+
+  async function insertarLogoSiDisponible(workbook, ws, marca) {
+    try {
+      if (!marca?.logo_blanco || typeof fetch !== 'function' || typeof document === 'undefined') return;
+
+      const base64 = await svgUrlToPngBase64(marca.logo_blanco, 220, 70);
+      if (!base64) return;
+
+      const imageId = workbook.addImage({
+        base64,
+        extension: 'png'
+      });
+
+      // Se coloca pequeño y discreto, arriba a la izquierda, sobre la cabecera oscura.
+      ws.addImage(imageId, {
+        tl: { col: 0.25, row: 0.12 },
+        ext: { width: 145, height: 34 },
+        editAs: 'oneCell'
+      });
+    } catch (err) {
+      // El logo es decorativo: si falla por CORS, SVG o navegador, no debe romper la exportación.
+      console.warn('[ExcelProforma] No se pudo insertar el logo corporativo:', err);
+    }
+  }
+
+  async function svgUrlToPngBase64(url, width, height) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('No se pudo cargar el logo: ' + url);
+
+    const svgText = await res.text();
+    const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+    const objectUrl = URL.createObjectURL(svgBlob);
+
+    try {
+      const img = await cargarImagen(objectUrl);
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, width, height);
+
+      const scale = Math.min(width / img.width, height / img.height);
+      const drawW = img.width * scale;
+      const drawH = img.height * scale;
+      const x = (width - drawW) / 2;
+      const y = (height - drawH) / 2;
+      ctx.drawImage(img, x, y, drawW, drawH);
+
+      return canvas.toDataURL('image/png');
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  }
+
+  function cargarImagen(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('No se pudo convertir el logo SVG a imagen.'));
+      img.src = src;
+    });
   }
 
   // ===== Helpers genéricos =====
