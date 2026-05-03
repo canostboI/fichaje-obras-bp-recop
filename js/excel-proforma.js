@@ -418,16 +418,10 @@
           cell.alignment = { horizontal: 'center', vertical: 'middle' };
           cell.border = borderThinGris();
 
-          // Comentario en la celda con el aviso (solo si hay autocierre)
-          if (tieneAutocierre) {
-            cell.note = {
-              texts: [
-                { font: { bold: true, size: 10, name: FUENTE_EXCEL }, text: 'Salida automática\n' },
-                { font: { size: 10, name: FUENTE_EXCEL }, text: 'Verificar la hora de salida con el encargado o el trabajador.' }
-              ],
-              margins: { insetmode: 'auto' }
-            };
-          }
+          // Nota: no insertamos comentarios/cell.note en las celdas.
+          // En algunas combinaciones navegador + ExcelJS + Microsoft Excel,
+          // los comentarios pueden generar un XLSX que Excel rechaza como no válido.
+          // El aviso queda igualmente marcado por el color naranja claro.
         }
 
         // HORAS MES (fórmula)
@@ -703,67 +697,7 @@
     return luminancia > 150 ? '000000' : COLOR_BLANCO;
   }
 
-  async function insertarLogoSiDisponible(workbook, ws, marca) {
-    try {
-      if (!marca?.logo_blanco || typeof fetch !== 'function' || typeof document === 'undefined') return;
-
-      const base64 = await svgUrlToPngBase64(marca.logo_blanco, 220, 70);
-      if (!base64) return;
-
-      const imageId = workbook.addImage({
-        base64,
-        extension: 'png'
-      });
-
-      // Se coloca pequeño y discreto, arriba a la izquierda, sobre la cabecera oscura.
-      ws.addImage(imageId, {
-        tl: { col: 0.25, row: 0.12 },
-        ext: { width: 145, height: 34 },
-        editAs: 'oneCell'
-      });
-    } catch (err) {
-      // El logo es decorativo: si falla por CORS, SVG o navegador, no debe romper la exportación.
-      console.warn('[ExcelProforma] No se pudo insertar el logo corporativo:', err);
-    }
-  }
-
-  async function svgUrlToPngBase64(url, width, height) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('No se pudo cargar el logo: ' + url);
-
-    const svgText = await res.text();
-    const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
-    const objectUrl = URL.createObjectURL(svgBlob);
-
-    try {
-      const img = await cargarImagen(objectUrl);
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, width, height);
-
-      const scale = Math.min(width / img.width, height / img.height);
-      const drawW = img.width * scale;
-      const drawH = img.height * scale;
-      const x = (width - drawW) / 2;
-      const y = (height - drawH) / 2;
-      ctx.drawImage(img, x, y, drawW, drawH);
-
-      return canvas.toDataURL('image/png');
-    } finally {
-      URL.revokeObjectURL(objectUrl);
-    }
-  }
-
-  function cargarImagen(src) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error('No se pudo convertir el logo SVG a imagen.'));
-      img.src = src;
-    });
-  }
+  // Logos desactivados en el XLSX para garantizar compatibilidad con Microsoft Excel.
 
   // ===== Helpers genéricos =====
 
