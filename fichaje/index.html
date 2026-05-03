@@ -115,6 +115,7 @@
     margin-top: 10px;
     font-size: 13px;
     color: #777;
+    line-height: 1.45;
   }
   .ultimo-dni button {
     background: none;
@@ -124,6 +125,38 @@
     cursor: pointer;
     font-size: 13px;
     padding: 0;
+  }
+  .ultimo-dni .btn-borrar-dni {
+    margin-left: 8px;
+    color: var(--rojo);
+  }
+
+  .recordar-dni {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 14px;
+    margin-bottom: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: #555;
+    text-transform: none;
+    letter-spacing: 0;
+    cursor: pointer;
+  }
+  .recordar-dni input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--color-principal);
+    cursor: pointer;
+  }
+  .recordar-ayuda {
+    margin-top: 6px;
+    text-align: center;
+    font-size: 12px;
+    color: #777;
+    line-height: 1.35;
   }
 
   button.principal {
@@ -351,9 +384,21 @@
   <div class="tarjeta" id="paso-dni">
     <label for="dni">DNI o NIE</label>
     <input type="text" id="dni" placeholder="00000000X" autocomplete="off" maxlength="15">
+
     <div class="ultimo-dni oculto" id="ultimo-dni-box">
-      ¿Usar <button type="button" id="btn-ultimo-dni"></button>?
+      DNI guardado en este móvil:
+      <button type="button" id="btn-ultimo-dni"></button>
+      <button type="button" id="btn-borrar-dni" class="btn-borrar-dni">Borrar</button>
     </div>
+
+    <label class="recordar-dni">
+      <input type="checkbox" id="chk-recordar-dni">
+      <span>Recordar mi DNI en este móvil</span>
+    </label>
+    <div class="recordar-ayuda">
+      Úsalo solo si este móvil es tuyo o lo usas habitualmente.
+    </div>
+
     <button type="button" class="principal" id="btn-continuar">Continuar</button>
     <div class="error-banner oculto" id="error-dni"></div>
 
@@ -434,6 +479,8 @@ const el = {
   btnContinuar:document.getElementById('btn-continuar'),
   ultimoDniBox:document.getElementById('ultimo-dni-box'),
   btnUltimoDni:document.getElementById('btn-ultimo-dni'),
+  btnBorrarDni:document.getElementById('btn-borrar-dni'),
+  chkRecordarDni:document.getElementById('chk-recordar-dni'),
   errorDni:    document.getElementById('error-dni'),
   avisoGps:    document.getElementById('aviso-gps'),
   errorResultado: document.getElementById('error-resultado'),
@@ -483,13 +530,11 @@ const el = {
     el.obraNombre.textContent = 'Obra #' + estado.obraId.substring(0, 8);
   }
 
-  // DNI recordado
+  // DNI recordado: solo aparece si anteriormente se guardó en este móvil.
   const ultimo = localStorage.getItem('ultimo_dni');
   if (ultimo && ultimo.length >= 5) {
-    const parcial = '****' + ultimo.substring(ultimo.length - 5);
-    el.btnUltimoDni.textContent = parcial;
-    el.btnUltimoDni.dataset.dni = ultimo;
-    el.ultimoDniBox.classList.remove('oculto');
+    mostrarDniRecordado(ultimo);
+    el.chkRecordarDni.checked = true;
   }
 
   el.inputDni.focus();
@@ -501,6 +546,37 @@ const el = {
 
 function normalizarDni(dni) {
   return (dni || '').trim().toUpperCase().replace(/\s+/g, '');
+}
+
+function textoDniParcial(dni) {
+  const limpio = normalizarDni(dni);
+  if (limpio.length <= 5) return '****';
+  return '****' + limpio.substring(limpio.length - 5);
+}
+
+function mostrarDniRecordado(dni) {
+  el.btnUltimoDni.textContent = textoDniParcial(dni);
+  el.btnUltimoDni.dataset.dni = dni;
+  el.ultimoDniBox.classList.remove('oculto');
+}
+
+function ocultarDniRecordado() {
+  el.btnUltimoDni.textContent = '';
+  el.btnUltimoDni.dataset.dni = '';
+  el.ultimoDniBox.classList.add('oculto');
+}
+
+function gestionarRecordatorioDni(dni, validacion) {
+  // Solo guardamos si el trabajador existe y el usuario ha marcado la casilla.
+  // Así evitamos guardar DNIs mal escritos o pruebas.
+  if (validacion && validacion.encontrado && el.chkRecordarDni.checked) {
+    const limpio = normalizarDni(dni);
+    localStorage.setItem('ultimo_dni', limpio);
+    mostrarDniRecordado(limpio);
+  } else if (!el.chkRecordarDni.checked) {
+    localStorage.removeItem('ultimo_dni');
+    ocultarDniRecordado();
+  }
 }
 
 function mostrarErrorDni(texto) {
@@ -706,6 +782,21 @@ el.btnUltimoDni.addEventListener('click', () => {
   el.ultimoDniBox.classList.add('oculto');
 });
 
+el.btnBorrarDni.addEventListener('click', () => {
+  localStorage.removeItem('ultimo_dni');
+  el.chkRecordarDni.checked = false;
+  ocultarDniRecordado();
+  el.inputDni.value = '';
+  el.inputDni.focus();
+});
+
+el.chkRecordarDni.addEventListener('change', () => {
+  if (!el.chkRecordarDni.checked) {
+    localStorage.removeItem('ultimo_dni');
+    ocultarDniRecordado();
+  }
+});
+
 el.inputDni.addEventListener('input', () => {
   ocultarErrorDni();
   ocultarAvisoGps();
@@ -719,7 +810,8 @@ el.inputDni.addEventListener('keypress', e => {
 el.btnContinuar.addEventListener('click', continuarDesdeDni);
 el.btnVolver.addEventListener('click', () => { irA(el.pasoDni); el.inputDni.focus(); });
 el.btnNuevo.addEventListener('click', () => {
-  // Reset completo
+  // Reset completo del fichaje actual. La preferencia de recordar DNI
+  // se mantiene si el trabajador la dejó marcada en este móvil.
   estado.dni = null;
   estado.validacion = null;
   estado.ubicacion = null;
@@ -748,9 +840,6 @@ async function continuarDesdeDni() {
   }
 
   estado.dni = dni;
-
-  // Guardamos el DNI localmente para recordarlo la próxima vez
-  localStorage.setItem('ultimo_dni', dni);
 
   // Obtener GPS primero (lo necesitaremos sí o sí para fichar)
   el.cargandoTexto.textContent = 'Obteniendo ubicación…';
@@ -783,6 +872,7 @@ async function continuarDesdeDni() {
     }
 
     estado.validacion = data;
+    gestionarRecordatorioDni(estado.dni, data);
     mostrarResultadoValidacion(data);
   } catch (err) {
     const info = interpretarError(err);
@@ -837,6 +927,7 @@ async function reintentarGps() {
     }
 
     estado.validacion = data;
+    gestionarRecordatorioDni(estado.dni, data);
     mostrarResultadoValidacion(data);
   } catch (err) {
     const info = interpretarError(err);
