@@ -256,6 +256,22 @@ let trabajadoresApp = {}; // dni -> {id, nombre}
 let datosExcel = null; // filas parseadas desde CSV o Excel
 let resultadoFinal = []; // trabajadores con semáforo calculado
 
+// Escapa textos que vienen del Excel o de la base de datos antes de pintarlos
+// con innerHTML. Evita que un valor raro tipo "<img onerror=...>" se ejecute
+// en el navegador durante la revisión de la importación.
+function escHtml(valor) {
+  return String(valor ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function estadoSeguro(estado) {
+  return ['verde', 'naranja', 'rojo'].includes(estado) ? estado : 'naranja';
+}
+
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 async function init() {
   try {
@@ -393,7 +409,7 @@ async function cargarObras() {
 
   const sel = document.getElementById('obraSelect');
   sel.innerHTML = misObras.length
-    ? '<option value="">— Selecciona una obra —</option>' + misObras.map(o => `<option value="${o.id}">${o.nombre}</option>`).join('')
+    ? '<option value="">— Selecciona una obra —</option>' + misObras.map(o => `<option value="${escHtml(o.id)}">${escHtml(o.nombre)}</option>`).join('')
     : '<option value="">No tienes obras asignadas</option>';
 
   // Actualizar branding al cambiar de obra
@@ -510,7 +526,7 @@ function procesarArchivo(file) {
       // Mostrar nombre del archivo en drop zone
       dropZone.innerHTML = `
         <div class="icon">✅</div>
-        <p><strong>${file.name}</strong> cargado</p>
+        <p><strong>${escHtml(file.name)}</strong> cargado</p>
         <p style="font-size:12px;margin-top:4px;">${filas.length} registros leídos</p>
       `;
 
@@ -735,37 +751,40 @@ function renderTabla() {
 
   for (let i = 0; i < resultadoFinal.length; i++) {
     const r = resultadoFinal[i];
-    const badgeClass = `badge-${r.estadoCalculado}`;
+    const estadoCalc = estadoSeguro(r.estadoCalculado);
+    const estadoManual = estadoSeguro(r.estadoManual);
+    const badgeClass = `badge-${estadoCalc}`;
     const enAppBadge = r.enApp
       ? `<span class="badge badge-verde">✓ Sí</span>`
       : `<span class="badge badge-naranja">Nuevo</span>`;
 
     const motivosHtml = r.motivos.length
-      ? r.motivos.map(m => `<div class="motivos">• ${m}</div>`).join('')
+      ? r.motivos.map(m => `<div class="motivos">• ${escHtml(m)}</div>`).join('')
       : '<div class="motivos" style="color:var(--verde)">Sin incidencias documentales</div>';
 
     const selectManual = `
       <select class="override-select" onchange="cambiarEstado(${i}, this.value)">
-        <option value="verde" ${r.estadoManual === 'verde' ? 'selected' : ''}>🟢 Verde</option>
-        <option value="naranja" ${r.estadoManual === 'naranja' ? 'selected' : ''}>🟡 Naranja</option>
-        <option value="rojo" ${r.estadoManual === 'rojo' ? 'selected' : ''}>🔴 Rojo</option>
+        <option value="verde" ${estadoManual === 'verde' ? 'selected' : ''}>🟢 Verde</option>
+        <option value="naranja" ${estadoManual === 'naranja' ? 'selected' : ''}>🟡 Naranja</option>
+        <option value="rojo" ${estadoManual === 'rojo' ? 'selected' : ''}>🔴 Rojo</option>
       </select>`;
 
-    tbody.innerHTML += `
+    tbody.insertAdjacentHTML('beforeend', `
       <tr>
-        <td>${r.nombre}</td>
-        <td><code>${r.dni}</code></td>
-        <td style="font-size:12px;color:var(--texto2)">${r.empresa}</td>
-        <td><span class="badge ${badgeClass}">${r.estadoCalculado.toUpperCase()}</span></td>
+        <td>${escHtml(r.nombre)}</td>
+        <td><code>${escHtml(r.dni)}</code></td>
+        <td style="font-size:12px;color:var(--texto2)">${escHtml(r.empresa)}</td>
+        <td><span class="badge ${badgeClass}">${escHtml(estadoCalc.toUpperCase())}</span></td>
         <td>${motivosHtml}</td>
         <td>${selectManual}</td>
         <td>${enAppBadge}</td>
-      </tr>`;
+      </tr>`);
   }
 }
 
 function cambiarEstado(i, nuevoEstado) {
-  resultadoFinal[i].estadoManual = nuevoEstado;
+  if (!resultadoFinal[i]) return;
+  resultadoFinal[i].estadoManual = estadoSeguro(nuevoEstado);
 }
 
 // ── CONFIRMAR ─────────────────────────────────────────────────────────────────
