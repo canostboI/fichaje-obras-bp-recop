@@ -658,12 +658,14 @@ async function obtenerFichajesMes(obraId, mes) {
   const fin = hasta.toISOString();
 
   // Intento 1: con join a empresa
+  // Frente B: pedimos cierre_automatico para marcar en amarillo en el Excel.
   let { data, error } = await sb
     .from('fichajes')
     .select(`
       id,
       tipo,
       hora,
+      cierre_automatico,
       trabajador_id,
       trabajador:trabajador_id(
         id,
@@ -689,6 +691,7 @@ async function obtenerFichajesMes(obraId, mes) {
       id,
       tipo,
       hora,
+      cierre_automatico,
       trabajador_id,
       trabajador:trabajador_id(
         id,
