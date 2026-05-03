@@ -271,6 +271,61 @@
     font-weight: 500;
   }
 
+  /* =========================================================
+     Aviso de GPS bloqueado: caja amplia con instrucciones
+     paso a paso para que el trabajador sepa qué tocar en su
+     móvil. Más visible que .error-banner y con texto alineado
+     a la izquierda para que se lean bien los pasos.
+     ========================================================= */
+  .aviso-gps {
+    background: #fdecea;
+    color: var(--rojo);
+    border: 2px solid var(--rojo);
+    border-radius: 10px;
+    padding: 16px;
+    margin: 14px 0;
+    font-size: 15px;
+    text-align: left;
+    line-height: 1.5;
+  }
+  .aviso-gps .titulo-aviso {
+    display: block;
+    font-weight: 700;
+    font-size: 16px;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  .aviso-gps ol {
+    margin: 8px 0 0;
+    padding-left: 22px;
+  }
+  .aviso-gps ol li {
+    margin: 4px 0;
+  }
+  .aviso-gps .nota {
+    display: block;
+    margin-top: 10px;
+    font-size: 13px;
+    color: #555;
+    font-style: italic;
+  }
+  .aviso-gps button.reintentar {
+    width: 100%;
+    margin-top: 14px;
+    font-size: 17px;
+    font-weight: 600;
+    padding: 14px;
+    background: var(--rojo);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .aviso-gps button.reintentar:active {
+    transform: scale(0.98);
+  }
+
   .oculto { display: none !important; }
 
   .pie {
@@ -301,6 +356,9 @@
     </div>
     <button type="button" class="principal" id="btn-continuar">Continuar</button>
     <div class="error-banner oculto" id="error-dni"></div>
+
+    <!-- Aviso específico de GPS (más completo que error-banner) -->
+    <div class="aviso-gps oculto" id="aviso-gps"></div>
   </div>
 
   <!-- PASO 2: cargando validación -->
@@ -377,6 +435,7 @@ const el = {
   ultimoDniBox:document.getElementById('ultimo-dni-box'),
   btnUltimoDni:document.getElementById('btn-ultimo-dni'),
   errorDni:    document.getElementById('error-dni'),
+  avisoGps:    document.getElementById('aviso-gps'),
   errorResultado: document.getElementById('error-resultado'),
   cargandoTexto:document.getElementById('cargando-texto'),
   estadoBox:   document.getElementById('estado-box'),
@@ -451,6 +510,87 @@ function mostrarErrorDni(texto) {
 
 function ocultarErrorDni() {
   el.errorDni.classList.add('oculto');
+}
+
+// =====================================================================
+// AVISO DE GPS — instrucciones detalladas según el tipo de error
+// =====================================================================
+//
+// El navegador no permite reabrir el popup de permiso una vez denegado
+// (decisión de seguridad de Chrome/Samsung Internet/etc.). Por eso, en
+// vez de un mensaje genérico, mostramos al trabajador qué tocar en su
+// propio móvil para reactivar el GPS, y le damos un botón "Reintentar"
+// que vuelve a llamar a navigator.geolocation sin recargar.
+//
+// codigo: 1 = denegado por el usuario; 2 = no disponible (GPS apagado);
+//         3 = timeout. null = "sin permiso pero sin código" (raro).
+function mostrarAvisoGps(codigo) {
+  el.avisoGps.classList.remove('oculto');
+  ocultarErrorDni();
+
+  let titulo, pasos, nota;
+
+  if (codigo === 1) {
+    // Permiso denegado
+    titulo = '⚠ No tenemos acceso a su ubicación';
+    pasos = [
+      'Toque el candado 🔒 (o ⓘ) junto a la dirección web, arriba.',
+      'Abra "Permisos" o "Configuración del sitio".',
+      'En "Ubicación", elija <strong>Permitir</strong>.',
+      'Vuelva aquí y pulse <strong>Reintentar</strong>.'
+    ];
+    nota = 'Si no encuentra el candado, cierre la pestaña y vuelva a escanear el QR.';
+  } else if (codigo === 2) {
+    // GPS no disponible (apagado a nivel de sistema, sin señal, etc.)
+    titulo = '⚠ No se pudo obtener la ubicación';
+    pasos = [
+      'Compruebe que el <strong>GPS</strong> de su móvil está activado.',
+      'En Ajustes del móvil → <strong>Ubicación</strong> → activar.',
+      'Salga al exterior si está bajo techo (el GPS no llega bien).',
+      'Pulse <strong>Reintentar</strong>.'
+    ];
+    nota = null;
+  } else if (codigo === 3) {
+    // Timeout
+    titulo = '⚠ El GPS tardó demasiado';
+    pasos = [
+      'Compruebe que tiene cobertura y el GPS activado.',
+      'Espere unos segundos y pulse <strong>Reintentar</strong>.'
+    ];
+    nota = 'Si está dentro de un edificio, salga al exterior.';
+  } else {
+    // Caso genérico
+    titulo = '⚠ Error de ubicación';
+    pasos = [
+      'Compruebe que el GPS y los permisos del navegador están activados.',
+      'Pulse <strong>Reintentar</strong>.'
+    ];
+    nota = null;
+  }
+
+  // Construimos el HTML del aviso. Los textos de los pasos son
+  // controlados por nosotros (no entran datos del usuario), así que
+  // se permite HTML interno (<strong>) para resaltar.
+  const pasosHtml = pasos.map(p => '<li>' + p + '</li>').join('');
+  const notaHtml = nota ? '<span class="nota">' + escapar(nota) + '</span>' : '';
+
+  el.avisoGps.innerHTML =
+    '<span class="titulo-aviso">' + escapar(titulo) + '</span>' +
+    '<ol>' + pasosHtml + '</ol>' +
+    notaHtml +
+    '<button type="button" class="reintentar" id="btn-reintentar-gps">Reintentar</button>';
+
+  // El botón se crea cada vez con innerHTML, así que enganchamos el
+  // evento aquí (no se puede dejar fijo en el HTML inicial).
+  document.getElementById('btn-reintentar-gps').addEventListener(
+    'click',
+    reintentarGps
+  );
+}
+
+function ocultarAvisoGps() {
+  el.avisoGps.classList.add('oculto');
+  el.avisoGps.innerHTML = '';
 }
 
 function mostrarErrorResultado(texto) {
@@ -534,19 +674,23 @@ function interpretarError(err) {
   };
 }
 
-// Obtener geolocalización del navegador, con timeout razonable
+// Obtener geolocalización del navegador, con timeout razonable.
+// Importante: si rechaza, devuelve un objeto con { codigo, mensaje }
+// para que el llamador pueda decidir si mostrar el aviso detallado de
+// GPS (con instrucciones paso a paso) o un mensaje simple.
 function obtenerUbicacion() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      return reject(new Error('Este dispositivo no soporta GPS.'));
+      return reject({ codigo: null, mensaje: 'Este dispositivo no soporta GPS.' });
     }
     navigator.geolocation.getCurrentPosition(
       pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
       err => {
-        if (err.code === 1) return reject(new Error('Debe permitir el acceso a la ubicación.'));
-        if (err.code === 2) return reject(new Error('No se pudo obtener la ubicación. Compruebe el GPS.'));
-        if (err.code === 3) return reject(new Error('GPS tardó demasiado. Inténtelo de nuevo.'));
-        reject(new Error('Error de ubicación.'));
+        // err.code: 1=PERMISSION_DENIED, 2=POSITION_UNAVAILABLE, 3=TIMEOUT
+        reject({
+          codigo: err.code || null,
+          mensaje: err.message || 'Error de ubicación.'
+        });
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
     );
@@ -564,6 +708,7 @@ el.btnUltimoDni.addEventListener('click', () => {
 
 el.inputDni.addEventListener('input', () => {
   ocultarErrorDni();
+  ocultarAvisoGps();
   el.inputDni.value = el.inputDni.value.toUpperCase();
 });
 
@@ -579,6 +724,7 @@ el.btnNuevo.addEventListener('click', () => {
   estado.validacion = null;
   estado.ubicacion = null;
   el.inputDni.value = '';
+  ocultarAvisoGps();
   irA(el.pasoDni);
   el.inputDni.focus();
 });
@@ -593,6 +739,7 @@ el.btnSalida.addEventListener('click', () => ejecutarFichaje('salida'));
 
 async function continuarDesdeDni() {
   ocultarErrorDni();
+  ocultarAvisoGps();
   const dni = normalizarDni(el.inputDni.value);
 
   if (dni.length < 5) {
@@ -612,13 +759,68 @@ async function continuarDesdeDni() {
   try {
     estado.ubicacion = await obtenerUbicacion();
   } catch (err) {
+    // err = { codigo, mensaje } desde obtenerUbicacion()
     irA(el.pasoDni);
-    mostrarErrorDni(err.message);
+    mostrarAvisoGps(err && err.codigo);
     console.error('[fichaje] error_gps:', err);
     return;
   }
 
   // Llamar a validar_acceso
+  el.cargandoTexto.textContent = 'Validando acceso…';
+  try {
+    const { data, error } = await sb.rpc('validar_acceso', {
+      p_dni: estado.dni,
+      p_obra_id: estado.obraId
+    });
+
+    if (error) {
+      const info = interpretarError(error);
+      irA(el.pasoDni);
+      mostrarErrorDni(info.mensajeUsuario);
+      console.error('[fichaje] validar_acceso (' + info.etiquetaLog + '):', error);
+      return;
+    }
+
+    estado.validacion = data;
+    mostrarResultadoValidacion(data);
+  } catch (err) {
+    const info = interpretarError(err);
+    irA(el.pasoDni);
+    mostrarErrorDni(info.mensajeUsuario);
+    console.error('[fichaje] validar_acceso excepción (' + info.etiquetaLog + '):', err);
+  }
+}
+
+// Botón "Reintentar" del aviso de GPS: vuelve a pedir ubicación al
+// navegador sin recargar la página. Si el usuario ha arreglado el
+// permiso entretanto, esta segunda llamada disparará otra vez el
+// popup (caso "denegación temporal") o devolverá la coordenada
+// directamente (caso "permiso ya concedido en ajustes").
+async function reintentarGps() {
+  // Si aún no hay DNI, simplemente cerramos el aviso y dejamos que
+  // el usuario pulse "Continuar" otra vez.
+  if (!estado.dni) {
+    ocultarAvisoGps();
+    el.inputDni.focus();
+    return;
+  }
+
+  ocultarAvisoGps();
+  el.cargandoTexto.textContent = 'Obteniendo ubicación…';
+  irA(el.pasoCargando);
+
+  try {
+    estado.ubicacion = await obtenerUbicacion();
+  } catch (err) {
+    irA(el.pasoDni);
+    mostrarAvisoGps(err && err.codigo);
+    console.error('[fichaje] error_gps reintento:', err);
+    return;
+  }
+
+  // Si llegamos aquí es que el GPS ya funcionó. Continuamos con la
+  // validación como en el flujo normal.
   el.cargandoTexto.textContent = 'Validando acceso…';
   try {
     const { data, error } = await sb.rpc('validar_acceso', {
