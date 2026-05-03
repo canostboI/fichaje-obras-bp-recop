@@ -231,16 +231,24 @@ document.getElementById('btn-ver-qr').addEventListener('click', () => {
   abrirQR(obraActual, obraNombre);
 });
 
+// Patrón TZ correcto: rango del día en hora local convertido a UTC ISO
+function rangoHoyLocal() {
+  const a = new Date();
+  const desde = new Date(a.getFullYear(), a.getMonth(), a.getDate(), 0, 0, 0, 0);
+  const hasta = new Date(a.getFullYear(), a.getMonth(), a.getDate(), 23, 59, 59, 999);
+  return { desdeISO: desde.toISOString(), hastaISO: hasta.toISOString() };
+}
+
 async function cargarPresencia() {
   document.getElementById('tabla-presencia').innerHTML = '<div class="cargando">Cargando…</div>';
-  const hoy = new Date().toISOString().split('T')[0];
+  const { desdeISO, hastaISO } = rangoHoyLocal();
 
   const { data: fichajes } = await sb
     .from('fichajes')
     .select('id, tipo, hora, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni)')
     .eq('obra_id', obraActual)
-    .gte('hora', hoy + 'T00:00:00')
-    .lte('hora', hoy + 'T23:59:59')
+    .gte('hora', desdeISO)
+    .lte('hora', hastaISO)
     .order('hora', { ascending: true });
 
   if (!fichajes || fichajes.length === 0) {
