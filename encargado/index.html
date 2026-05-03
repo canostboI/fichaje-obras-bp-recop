@@ -82,13 +82,125 @@
     }
     .btn-manual:disabled { background: #aaa; cursor: not-allowed; }
 
-    .trabajador-row {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 0.6rem 0; border-bottom: 1px solid #eee;
+    /* ============================================ */
+    /* Contador grande de presencia (NUEVO)         */
+    /* ============================================ */
+    .contador-presencia {
+      border-radius: 14px;
+      padding: 1.6rem 1.2rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+      color: white;
+      text-align: center;
+      transition: background 0.3s ease;
     }
-    .trabajador-row:last-child { border-bottom: none; }
-    .nombre { font-weight: bold; }
-    .hora { color: #555; font-size: 0.9rem; }
+    .contador-presencia.estado-ok      { background: linear-gradient(135deg, #2e7d32, #43a047); }
+    .contador-presencia.estado-vacio   { background: linear-gradient(135deg, #555, #777); }
+    .contador-presencia.estado-aviso   { background: linear-gradient(135deg, #ef6c00, #fb8c00); }
+
+    .contador-numero {
+      font-size: 5rem;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -2px;
+      margin-bottom: 0.3rem;
+    }
+    .contador-texto {
+      font-size: 1.05rem;
+      font-weight: 500;
+      opacity: 0.95;
+      margin-bottom: 0.9rem;
+    }
+    .contador-ultima {
+      font-size: 0.9rem;
+      opacity: 0.95;
+      background: rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 0.55rem 0.8rem;
+      display: inline-block;
+      max-width: 100%;
+    }
+    .contador-ultima strong {
+      font-weight: 700;
+    }
+
+    /* ============================================ */
+    /* Tarjetas de presencia (NUEVO)                */
+    /* ============================================ */
+    .lista-tarjetas {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 0.8rem;
+    }
+    .tarjeta-trab {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      padding: 0.85rem 1rem;
+      border: 1px solid #e2e6ea;
+      border-radius: 10px;
+      background: #fafbfc;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .tarjeta-trab:hover {
+      background: #f1f5f9;
+    }
+    .tarjeta-iniciales {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: var(--color-principal);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1rem;
+      flex-shrink: 0;
+      letter-spacing: 0.5px;
+    }
+    .tarjeta-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .tarjeta-nombre {
+      font-weight: 700;
+      font-size: 0.98rem;
+      color: #222;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tarjeta-empresa {
+      font-size: 0.82rem;
+      color: #777;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tarjeta-hora {
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .tarjeta-hora-grande {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #2e7d32;
+      line-height: 1.1;
+    }
+    .tarjeta-hora-rel {
+      font-size: 0.78rem;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .lista-vacia {
+      text-align: center;
+      padding: 1.5rem;
+      color: #888;
+      font-style: italic;
+    }
+
     .badge {
       font-size: 0.75rem; padding: 0.2rem 0.6rem;
       border-radius: 12px; font-weight: bold;
@@ -266,6 +378,8 @@
       .panel-avisos .btn-visto {
         align-self: flex-end;
       }
+      .contador-numero { font-size: 4rem; }
+      .lista-tarjetas { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -301,9 +415,17 @@
 
     <div id="panel-avisos" class="panel-avisos" style="display:none"></div>
 
+    <!-- NUEVO: contador grande -->
+    <div id="contador-presencia" class="contador-presencia estado-vacio" style="display:none">
+      <div class="contador-numero" id="contador-numero">0</div>
+      <div class="contador-texto" id="contador-texto">personas en obra ahora</div>
+      <div class="contador-ultima" id="contador-ultima" style="display:none"></div>
+    </div>
+
+    <!-- NUEVO: tarjetas en lugar de filas -->
     <div class="card">
       <h2>👷 Trabajadores presentes ahora</h2>
-      <div id="lista-presencia"><p class="loading">Cargando...</p></div>
+      <div id="lista-presencia" class="lista-tarjetas"><p class="loading">Cargando...</p></div>
     </div>
 
     <div class="card">
@@ -398,6 +520,10 @@
   let brandingActual = null;
   let trabajadoresObra = [];
 
+  // Para refrescar "hace X min" cada minuto sin volver a Supabase
+  let presentesCache = [];
+  let intervalRelativo = null;
+
   async function init() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) { window.location.href = '../index.html'; return; }
@@ -471,6 +597,10 @@
     await cargarTrabajadoresObra();
     await cargarPresencia(obraId);
     await cargarAvisosAutocierre();
+
+    // Refrescar los "hace X min" cada minuto
+    if (intervalRelativo) clearInterval(intervalRelativo);
+    intervalRelativo = setInterval(actualizarTextosRelativos, 60 * 1000);
   }
 
   async function cargarAvisosAutocierre() {
@@ -572,55 +702,183 @@
       ' ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   }
 
+  // Patrón TZ correcto: rango del día en hora local convertido a UTC ISO
+  function rangoHoyLocal() {
+    const a = new Date();
+    const desde = new Date(a.getFullYear(), a.getMonth(), a.getDate(), 0, 0, 0, 0);
+    const hasta = new Date(a.getFullYear(), a.getMonth(), a.getDate(), 23, 59, 59, 999);
+    return { desdeISO: desde.toISOString(), hastaISO: hasta.toISOString() };
+  }
+
   async function cargarPresencia(obraId) {
     const lista = document.getElementById('lista-presencia');
     lista.innerHTML = '<p class="loading">Cargando...</p>';
 
-    const hoy = new Date().toISOString().slice(0, 10);
+    const { desdeISO, hastaISO } = rangoHoyLocal();
 
-    const { data: fichajes, error } = await sb
+    // Traemos también la empresa del trabajador para mostrarla en la tarjeta
+    let { data: fichajes, error } = await sb
       .from('fichajes')
-      .select('tipo, hora, trabajador_id, trabajadores(nombre, apellidos, dni)')
+      .select('tipo, hora, trabajador_id, trabajadores(nombre, apellidos, dni, empresas(nombre))')
       .eq('obra_id', obraId)
-      .gte('hora', hoy + 'T00:00:00')
-      .lte('hora', hoy + 'T23:59:59')
+      .gte('hora', desdeISO)
+      .lte('hora', hastaISO)
       .order('hora', { ascending: true });
 
+    // Fallback por si el join a empresas no fuera accesible vía RLS
     if (error) {
-      lista.innerHTML = '<p style="color:red">Error al cargar presencia.</p>';
-      return;
+      const fb = await sb
+        .from('fichajes')
+        .select('tipo, hora, trabajador_id, trabajadores(nombre, apellidos, dni)')
+        .eq('obra_id', obraId)
+        .gte('hora', desdeISO)
+        .lte('hora', hastaISO)
+        .order('hora', { ascending: true });
+
+      if (fb.error) {
+        lista.innerHTML = '<p style="color:red">Error al cargar presencia.</p>';
+        pintarContador(0, null);
+        return;
+      }
+      fichajes = fb.data;
     }
 
+    // Estado: nos quedamos con el último fichaje del día por trabajador
     const estado = {};
     fichajes.forEach(f => {
       const id = f.trabajador_id;
-      const nombre = f.trabajadores
-        ? `${f.trabajadores.nombre} ${f.trabajadores.apellidos || ''}`.trim()
+      const nombreCompleto = f.trabajadores
+        ? `${f.trabajadores.nombre || ''} ${f.trabajadores.apellidos || ''}`.trim()
         : 'Desconocido';
-      const hora = new Date(f.hora).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-      estado[id] = { nombre, tipo: f.tipo, hora };
+      const empresa = (f.trabajadores && f.trabajadores.empresas)
+        ? (f.trabajadores.empresas.nombre || '')
+        : '';
+      estado[id] = {
+        id,
+        nombre: nombreCompleto || 'Desconocido',
+        empresa,
+        tipo: f.tipo,
+        horaISO: f.hora,
+        horaTexto: new Date(f.hora).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+      };
     });
 
-    const presentes = Object.values(estado).filter(t => t.tipo === 'entrada');
+    // Presentes = aquellos cuyo último fichaje del día es 'entrada'
+    const presentes = Object.values(estado)
+      .filter(t => t.tipo === 'entrada')
+      .sort((a, b) => new Date(b.horaISO) - new Date(a.horaISO));
+
+    presentesCache = presentes;
+
+    pintarContador(
+      presentes.length,
+      presentes.length > 0 ? presentes[0] : null
+    );
+    pintarTarjetas(presentes);
+  }
+
+  function pintarContador(num, ultimo) {
+    const cont = document.getElementById('contador-presencia');
+    const numEl = document.getElementById('contador-numero');
+    const txtEl = document.getElementById('contador-texto');
+    const ultEl = document.getElementById('contador-ultima');
+
+    cont.style.display = 'block';
+    numEl.textContent = num;
+
+    if (num === 0) {
+      cont.classList.remove('estado-ok', 'estado-aviso');
+      cont.classList.add('estado-vacio');
+      txtEl.textContent = 'Nadie en obra ahora mismo';
+      ultEl.style.display = 'none';
+      return;
+    }
+
+    cont.classList.remove('estado-vacio', 'estado-aviso');
+    cont.classList.add('estado-ok');
+
+    // Aviso suave si hay un nº inusualmente alto. Umbral revisable.
+    if (num > 30) {
+      cont.classList.remove('estado-ok');
+      cont.classList.add('estado-aviso');
+    }
+
+    txtEl.textContent = num === 1 ? 'persona en obra ahora' : 'personas en obra ahora';
+
+    if (ultimo) {
+      ultEl.style.display = 'inline-block';
+      ultEl.innerHTML = `Última entrada: <strong>${esc(ultimo.nombre)}</strong> · ${esc(textoRelativo(ultimo.horaISO))}`;
+    } else {
+      ultEl.style.display = 'none';
+    }
+  }
+
+  function pintarTarjetas(presentes) {
+    const lista = document.getElementById('lista-presencia');
 
     if (presentes.length === 0) {
-      lista.innerHTML = '<p style="color:#888">Nadie en obra en este momento.</p>';
+      lista.innerHTML = '<p class="lista-vacia">Nadie en obra en este momento.</p>';
       return;
     }
 
     lista.innerHTML = '';
     presentes.forEach(t => {
-      const row = document.createElement('div');
-      row.className = 'trabajador-row';
-      row.innerHTML = `
-        <div>
-          <div class="nombre">${esc(t.nombre)}</div>
-          <div class="hora">Entrada: ${esc(t.hora)}</div>
+      const card = document.createElement('div');
+      card.className = 'tarjeta-trab';
+      card.dataset.horaIso = t.horaISO;
+      card.innerHTML = `
+        <div class="tarjeta-iniciales">${esc(iniciales(t.nombre))}</div>
+        <div class="tarjeta-info">
+          <div class="tarjeta-nombre">${esc(t.nombre)}</div>
+          <div class="tarjeta-empresa">${esc(t.empresa || '—')}</div>
         </div>
-        <span class="badge badge-verde">En obra</span>
+        <div class="tarjeta-hora">
+          <div class="tarjeta-hora-grande">${esc(t.horaTexto)}</div>
+          <div class="tarjeta-hora-rel">${esc(textoRelativo(t.horaISO))}</div>
+        </div>
       `;
-      lista.appendChild(row);
+      lista.appendChild(card);
     });
+  }
+
+  function actualizarTextosRelativos() {
+    // Recalcula "hace X min" en el contador y en cada tarjeta sin volver a Supabase
+    if (!presentesCache) return;
+
+    const ultEl = document.getElementById('contador-ultima');
+    if (presentesCache.length > 0 && ultEl && ultEl.style.display !== 'none') {
+      const u = presentesCache[0];
+      ultEl.innerHTML = `Última entrada: <strong>${esc(u.nombre)}</strong> · ${esc(textoRelativo(u.horaISO))}`;
+    }
+
+    document.querySelectorAll('.tarjeta-trab').forEach(card => {
+      const iso = card.dataset.horaIso;
+      const rel = card.querySelector('.tarjeta-hora-rel');
+      if (iso && rel) rel.textContent = textoRelativo(iso);
+    });
+  }
+
+  function iniciales(nombreCompleto) {
+    if (!nombreCompleto) return '?';
+    const partes = nombreCompleto.trim().split(/\s+/);
+    if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+    return (partes[0][0] + partes[1][0]).toUpperCase();
+  }
+
+  function textoRelativo(iso) {
+    if (!iso) return '';
+    const ahora = new Date();
+    const t = new Date(iso);
+    const diffMin = Math.round((ahora - t) / 60000);
+
+    if (diffMin < 1)  return 'hace un momento';
+    if (diffMin < 60) return `hace ${diffMin} min`;
+    const horas = Math.floor(diffMin / 60);
+    const mins = diffMin % 60;
+    if (horas < 24) {
+      return mins === 0 ? `hace ${horas} h` : `hace ${horas} h ${mins} min`;
+    }
+    return t.toLocaleDateString('es-ES', { day:'2-digit', month:'2-digit' });
   }
 
   async function cargarTrabajadoresObra() {
