@@ -9,20 +9,26 @@
  *        <script src="../js/excel-proforma.js"></script>
  *
  *   2) Llamar al generador:
- *        const buffer = await window.ExcelProforma.generar({
+ *        const { buffer, autocierres } = await window.ExcelProforma.generar({
  *          obra: { id, nombre, numero_obra },
  *          mes: '2026-04',           // 'YYYY-MM'
  *          fichajes: [...]           // ya filtrados (permisos, RLS, etc.)
  *        });
  *
  *      Cada fichaje debe traer al menos:
- *        { id, tipo, hora, trabajador_id,
+ *        { id, tipo, hora, cierre_automatico, trabajador_id,
  *          trabajador: { id, nombre, apellidos, dni, categoria,
  *                        precio_hora_personalizado,
  *                        empresa: { nombre } } }   // empresa puede ser null
  *
- *   3) El módulo NO descarga el archivo. Devuelve el buffer y la página
- *      decide cómo entregarlo al usuario (descarga, blob, etc).
+ *      `cierre_automatico` se usa para marcar en naranja claro las
+ *      celdas de día cuya salida fue autocerrada por el cron nocturno.
+ *
+ *   3) El módulo NO descarga el archivo. Devuelve un objeto:
+ *        { buffer, autocierres }
+ *      donde `autocierres` es el número total de salidas autocerradas
+ *      detectadas en el mes (para que la página avise al usuario antes
+ *      de descargar).
  *
  * El módulo NO conoce Supabase ni permisos: solo dibuja el Excel a partir
  * de los datos que le pasan.
@@ -39,6 +45,7 @@
   const COLOR_BAND    = 'F7F7F7';   // banding filas pares
   const COLOR_TOTAL   = 'FFF2CC';   // cols totales por trabajador
   const COLOR_FOOTER  = 'FFE699';   // fila TOTALES
+  const COLOR_ALERTA  = 'FFE0B2';   // naranja claro: días con autocierre
   const COLOR_BLANCO  = 'FFFFFF';
   const COLOR_BORDE   = 'BFBFBF';   // bordes grises (no negros)
 
@@ -65,6 +72,10 @@
 
     const nombresEmpresa = Object.keys(grupos);
 
+    // Contador global de salidas autocerradas en todo el mes,
+    // sumando todas las empresas. Lo devolvemos junto al buffer.
+    let totalAutocierres = 0;
+
     if (nombresEmpresa.length === 0) {
       // Sin datos: hoja vacía pero válida
       crearHojaEmpresa(workbook, {
@@ -81,6 +92,8 @@
         .sort((a, b) => a.localeCompare(b, 'es'))
         .forEach(nombreEmpresa => {
           const trabajadores = construirResumenTrabajadores(grupos[nombreEmpresa], diasMes);
+          // Sumar autocierres de cada trabajador al contador global
+          trabajadores.forEach(t => { totalAutocierres += (t.autocierres_mes || 0); });
           crearHojaEmpresa(workbook, {
             obra,
             nombreEmpresa,
@@ -93,7 +106,8 @@
         });
     }
 
-    return await workbook.xlsx.writeBuffer();
+    const buffer = await workbook.xlsx.writeBuffer();
+    return { buffer, autocierres: totalAutocierres };
   }
 
   // ===== Lógica de datos =====
@@ -137,7 +151,13 @@
 
     trabajadores.forEach(t => {
       t.dias = {};
-      for (let d = 1; d <= diasMes; d++) t.dias[d] = 0;
+      // dias_autocierre[d] = nº de salidas autocerradas ese día.
+      // Lo usaremos en pintarHoja como "marcar amarillo si > 0" y para sumar el contador global.
+      t.dias_autocierre = {};
+      for (let d = 1; d <= diasMes; d++) {
+        t.dias[d] = 0;
+        t.dias_autocierre[d] = 0;
+      }
 
       const porDia = {};
 
@@ -147,7 +167,11 @@
         const d = new Date(f.hora);
         const dia = d.getDate();
         if (!porDia[dia]) porDia[dia] = [];
-        porDia[dia].push({ tipo: f.tipo, hora: d });
+        porDia[dia].push({
+          tipo: f.tipo,
+          hora: d,
+          cierre_automatico: !!f.cierre_automatico
+        });
       });
 
       Object.keys(porDia).forEach(diaStr => {
@@ -155,6 +179,7 @@
         const eventos = porDia[dia].sort((a, b) => a.hora - b.hora);
         let entrada = null;
         let horas = 0;
+        let autocierresDia = 0;
 
         eventos.forEach(ev => {
           if (ev.tipo === 'entrada') {
@@ -165,14 +190,20 @@
               if (diff > 0 && diff < 24) horas += diff;
               entrada = null;
             }
+            // Contamos cualquier salida autocerrada del día,
+            // emparejada o no: cada salida autocerrada cuenta 1.
+            if (ev.cierre_automatico) autocierresDia++;
           }
         });
 
         t.dias[dia] = redondear2(horas);
+        t.dias_autocierre[dia] = autocierresDia;
       });
 
       t.horas_mes = redondear2(Object.values(t.dias).reduce((a, b) => a + b, 0));
       t.total = t.precio_hora ? redondear2(t.horas_mes * Number(t.precio_hora)) : 0;
+      // Total de autocierres del mes para este trabajador
+      t.autocierres_mes = Object.values(t.dias_autocierre).reduce((a, b) => a + b, 0);
     });
 
     return trabajadores;
@@ -325,13 +356,38 @@
         for (let d = 1; d <= diasMes; d++) {
           const col = 9 + d;
           const v = t.dias[d];
+          const tieneAutocierre = t.dias_autocierre[d] > 0;
           const cell = row.getCell(col);
           cell.value = v ? v : null;
           cell.numFmt = '0.00;-0.00;';   // ocultar ceros
           cell.font = { name: FUENTE_EXCEL, size: 9 };
-          cell.fill = fillSolid(dasFinde.has(d) ? COLOR_FINDE : bandColor);
+
+          // Prioridad de fondo:
+          //   1) autocierre (naranja claro) — el aviso manda
+          //   2) finde (gris)
+          //   3) banding normal
+          let fondo;
+          if (tieneAutocierre) {
+            fondo = COLOR_ALERTA;
+          } else if (dasFinde.has(d)) {
+            fondo = COLOR_FINDE;
+          } else {
+            fondo = bandColor;
+          }
+          cell.fill = fillSolid(fondo);
           cell.alignment = { horizontal: 'center', vertical: 'middle' };
           cell.border = borderThinGris();
+
+          // Comentario en la celda con el aviso (solo si hay autocierre)
+          if (tieneAutocierre) {
+            cell.note = {
+              texts: [
+                { font: { bold: true, size: 10, name: FUENTE_EXCEL }, text: 'Salida automática\n' },
+                { font: { size: 10, name: FUENTE_EXCEL }, text: 'Verificar la hora de salida con el encargado o el trabajador.' }
+              ],
+              margins: { insetmode: 'auto' }
+            };
+          }
         }
 
         // HORAS MES (fórmula)
