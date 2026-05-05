@@ -83,7 +83,7 @@
     .btn-manual:disabled { background: #aaa; cursor: not-allowed; }
 
     /* ============================================ */
-    /* Contador grande de presencia (NUEVO)         */
+    /* Contador grande de presencia                 */
     /* ============================================ */
     .contador-presencia {
       border-radius: 14px;
@@ -125,7 +125,7 @@
     }
 
     /* ============================================ */
-    /* Tarjetas de presencia (NUEVO)                */
+    /* Tarjetas de presencia                        */
     /* ============================================ */
     .lista-tarjetas {
       display: grid;
@@ -208,6 +208,9 @@
     .badge-verde { background: #d4edda; color: #155724; }
     .badge-naranja { background: #fff3cd; color: #856404; }
 
+    /* ============================================ */
+    /* Panel avisos — naranja (autocierres)         */
+    /* ============================================ */
     .panel-avisos {
       background: #fff8e1;
       border: 1px solid #ffd54f;
@@ -264,6 +267,86 @@
       background: #f57c00;
     }
     .panel-avisos .btn-visto:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    /* ============================================ */
+    /* Panel bloqueos rojos — nuevo                 */
+    /* ============================================ */
+    .panel-bloqueos {
+      background: #fff5f5;
+      border: 1px solid #ffcdd2;
+      border-left: 4px solid #e53935;
+      border-radius: 10px;
+      padding: 1rem 1.2rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .panel-bloqueos h2 {
+      font-size: 1rem;
+      color: #b71c1c;
+      margin-bottom: 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .panel-bloqueos .bloqueo-subtitulo {
+      font-size: 0.83rem;
+      color: #c62828;
+      margin-bottom: 0.8rem;
+    }
+    .panel-bloqueos .bloqueo-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 0.7rem 0;
+      border-bottom: 1px solid #ffcdd2;
+      font-size: 0.92rem;
+    }
+    .panel-bloqueos .bloqueo-item:last-child {
+      border-bottom: none;
+    }
+    .panel-bloqueos .bloqueo-info {
+      flex: 1;
+      min-width: 0;
+      color: #7f0000;
+    }
+    .panel-bloqueos .bloqueo-info strong {
+      color: #b71c1c;
+      font-size: 0.97rem;
+    }
+    .panel-bloqueos .bloqueo-dni {
+      font-size: 0.82rem;
+      color: #c62828;
+    }
+    .panel-bloqueos .bloqueo-motivos {
+      font-size: 0.82rem;
+      color: #8d0000;
+      margin-top: 3px;
+    }
+    .panel-bloqueos .bloqueo-hora {
+      font-size: 0.82rem;
+      color: #c62828;
+      margin-top: 2px;
+    }
+    .panel-bloqueos .btn-visto-rojo {
+      background: #e53935;
+      color: white;
+      border: none;
+      padding: 0.4rem 0.9rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: bold;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .panel-bloqueos .btn-visto-rojo:hover {
+      background: #b71c1c;
+    }
+    .panel-bloqueos .btn-visto-rojo:disabled {
       background: #ccc;
       cursor: not-allowed;
     }
@@ -378,6 +461,13 @@
       .panel-avisos .btn-visto {
         align-self: flex-end;
       }
+      .panel-bloqueos .bloqueo-item {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .panel-bloqueos .btn-visto-rojo {
+        align-self: flex-end;
+      }
       .contador-numero { font-size: 4rem; }
       .lista-tarjetas { grid-template-columns: 1fr; }
     }
@@ -413,16 +503,20 @@
       <p id="fecha-hoy" style="color:#666; font-size:0.9rem"></p>
     </div>
 
+    <!-- Panel bloqueos rojos (nuevo) -->
+    <div id="panel-bloqueos" class="panel-bloqueos" style="display:none"></div>
+
+    <!-- Panel autocierres (existente) -->
     <div id="panel-avisos" class="panel-avisos" style="display:none"></div>
 
-    <!-- NUEVO: contador grande -->
+    <!-- Contador grande de presencia -->
     <div id="contador-presencia" class="contador-presencia estado-vacio" style="display:none">
       <div class="contador-numero" id="contador-numero">0</div>
       <div class="contador-texto" id="contador-texto">personas en obra ahora</div>
       <div class="contador-ultima" id="contador-ultima" style="display:none"></div>
     </div>
 
-    <!-- NUEVO: tarjetas en lugar de filas -->
+    <!-- Tarjetas de presencia -->
     <div class="card">
       <h2>👷 Trabajadores presentes ahora</h2>
       <div id="lista-presencia" class="lista-tarjetas"><p class="loading">Cargando...</p></div>
@@ -520,7 +614,6 @@
   let brandingActual = null;
   let trabajadoresObra = [];
 
-  // Para refrescar "hace X min" cada minuto sin volver a Supabase
   let presentesCache = [];
   let intervalRelativo = null;
 
@@ -596,13 +689,118 @@
 
     await cargarTrabajadoresObra();
     await cargarPresencia(obraId);
+    await cargarBloqueos();
     await cargarAvisosAutocierre();
 
-    // Refrescar los "hace X min" cada minuto
     if (intervalRelativo) clearInterval(intervalRelativo);
     intervalRelativo = setInterval(actualizarTextosRelativos, 60 * 1000);
   }
 
+  // ============================================
+  // Panel bloqueos rojos (nuevo)
+  // ============================================
+  async function cargarBloqueos() {
+    const panel = document.getElementById('panel-bloqueos');
+    if (!obraActualId) { panel.style.display = 'none'; return; }
+
+    const { desdeISO, hastaISO } = rangoHoyLocal();
+
+    const { data, error } = await sb
+      .from('incidencias')
+      .select('id, detalle, created_at, trabajador_id, trabajadores(nombre, apellidos, dni)')
+      .eq('obra_id', obraActualId)
+      .eq('tipo', 'bloqueo_rojo')
+      .eq('estado', 'nueva')
+      .gte('created_at', desdeISO)
+      .lte('created_at', hastaISO)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error cargando bloqueos:', error);
+      panel.style.display = 'none';
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      panel.style.display = 'none';
+      panel.innerHTML = '';
+      return;
+    }
+
+    // Agrupar por trabajador: nos quedamos con el primer intento y el último
+    const porTrabajador = {};
+    data.forEach(inc => {
+      const tid = inc.trabajador_id || 'desconocido';
+      if (!porTrabajador[tid]) {
+        porTrabajador[tid] = {
+          incidencia_id: inc.id, // usamos la más reciente para marcar visto
+          trabajador: inc.trabajadores,
+          primer_intento: inc.created_at,
+          ultimo_intento: inc.created_at,
+          intentos: 1
+        };
+      } else {
+        porTrabajador[tid].intentos++;
+        if (inc.created_at < porTrabajador[tid].primer_intento) {
+          porTrabajador[tid].primer_intento = inc.created_at;
+        }
+      }
+    });
+
+    const grupos = Object.values(porTrabajador);
+    const totalIntentos = grupos.reduce((s, g) => s + g.intentos, 0);
+    const totalPersonas = grupos.length;
+
+    let html = `<h2>🚫 Accesos denegados hoy (${totalPersonas} ${totalPersonas === 1 ? 'persona' : 'personas'} · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'})</h2>`;
+    html += `<p class="bloqueo-subtitulo">Trabajadores bloqueados por documentación en rojo que han intentado fichar hoy.</p>`;
+
+    grupos.forEach(g => {
+      const t = g.trabajador;
+      const nombre = t
+        ? `${t.nombre || ''} ${t.apellidos || ''}`.trim() || 'Trabajador desconocido'
+        : 'Trabajador desconocido';
+      const dni = t ? (t.dni || '') : '';
+      const horaUltimo = formatHora(g.ultimo_intento);
+      const intentosTexto = g.intentos === 1 ? '1 intento' : `${g.intentos} intentos`;
+
+      html += `
+        <div class="bloqueo-item" data-id="${g.incidencia_id}">
+          <div class="bloqueo-info">
+            <strong>${esc(nombre)}</strong>
+            ${dni ? `<div class="bloqueo-dni">${esc(dni)}</div>` : ''}
+            <div class="bloqueo-hora">Último intento: ${esc(horaUltimo)} · ${esc(intentosTexto)}</div>
+          </div>
+          <button class="btn-visto-rojo" onclick="marcarVistoBloqueo('${g.incidencia_id}', this)">✓ Visto</button>
+        </div>
+      `;
+    });
+
+    panel.innerHTML = html;
+    panel.style.display = 'block';
+  }
+
+  async function marcarVistoBloqueo(incidenciaId, btn) {
+    btn.disabled = true;
+    btn.textContent = 'Marcando…';
+
+    const { data, error } = await sb.rpc('marcar_incidencia_vista', {
+      p_incidencia_id: incidenciaId
+    });
+
+    if (error || (data && data.success === false)) {
+      btn.disabled = false;
+      btn.textContent = '✓ Visto';
+      alert('No se ha podido marcar como visto: ' + (error?.message || data?.error || 'error desconocido'));
+      return;
+    }
+
+    // Recargar el panel entero para que el contador sea correcto
+    await cargarBloqueos();
+  }
+
+  // ============================================
+  // Panel autocierres (existente, sin cambios)
+  // ============================================
   async function cargarAvisosAutocierre() {
     const panel = document.getElementById('panel-avisos');
     if (!obraActualId) {
@@ -702,7 +900,12 @@
       ' ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   }
 
-  // Patrón TZ correcto: rango del día en hora local convertido a UTC ISO
+  function formatHora(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  }
+
   function rangoHoyLocal() {
     const a = new Date();
     const desde = new Date(a.getFullYear(), a.getMonth(), a.getDate(), 0, 0, 0, 0);
@@ -716,7 +919,6 @@
 
     const { desdeISO, hastaISO } = rangoHoyLocal();
 
-    // Traemos también la empresa del trabajador para mostrarla en la tarjeta
     let { data: fichajes, error } = await sb
       .from('fichajes')
       .select('tipo, hora, trabajador_id, trabajadores(nombre, apellidos, dni, empresas(nombre))')
@@ -725,7 +927,6 @@
       .lte('hora', hastaISO)
       .order('hora', { ascending: true });
 
-    // Fallback por si el join a empresas no fuera accesible vía RLS
     if (error) {
       const fb = await sb
         .from('fichajes')
@@ -743,7 +944,6 @@
       fichajes = fb.data;
     }
 
-    // Estado: nos quedamos con el último fichaje del día por trabajador
     const estado = {};
     fichajes.forEach(f => {
       const id = f.trabajador_id;
@@ -763,17 +963,13 @@
       };
     });
 
-    // Presentes = aquellos cuyo último fichaje del día es 'entrada'
     const presentes = Object.values(estado)
       .filter(t => t.tipo === 'entrada')
       .sort((a, b) => new Date(b.horaISO) - new Date(a.horaISO));
 
     presentesCache = presentes;
 
-    pintarContador(
-      presentes.length,
-      presentes.length > 0 ? presentes[0] : null
-    );
+    pintarContador(presentes.length, presentes.length > 0 ? presentes[0] : null);
     pintarTarjetas(presentes);
   }
 
@@ -797,7 +993,6 @@
     cont.classList.remove('estado-vacio', 'estado-aviso');
     cont.classList.add('estado-ok');
 
-    // Aviso suave si hay un nº inusualmente alto. Umbral revisable.
     if (num > 30) {
       cont.classList.remove('estado-ok');
       cont.classList.add('estado-aviso');
@@ -842,7 +1037,6 @@
   }
 
   function actualizarTextosRelativos() {
-    // Recalcula "hace X min" en el contador y en cada tarjeta sin volver a Supabase
     if (!presentesCache) return;
 
     const ultEl = document.getElementById('contador-ultima');
@@ -1042,7 +1236,6 @@
       alert('No hay obra seleccionada.');
       return;
     }
-
     abrirQR(obraActualId, obraActualNombre);
   });
 
