@@ -255,6 +255,7 @@ let reglas = [];
 let trabajadoresApp = {}; // dni -> {id, nombre}
 let datosExcel = null; // filas parseadas desde CSV o Excel
 let resultadoFinal = []; // trabajadores con semáforo calculado
+let descartadosMultiEmpresa = []; // info de filas filtradas por cambio de empresa
 
 // Escapa textos que vienen del Excel o de la base de datos antes de pintarlos
 // con innerHTML. Evita que un valor raro tipo "<img onerror=...>" se ejecute
@@ -574,6 +575,41 @@ function extraerNombreEmpresa(texto) {
   return partes[0].trim();
 }
 
+// ── PARSEO DE FECHAS DE E-COORDINA ───────────────────────────────────────────
+// e-Coordina exporta fechas en formato dd/mm/yyyy. Devolvemos un timestamp
+// (ms) para poder comparar; null si no se puede parsear.
+function parsearFechaEcoordina(texto) {
+  if (!texto) return null;
+  const t = String(texto).trim();
+  if (!t) return null;
+  const m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return null;
+  const dia = parseInt(m[1], 10);
+  const mes = parseInt(m[2], 10) - 1;
+  const ano = parseInt(m[3], 10);
+  const d = new Date(ano, mes, dia);
+  if (isNaN(d.getTime())) return null;
+  return d.getTime();
+}
+
+// Para una fila del CSV, calcula la fecha "más reciente" entre las
+// columnas relevantes para decidir qué empresa es la actual.
+function fechaMasRecienteDeFila(fila) {
+  const candidatos = [
+    fila['F.emisión'],
+    fila['F.emision'], // por si el acento se pierde en algún export
+    fila['F.verificado'],
+    fila['F.cumplimentado'],
+    fila['F.solicitado']
+  ];
+  let max = -Infinity;
+  for (const c of candidatos) {
+    const t = parsearFechaEcoordina(c);
+    if (t !== null && t > max) max = t;
+  }
+  return max === -Infinity ? null : max;
+}
+
 // ── APLICAR REGLAS ────────────────────────────────────────────────────────────
 function aplicarRegla(nombreDoc, estadoEcoordina, tipoAplica) {
   // Buscar regla exacta primero
@@ -633,11 +669,92 @@ async function procesarExcel() {
     const trabajadorRaw = fila['Trabajador'] || '';
     const dni = extraerDniDeTrabajador(trabajadorRaw);
     if (dni) {
-      filasTrabajador.push({ ...fila, _dni: dni, _nombreTrabajador: extraerNombreTrabajador(trabajadorRaw) });
+      filasTrabajador.push({
+        ...fila,
+        _dni: dni,
+        _nombreTrabajador: extraerNombreTrabajador(trabajadorRaw),
+        _empresaRaw: String(fila['Empresa'] || '').trim(),
+        _fechaRef: fechaMasRecienteDeFila(fila)
+      });
     } else {
       filasEmpresa.push(fila);
     }
   }
+
+  // ── FIX cambio de empresa ──────────────────────────────────────────────
+  // Si un mismo DNI aparece bajo varias empresas (caso típico: el trabajador
+  // cambió de subcontrata pero sigue en la obra), e-Coordina exporta
+  // ambas empresas. Nos quedamos solo con UNA empresa (la "actual") y
+  // descartamos las filas del resto, para no heredar documentos antiguos en rojo.
+  //
+  // Criterios de desempate, en este orden:
+  //   1. La empresa con MÁS documentos en estado "Validado".
+  //   2. Si empatan, la empresa con MENOS documentos problemáticos
+  //      (No válido / Sin presentar / Caducado / Pendiente).
+  //   3. Si siguen empatadas, la empresa con la fecha de emisión más reciente.
+  //
+  // Esto refleja la realidad: cuando un trabajador cambia de subcontrata,
+  // la empresa nueva se encarga de subir la documentación al día, y la
+  // antigua acumula documentos sin renovar.
+  descartadosMultiEmpresa = [];
+
+  const ESTADOS_PROBLEMATICOS = new Set(['No válido', 'Sin presentar', 'Caducado', 'Pendiente']);
+
+  // Paso 1: agregar estadísticas por (dni, empresa)
+  const statsPorDniEmpresa = {}; // dni -> empresa -> { validados, problematicos, fechaMax }
+  for (const fila of filasTrabajador) {
+    const dni = fila._dni;
+    const emp = fila._empresaRaw || '(sin empresa)';
+    if (!statsPorDniEmpresa[dni]) statsPorDniEmpresa[dni] = {};
+    if (!statsPorDniEmpresa[dni][emp]) {
+      statsPorDniEmpresa[dni][emp] = { validados: 0, problematicos: 0, fechaMax: null };
+    }
+    const s = statsPorDniEmpresa[dni][emp];
+    const estado = String(fila['Estado'] || '').trim();
+    if (estado === 'Validado') s.validados++;
+    else if (ESTADOS_PROBLEMATICOS.has(estado)) s.problematicos++;
+    if (fila._fechaRef !== null && (s.fechaMax === null || fila._fechaRef > s.fechaMax)) {
+      s.fechaMax = fila._fechaRef;
+    }
+  }
+
+  // Paso 2: para cada DNI con varias empresas, elegir la "ganadora"
+  const empresaGanadoraPorDni = {}; // dni -> empresaRaw
+  for (const [dni, empresas] of Object.entries(statsPorDniEmpresa)) {
+    const claves = Object.keys(empresas);
+    if (claves.length <= 1) {
+      empresaGanadoraPorDni[dni] = claves[0] || '';
+      continue;
+    }
+    claves.sort((a, b) => {
+      const sa = empresas[a];
+      const sb = empresas[b];
+      // 1. más Validados gana
+      if (sa.validados !== sb.validados) return sb.validados - sa.validados;
+      // 2. menos problemáticos gana
+      if (sa.problematicos !== sb.problematicos) return sa.problematicos - sb.problematicos;
+      // 3. fecha más reciente gana (nulls al final)
+      const fa = sa.fechaMax, fb = sb.fechaMax;
+      if (fa == null && fb == null) return 0;
+      if (fa == null) return 1;
+      if (fb == null) return -1;
+      return fb - fa;
+    });
+    empresaGanadoraPorDni[dni] = claves[0];
+    descartadosMultiEmpresa.push({
+      dni,
+      ganadora: claves[0],
+      descartadas: claves.slice(1)
+    });
+  }
+
+  // Paso 3: filtrar filas para conservar solo las de la empresa ganadora
+  const filasTrabajadorFiltradas = filasTrabajador.filter(fila => {
+    const ganadora = empresaGanadoraPorDni[fila._dni];
+    if (!ganadora) return true;
+    return fila._empresaRaw === ganadora;
+  });
+  // ── fin del fix ────────────────────────────────────────────────────────
 
   // Calcular problemas por empresa
   // Usamos el texto completo de Empresa como clave para evitar fallos de coincidencia
@@ -659,16 +776,16 @@ async function procesarExcel() {
     }
   }
 
-  // Agrupar filas por trabajador (dni)
+  // Agrupar filas por trabajador (dni) — ya filtradas a una sola empresa
   const porTrabajador = {};
-  for (const fila of filasTrabajador) {
+  for (const fila of filasTrabajadorFiltradas) {
     const dni = fila._dni;
     if (!porTrabajador[dni]) {
       porTrabajador[dni] = {
         dni,
         nombre: fila._nombreTrabajador,
         empresa: extraerNombreEmpresa(fila['Empresa'] || ''),
-        empresaRaw: String(fila['Empresa'] || ''), // texto completo "EMPRESA SL - B12345678"
+        empresaRaw: fila._empresaRaw, // texto completo "EMPRESA SL - B12345678"
         docs: []
       };
     }
@@ -701,6 +818,15 @@ async function procesarExcel() {
       motivos.push(`[Empresa] ${p.doc} (${p.estado}) → ${p.resultado}`);
     }
 
+    // 3. Aviso si descartamos otra(s) empresa(s) por cambio de subcontrata
+    const descInfo = descartadosMultiEmpresa.find(d => d.dni === dni);
+    if (descInfo) {
+      const nombresDesc = descInfo.descartadas
+        .map(e => extraerNombreEmpresa(e))
+        .join(', ');
+      motivos.push(`[Cambio de empresa] Se han ignorado los documentos de: ${nombresDesc}`);
+    }
+
     const enApp = !!trabajadoresApp[dni];
     resultadoFinal.push({
       dni,
@@ -722,6 +848,7 @@ async function procesarExcel() {
 
   renderTabla();
   renderStats();
+  renderAlertaCambiosEmpresa();
 
   btn.disabled = false;
   btn.innerHTML = 'Procesar archivo';
@@ -742,6 +869,28 @@ function renderStats() {
     <div class="stat-box"><div class="num" style="color:var(--naranja)">${naranjas}</div><div class="label">🟡 Naranja</div></div>
     <div class="stat-box"><div class="num" style="color:var(--verde)">${verdes}</div><div class="label">🟢 Verde</div></div>
     <div class="stat-box"><div class="num" style="color:var(--texto2)">${ignorados}</div><div class="label">⚪ No en app (se crearán)</div></div>
+  `;
+}
+
+function renderAlertaCambiosEmpresa() {
+  const cont = document.getElementById('alertas');
+  if (!descartadosMultiEmpresa.length) {
+    cont.innerHTML = '';
+    return;
+  }
+  const lineas = descartadosMultiEmpresa.map(d => {
+    const trabajador = resultadoFinal.find(r => r.dni === d.dni);
+    const nombre = trabajador ? trabajador.nombre : d.dni;
+    const ganadoraNombre = extraerNombreEmpresa(d.ganadora);
+    const descNombres = d.descartadas.map(e => extraerNombreEmpresa(e)).join(', ');
+    return `<li><strong>${escHtml(nombre)}</strong> (${escHtml(d.dni)}): se ha usado <strong>${escHtml(ganadoraNombre)}</strong> e ignorado <em>${escHtml(descNombres)}</em></li>`;
+  }).join('');
+  cont.innerHTML = `
+    <div class="alert alert-info">
+      <strong>Cambios de empresa detectados</strong>
+      <p style="margin:6px 0 8px;">Algunos trabajadores aparecen en e-Coordina con varias empresas. Se ha tomado la empresa con la documentación más reciente y se han descartado las demás:</p>
+      <ul style="margin-left:18px;">${lineas}</ul>
+    </div>
   `;
 }
 
