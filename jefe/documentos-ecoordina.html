@@ -567,7 +567,7 @@ function extraerDniDeTrabajador(texto) {
 function extraerNombreTrabajador(texto) {
   if (!texto) return '';
   const partes = texto.split(' - ');
-  return partes[0].trim();
+  return partes[0].replace(/^[,\s]+/, '').trim();
 }
 
 function extraerNombreEmpresa(texto) {
