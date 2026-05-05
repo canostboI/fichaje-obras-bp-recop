@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
@@ -359,6 +359,53 @@
     transform: scale(0.98);
   }
 
+  /* =========================================================
+     SELECTOR DE IDIOMA
+     ========================================================= */
+  .selector-idioma {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .selector-idioma button {
+    background: none;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 22px;
+    cursor: pointer;
+    line-height: 1;
+    transition: border-color 0.15s;
+  }
+  .selector-idioma button.activo {
+    border-color: var(--color-principal);
+  }
+  .selector-idioma button:hover {
+    border-color: var(--gris-borde);
+  }
+
+  /* RTL para árabe */
+  html[dir="rtl"] .motivos ul,
+  html[dir="rtl"] .aviso-gps ol {
+    padding-left: 0;
+    padding-right: 22px;
+  }
+  html[dir="rtl"] .motivos {
+    border-left: none;
+    border-right: 4px solid var(--naranja);
+  }
+  html[dir="rtl"] .motivos.criticos {
+    border-right-color: var(--rojo);
+  }
+  html[dir="rtl"] .aviso-gps {
+    text-align: right;
+  }
+  html[dir="rtl"] .ultimo-dni .btn-borrar-dni {
+    margin-left: 0;
+    margin-right: 8px;
+  }
+
   .oculto { display: none !important; }
 
   .pie {
@@ -373,29 +420,36 @@
 <body>
 <div class="contenedor">
 
-  <!-- Cabecera: logo de la marca + nombre de la obra -->
+  <!-- Cabecera: selector de idioma + logo de la marca + nombre de la obra -->
   <div class="cabecera">
+    <!-- Selector de idioma -->
+    <div class="selector-idioma" id="selector-idioma">
+      <button type="button" id="lang-es" title="Español">🇪🇸</button>
+      <button type="button" id="lang-ar" title="عربي">🇲🇦</button>
+      <button type="button" id="lang-ro" title="Română">🇷🇴</button>
+    </div>
+
     <img id="logo-marca" class="logo-marca oculto" alt="">
-    <h1>Fichaje de obra</h1>
+    <h1 id="titulo-principal">Fichaje de obra</h1>
     <div class="obra-nombre" id="obra-nombre">Cargando…</div>
   </div>
 
   <!-- PASO 1: introducir DNI -->
   <div class="tarjeta" id="paso-dni">
-    <label for="dni">DNI o NIE</label>
+    <label for="dni" id="label-dni">DNI o NIE</label>
     <input type="text" id="dni" placeholder="00000000X" autocomplete="off" maxlength="15">
 
     <div class="ultimo-dni oculto" id="ultimo-dni-box">
-      DNI guardado en este móvil:
+      <span id="texto-dni-guardado">DNI guardado en este móvil:</span>
       <button type="button" id="btn-ultimo-dni"></button>
       <button type="button" id="btn-borrar-dni" class="btn-borrar-dni">Borrar</button>
     </div>
 
     <label class="recordar-dni">
       <input type="checkbox" id="chk-recordar-dni">
-      <span>Recordar mi DNI en este móvil</span>
+      <span id="texto-recordar-dni">Recordar mi DNI en este móvil</span>
     </label>
-    <div class="recordar-ayuda">
+    <div class="recordar-ayuda" id="texto-recordar-ayuda">
       Úsalo solo si este móvil es tuyo o lo usas habitualmente.
     </div>
 
@@ -468,48 +522,326 @@ const estado = {
 
 // Elementos del DOM (capturados una vez)
 const el = {
-  logoMarca:   document.getElementById('logo-marca'),
-  pieMarca:    document.getElementById('pie-marca'),
-  obraNombre: document.getElementById('obra-nombre'),
-  pasoDni:     document.getElementById('paso-dni'),
-  pasoCargando:document.getElementById('paso-cargando'),
+  logoMarca:    document.getElementById('logo-marca'),
+  pieMarca:     document.getElementById('pie-marca'),
+  obraNombre:   document.getElementById('obra-nombre'),
+  pasoDni:      document.getElementById('paso-dni'),
+  pasoCargando: document.getElementById('paso-cargando'),
   pasoResultado:document.getElementById('paso-resultado'),
-  pasoFinal:   document.getElementById('paso-final'),
-  inputDni:    document.getElementById('dni'),
-  btnContinuar:document.getElementById('btn-continuar'),
-  ultimoDniBox:document.getElementById('ultimo-dni-box'),
-  btnUltimoDni:document.getElementById('btn-ultimo-dni'),
-  btnBorrarDni:document.getElementById('btn-borrar-dni'),
-  chkRecordarDni:document.getElementById('chk-recordar-dni'),
-  errorDni:    document.getElementById('error-dni'),
-  avisoGps:    document.getElementById('aviso-gps'),
+  pasoFinal:    document.getElementById('paso-final'),
+  inputDni:     document.getElementById('dni'),
+  btnContinuar: document.getElementById('btn-continuar'),
+  ultimoDniBox: document.getElementById('ultimo-dni-box'),
+  btnUltimoDni: document.getElementById('btn-ultimo-dni'),
+  btnBorrarDni: document.getElementById('btn-borrar-dni'),
+  chkRecordarDni: document.getElementById('chk-recordar-dni'),
+  errorDni:     document.getElementById('error-dni'),
+  avisoGps:     document.getElementById('aviso-gps'),
   errorResultado: document.getElementById('error-resultado'),
   cargandoTexto:document.getElementById('cargando-texto'),
-  estadoBox:   document.getElementById('estado-box'),
-  motivosBox:  document.getElementById('motivos-box'),
+  estadoBox:    document.getElementById('estado-box'),
+  motivosBox:   document.getElementById('motivos-box'),
   botonesFichaje: document.getElementById('botones-fichaje'),
-  btnEntrada: document.getElementById('btn-entrada'),
-  btnSalida:  document.getElementById('btn-salida'),
-  btnVolver:   document.getElementById('btn-volver'),
-  finalTick:   document.getElementById('final-tick'),
-  finalTitulo: document.getElementById('final-titulo'),
-  finalNombre: document.getElementById('final-nombre'),
-  finalHora:   document.getElementById('final-hora'),
-  finalMotivos:document.getElementById('final-motivos'),
-  btnNuevo:    document.getElementById('btn-nuevo-fichaje')
+  btnEntrada:   document.getElementById('btn-entrada'),
+  btnSalida:    document.getElementById('btn-salida'),
+  btnVolver:    document.getElementById('btn-volver'),
+  finalTick:    document.getElementById('final-tick'),
+  finalTitulo:  document.getElementById('final-titulo'),
+  finalNombre:  document.getElementById('final-nombre'),
+  finalHora:    document.getElementById('final-hora'),
+  finalMotivos: document.getElementById('final-motivos'),
+  btnNuevo:     document.getElementById('btn-nuevo-fichaje')
 };
+
+// =====================================================================
+// TEXTOS MULTI-IDIOMA
+// =====================================================================
+const TEXTOS = {
+  es: {
+    titulo:              'Fichaje de obra',
+    cargando:            'Cargando…',
+    obra_sin_especificar:'(obra no especificada)',
+    error_qr:            'Código de obra no válido. Escanee de nuevo el QR.',
+    label_dni:           'DNI o NIE',
+    placeholder_dni:     '00000000X',
+    dni_guardado:        'DNI guardado en este móvil:',
+    borrar:              'Borrar',
+    recordar_dni:        'Recordar mi DNI en este móvil',
+    recordar_ayuda:      'Úsalo solo si este móvil es tuyo o lo usas habitualmente.',
+    continuar:           'Continuar',
+    nuevo_fichaje:       'Nuevo fichaje',
+    obteniendo_ubic:     'Obteniendo ubicación…',
+    validando:           'Validando acceso…',
+    registrando:         'Registrando fichaje…',
+    acceso_ok:           '✓ Acceso autorizado',
+    acceso_aviso:        '⚠ Acceso con aviso',
+    acceso_excepcion:    'Acceso autorizado excepcionalmente hoy',
+    acceso_denegado:     '✗ Acceso denegado',
+    motivos_bloqueo:     'Motivos del bloqueo:',
+    avisos:              'Avisos:',
+    entrar:              'Entrar',
+    salir:               'Salir',
+    alt_entrar:          'En realidad voy a entrar',
+    alt_salir:           'En realidad voy a salir',
+    volver:              'Volver',
+    entrada_ok:          'Entrada registrada',
+    salida_ok:           'Salida registrada',
+    pie:                 'Control de acceso',
+    dni_invalido:        'Introduzca un DNI o NIE válido.',
+    dni_no_encontrado:   'DNI no encontrado. Revise números y letra.',
+    sin_conexion:        'Sin conexión a internet. Compruebe su WiFi o datos móviles.',
+    fallo_red:           'No se pudo conectar con el servidor. Compruebe su conexión e inténtelo de nuevo.',
+    timeout_red:         'La conexión tardó demasiado. Inténtelo de nuevo.',
+    error_generico:      'No se pudo completar la operación. Inténtelo de nuevo.',
+    fichaje_rechazado:   'No se pudo registrar el fichaje.',
+    reintentar:          'Reintentar',
+    gps: {
+      denegado_titulo: '⚠ No tenemos acceso a su ubicación',
+      denegado_pasos:  [
+        'Toque el candado 🔒 (o ⓘ) junto a la dirección web, arriba.',
+        'Abra "Permisos" o "Configuración del sitio".',
+        'En "Ubicación", elija <strong>Permitir</strong>.',
+        'Vuelva aquí y pulse <strong>Reintentar</strong>.'
+      ],
+      denegado_nota:   'Si no encuentra el candado, cierre la pestaña y vuelva a escanear el QR.',
+      nodispo_titulo:  '⚠ No se pudo obtener la ubicación',
+      nodispo_pasos:   [
+        'Compruebe que el <strong>GPS</strong> de su móvil está activado.',
+        'En Ajustes del móvil → <strong>Ubicación</strong> → activar.',
+        'Salga al exterior si está bajo techo (el GPS no llega bien).',
+        'Pulse <strong>Reintentar</strong>.'
+      ],
+      nodispo_nota:    null,
+      timeout_titulo:  '⚠ El GPS tardó demasiado',
+      timeout_pasos:   [
+        'Compruebe que tiene cobertura y el GPS activado.',
+        'Espere unos segundos y pulse <strong>Reintentar</strong>.'
+      ],
+      timeout_nota:    'Si está dentro de un edificio, salga al exterior.',
+      generico_titulo: '⚠ Error de ubicación',
+      generico_pasos:  [
+        'Compruebe que el GPS y los permisos del navegador están activados.',
+        'Pulse <strong>Reintentar</strong>.'
+      ],
+      generico_nota:   null
+    }
+  },
+
+  ar: {
+    titulo:              'تسجيل الحضور',
+    cargando:            'جارٍ التحميل…',
+    obra_sin_especificar:'(الموقع غير محدد)',
+    error_qr:            'رمز الموقع غير صالح. يرجى مسح رمز QR مجدداً.',
+    label_dni:           'رقم الهوية DNI / NIE',
+    placeholder_dni:     '00000000X',
+    dni_guardado:        'الهوية المحفوظة في هذا الهاتف:',
+    borrar:              'حذف',
+    recordar_dni:        'حفظ هويتي في هذا الهاتف',
+    recordar_ayuda:      'استخدم هذا الخيار فقط إذا كان الهاتف هاتفك الشخصي.',
+    continuar:           'متابعة',
+    nuevo_fichaje:       'تسجيل جديد',
+    obteniendo_ubic:     'جارٍ تحديد الموقع…',
+    validando:           'جارٍ التحقق من الوصول…',
+    registrando:         'جارٍ تسجيل الحضور…',
+    acceso_ok:           '✓ مسموح بالدخول',
+    acceso_aviso:        '⚠ دخول مع تحذير',
+    acceso_excepcion:    'مسموح بالدخول استثنائياً لهذا اليوم',
+    acceso_denegado:     '✗ الدخول ممنوع',
+    motivos_bloqueo:     'أسباب المنع:',
+    avisos:              'تنبيهات:',
+    entrar:              'دخول',
+    salir:               'خروج',
+    alt_entrar:          'في الواقع سأدخل',
+    alt_salir:           'في الواقع سأخرج',
+    volver:              'رجوع',
+    entrada_ok:          'تم تسجيل الدخول',
+    salida_ok:           'تم تسجيل الخروج',
+    pie:                 'مراقبة الدخول',
+    dni_invalido:        'يرجى إدخال رقم هوية صحيح.',
+    dni_no_encontrado:   'الهوية غير موجودة. تحقق من الأرقام والحرف.',
+    sin_conexion:        'لا يوجد اتصال بالإنترنت. تحقق من الواي فاي أو بيانات الهاتف.',
+    fallo_red:           'تعذّر الاتصال بالخادم. تحقق من اتصالك وأعد المحاولة.',
+    timeout_red:         'استغرق الاتصال وقتاً طويلاً. أعد المحاولة.',
+    error_generico:      'تعذّر إتمام العملية. أعد المحاولة.',
+    fichaje_rechazado:   'تعذّر تسجيل الحضور.',
+    reintentar:          'إعادة المحاولة',
+    gps: {
+      denegado_titulo: '⚠ لا يمكننا الوصول إلى موقعك',
+      denegado_pasos:  [
+        'اضغط على القفل 🔒 (أو ⓘ) بجوار عنوان الموقع في الأعلى.',
+        'افتح "الأذونات" أو "إعدادات الموقع".',
+        'في "الموقع الجغرافي"، اختر <strong>السماح</strong>.',
+        'عد إلى هذه الصفحة واضغط <strong>إعادة المحاولة</strong>.'
+      ],
+      denegado_nota:   'إذا لم تجد القفل، أغلق النافذة وامسح رمز QR مجدداً.',
+      nodispo_titulo:  '⚠ تعذّر تحديد الموقع',
+      nodispo_pasos:   [
+        'تأكد من تفعيل <strong>GPS</strong> في هاتفك.',
+        'اذهب إلى الإعدادات ← <strong>الموقع</strong> ← تفعيل.',
+        'اخرج إلى الخارج إذا كنت داخل مبنى.',
+        'اضغط <strong>إعادة المحاولة</strong>.'
+      ],
+      nodispo_nota:    null,
+      timeout_titulo:  '⚠ استغرق GPS وقتاً طويلاً',
+      timeout_pasos:   [
+        'تأكد من وجود تغطية وأن GPS مفعّل.',
+        'انتظر لحظة ثم اضغط <strong>إعادة المحاولة</strong>.'
+      ],
+      timeout_nota:    'إذا كنت داخل مبنى، اخرج إلى الخارج.',
+      generico_titulo: '⚠ خطأ في تحديد الموقع',
+      generico_pasos:  [
+        'تأكد من تفعيل GPS وأذونات المتصفح.',
+        'اضغط <strong>إعادة المحاولة</strong>.'
+      ],
+      generico_nota:   null
+    }
+  },
+
+  ro: {
+    titulo:              'Pontaj șantier',
+    cargando:            'Se încarcă…',
+    obra_sin_especificar:'(șantier nespecificat)',
+    error_qr:            'Codul șantierului nu este valid. Scanați din nou codul QR.',
+    label_dni:           'DNI sau NIE',
+    placeholder_dni:     '00000000X',
+    dni_guardado:        'DNI salvat pe acest telefon:',
+    borrar:              'Șterge',
+    recordar_dni:        'Rețineți DNI-ul meu pe acest telefon',
+    recordar_ayuda:      'Folosiți această opțiune doar dacă telefonul vă aparține.',
+    continuar:           'Continuare',
+    nuevo_fichaje:       'Pontaj nou',
+    obteniendo_ubic:     'Se obține locația…',
+    validando:           'Se verifică accesul…',
+    registrando:         'Se înregistrează pontajul…',
+    acceso_ok:           '✓ Acces autorizat',
+    acceso_aviso:        '⚠ Acces cu avertisment',
+    acceso_excepcion:    'Acces autorizat excepțional astăzi',
+    acceso_denegado:     '✗ Acces refuzat',
+    motivos_bloqueo:     'Motive de blocare:',
+    avisos:              'Avertismente:',
+    entrar:              'Intrare',
+    salir:               'Ieșire',
+    alt_entrar:          'De fapt voi intra',
+    alt_salir:           'De fapt voi ieși',
+    volver:              'Înapoi',
+    entrada_ok:          'Intrare înregistrată',
+    salida_ok:           'Ieșire înregistrată',
+    pie:                 'Control acces',
+    dni_invalido:        'Introduceți un DNI sau NIE valid.',
+    dni_no_encontrado:   'DNI negăsit. Verificați cifrele și litera.',
+    sin_conexion:        'Fără conexiune la internet. Verificați WiFi sau datele mobile.',
+    fallo_red:           'Nu s-a putut conecta la server. Verificați conexiunea și reîncercați.',
+    timeout_red:         'Conexiunea a durat prea mult. Reîncercați.',
+    error_generico:      'Operațiunea nu a putut fi finalizată. Reîncercați.',
+    fichaje_rechazado:   'Pontajul nu a putut fi înregistrat.',
+    reintentar:          'Reîncercați',
+    gps: {
+      denegado_titulo: '⚠ Nu avem acces la locația dvs.',
+      denegado_pasos:  [
+        'Apăsați lacătul 🔒 (sau ⓘ) de lângă adresa web, sus.',
+        'Deschideți "Permisiuni" sau "Setări site".',
+        'La "Locație", alegeți <strong>Permite</strong>.',
+        'Reveniți aici și apăsați <strong>Reîncercați</strong>.'
+      ],
+      denegado_nota:   'Dacă nu găsiți lacătul, închideți tab-ul și scanați din nou codul QR.',
+      nodispo_titulo:  '⚠ Nu s-a putut obține locația',
+      nodispo_pasos:   [
+        'Verificați că <strong>GPS</strong>-ul telefonului este activat.',
+        'Mergeți la Setări → <strong>Locație</strong> → activați.',
+        'Ieșiți afară dacă sunteți într-o clădire.',
+        'Apăsați <strong>Reîncercați</strong>.'
+      ],
+      nodispo_nota:    null,
+      timeout_titulo:  '⚠ GPS-ul a durat prea mult',
+      timeout_pasos:   [
+        'Verificați că aveți semnal și GPS-ul activat.',
+        'Așteptați câteva secunde și apăsați <strong>Reîncercați</strong>.'
+      ],
+      timeout_nota:    'Dacă sunteți într-o clădire, ieșiți afară.',
+      generico_titulo: '⚠ Eroare de locație',
+      generico_pasos:  [
+        'Verificați că GPS-ul și permisiunile browserului sunt activate.',
+        'Apăsați <strong>Reîncercați</strong>.'
+      ],
+      generico_nota:   null
+    }
+  }
+};
+
+// =====================================================================
+// MULTI-IDIOMA — aplicar idioma y helpers T() / Tgps()
+// =====================================================================
+
+let idiomaActual = 'es';
+
+function aplicarIdioma(lang) {
+  if (!TEXTOS[lang]) lang = 'es';
+  idiomaActual = lang;
+  const t = TEXTOS[lang];
+
+  // Dirección del texto: árabe es RTL, el resto LTR
+  document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+  document.documentElement.setAttribute('lang', lang);
+
+  // Textos estáticos del DOM
+  document.getElementById('titulo-principal').textContent        = t.titulo;
+  document.getElementById('label-dni').textContent               = t.label_dni;
+  document.getElementById('texto-dni-guardado').textContent      = t.dni_guardado;
+  document.getElementById('texto-recordar-dni').textContent      = t.recordar_dni;
+  document.getElementById('texto-recordar-ayuda').textContent    = t.recordar_ayuda;
+  el.inputDni.placeholder                                        = t.placeholder_dni;
+  el.btnContinuar.textContent                                    = t.continuar;
+  el.btnVolver.textContent                                       = t.volver;
+  el.btnNuevo.textContent                                        = t.nuevo_fichaje;
+  el.btnBorrarDni.textContent                                    = t.borrar;
+
+  // Pie de página: solo si no ha sido sobreescrito por el branding
+  // (el branding añade el nombre de la marca, que no traducimos)
+  if (!el.pieMarca.dataset.brandingAplicado) {
+    el.pieMarca.textContent = t.pie;
+  }
+
+  // Marcar botón activo en el selector
+  ['es', 'ar', 'ro'].forEach(l => {
+    document.getElementById('lang-' + l).classList.toggle('activo', l === lang);
+  });
+
+  // Guardar preferencia
+  localStorage.setItem('idioma_fichaje', lang);
+}
+
+// Shorthand para textos dinámicos (errores, estados, botones de fichaje)
+function T(clave) {
+  return (TEXTOS[idiomaActual] && TEXTOS[idiomaActual][clave]) || TEXTOS.es[clave] || clave;
+}
+
+// Shorthand para textos del aviso GPS
+function Tgps(clave) {
+  return (TEXTOS[idiomaActual] && TEXTOS[idiomaActual].gps && TEXTOS[idiomaActual].gps[clave])
+    || (TEXTOS.es.gps[clave])
+    || '';
+}
+
+// Eventos del selector de idioma
+document.getElementById('lang-es').addEventListener('click', () => aplicarIdioma('es'));
+document.getElementById('lang-ar').addEventListener('click', () => aplicarIdioma('ar'));
+document.getElementById('lang-ro').addEventListener('click', () => aplicarIdioma('ro'));
 
 // =====================================================================
 // INICIALIZACIÓN: leer ?obra=... de la URL, cargar nombre, precargar DNI
 // =====================================================================
 (async function init() {
+  // Aplicar idioma guardado (o español por defecto)
+  const langGuardado = localStorage.getItem('idioma_fichaje') || 'es';
+  aplicarIdioma(langGuardado);
+
   const params = new URLSearchParams(window.location.search);
   estado.obraId = params.get('obra');
 
   if (!estado.obraId) {
-    el.obraNombre.textContent = '(obra no especificada)';
+    el.obraNombre.textContent = T('obra_sin_especificar');
     el.btnContinuar.disabled = true;
-    mostrarErrorDni('Código de obra no válido. Escanee de nuevo el QR.');
+    mostrarErrorDni(T('error_qr'));
     return;
   }
 
@@ -525,7 +857,10 @@ const el = {
     el.logoMarca.src = '../' + branding.logo;
     el.logoMarca.alt = branding.nombre;
     el.logoMarca.classList.remove('oculto');
-    el.pieMarca.textContent = branding.nombre + ' · Control de acceso';
+    // El pie lo fija el branding con el nombre de la empresa; marcamos
+    // para no sobreescribirlo al cambiar de idioma
+    el.pieMarca.textContent = branding.nombre + ' · ' + T('pie');
+    el.pieMarca.dataset.brandingAplicado = '1';
   } catch (e) {
     el.obraNombre.textContent = 'Obra #' + estado.obraId.substring(0, 8);
   }
@@ -604,57 +939,46 @@ function mostrarAvisoGps(codigo) {
   el.avisoGps.classList.remove('oculto');
   ocultarErrorDni();
 
-  let titulo, pasos, nota;
+  let tituloKey, pasosKey, notaKey;
 
   if (codigo === 1) {
-    // Permiso denegado
-    titulo = '⚠ No tenemos acceso a su ubicación';
-    pasos = [
-      'Toque el candado 🔒 (o ⓘ) junto a la dirección web, arriba.',
-      'Abra "Permisos" o "Configuración del sitio".',
-      'En "Ubicación", elija <strong>Permitir</strong>.',
-      'Vuelva aquí y pulse <strong>Reintentar</strong>.'
-    ];
-    nota = 'Si no encuentra el candado, cierre la pestaña y vuelva a escanear el QR.';
+    tituloKey = 'denegado_titulo';
+    pasosKey  = 'denegado_pasos';
+    notaKey   = 'denegado_nota';
   } else if (codigo === 2) {
-    // GPS no disponible (apagado a nivel de sistema, sin señal, etc.)
-    titulo = '⚠ No se pudo obtener la ubicación';
-    pasos = [
-      'Compruebe que el <strong>GPS</strong> de su móvil está activado.',
-      'En Ajustes del móvil → <strong>Ubicación</strong> → activar.',
-      'Salga al exterior si está bajo techo (el GPS no llega bien).',
-      'Pulse <strong>Reintentar</strong>.'
-    ];
-    nota = null;
+    tituloKey = 'nodispo_titulo';
+    pasosKey  = 'nodispo_pasos';
+    notaKey   = 'nodispo_nota';
   } else if (codigo === 3) {
-    // Timeout
-    titulo = '⚠ El GPS tardó demasiado';
-    pasos = [
-      'Compruebe que tiene cobertura y el GPS activado.',
-      'Espere unos segundos y pulse <strong>Reintentar</strong>.'
-    ];
-    nota = 'Si está dentro de un edificio, salga al exterior.';
+    tituloKey = 'timeout_titulo';
+    pasosKey  = 'timeout_pasos';
+    notaKey   = 'timeout_nota';
   } else {
-    // Caso genérico
-    titulo = '⚠ Error de ubicación';
-    pasos = [
-      'Compruebe que el GPS y los permisos del navegador están activados.',
-      'Pulse <strong>Reintentar</strong>.'
-    ];
-    nota = null;
+    tituloKey = 'generico_titulo';
+    pasosKey  = 'generico_pasos';
+    notaKey   = 'generico_nota';
   }
 
-  // Construimos el HTML del aviso. Los textos de los pasos son
-  // controlados por nosotros (no entran datos del usuario), así que
-  // se permite HTML interno (<strong>) para resaltar.
-  const pasosHtml = pasos.map(p => '<li>' + p + '</li>').join('');
-  const notaHtml = nota ? '<span class="nota">' + escapar(nota) + '</span>' : '';
+  const titulo = Tgps(tituloKey);
+  const pasos  = Tgps(pasosKey);  // array
+  const nota   = Tgps(notaKey);   // string | null | ''
+
+  // Los textos de los pasos son controlados por nosotros (no datos del
+  // usuario), así que se permite HTML interno (<strong>) para resaltar.
+  const pasosHtml = Array.isArray(pasos)
+    ? pasos.map(p => '<li>' + p + '</li>').join('')
+    : '';
+  const notaHtml = nota
+    ? '<span class="nota">' + escapar(nota) + '</span>'
+    : '';
 
   el.avisoGps.innerHTML =
     '<span class="titulo-aviso">' + escapar(titulo) + '</span>' +
     '<ol>' + pasosHtml + '</ol>' +
     notaHtml +
-    '<button type="button" class="reintentar" id="btn-reintentar-gps">Reintentar</button>';
+    '<button type="button" class="reintentar" id="btn-reintentar-gps">' +
+      escapar(T('reintentar')) +
+    '</button>';
 
   // El botón se crea cada vez con innerHTML, así que enganchamos el
   // evento aquí (no se puede dejar fijo en el HTML inicial).
@@ -692,7 +1016,7 @@ function pintarMotivos(contenedor, motivos, criticos) {
     return;
   }
   contenedor.className = 'motivos' + (criticos ? ' criticos' : '');
-  contenedor.innerHTML = '<strong>' + (criticos ? 'Motivos del bloqueo:' : 'Avisos:') + '</strong><ul>' +
+  contenedor.innerHTML = '<strong>' + escapar(criticos ? T('motivos_bloqueo') : T('avisos')) + '</strong><ul>' +
     motivos.map(m => '<li>' + escapar(m) + '</li>').join('') +
     '</ul>';
   contenedor.classList.remove('oculto');
@@ -714,10 +1038,7 @@ function formatearHora(iso) {
 function interpretarError(err) {
   // Sin internet: navigator.onLine es la pista más clara
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    return {
-      mensajeUsuario: 'Sin conexión a internet. Compruebe su WiFi o datos móviles.',
-      etiquetaLog: 'sin_conexion'
-    };
+    return { mensajeUsuario: T('sin_conexion'), etiquetaLog: 'sin_conexion' };
   }
 
   const msg = (err && (err.message || err.error_description || err.toString())) || '';
@@ -727,25 +1048,17 @@ function interpretarError(err) {
   if (msgLower.includes('failed to fetch') ||
       msgLower.includes('networkerror') ||
       msgLower.includes('network request failed')) {
-    return {
-      mensajeUsuario: 'No se pudo conectar con el servidor. Compruebe su conexión e inténtelo de nuevo.',
-      etiquetaLog: 'fallo_red'
-    };
+    return { mensajeUsuario: T('fallo_red'), etiquetaLog: 'fallo_red' };
   }
 
   // Timeout
   if (msgLower.includes('timeout') || msgLower.includes('timed out')) {
-    return {
-      mensajeUsuario: 'La conexión tardó demasiado. Inténtelo de nuevo.',
-      etiquetaLog: 'timeout'
-    };
+    return { mensajeUsuario: T('timeout_red'), etiquetaLog: 'timeout' };
   }
 
-  // Cualquier otra cosa: mostramos el mensaje real si lo hay
+  // Cualquier otra cosa
   return {
-    mensajeUsuario: msg
-      ? 'Error: ' + msg
-      : 'No se pudo completar la operación. Inténtelo de nuevo.',
+    mensajeUsuario: msg ? 'Error: ' + msg : T('error_generico'),
     etiquetaLog: 'otro'
   };
 }
@@ -835,14 +1148,14 @@ async function continuarDesdeDni() {
   const dni = normalizarDni(el.inputDni.value);
 
   if (dni.length < 5) {
-    mostrarErrorDni('Introduzca un DNI o NIE válido.');
+    mostrarErrorDni(T('dni_invalido'));
     return;
   }
 
   estado.dni = dni;
 
   // Obtener GPS primero (lo necesitaremos sí o sí para fichar)
-  el.cargandoTexto.textContent = 'Obteniendo ubicación…';
+  el.cargandoTexto.textContent = T('obteniendo_ubic');
   irA(el.pasoCargando);
 
   try {
@@ -856,7 +1169,7 @@ async function continuarDesdeDni() {
   }
 
   // Llamar a validar_acceso
-  el.cargandoTexto.textContent = 'Validando acceso…';
+  el.cargandoTexto.textContent = T('validando');
   try {
     const { data, error } = await sb.rpc('validar_acceso', {
       p_dni: estado.dni,
@@ -883,13 +1196,8 @@ async function continuarDesdeDni() {
 }
 
 // Botón "Reintentar" del aviso de GPS: vuelve a pedir ubicación al
-// navegador sin recargar la página. Si el usuario ha arreglado el
-// permiso entretanto, esta segunda llamada disparará otra vez el
-// popup (caso "denegación temporal") o devolverá la coordenada
-// directamente (caso "permiso ya concedido en ajustes").
+// navegador sin recargar la página.
 async function reintentarGps() {
-  // Si aún no hay DNI, simplemente cerramos el aviso y dejamos que
-  // el usuario pulse "Continuar" otra vez.
   if (!estado.dni) {
     ocultarAvisoGps();
     el.inputDni.focus();
@@ -897,7 +1205,7 @@ async function reintentarGps() {
   }
 
   ocultarAvisoGps();
-  el.cargandoTexto.textContent = 'Obteniendo ubicación…';
+  el.cargandoTexto.textContent = T('obteniendo_ubic');
   irA(el.pasoCargando);
 
   try {
@@ -909,9 +1217,8 @@ async function reintentarGps() {
     return;
   }
 
-  // Si llegamos aquí es que el GPS ya funcionó. Continuamos con la
-  // validación como en el flujo normal.
-  el.cargandoTexto.textContent = 'Validando acceso…';
+  // Si llegamos aquí el GPS funcionó. Continuamos con la validación.
+  el.cargandoTexto.textContent = T('validando');
   try {
     const { data, error } = await sb.rpc('validar_acceso', {
       p_dni: estado.dni,
@@ -939,45 +1246,34 @@ async function reintentarGps() {
 
 // Pinta los dos botones de fichaje según el estado documental y el
 // tipo sugerido por el servidor (validar_acceso devuelve tipo_sugerido).
-// El sugerido toma el estilo principal (color del estado, grande); el otro
-// queda como alternativo (pequeño, gris).
 function configurarBotonesFichaje(estadoDoc, tipoSugerido) {
-  // Por defecto, ambos visibles y habilitados
   el.botonesFichaje.classList.remove('oculto');
   el.btnEntrada.disabled = false;
   el.btnSalida.disabled = false;
 
-  // Color del botón principal según estado documental
-  // (verde para verde, naranja para naranja/excepción)
   const colorPrincipal = (estadoDoc === 'verde') ? 'verde' : 'naranja';
 
-  // Reset de clases y orden visual
   el.btnEntrada.className = '';
   el.btnSalida.className  = '';
 
-  // El sugerido se monta como .principal + color; el otro como .alternativo
   if (tipoSugerido === 'salida') {
     el.btnSalida.classList.add('principal', colorPrincipal);
-    el.btnSalida.textContent = 'Salir';
+    el.btnSalida.textContent = T('salir');
     el.btnEntrada.classList.add('alternativo');
-    el.btnEntrada.textContent = 'En realidad voy a entrar';
+    el.btnEntrada.textContent = T('alt_entrar');
 
-    // Reordenar: primero el sugerido (salida), luego el alternativo
     el.botonesFichaje.appendChild(el.btnSalida);
     el.botonesFichaje.appendChild(el.btnEntrada);
   } else {
-    // Por defecto, sugerido = entrada (cubre 'entrada' y cualquier otro valor)
     el.btnEntrada.classList.add('principal', colorPrincipal);
-    el.btnEntrada.textContent = 'Entrar';
+    el.btnEntrada.textContent = T('entrar');
     el.btnSalida.classList.add('alternativo');
-    el.btnSalida.textContent = 'En realidad voy a salir';
+    el.btnSalida.textContent = T('alt_salir');
 
     el.botonesFichaje.appendChild(el.btnEntrada);
     el.botonesFichaje.appendChild(el.btnSalida);
   }
 
-  // Quitamos el margen superior del .principal cuando va dentro de
-  // .botones-fichaje (el contenedor ya da gap de 10px).
   el.btnEntrada.style.marginTop = '0';
   el.btnSalida.style.marginTop  = '0';
 }
@@ -985,11 +1281,10 @@ function configurarBotonesFichaje(estadoDoc, tipoSugerido) {
 function mostrarResultadoValidacion(v) {
   if (!v.encontrado) {
     irA(el.pasoDni);
-    mostrarErrorDni(v.mensaje || 'DNI no encontrado. Revise números y letra.');
+    mostrarErrorDni(v.mensaje || T('dni_no_encontrado'));
     return;
   }
 
-  // Caso: trabajador encontrado. Pintamos según estado.
   ocultarErrorResultado();
   el.estadoBox.className = 'estado-box';
 
@@ -999,30 +1294,29 @@ function mostrarResultadoValidacion(v) {
   switch (estadoEfectivo) {
     case 'verde':
       el.estadoBox.classList.add('estado-verde');
-      el.estadoBox.textContent = '✓ Acceso autorizado';
+      el.estadoBox.textContent = T('acceso_ok');
       pintarMotivos(el.motivosBox, null);
       configurarBotonesFichaje('verde', tipoSugerido);
       break;
 
     case 'naranja':
       el.estadoBox.classList.add('estado-naranja');
-      el.estadoBox.textContent = '⚠ Acceso con aviso';
+      el.estadoBox.textContent = T('acceso_aviso');
       pintarMotivos(el.motivosBox, v.motivos, false);
       configurarBotonesFichaje('naranja', tipoSugerido);
       break;
 
     case 'excepcion':
       el.estadoBox.classList.add('estado-naranja');
-      el.estadoBox.textContent = 'Acceso autorizado excepcionalmente hoy';
+      el.estadoBox.textContent = T('acceso_excepcion');
       pintarMotivos(el.motivosBox, v.motivos, false);
       configurarBotonesFichaje('naranja', tipoSugerido);
       break;
 
     case 'rojo':
     default:
-      // Rojo sin excepción: ocultamos los dos botones, solo "Volver".
       el.estadoBox.classList.add('estado-rojo');
-      el.estadoBox.textContent = '✗ Acceso denegado';
+      el.estadoBox.textContent = T('acceso_denegado');
       pintarMotivos(el.motivosBox, v.motivos, true);
       el.botonesFichaje.classList.add('oculto');
       el.btnEntrada.disabled = true;
@@ -1034,11 +1328,10 @@ function mostrarResultadoValidacion(v) {
 }
 
 async function ejecutarFichaje(tipo) {
-  // tipo: 'entrada' | 'salida'
   el.btnEntrada.disabled = true;
   el.btnSalida.disabled = true;
   ocultarErrorResultado();
-  el.cargandoTexto.textContent = 'Registrando fichaje…';
+  el.cargandoTexto.textContent = T('registrando');
   irA(el.pasoCargando);
 
   try {
@@ -1061,16 +1354,11 @@ async function ejecutarFichaje(tipo) {
     }
 
     if (!data || !data.success) {
-      // La RPC respondió OK pero rechazó el fichaje
-      // (rojo, fuera de zona, incoherencia entrada/salida, etc.).
-      // Volvemos al resultado dejando los DOS botones pulsables, para
-      // que el usuario pueda intentar el otro tipo si toca.
       irA(el.pasoResultado);
       el.btnEntrada.disabled = false;
       el.btnSalida.disabled = false;
-      const motivoPrincipal = (data && data.error) || 'No se pudo registrar el fichaje.';
+      const motivoPrincipal = (data && data.error) || T('fichaje_rechazado');
       mostrarErrorResultado(motivoPrincipal);
-      // Si hay motivos detallados, los repintamos como críticos
       if (data && Array.isArray(data.motivos) && data.motivos.length) {
         pintarMotivos(el.motivosBox, data.motivos, true);
       }
@@ -1092,19 +1380,14 @@ async function ejecutarFichaje(tipo) {
 function mostrarConfirmacionFinal(r) {
   const esEntrada = r.tipo === 'entrada';
   el.finalTick.textContent = '✓';
-  el.finalTitulo.textContent = esEntrada ? 'Entrada registrada' : 'Salida registrada';
+  el.finalTitulo.textContent = esEntrada ? T('entrada_ok') : T('salida_ok');
   el.finalNombre.textContent = estado.validacion && estado.validacion.trabajador_nombre
     ? estado.validacion.trabajador_nombre.trim()
     : '';
   el.finalHora.textContent = formatearHora(r.hora);
 
-  // Si era naranja/excepcional, recordar motivos al salir también
   if (r.estado === 'naranja' || r.excepcion_autorizada) {
-    pintarMotivos(
-      el.finalMotivos,
-      r.motivos,
-      false
-    );
+    pintarMotivos(el.finalMotivos, r.motivos, false);
   } else {
     el.finalMotivos.classList.add('oculto');
   }
