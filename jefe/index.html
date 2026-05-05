@@ -62,7 +62,21 @@
   .vacio { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
 
-  /* Panel avisos autocierre */
+  /* Panel avisos bloqueos rojos (nuevo) */
+  .panel-bloqueos { background: rgba(244,67,54,0.08); border: 1px solid rgba(244,67,54,0.4); border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; }
+  .panel-bloqueos.oculto { display: none; }
+  .panel-bloqueos h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--rojo); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .bloqueo-item { display: flex; align-items: flex-start; justify-content: space-between; padding: 10px 0; border-top: 1px solid rgba(244,67,54,0.2); gap: 12px; }
+  .bloqueo-item:first-of-type { border-top: none; padding-top: 0; }
+  .bloqueo-item:last-of-type { padding-bottom: 0; }
+  .bloqueo-info { font-size: 14px; line-height: 1.5; flex: 1; }
+  .bloqueo-info strong { color: var(--texto); }
+  .bloqueo-info .detalle { color: var(--texto2); font-size: 13px; margin-top: 4px; }
+  .btn-visto-rojo { background: var(--bg2); border: 1px solid var(--borde); color: var(--texto); font-size: 13px; padding: 7px 14px; border-radius: 8px; cursor: pointer; font-family: inherit; white-space: nowrap; flex-shrink: 0; }
+  .btn-visto-rojo:hover { background: var(--bg3); }
+  .btn-visto-rojo:disabled { opacity: 0.5; cursor: default; }
+
+  /* Panel avisos autocierre (existente) */
   .panel-avisos { background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.4); border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; }
   .panel-avisos.oculto { display: none; }
   .panel-avisos h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--naranja); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
@@ -124,6 +138,12 @@
       <div class="stat"><div class="numero rojo" id="stat-rojo">—</div><div class="etiqueta">Documentación roja</div></div>
     </div>
     <div style="height:20px"></div>
+
+    <!-- Panel bloqueos rojos (nuevo) -->
+    <div class="panel-bloqueos oculto" id="panel-bloqueos">
+      <h3>🚫 <span id="bloqueos-titulo">Accesos denegados hoy</span></h3>
+      <div id="bloqueos-lista"></div>
+    </div>
 
     <!-- Panel de avisos de autocierre -->
     <div class="panel-avisos oculto" id="panel-avisos">
@@ -201,6 +221,7 @@ let brandingActual = null;
   obraActual = misObras[0].obra.id;
   aplicarBrandingObra(misObras[0].obra.empresa_marca);
   await cargarPresencia();
+  await cargarBloqueos();
   await cargarAvisosAutocierre();
 
   selector.addEventListener('change', async () => {
@@ -208,6 +229,7 @@ let brandingActual = null;
     const marca = selector.options[selector.selectedIndex].dataset.marca;
     aplicarBrandingObra(marca);
     await cargarPresencia();
+    await cargarBloqueos();
     await cargarAvisosAutocierre();
   });
 })();
@@ -231,7 +253,7 @@ document.getElementById('btn-ver-qr').addEventListener('click', () => {
   abrirQR(obraActual, obraNombre);
 });
 
-// Patrón TZ correcto: rango del día en hora local convertido a UTC ISO
+// Patrón TZ correcto
 function rangoHoyLocal() {
   const a = new Date();
   const desde = new Date(a.getFullYear(), a.getMonth(), a.getDate(), 0, 0, 0, 0);
@@ -316,7 +338,97 @@ async function cargarPresencia() {
     </table>`;
 }
 
-// ── Avisos de autocierre ──────────────────────────────────────────────────────
+// ── Bloqueos rojos (nuevo) ────────────────────────────────────────────────────
+async function cargarBloqueos() {
+  const panel = document.getElementById('panel-bloqueos');
+  const lista = document.getElementById('bloqueos-lista');
+  const titulo = document.getElementById('bloqueos-titulo');
+
+  panel.classList.add('oculto');
+  lista.innerHTML = '';
+
+  if (!obraActual) return;
+
+  const { desdeISO, hastaISO } = rangoHoyLocal();
+
+  const { data: incidencias, error } = await sb
+    .from('incidencias')
+    .select('id, detalle, created_at, trabajador:trabajador_id(id, nombre, apellidos, dni)')
+    .eq('obra_id', obraActual)
+    .eq('tipo', 'bloqueo_rojo')
+    .eq('estado', 'nueva')
+    .gte('created_at', desdeISO)
+    .lte('created_at', hastaISO)
+    .order('created_at', { ascending: false });
+
+  if (error || !incidencias || incidencias.length === 0) return;
+
+  // Agrupar por trabajador
+  const porTrabajador = {};
+  incidencias.forEach(inc => {
+    const tid = inc.trabajador?.id || 'desconocido';
+    if (!porTrabajador[tid]) {
+      porTrabajador[tid] = {
+        incidencia_id: inc.id,
+        trabajador: inc.trabajador,
+        primer_intento: inc.created_at,
+        ultimo_intento: inc.created_at,
+        intentos: 1
+      };
+    } else {
+      porTrabajador[tid].intentos++;
+      if (inc.created_at < porTrabajador[tid].primer_intento) {
+        porTrabajador[tid].primer_intento = inc.created_at;
+      }
+    }
+  });
+
+  const grupos = Object.values(porTrabajador);
+  const totalIntentos = grupos.reduce((s, g) => s + g.intentos, 0);
+  const totalPersonas = grupos.length;
+
+  titulo.textContent = totalPersonas === 1
+    ? `1 persona · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'}`
+    : `${totalPersonas} personas · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'}`;
+
+  lista.innerHTML = grupos.map(g => {
+    const t = g.trabajador || {};
+    const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || '(sin nombre)';
+    const dni = t.dni ? ` — ${t.dni}` : '';
+    const horaUltimo = formatHora(g.ultimo_intento);
+    const intentosTexto = g.intentos === 1 ? '1 intento' : `${g.intentos} intentos`;
+    return `
+      <div class="bloqueo-item" data-id="${g.incidencia_id}">
+        <div class="bloqueo-info">
+          <strong>${esc(nombre)}</strong>
+          <div class="detalle">${esc(horaUltimo)} · ${esc(intentosTexto)}${esc(dni)}</div>
+        </div>
+        <button class="btn-visto-rojo" onclick="marcarVistoRojo('${g.incidencia_id}', this)">✓ Visto</button>
+      </div>`;
+  }).join('');
+
+  panel.classList.remove('oculto');
+}
+
+async function marcarVistoRojo(incidenciaId, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Marcando…';
+
+  const { data, error } = await sb.rpc('marcar_incidencia_vista', {
+    p_incidencia_id: incidenciaId
+  });
+
+  if (error || !data?.success) {
+    btn.disabled = false;
+    btn.textContent = '✓ Visto';
+    alert('Error: ' + (error?.message || data?.error || 'No se pudo marcar'));
+    return;
+  }
+
+  await cargarBloqueos();
+}
+
+// ── Avisos de autocierre (existente) ──────────────────────────────────────────
 async function cargarAvisosAutocierre() {
   const panel = document.getElementById('panel-avisos');
   const lista = document.getElementById('avisos-lista');
@@ -373,18 +485,7 @@ async function marcarVisto(incidenciaId, btn) {
     return;
   }
 
-  // Quitar el item del DOM y ocultar panel si era el último
-  const item = document.querySelector(`.aviso-item[data-id="${incidenciaId}"]`);
-  if (item) item.remove();
-
-  const restantes = document.querySelectorAll('.aviso-item').length;
-  if (restantes === 0) {
-    document.getElementById('panel-avisos').classList.add('oculto');
-  } else {
-    document.getElementById('avisos-titulo').textContent = restantes === 1
-      ? '1 jornada cerrada automáticamente sin atender'
-      : `${restantes} jornadas cerradas automáticamente sin atender`;
-  }
+  await cargarAvisosAutocierre();
 }
 
 // ── QR ────────────────────────────────────────────────────────────────────────
