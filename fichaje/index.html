@@ -112,10 +112,11 @@
 
   .ultimo-dni {
     text-align: center;
-    margin-top: 10px;
-    font-size: 13px;
-    color: #777;
-    line-height: 1.45;
+    margin-top: 12px;
+    font-size: 16px;
+    color: #555;
+    line-height: 1.6;
+    font-weight: 500;
   }
   .ultimo-dni button {
     background: none;
@@ -123,12 +124,15 @@
     color: var(--color-principal);
     text-decoration: underline;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 17px;
+    font-weight: 700;
     padding: 0;
   }
   .ultimo-dni .btn-borrar-dni {
     margin-left: 8px;
     color: var(--rojo);
+    font-size: 15px;
+    font-weight: 600;
   }
 
   .recordar-dni {
@@ -365,15 +369,15 @@
   .selector-idioma {
     display: flex;
     justify-content: center;
-    gap: 10px;
-    margin-bottom: 14px;
+    gap: 12px;
+    margin-top: 14px;
   }
   .selector-idioma button {
     background: none;
     border: 2px solid transparent;
     border-radius: 8px;
-    padding: 4px 8px;
-    font-size: 22px;
+    padding: 6px 10px;
+    font-size: 30px;
     cursor: pointer;
     line-height: 1;
     transition: border-color 0.15s;
@@ -420,18 +424,18 @@
 <body>
 <div class="contenedor">
 
-  <!-- Cabecera: selector de idioma + logo de la marca + nombre de la obra -->
+  <!-- Cabecera: logo de la marca + nombre de la obra + selector de idioma -->
   <div class="cabecera">
-    <!-- Selector de idioma -->
+    <img id="logo-marca" class="logo-marca oculto" alt="">
+    <h1 id="titulo-principal">Fichaje de obra</h1>
+    <div class="obra-nombre" id="obra-nombre">Cargando…</div>
+
+    <!-- Selector de idioma: debajo del nombre de obra, bien visible -->
     <div class="selector-idioma" id="selector-idioma">
       <button type="button" id="lang-es" title="Español">🇪🇸</button>
       <button type="button" id="lang-ar" title="عربي">🇲🇦</button>
       <button type="button" id="lang-ro" title="Română">🇷🇴</button>
     </div>
-
-    <img id="logo-marca" class="logo-marca oculto" alt="">
-    <h1 id="titulo-principal">Fichaje de obra</h1>
-    <div class="obra-nombre" id="obra-nombre">Cargando…</div>
   </div>
 
   <!-- PASO 1: introducir DNI -->
