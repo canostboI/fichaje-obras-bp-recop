@@ -256,6 +256,7 @@ let trabajadoresApp = {}; // dni -> {id, nombre}
 let datosExcel = null; // filas parseadas desde CSV o Excel
 let resultadoFinal = []; // trabajadores con semáforo calculado
 let descartadosMultiEmpresa = []; // info de filas filtradas por cambio de empresa
+let sinRegla = new Set(); // pares "doc||estado" que no tienen regla definida
 
 // Escapa textos que vienen del Excel o de la base de datos antes de pintarlos
 // con innerHTML. Evita que un valor raro tipo "<img onerror=...>" se ejecute
@@ -640,6 +641,9 @@ async function procesarExcel() {
   if (!obraId) { alert('Selecciona una obra primero'); return; }
   if (!datosExcel) { alert('Primero sube el archivo de e-Coordina'); return; }
 
+  // Resetear Set por si se reprocesa el archivo
+  sinRegla = new Set();
+
   const btn = document.getElementById('btnProcesar');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Procesando...';
@@ -773,6 +777,8 @@ async function procesarExcel() {
         estado,
         resultado: regla.resultado
       });
+    } else {
+      sinRegla.add(`${nombreDoc}||${estado}`);
     }
   }
 
@@ -808,6 +814,8 @@ async function procesarExcel() {
       if (regla) {
         estadoFinal = peorEstado(estadoFinal, regla.resultado);
         motivos.push(`${doc} (${estado}) → ${regla.resultado}`);
+      } else {
+        sinRegla.add(`${doc}||${estado}`);
       }
     }
 
@@ -849,6 +857,7 @@ async function procesarExcel() {
   renderTabla();
   renderStats();
   renderAlertaCambiosEmpresa();
+  renderAlertaSinRegla();
 
   btn.disabled = false;
   btn.innerHTML = 'Procesar archivo';
@@ -892,6 +901,28 @@ function renderAlertaCambiosEmpresa() {
       <ul style="margin-left:18px;">${lineas}</ul>
     </div>
   `;
+}
+
+function renderAlertaSinRegla() {
+  const cont = document.getElementById('alertas');
+  if (!sinRegla.size) return;
+
+  const filas = [...sinRegla].map(par => {
+    const [doc, estado] = par.split('||');
+    return `<li><strong>${escHtml(doc)}</strong> — estado: <em>${escHtml(estado)}</em></li>`;
+  }).join('');
+
+  cont.innerHTML += `
+    <div class="alert alert-warning" style="margin-top:10px;">
+      <strong>⚠️ Documentos sin regla definida (${sinRegla.size})</strong>
+      <p style="margin:6px 0 8px;">
+        Los siguientes documentos aparecen en e-Coordina con un estado
+        que no tiene regla en la app. Se han <strong>ignorado</strong> al
+        calcular el semáforo. Si alguno debería afectar al estado,
+        añade la regla en <a href="../admin/reglas.html" style="color:var(--naranja)">Admin → Reglas documentales</a>.
+      </p>
+      <ul style="margin-left:18px;">${filas}</ul>
+    </div>`;
 }
 
 function renderTabla() {
