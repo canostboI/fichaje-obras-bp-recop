@@ -606,7 +606,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     p_dni: dni,
     p_categoria: categoria || null,
     p_precio_hora: precio_hora_personalizado,
-    p_obra_ids: obrasSeleccionadas
+    p_obra_ids: obrasSeleccionadas.map(id => id.trim())
   });
 
   if (rpcError) {
