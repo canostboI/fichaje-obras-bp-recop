@@ -599,91 +599,40 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     return;
   }
 
-  let trabajadorId = modoEdicion;
+  // Llamada a RPC SECURITY DEFINER — evita error RLS en INSERT directo
+  const { data: rpcData, error: rpcError } = await sb.rpc('crear_o_actualizar_trabajador', {
+    p_nombre: nombre,
+    p_apellidos: apellidos,
+    p_dni: dni,
+    p_categoria: categoria || null,
+    p_precio_hora: precio_hora_personalizado,
+    p_obra_ids: obrasSeleccionadas
+  });
 
-  const payloadTrabajador = {
-    nombre,
-    apellidos,
-    dni,
-    categoria: categoria || null,
-    precio_hora_personalizado
-  };
-
-  if (!modoEdicion) {
-    const { data: existe } = await sb
-      .from('trabajadores')
-      .select('id')
-      .eq('dni', dni)
-      .maybeSingle();
-
-    if (existe) {
-      trabajadorId = existe.id;
-
-      await sb
-        .from('trabajadores')
-        .update(payloadTrabajador)
-        .eq('id', trabajadorId);
-
-    } else {
-      const { data: nuevo, error: errCrear } = await sb
-        .from('trabajadores')
-        .insert({ ...payloadTrabajador, activo: true })
-        .select('id')
-        .single();
-
-      if (errCrear) {
-        msg.className = 'msg-error';
-        msg.textContent = 'Error al crear trabajador: ' + errCrear.message;
-        btn.disabled = false;
-        return;
-      }
-
-      trabajadorId = nuevo.id;
-    }
-  } else {
-    const { error: errUpdate } = await sb
-      .from('trabajadores')
-      .update(payloadTrabajador)
-      .eq('id', modoEdicion);
-
-    if (errUpdate) {
-      msg.className = 'msg-error';
-      msg.textContent = 'Error al actualizar: ' + errUpdate.message;
-      btn.disabled = false;
-      return;
-    }
+  if (rpcError) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Error: ' + rpcError.message;
+    btn.disabled = false;
+    return;
   }
 
-  const { data: asignacionesActuales } = await sb
-    .from('validaciones_obra')
-    .select('obra_id')
-    .eq('trabajador_id', trabajadorId)
-    .in('obra_id', misObras.map(o => o.id));
-
-  const yaAsignadas = (asignacionesActuales || []).map(a => a.obra_id);
-
-  const aNadir = obrasSeleccionadas.filter(id => !yaAsignadas.includes(id));
-
-  if (aNadir.length > 0) {
-    const inserts = aNadir.map(obraId => ({
-      trabajador_id: trabajadorId,
-      obra_id: obraId,
-      estado: 'verde',
-      motivos: [],
-      documentos_afectados: []
-    }));
-
-    const { error: errIns } = await sb.from('validaciones_obra').insert(inserts);
-
-    if (errIns) {
-      msg.className = 'msg-error';
-      msg.textContent = 'Error al asignar obras: ' + errIns.message;
-      btn.disabled = false;
-      return;
-    }
+  if (rpcData && rpcData.ok === false) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Error: ' + (rpcData.error || 'No se pudo guardar');
+    btn.disabled = false;
+    return;
   }
 
+  // Si es edición, quitar obras desmarcadas (esto sí lo puede hacer el jefe via RLS)
   if (modoEdicion) {
+    const trabajadorId = rpcData.id;
+    const { data: asignacionesActuales } = await sb
+      .from('validaciones_obra')
+      .select('obra_id')
+      .eq('trabajador_id', trabajadorId)
+      .in('obra_id', misObras.map(o => o.id));
+
+    const yaAsignadas = (asignacionesActuales || []).map(a => a.obra_id);
     const aQuitar = yaAsignadas.filter(id => !obrasSeleccionadas.includes(id));
 
     if (aQuitar.length > 0) {
