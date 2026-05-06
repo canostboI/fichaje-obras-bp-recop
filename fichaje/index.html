@@ -524,6 +524,11 @@ const estado = {
   validacion: null  // respuesta de validar_acceso
 };
 
+// --- NUEVO: guarda el código de error GPS más reciente para poder
+//     re-renderizar el aviso si el usuario cambia de idioma mientras
+//     está visible. null = sin aviso activo o aviso ya ocultado.
+let ultimoCodigoGps = null;
+
 // Elementos del DOM (capturados una vez)
 const el = {
   logoMarca:    document.getElementById('logo-marca'),
@@ -800,7 +805,6 @@ function aplicarIdioma(lang) {
   el.btnBorrarDni.textContent                                    = t.borrar;
 
   // Pie de página: solo si no ha sido sobreescrito por el branding
-  // (el branding añade el nombre de la marca, que no traducimos)
   if (!el.pieMarca.dataset.brandingAplicado) {
     el.pieMarca.textContent = t.pie;
   }
@@ -812,6 +816,12 @@ function aplicarIdioma(lang) {
 
   // Guardar preferencia
   localStorage.setItem('idioma_fichaje', lang);
+
+  // --- NUEVO: si el aviso GPS está visible, re-renderizarlo con el
+  //     nuevo idioma para que el trabajador pueda leerlo en su lengua.
+  if (!el.avisoGps.classList.contains('oculto')) {
+    mostrarAvisoGps(ultimoCodigoGps);
+  }
 }
 
 // Shorthand para textos dinámicos (errores, estados, botones de fichaje)
@@ -861,8 +871,6 @@ document.getElementById('lang-ro').addEventListener('click', () => aplicarIdioma
     el.logoMarca.src = '../' + branding.logo;
     el.logoMarca.alt = branding.nombre;
     el.logoMarca.classList.remove('oculto');
-    // El pie lo fija el branding con el nombre de la empresa; marcamos
-    // para no sobreescribirlo al cambiar de idioma
     el.pieMarca.textContent = branding.nombre + ' · ' + T('pie');
     el.pieMarca.dataset.brandingAplicado = '1';
   } catch (e) {
@@ -906,8 +914,6 @@ function ocultarDniRecordado() {
 }
 
 function gestionarRecordatorioDni(dni, validacion) {
-  // Solo guardamos si el trabajador existe y el usuario ha marcado la casilla.
-  // Así evitamos guardar DNIs mal escritos o pruebas.
   if (validacion && validacion.encontrado && el.chkRecordarDni.checked) {
     const limpio = normalizarDni(dni);
     localStorage.setItem('ultimo_dni', limpio);
@@ -930,16 +936,10 @@ function ocultarErrorDni() {
 // =====================================================================
 // AVISO DE GPS — instrucciones detalladas según el tipo de error
 // =====================================================================
-//
-// El navegador no permite reabrir el popup de permiso una vez denegado
-// (decisión de seguridad de Chrome/Samsung Internet/etc.). Por eso, en
-// vez de un mensaje genérico, mostramos al trabajador qué tocar en su
-// propio móvil para reactivar el GPS, y le damos un botón "Reintentar"
-// que vuelve a llamar a navigator.geolocation sin recargar.
-//
-// codigo: 1 = denegado por el usuario; 2 = no disponible (GPS apagado);
-//         3 = timeout. null = "sin permiso pero sin código" (raro).
 function mostrarAvisoGps(codigo) {
+  // --- NUEVO: guardar el código para poder re-renderizar al cambiar idioma
+  ultimoCodigoGps = codigo;
+
   el.avisoGps.classList.remove('oculto');
   ocultarErrorDni();
 
@@ -967,8 +967,6 @@ function mostrarAvisoGps(codigo) {
   const pasos  = Tgps(pasosKey);  // array
   const nota   = Tgps(notaKey);   // string | null | ''
 
-  // Los textos de los pasos son controlados por nosotros (no datos del
-  // usuario), así que se permite HTML interno (<strong>) para resaltar.
   const pasosHtml = Array.isArray(pasos)
     ? pasos.map(p => '<li>' + p + '</li>').join('')
     : '';
@@ -984,8 +982,6 @@ function mostrarAvisoGps(codigo) {
       escapar(T('reintentar')) +
     '</button>';
 
-  // El botón se crea cada vez con innerHTML, así que enganchamos el
-  // evento aquí (no se puede dejar fijo en el HTML inicial).
   document.getElementById('btn-reintentar-gps').addEventListener(
     'click',
     reintentarGps
@@ -995,6 +991,8 @@ function mostrarAvisoGps(codigo) {
 function ocultarAvisoGps() {
   el.avisoGps.classList.add('oculto');
   el.avisoGps.innerHTML = '';
+  // --- NUEVO: limpiar el código guardado al ocultar el aviso
+  ultimoCodigoGps = null;
 }
 
 function mostrarErrorResultado(texto) {
@@ -1037,10 +1035,7 @@ function formatearHora(iso) {
   return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 }
 
-// Convierte un error de Supabase/red en un mensaje legible para el usuario
-// y devuelve también una etiqueta para los logs de consola.
 function interpretarError(err) {
-  // Sin internet: navigator.onLine es la pista más clara
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     return { mensajeUsuario: T('sin_conexion'), etiquetaLog: 'sin_conexion' };
   }
@@ -1048,29 +1043,22 @@ function interpretarError(err) {
   const msg = (err && (err.message || err.error_description || err.toString())) || '';
   const msgLower = msg.toLowerCase();
 
-  // Errores típicos de fetch fallido (red caída a media petición)
   if (msgLower.includes('failed to fetch') ||
       msgLower.includes('networkerror') ||
       msgLower.includes('network request failed')) {
     return { mensajeUsuario: T('fallo_red'), etiquetaLog: 'fallo_red' };
   }
 
-  // Timeout
   if (msgLower.includes('timeout') || msgLower.includes('timed out')) {
     return { mensajeUsuario: T('timeout_red'), etiquetaLog: 'timeout' };
   }
 
-  // Cualquier otra cosa
   return {
     mensajeUsuario: msg ? 'Error: ' + msg : T('error_generico'),
     etiquetaLog: 'otro'
   };
 }
 
-// Obtener geolocalización del navegador, con timeout razonable.
-// Importante: si rechaza, devuelve un objeto con { codigo, mensaje }
-// para que el llamador pueda decidir si mostrar el aviso detallado de
-// GPS (con instrucciones paso a paso) o un mensaje simple.
 function obtenerUbicacion() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -1079,7 +1067,6 @@ function obtenerUbicacion() {
     navigator.geolocation.getCurrentPosition(
       pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
       err => {
-        // err.code: 1=PERMISSION_DENIED, 2=POSITION_UNAVAILABLE, 3=TIMEOUT
         reject({
           codigo: err.code || null,
           mensaje: err.message || 'Error de ubicación.'
@@ -1127,8 +1114,6 @@ el.inputDni.addEventListener('keypress', e => {
 el.btnContinuar.addEventListener('click', continuarDesdeDni);
 el.btnVolver.addEventListener('click', () => { irA(el.pasoDni); el.inputDni.focus(); });
 el.btnNuevo.addEventListener('click', () => {
-  // Reset completo del fichaje actual. La preferencia de recordar DNI
-  // se mantiene si el trabajador la dejó marcada en este móvil.
   estado.dni = null;
   estado.validacion = null;
   estado.ubicacion = null;
@@ -1138,7 +1123,6 @@ el.btnNuevo.addEventListener('click', () => {
   el.inputDni.focus();
 });
 
-// Los dos botones llaman a ejecutarFichaje con su tipo concreto
 el.btnEntrada.addEventListener('click', () => ejecutarFichaje('entrada'));
 el.btnSalida.addEventListener('click', () => ejecutarFichaje('salida'));
 
@@ -1158,21 +1142,18 @@ async function continuarDesdeDni() {
 
   estado.dni = dni;
 
-  // Obtener GPS primero (lo necesitaremos sí o sí para fichar)
   el.cargandoTexto.textContent = T('obteniendo_ubic');
   irA(el.pasoCargando);
 
   try {
     estado.ubicacion = await obtenerUbicacion();
   } catch (err) {
-    // err = { codigo, mensaje } desde obtenerUbicacion()
     irA(el.pasoDni);
     mostrarAvisoGps(err && err.codigo);
     console.error('[fichaje] error_gps:', err);
     return;
   }
 
-  // Llamar a validar_acceso
   el.cargandoTexto.textContent = T('validando');
   try {
     const { data, error } = await sb.rpc('validar_acceso', {
@@ -1199,8 +1180,6 @@ async function continuarDesdeDni() {
   }
 }
 
-// Botón "Reintentar" del aviso de GPS: vuelve a pedir ubicación al
-// navegador sin recargar la página.
 async function reintentarGps() {
   if (!estado.dni) {
     ocultarAvisoGps();
@@ -1221,7 +1200,6 @@ async function reintentarGps() {
     return;
   }
 
-  // Si llegamos aquí el GPS funcionó. Continuamos con la validación.
   el.cargandoTexto.textContent = T('validando');
   try {
     const { data, error } = await sb.rpc('validar_acceso', {
@@ -1248,8 +1226,6 @@ async function reintentarGps() {
   }
 }
 
-// Pinta los dos botones de fichaje según el estado documental y el
-// tipo sugerido por el servidor (validar_acceso devuelve tipo_sugerido).
 function configurarBotonesFichaje(estadoDoc, tipoSugerido) {
   el.botonesFichaje.classList.remove('oculto');
   el.btnEntrada.disabled = false;
