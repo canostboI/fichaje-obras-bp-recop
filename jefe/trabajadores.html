@@ -35,6 +35,10 @@
   .topbar-right { display: flex; align-items: center; gap: 14px; }
   .usuario { font-size: 13px; color: var(--texto2); }
 
+  /* G1: botón actualizar */
+  .btn-actualizar { background: transparent; border: 1px solid var(--borde); color: var(--texto2); border-radius: 8px; padding: 7px 13px; font-size: 13px; cursor: pointer; font-family: inherit; transition: background 0.12s, color 0.12s; }
+  .btn-actualizar:hover { background: var(--bg3); color: var(--texto); }
+
   .contenido { padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
 
   .barra-acciones { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
@@ -155,6 +159,8 @@
   <div class="topbar">
     <h1>Trabajadores</h1>
     <div class="topbar-right">
+      <!-- G1: botón actualizar -->
+      <button class="btn-actualizar" id="btn-actualizar" title="Recargar lista de trabajadores">🔄 Actualizar</button>
       <span class="usuario" id="usuario-nombre"></span>
     </div>
   </div>
@@ -302,6 +308,13 @@ let estadoSeleccionado = null;
   aplicarBrandingObra(marca);
 
   await cargarTrabajadores();
+
+  // G1 — Capa 2: recargar al volver a esta pestaña (ej: tras importar en e-Coordina)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      cargarTrabajadores();
+    }
+  });
 })();
 
 function aplicarBrandingObra(marca) {
@@ -316,6 +329,11 @@ function aplicarBrandingObra(marca) {
 document.getElementById('btn-salir').addEventListener('click', async () => {
   await sb.auth.signOut();
   window.location.href = '../';
+});
+
+// G1 — Capa 1: botón manual
+document.getElementById('btn-actualizar').addEventListener('click', () => {
+  cargarTrabajadores();
 });
 
 async function cargarTrabajadores() {
