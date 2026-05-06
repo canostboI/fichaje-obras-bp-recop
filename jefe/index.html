@@ -182,6 +182,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let obraActual = null;
 let brandingActual = null;
+let intervalPresencia = null;
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -223,6 +224,7 @@ let brandingActual = null;
   await cargarPresencia();
   await cargarBloqueos();
   await cargarAvisosAutocierre();
+  iniciarRefrescoPresencia();
 
   selector.addEventListener('change', async () => {
     obraActual = selector.value;
@@ -231,8 +233,30 @@ let brandingActual = null;
     await cargarPresencia();
     await cargarBloqueos();
     await cargarAvisosAutocierre();
+    iniciarRefrescoPresencia();
   });
 })();
+
+// Auto-refresh de presencia (I2)
+// Refresca cada 60s. Pausa cuando la pestaña no es visible.
+function iniciarRefrescoPresencia() {
+  if (intervalPresencia) {
+    clearInterval(intervalPresencia);
+    intervalPresencia = null;
+  }
+  intervalPresencia = setInterval(() => {
+    if (document.hidden) return;
+    if (!obraActual) return;
+    cargarPresencia();
+  }, 60 * 1000);
+}
+
+// Cuando vuelves a la pestaña, refresca al instante (no esperes 60s)
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && obraActual) {
+    cargarPresencia();
+  }
+});
 
 function aplicarBrandingObra(empresaMarca) {
   const marca = empresaMarca || 'bosch_pascual';
