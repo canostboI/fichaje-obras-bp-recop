@@ -806,7 +806,7 @@ function traducirMotivo(texto, lang) {
   }
 
   // Formato estándar: "NombreDoc (Estado) → resultado"
-  const match = resto.match(/^(.+?) \((.+?)\) → (.+)$/);
+  const match = resto.match(/^(.+) \(([^)]+)\) → (.+)$/);
   if (match) {
     const [, nombreDoc, estadoDoc, resultado] = match;
     const docTrad    = (d.docs[nombreDoc]      && d.docs[nombreDoc][lang])      || nombreDoc;
