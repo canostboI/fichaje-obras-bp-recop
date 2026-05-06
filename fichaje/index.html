@@ -5,18 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Fichaje de obra</title>
 
-<!-- Supabase desde CDN. Versión fija para evitar sorpresas. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<!-- Branding centralizado por empresa-marca -->
 <script src="../js/branding.js"></script>
 
 <style>
-  /* =========================================================
-     ESTILOS PANTALLA FICHAJE
-     Filosofía: simple, grande, legible a plena luz en obra.
-     Todo inline aquí (no hay CSS externo) para carga instantánea.
-     ========================================================= */
   :root {
     --verde: #2e7d32;
     --naranja: #e67e22;
@@ -25,7 +17,6 @@
     --gris-borde: #d0d7de;
     --azul-primario: #1e3a5f;
     --texto: #1a1a1a;
-    /* Branding (se sobreescribe en JS al cargar la obra) */
     --color-principal: #1e3a5f;
     --color-acento: #1e3a5f;
   }
@@ -193,11 +184,6 @@
     border: 2px solid var(--gris-borde);
   }
 
-  /* =========================================================
-     Botones Entrar / Salir tras la validación
-     - El "sugerido" toma el estilo de .principal (grande, color).
-     - El "alternativo" es más pequeño y discreto.
-     ========================================================= */
   .botones-fichaje {
     display: flex;
     flex-direction: column;
@@ -308,12 +294,6 @@
     font-weight: 500;
   }
 
-  /* =========================================================
-     Aviso de GPS bloqueado: caja amplia con instrucciones
-     paso a paso para que el trabajador sepa qué tocar en su
-     móvil. Más visible que .error-banner y con texto alineado
-     a la izquierda para que se lean bien los pasos.
-     ========================================================= */
   .aviso-gps {
     background: #fdecea;
     color: var(--rojo);
@@ -336,9 +316,7 @@
     margin: 8px 0 0;
     padding-left: 22px;
   }
-  .aviso-gps ol li {
-    margin: 4px 0;
-  }
+  .aviso-gps ol li { margin: 4px 0; }
   .aviso-gps .nota {
     display: block;
     margin-top: 10px;
@@ -359,13 +337,8 @@
     cursor: pointer;
     font-family: inherit;
   }
-  .aviso-gps button.reintentar:active {
-    transform: scale(0.98);
-  }
+  .aviso-gps button.reintentar:active { transform: scale(0.98); }
 
-  /* =========================================================
-     SELECTOR DE IDIOMA
-     ========================================================= */
   .selector-idioma {
     display: flex;
     justify-content: center;
@@ -382,12 +355,8 @@
     line-height: 1;
     transition: border-color 0.15s;
   }
-  .selector-idioma button.activo {
-    border-color: var(--color-principal);
-  }
-  .selector-idioma button:hover {
-    border-color: var(--gris-borde);
-  }
+  .selector-idioma button.activo { border-color: var(--color-principal); }
+  .selector-idioma button:hover  { border-color: var(--gris-borde); }
 
   /* RTL para árabe */
   html[dir="rtl"] .motivos ul,
@@ -399,12 +368,8 @@
     border-left: none;
     border-right: 4px solid var(--naranja);
   }
-  html[dir="rtl"] .motivos.criticos {
-    border-right-color: var(--rojo);
-  }
-  html[dir="rtl"] .aviso-gps {
-    text-align: right;
-  }
+  html[dir="rtl"] .motivos.criticos { border-right-color: var(--rojo); }
+  html[dir="rtl"] .aviso-gps        { text-align: right; }
   html[dir="rtl"] .ultimo-dni .btn-borrar-dni {
     margin-left: 0;
     margin-right: 8px;
@@ -424,13 +389,10 @@
 <body>
 <div class="contenedor">
 
-  <!-- Cabecera: logo de la marca + nombre de la obra + selector de idioma -->
   <div class="cabecera">
     <img id="logo-marca" class="logo-marca oculto" alt="">
     <h1 id="titulo-principal">Fichaje de obra</h1>
     <div class="obra-nombre" id="obra-nombre">Cargando…</div>
-
-    <!-- Selector de idioma: debajo del nombre de obra, bien visible -->
     <div class="selector-idioma" id="selector-idioma">
       <button type="button" id="lang-es" title="Español">🇪🇸</button>
       <button type="button" id="lang-ar" title="عربي">🇲🇦</button>
@@ -459,12 +421,10 @@
 
     <button type="button" class="principal" id="btn-continuar">Continuar</button>
     <div class="error-banner oculto" id="error-dni"></div>
-
-    <!-- Aviso específico de GPS (más completo que error-banner) -->
     <div class="aviso-gps oculto" id="aviso-gps"></div>
   </div>
 
-  <!-- PASO 2: cargando validación -->
+  <!-- PASO 2: cargando -->
   <div class="tarjeta oculto" id="paso-cargando">
     <div class="cargando">
       <div class="spinner"></div>
@@ -477,14 +437,10 @@
     <div class="estado-box" id="estado-box"></div>
     <div class="motivos oculto" id="motivos-box"></div>
     <div class="error-banner oculto" id="error-resultado"></div>
-
-    <!-- Dos botones de fichaje. El "sugerido" se pinta como .principal,
-         el otro como .alternativo. Si rojo sin excepción, ambos se ocultan. -->
     <div class="botones-fichaje" id="botones-fichaje">
       <button type="button" id="btn-entrada"></button>
       <button type="button" id="btn-salida"></button>
     </div>
-
     <button type="button" class="secundario" id="btn-volver" style="margin-top:10px;">Volver</button>
   </div>
 
@@ -505,61 +461,53 @@
 
 <script>
 // =====================================================================
-// LÓGICA DE LA PANTALLA DE FICHAJE
+// SUPABASE
 // =====================================================================
-
-// Cliente Supabase inline (criterio único de la V2: cada página instancia
-// su propio cliente con createClient, sin global compartido).
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Estado en memoria para esta sesión de fichaje
 const estado = {
   obraId: null,
   obraNombre: null,
   dni: null,
-  ubicacion: null,  // { lat, lng }
-  validacion: null  // respuesta de validar_acceso
+  ubicacion: null,
+  validacion: null
 };
 
-// --- NUEVO: guarda el código de error GPS más reciente para poder
-//     re-renderizar el aviso si el usuario cambia de idioma mientras
-//     está visible. null = sin aviso activo o aviso ya ocultado.
 let ultimoCodigoGps = null;
 
-// Elementos del DOM (capturados una vez)
 const el = {
-  logoMarca:    document.getElementById('logo-marca'),
-  pieMarca:     document.getElementById('pie-marca'),
-  obraNombre:   document.getElementById('obra-nombre'),
-  pasoDni:      document.getElementById('paso-dni'),
-  pasoCargando: document.getElementById('paso-cargando'),
-  pasoResultado:document.getElementById('paso-resultado'),
-  pasoFinal:    document.getElementById('paso-final'),
-  inputDni:     document.getElementById('dni'),
-  btnContinuar: document.getElementById('btn-continuar'),
-  ultimoDniBox: document.getElementById('ultimo-dni-box'),
-  btnUltimoDni: document.getElementById('btn-ultimo-dni'),
-  btnBorrarDni: document.getElementById('btn-borrar-dni'),
+  logoMarca:      document.getElementById('logo-marca'),
+  pieMarca:       document.getElementById('pie-marca'),
+  obraNombre:     document.getElementById('obra-nombre'),
+  pasoDni:        document.getElementById('paso-dni'),
+  pasoCargando:   document.getElementById('paso-cargando'),
+  pasoResultado:  document.getElementById('paso-resultado'),
+  pasoFinal:      document.getElementById('paso-final'),
+  inputDni:       document.getElementById('dni'),
+  btnContinuar:   document.getElementById('btn-continuar'),
+  ultimoDniBox:   document.getElementById('ultimo-dni-box'),
+  btnUltimoDni:   document.getElementById('btn-ultimo-dni'),
+  btnBorrarDni:   document.getElementById('btn-borrar-dni'),
   chkRecordarDni: document.getElementById('chk-recordar-dni'),
-  errorDni:     document.getElementById('error-dni'),
-  avisoGps:     document.getElementById('aviso-gps'),
+  errorDni:       document.getElementById('error-dni'),
+  avisoGps:       document.getElementById('aviso-gps'),
   errorResultado: document.getElementById('error-resultado'),
-  cargandoTexto:document.getElementById('cargando-texto'),
-  estadoBox:    document.getElementById('estado-box'),
-  motivosBox:   document.getElementById('motivos-box'),
+  cargandoTexto:  document.getElementById('cargando-texto'),
+  estadoBox:      document.getElementById('estado-box'),
+  motivosBox:     document.getElementById('motivos-box'),
   botonesFichaje: document.getElementById('botones-fichaje'),
-  btnEntrada:   document.getElementById('btn-entrada'),
-  btnSalida:    document.getElementById('btn-salida'),
-  btnVolver:    document.getElementById('btn-volver'),
-  finalTick:    document.getElementById('final-tick'),
-  finalTitulo:  document.getElementById('final-titulo'),
-  finalNombre:  document.getElementById('final-nombre'),
-  finalHora:    document.getElementById('final-hora'),
-  finalMotivos: document.getElementById('final-motivos'),
-  btnNuevo:     document.getElementById('btn-nuevo-fichaje')
+  btnEntrada:     document.getElementById('btn-entrada'),
+  btnSalida:      document.getElementById('btn-salida'),
+  btnVolver:      document.getElementById('btn-volver'),
+  finalTick:      document.getElementById('final-tick'),
+  finalTitulo:    document.getElementById('final-titulo'),
+  finalNombre:    document.getElementById('final-nombre'),
+  finalHora:      document.getElementById('final-hora'),
+  finalMotivos:   document.getElementById('final-motivos'),
+  btnNuevo:       document.getElementById('btn-nuevo-fichaje')
 };
 
 // =====================================================================
@@ -778,9 +726,102 @@ const TEXTOS = {
 };
 
 // =====================================================================
-// MULTI-IDIOMA — aplicar idioma y helpers T() / Tgps()
+// DICCIONARIO DE MOTIVOS
+// Traduce los textos que genera el importador de e-Coordina.
+// Formato típico: "NombreDocumento (EstadoEcoordina) → resultado"
 // =====================================================================
+const MOTIVOS_DOCS = {
+  docs: {
+    'Apto médico':
+      { ar: 'الكشف الطبي', ro: 'Apt medical' },
+    'Equipos de Protección Individual (EPI)':
+      { ar: 'معدات الحماية الشخصية (EPI)', ro: 'Echipament de Protecție Individuală (EPI)' },
+    'Formación 20 horas específica':
+      { ar: 'تدريب 20 ساعة خاص', ro: 'Formare 20 ore specifică' },
+    'Formación 60 horas (Nivel básico) del Recurso preventivo':
+      { ar: 'تدريب 60 ساعة (المستوى الأساسي) للمورد الوقائي', ro: 'Formare 60 ore (nivel de bază) a Resurselor preventive' },
+    'Nombramiento del Recurso Preventivo':
+      { ar: 'تعيين المورد الوقائي', ro: 'Numirea Responsabilului cu Prevenția' },
+    'Autorización de uso de maquinaria':
+      { ar: 'إذن استخدام الآليات', ro: 'Autorizație de utilizare a utilajelor' },
+    'Certificado de PAGO DE RECIBOS de los trabajadores AUTÓNOMOS.':
+      { ar: 'شهادة دفع اشتراكات العمال المستقلين', ro: 'Certificat de PLATĂ A CONTRIBUȚIILOR lucrătorilor INDEPENDENȚI' },
+    'ITA (Informe de Trabajadores en Alta)':
+      { ar: 'ITA (تقرير العمال المسجلين)', ro: 'ITA (Raport Lucrători Înregistrați)' },
+    'TC2 (subir el documento original desde el botón CARGAR TC2) o Alta de nuevo trabajador':
+      { ar: 'TC2 (تحميل المستند الأصلي) أو تسجيل عامل جديد', ro: 'TC2 (încărcați documentul original) sau Înregistrare lucrător nou' }
+  },
+  estados: {
+    'Caducado':            { ar: 'منتهي الصلاحية', ro: 'Expirat' },
+    'Sin presentar':       { ar: 'غير مقدَّم',      ro: 'Neprezent' },
+    'No válido':           { ar: 'غير صالح',        ro: 'Nevalid' },
+    'Validación pendiente':{ ar: 'في انتظار التحقق', ro: 'Validare în așteptare' }
+  },
+  resultados: {
+    'rojo':   { ar: 'محظور',  ro: 'blocat' },
+    'naranja':{ ar: 'تحذير', ro: 'avertisment' }
+  },
+  especiales: {
+    'Trabajador dado de baja en el sistema':
+      { ar: 'العامل غير نشط في النظام', ro: 'Lucrător dezactivat în sistem' },
+    'Sin validación documental registrada para esta obra':
+      { ar: 'لا توجد وثائق مسجلة لهذه الورشة', ro: 'Nicio validare documentară înregistrată pentru acest șantier' }
+  },
+  prefijos: {
+    '[Empresa]':         { ar: '[الشركة]',        ro: '[Companie]' },
+    '[Cambio de empresa]':{ ar: '[تغيير الشركة]', ro: '[Schimbare companie]' }
+  },
+  // Texto fijo del mensaje de cambio de empresa
+  cambio_empresa_texto: {
+    ar: 'تم تجاهل وثائق:',
+    ro: 'Au fost ignorate documentele de la:'
+  }
+};
 
+// Traduce un motivo individual al idioma actual.
+function traducirMotivo(texto, lang) {
+  if (!texto || lang === 'es') return texto;
+  const d = MOTIVOS_DOCS;
+
+  // Mensaje especial del sistema (sin patrón doc/estado)
+  if (d.especiales[texto]) return d.especiales[texto][lang] || texto;
+
+  // Detectar prefijo
+  let prefijo = '';
+  let resto = texto;
+  for (const [prefES, prefTrad] of Object.entries(d.prefijos)) {
+    if (texto.startsWith(prefES + ' ')) {
+      prefijo = (prefTrad[lang] || prefES) + ' ';
+      resto = texto.slice(prefES.length + 1);
+      break;
+    }
+  }
+
+  // Mensaje de cambio de empresa: "[Cambio de empresa] Se han ignorado..."
+  if (prefijo && resto.startsWith('Se han ignorado')) {
+    const partes = resto.split(': ');
+    const nombreEmpresa = partes.slice(1).join(': ');
+    const textoFijo = d.cambio_empresa_texto[lang] || resto;
+    return prefijo + textoFijo + (nombreEmpresa ? ' ' + nombreEmpresa : '');
+  }
+
+  // Formato estándar: "NombreDoc (Estado) → resultado"
+  const match = resto.match(/^(.+?) \((.+?)\) → (.+)$/);
+  if (match) {
+    const [, nombreDoc, estadoDoc, resultado] = match;
+    const docTrad    = (d.docs[nombreDoc]      && d.docs[nombreDoc][lang])      || nombreDoc;
+    const estadoTrad = (d.estados[estadoDoc]   && d.estados[estadoDoc][lang])   || estadoDoc;
+    const resTrad    = (d.resultados[resultado] && d.resultados[resultado][lang]) || resultado;
+    return prefijo + docTrad + ' (' + estadoTrad + ') → ' + resTrad;
+  }
+
+  // Sin coincidencia: devolver con prefijo traducido
+  return prefijo + resto;
+}
+
+// =====================================================================
+// MULTI-IDIOMA
+// =====================================================================
 let idiomaActual = 'es';
 
 function aplicarIdioma(lang) {
@@ -788,64 +829,52 @@ function aplicarIdioma(lang) {
   idiomaActual = lang;
   const t = TEXTOS[lang];
 
-  // Dirección del texto: árabe es RTL, el resto LTR
   document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
   document.documentElement.setAttribute('lang', lang);
 
-  // Textos estáticos del DOM
-  document.getElementById('titulo-principal').textContent        = t.titulo;
-  document.getElementById('label-dni').textContent               = t.label_dni;
-  document.getElementById('texto-dni-guardado').textContent      = t.dni_guardado;
-  document.getElementById('texto-recordar-dni').textContent      = t.recordar_dni;
-  document.getElementById('texto-recordar-ayuda').textContent    = t.recordar_ayuda;
-  el.inputDni.placeholder                                        = t.placeholder_dni;
-  el.btnContinuar.textContent                                    = t.continuar;
-  el.btnVolver.textContent                                       = t.volver;
-  el.btnNuevo.textContent                                        = t.nuevo_fichaje;
-  el.btnBorrarDni.textContent                                    = t.borrar;
+  document.getElementById('titulo-principal').textContent     = t.titulo;
+  document.getElementById('label-dni').textContent            = t.label_dni;
+  document.getElementById('texto-dni-guardado').textContent   = t.dni_guardado;
+  document.getElementById('texto-recordar-dni').textContent   = t.recordar_dni;
+  document.getElementById('texto-recordar-ayuda').textContent = t.recordar_ayuda;
+  el.inputDni.placeholder                                     = t.placeholder_dni;
+  el.btnContinuar.textContent                                 = t.continuar;
+  el.btnVolver.textContent                                    = t.volver;
+  el.btnNuevo.textContent                                     = t.nuevo_fichaje;
+  el.btnBorrarDni.textContent                                 = t.borrar;
 
-  // Pie de página: solo si no ha sido sobreescrito por el branding
   if (!el.pieMarca.dataset.brandingAplicado) {
     el.pieMarca.textContent = t.pie;
   }
 
-  // Marcar botón activo en el selector
   ['es', 'ar', 'ro'].forEach(l => {
     document.getElementById('lang-' + l).classList.toggle('activo', l === lang);
   });
 
-  // Guardar preferencia
   localStorage.setItem('idioma_fichaje', lang);
 
-  // --- NUEVO: si el aviso GPS está visible, re-renderizarlo con el
-  //     nuevo idioma para que el trabajador pueda leerlo en su lengua.
+  // Re-renderizar aviso GPS si está visible
   if (!el.avisoGps.classList.contains('oculto')) {
     mostrarAvisoGps(ultimoCodigoGps);
   }
 }
 
-// Shorthand para textos dinámicos (errores, estados, botones de fichaje)
 function T(clave) {
   return (TEXTOS[idiomaActual] && TEXTOS[idiomaActual][clave]) || TEXTOS.es[clave] || clave;
 }
-
-// Shorthand para textos del aviso GPS
 function Tgps(clave) {
   return (TEXTOS[idiomaActual] && TEXTOS[idiomaActual].gps && TEXTOS[idiomaActual].gps[clave])
-    || (TEXTOS.es.gps[clave])
-    || '';
+    || (TEXTOS.es.gps[clave]) || '';
 }
 
-// Eventos del selector de idioma
 document.getElementById('lang-es').addEventListener('click', () => aplicarIdioma('es'));
 document.getElementById('lang-ar').addEventListener('click', () => aplicarIdioma('ar'));
 document.getElementById('lang-ro').addEventListener('click', () => aplicarIdioma('ro'));
 
 // =====================================================================
-// INICIALIZACIÓN: leer ?obra=... de la URL, cargar nombre, precargar DNI
+// INICIALIZACIÓN
 // =====================================================================
 (async function init() {
-  // Aplicar idioma guardado (o español por defecto)
   const langGuardado = localStorage.getItem('idioma_fichaje') || 'es';
   aplicarIdioma(langGuardado);
 
@@ -859,13 +888,10 @@ document.getElementById('lang-ro').addEventListener('click', () => aplicarIdioma
     return;
   }
 
-  // Cargar datos públicos de la obra vía RPC
   try {
     const { data, error } = await sb.rpc('obra_publica', { p_obra_id: estado.obraId });
     if (error || !data) throw error;
     el.obraNombre.textContent = data.nombre || 'Obra sin nombre';
-
-    // Aplicar branding según empresa_marca
     const marca = data.empresa_marca || 'bosch_pascual';
     const branding = aplicarBranding(marca);
     el.logoMarca.src = '../' + branding.logo;
@@ -877,7 +903,6 @@ document.getElementById('lang-ro').addEventListener('click', () => aplicarIdioma
     el.obraNombre.textContent = 'Obra #' + estado.obraId.substring(0, 8);
   }
 
-  // DNI recordado: solo aparece si anteriormente se guardó en este móvil.
   const ultimo = localStorage.getItem('ultimo_dni');
   if (ultimo && ultimo.length >= 5) {
     mostrarDniRecordado(ultimo);
@@ -890,29 +915,24 @@ document.getElementById('lang-ro').addEventListener('click', () => aplicarIdioma
 // =====================================================================
 // UTILIDADES
 // =====================================================================
-
 function normalizarDni(dni) {
   return (dni || '').trim().toUpperCase().replace(/\s+/g, '');
 }
-
 function textoDniParcial(dni) {
   const limpio = normalizarDni(dni);
   if (limpio.length <= 5) return '****';
   return '****' + limpio.substring(limpio.length - 5);
 }
-
 function mostrarDniRecordado(dni) {
   el.btnUltimoDni.textContent = textoDniParcial(dni);
   el.btnUltimoDni.dataset.dni = dni;
   el.ultimoDniBox.classList.remove('oculto');
 }
-
 function ocultarDniRecordado() {
   el.btnUltimoDni.textContent = '';
   el.btnUltimoDni.dataset.dni = '';
   el.ultimoDniBox.classList.add('oculto');
 }
-
 function gestionarRecordatorioDni(dni, validacion) {
   if (validacion && validacion.encontrado && el.chkRecordarDni.checked) {
     const limpio = normalizarDni(dni);
@@ -923,75 +943,41 @@ function gestionarRecordatorioDni(dni, validacion) {
     ocultarDniRecordado();
   }
 }
-
 function mostrarErrorDni(texto) {
   el.errorDni.textContent = texto;
   el.errorDni.classList.remove('oculto');
 }
+function ocultarErrorDni() { el.errorDni.classList.add('oculto'); }
 
-function ocultarErrorDni() {
-  el.errorDni.classList.add('oculto');
-}
-
-// =====================================================================
-// AVISO DE GPS — instrucciones detalladas según el tipo de error
-// =====================================================================
 function mostrarAvisoGps(codigo) {
-  // --- NUEVO: guardar el código para poder re-renderizar al cambiar idioma
   ultimoCodigoGps = codigo;
-
   el.avisoGps.classList.remove('oculto');
   ocultarErrorDni();
 
   let tituloKey, pasosKey, notaKey;
-
-  if (codigo === 1) {
-    tituloKey = 'denegado_titulo';
-    pasosKey  = 'denegado_pasos';
-    notaKey   = 'denegado_nota';
-  } else if (codigo === 2) {
-    tituloKey = 'nodispo_titulo';
-    pasosKey  = 'nodispo_pasos';
-    notaKey   = 'nodispo_nota';
-  } else if (codigo === 3) {
-    tituloKey = 'timeout_titulo';
-    pasosKey  = 'timeout_pasos';
-    notaKey   = 'timeout_nota';
-  } else {
-    tituloKey = 'generico_titulo';
-    pasosKey  = 'generico_pasos';
-    notaKey   = 'generico_nota';
-  }
+  if      (codigo === 1) { tituloKey = 'denegado_titulo'; pasosKey = 'denegado_pasos'; notaKey = 'denegado_nota'; }
+  else if (codigo === 2) { tituloKey = 'nodispo_titulo';  pasosKey = 'nodispo_pasos';  notaKey = 'nodispo_nota'; }
+  else if (codigo === 3) { tituloKey = 'timeout_titulo';  pasosKey = 'timeout_pasos';  notaKey = 'timeout_nota'; }
+  else                   { tituloKey = 'generico_titulo'; pasosKey = 'generico_pasos'; notaKey = 'generico_nota'; }
 
   const titulo = Tgps(tituloKey);
-  const pasos  = Tgps(pasosKey);  // array
-  const nota   = Tgps(notaKey);   // string | null | ''
+  const pasos  = Tgps(pasosKey);
+  const nota   = Tgps(notaKey);
 
-  const pasosHtml = Array.isArray(pasos)
-    ? pasos.map(p => '<li>' + p + '</li>').join('')
-    : '';
-  const notaHtml = nota
-    ? '<span class="nota">' + escapar(nota) + '</span>'
-    : '';
+  const pasosHtml = Array.isArray(pasos) ? pasos.map(p => '<li>' + p + '</li>').join('') : '';
+  const notaHtml  = nota ? '<span class="nota">' + escapar(nota) + '</span>' : '';
 
   el.avisoGps.innerHTML =
     '<span class="titulo-aviso">' + escapar(titulo) + '</span>' +
-    '<ol>' + pasosHtml + '</ol>' +
-    notaHtml +
-    '<button type="button" class="reintentar" id="btn-reintentar-gps">' +
-      escapar(T('reintentar')) +
-    '</button>';
+    '<ol>' + pasosHtml + '</ol>' + notaHtml +
+    '<button type="button" class="reintentar" id="btn-reintentar-gps">' + escapar(T('reintentar')) + '</button>';
 
-  document.getElementById('btn-reintentar-gps').addEventListener(
-    'click',
-    reintentarGps
-  );
+  document.getElementById('btn-reintentar-gps').addEventListener('click', reintentarGps);
 }
 
 function ocultarAvisoGps() {
   el.avisoGps.classList.add('oculto');
   el.avisoGps.innerHTML = '';
-  // --- NUEVO: limpiar el código guardado al ocultar el aviso
   ultimoCodigoGps = null;
 }
 
@@ -999,27 +985,24 @@ function mostrarErrorResultado(texto) {
   el.errorResultado.textContent = texto;
   el.errorResultado.classList.remove('oculto');
 }
-
-function ocultarErrorResultado() {
-  el.errorResultado.classList.add('oculto');
-}
+function ocultarErrorResultado() { el.errorResultado.classList.add('oculto'); }
 
 function irA(paso) {
-  el.pasoDni.classList.add('oculto');
-  el.pasoCargando.classList.add('oculto');
-  el.pasoResultado.classList.add('oculto');
-  el.pasoFinal.classList.add('oculto');
+  [el.pasoDni, el.pasoCargando, el.pasoResultado, el.pasoFinal]
+    .forEach(p => p.classList.add('oculto'));
   paso.classList.remove('oculto');
 }
 
+// Pinta motivos traduciéndolos al idioma actual
 function pintarMotivos(contenedor, motivos, criticos) {
   if (!motivos || motivos.length === 0) {
     contenedor.classList.add('oculto');
     return;
   }
   contenedor.className = 'motivos' + (criticos ? ' criticos' : '');
-  contenedor.innerHTML = '<strong>' + escapar(criticos ? T('motivos_bloqueo') : T('avisos')) + '</strong><ul>' +
-    motivos.map(m => '<li>' + escapar(m) + '</li>').join('') +
+  contenedor.innerHTML =
+    '<strong>' + escapar(criticos ? T('motivos_bloqueo') : T('avisos')) + '</strong><ul>' +
+    motivos.map(m => '<li>' + escapar(traducirMotivo(m, idiomaActual)) + '</li>').join('') +
     '</ul>';
   contenedor.classList.remove('oculto');
 }
@@ -1029,49 +1012,26 @@ function escapar(txt) {
   div.textContent = String(txt);
   return div.innerHTML;
 }
-
 function formatearHora(iso) {
-  const d = new Date(iso);
-  return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 }
-
 function interpretarError(err) {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false)
     return { mensajeUsuario: T('sin_conexion'), etiquetaLog: 'sin_conexion' };
-  }
-
   const msg = (err && (err.message || err.error_description || err.toString())) || '';
-  const msgLower = msg.toLowerCase();
-
-  if (msgLower.includes('failed to fetch') ||
-      msgLower.includes('networkerror') ||
-      msgLower.includes('network request failed')) {
+  const m = msg.toLowerCase();
+  if (m.includes('failed to fetch') || m.includes('networkerror') || m.includes('network request failed'))
     return { mensajeUsuario: T('fallo_red'), etiquetaLog: 'fallo_red' };
-  }
-
-  if (msgLower.includes('timeout') || msgLower.includes('timed out')) {
+  if (m.includes('timeout') || m.includes('timed out'))
     return { mensajeUsuario: T('timeout_red'), etiquetaLog: 'timeout' };
-  }
-
-  return {
-    mensajeUsuario: msg ? 'Error: ' + msg : T('error_generico'),
-    etiquetaLog: 'otro'
-  };
+  return { mensajeUsuario: msg ? 'Error: ' + msg : T('error_generico'), etiquetaLog: 'otro' };
 }
-
 function obtenerUbicacion() {
   return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      return reject({ codigo: null, mensaje: 'Este dispositivo no soporta GPS.' });
-    }
+    if (!navigator.geolocation) return reject({ codigo: null, mensaje: 'GPS no soportado.' });
     navigator.geolocation.getCurrentPosition(
       pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      err => {
-        reject({
-          codigo: err.code || null,
-          mensaje: err.message || 'Error de ubicación.'
-        });
-      },
+      err => reject({ codigo: err.code || null, mensaje: err.message || 'Error de ubicación.' }),
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
     );
   });
@@ -1080,12 +1040,10 @@ function obtenerUbicacion() {
 // =====================================================================
 // EVENTOS
 // =====================================================================
-
 el.btnUltimoDni.addEventListener('click', () => {
   el.inputDni.value = el.btnUltimoDni.dataset.dni;
   el.ultimoDniBox.classList.add('oculto');
 });
-
 el.btnBorrarDni.addEventListener('click', () => {
   localStorage.removeItem('ultimo_dni');
   el.chkRecordarDni.checked = false;
@@ -1093,100 +1051,65 @@ el.btnBorrarDni.addEventListener('click', () => {
   el.inputDni.value = '';
   el.inputDni.focus();
 });
-
 el.chkRecordarDni.addEventListener('change', () => {
-  if (!el.chkRecordarDni.checked) {
-    localStorage.removeItem('ultimo_dni');
-    ocultarDniRecordado();
-  }
+  if (!el.chkRecordarDni.checked) { localStorage.removeItem('ultimo_dni'); ocultarDniRecordado(); }
 });
-
 el.inputDni.addEventListener('input', () => {
-  ocultarErrorDni();
-  ocultarAvisoGps();
+  ocultarErrorDni(); ocultarAvisoGps();
   el.inputDni.value = el.inputDni.value.toUpperCase();
 });
-
-el.inputDni.addEventListener('keypress', e => {
-  if (e.key === 'Enter') el.btnContinuar.click();
-});
-
+el.inputDni.addEventListener('keypress', e => { if (e.key === 'Enter') el.btnContinuar.click(); });
 el.btnContinuar.addEventListener('click', continuarDesdeDni);
 el.btnVolver.addEventListener('click', () => { irA(el.pasoDni); el.inputDni.focus(); });
 el.btnNuevo.addEventListener('click', () => {
-  estado.dni = null;
-  estado.validacion = null;
-  estado.ubicacion = null;
+  estado.dni = null; estado.validacion = null; estado.ubicacion = null;
   el.inputDni.value = '';
   ocultarAvisoGps();
   irA(el.pasoDni);
   el.inputDni.focus();
 });
-
 el.btnEntrada.addEventListener('click', () => ejecutarFichaje('entrada'));
-el.btnSalida.addEventListener('click', () => ejecutarFichaje('salida'));
+el.btnSalida.addEventListener('click',  () => ejecutarFichaje('salida'));
 
 // =====================================================================
 // FLUJO PRINCIPAL
 // =====================================================================
-
 async function continuarDesdeDni() {
-  ocultarErrorDni();
-  ocultarAvisoGps();
+  ocultarErrorDni(); ocultarAvisoGps();
   const dni = normalizarDni(el.inputDni.value);
-
-  if (dni.length < 5) {
-    mostrarErrorDni(T('dni_invalido'));
-    return;
-  }
+  if (dni.length < 5) { mostrarErrorDni(T('dni_invalido')); return; }
 
   estado.dni = dni;
-
   el.cargandoTexto.textContent = T('obteniendo_ubic');
   irA(el.pasoCargando);
 
   try {
     estado.ubicacion = await obtenerUbicacion();
   } catch (err) {
-    irA(el.pasoDni);
-    mostrarAvisoGps(err && err.codigo);
-    console.error('[fichaje] error_gps:', err);
-    return;
+    irA(el.pasoDni); mostrarAvisoGps(err && err.codigo);
+    console.error('[fichaje] error_gps:', err); return;
   }
 
   el.cargandoTexto.textContent = T('validando');
   try {
-    const { data, error } = await sb.rpc('validar_acceso', {
-      p_dni: estado.dni,
-      p_obra_id: estado.obraId
-    });
-
+    const { data, error } = await sb.rpc('validar_acceso', { p_dni: estado.dni, p_obra_id: estado.obraId });
     if (error) {
       const info = interpretarError(error);
-      irA(el.pasoDni);
-      mostrarErrorDni(info.mensajeUsuario);
-      console.error('[fichaje] validar_acceso (' + info.etiquetaLog + '):', error);
-      return;
+      irA(el.pasoDni); mostrarErrorDni(info.mensajeUsuario);
+      console.error('[fichaje] validar_acceso:', error); return;
     }
-
     estado.validacion = data;
     gestionarRecordatorioDni(estado.dni, data);
     mostrarResultadoValidacion(data);
   } catch (err) {
     const info = interpretarError(err);
-    irA(el.pasoDni);
-    mostrarErrorDni(info.mensajeUsuario);
-    console.error('[fichaje] validar_acceso excepción (' + info.etiquetaLog + '):', err);
+    irA(el.pasoDni); mostrarErrorDni(info.mensajeUsuario);
+    console.error('[fichaje] validar_acceso excepción:', err);
   }
 }
 
 async function reintentarGps() {
-  if (!estado.dni) {
-    ocultarAvisoGps();
-    el.inputDni.focus();
-    return;
-  }
-
+  if (!estado.dni) { ocultarAvisoGps(); el.inputDni.focus(); return; }
   ocultarAvisoGps();
   el.cargandoTexto.textContent = T('obteniendo_ubic');
   irA(el.pasoCargando);
@@ -1194,66 +1117,51 @@ async function reintentarGps() {
   try {
     estado.ubicacion = await obtenerUbicacion();
   } catch (err) {
-    irA(el.pasoDni);
-    mostrarAvisoGps(err && err.codigo);
-    console.error('[fichaje] error_gps reintento:', err);
-    return;
+    irA(el.pasoDni); mostrarAvisoGps(err && err.codigo);
+    console.error('[fichaje] error_gps reintento:', err); return;
   }
 
   el.cargandoTexto.textContent = T('validando');
   try {
-    const { data, error } = await sb.rpc('validar_acceso', {
-      p_dni: estado.dni,
-      p_obra_id: estado.obraId
-    });
-
+    const { data, error } = await sb.rpc('validar_acceso', { p_dni: estado.dni, p_obra_id: estado.obraId });
     if (error) {
       const info = interpretarError(error);
-      irA(el.pasoDni);
-      mostrarErrorDni(info.mensajeUsuario);
-      console.error('[fichaje] validar_acceso (' + info.etiquetaLog + '):', error);
-      return;
+      irA(el.pasoDni); mostrarErrorDni(info.mensajeUsuario);
+      console.error('[fichaje] validar_acceso:', error); return;
     }
-
     estado.validacion = data;
     gestionarRecordatorioDni(estado.dni, data);
     mostrarResultadoValidacion(data);
   } catch (err) {
     const info = interpretarError(err);
-    irA(el.pasoDni);
-    mostrarErrorDni(info.mensajeUsuario);
-    console.error('[fichaje] validar_acceso excepción (' + info.etiquetaLog + '):', err);
+    irA(el.pasoDni); mostrarErrorDni(info.mensajeUsuario);
+    console.error('[fichaje] validar_acceso excepción:', err);
   }
 }
 
 function configurarBotonesFichaje(estadoDoc, tipoSugerido) {
   el.botonesFichaje.classList.remove('oculto');
   el.btnEntrada.disabled = false;
-  el.btnSalida.disabled = false;
-
-  const colorPrincipal = (estadoDoc === 'verde') ? 'verde' : 'naranja';
-
+  el.btnSalida.disabled  = false;
+  const color = (estadoDoc === 'verde') ? 'verde' : 'naranja';
   el.btnEntrada.className = '';
   el.btnSalida.className  = '';
 
   if (tipoSugerido === 'salida') {
-    el.btnSalida.classList.add('principal', colorPrincipal);
+    el.btnSalida.classList.add('principal', color);
     el.btnSalida.textContent = T('salir');
     el.btnEntrada.classList.add('alternativo');
     el.btnEntrada.textContent = T('alt_entrar');
-
     el.botonesFichaje.appendChild(el.btnSalida);
     el.botonesFichaje.appendChild(el.btnEntrada);
   } else {
-    el.btnEntrada.classList.add('principal', colorPrincipal);
+    el.btnEntrada.classList.add('principal', color);
     el.btnEntrada.textContent = T('entrar');
     el.btnSalida.classList.add('alternativo');
     el.btnSalida.textContent = T('alt_salir');
-
     el.botonesFichaje.appendChild(el.btnEntrada);
     el.botonesFichaje.appendChild(el.btnSalida);
   }
-
   el.btnEntrada.style.marginTop = '0';
   el.btnSalida.style.marginTop  = '0';
 }
@@ -1264,10 +1172,8 @@ function mostrarResultadoValidacion(v) {
     mostrarErrorDni(v.mensaje || T('dni_no_encontrado'));
     return;
   }
-
   ocultarErrorResultado();
   el.estadoBox.className = 'estado-box';
-
   const estadoEfectivo = (v.estado === 'rojo' && v.tiene_excepcion_hoy) ? 'excepcion' : v.estado;
   const tipoSugerido = v.tipo_sugerido || 'entrada';
 
@@ -1278,21 +1184,18 @@ function mostrarResultadoValidacion(v) {
       pintarMotivos(el.motivosBox, null);
       configurarBotonesFichaje('verde', tipoSugerido);
       break;
-
     case 'naranja':
       el.estadoBox.classList.add('estado-naranja');
       el.estadoBox.textContent = T('acceso_aviso');
       pintarMotivos(el.motivosBox, v.motivos, false);
       configurarBotonesFichaje('naranja', tipoSugerido);
       break;
-
     case 'excepcion':
       el.estadoBox.classList.add('estado-naranja');
       el.estadoBox.textContent = T('acceso_excepcion');
       pintarMotivos(el.motivosBox, v.motivos, false);
       configurarBotonesFichaje('naranja', tipoSugerido);
       break;
-
     case 'rojo':
     default:
       el.estadoBox.classList.add('estado-rojo');
@@ -1300,16 +1203,15 @@ function mostrarResultadoValidacion(v) {
       pintarMotivos(el.motivosBox, v.motivos, true);
       el.botonesFichaje.classList.add('oculto');
       el.btnEntrada.disabled = true;
-      el.btnSalida.disabled = true;
+      el.btnSalida.disabled  = true;
       break;
   }
-
   irA(el.pasoResultado);
 }
 
 async function ejecutarFichaje(tipo) {
   el.btnEntrada.disabled = true;
-  el.btnSalida.disabled = true;
+  el.btnSalida.disabled  = true;
   ocultarErrorResultado();
   el.cargandoTexto.textContent = T('registrando');
   irA(el.pasoCargando);
@@ -1322,56 +1224,43 @@ async function ejecutarFichaje(tipo) {
       p_longitud: estado.ubicacion.lng,
       p_tipo: tipo
     });
-
     if (error) {
       const info = interpretarError(error);
       irA(el.pasoResultado);
-      el.btnEntrada.disabled = false;
-      el.btnSalida.disabled = false;
+      el.btnEntrada.disabled = false; el.btnSalida.disabled = false;
       mostrarErrorResultado(info.mensajeUsuario);
-      console.error('[fichaje] registrar_fichaje (' + info.etiquetaLog + '):', error);
-      return;
+      console.error('[fichaje] registrar_fichaje:', error); return;
     }
-
     if (!data || !data.success) {
       irA(el.pasoResultado);
-      el.btnEntrada.disabled = false;
-      el.btnSalida.disabled = false;
-      const motivoPrincipal = (data && data.error) || T('fichaje_rechazado');
-      mostrarErrorResultado(motivoPrincipal);
-      if (data && Array.isArray(data.motivos) && data.motivos.length) {
+      el.btnEntrada.disabled = false; el.btnSalida.disabled = false;
+      mostrarErrorResultado((data && data.error) || T('fichaje_rechazado'));
+      if (data && Array.isArray(data.motivos) && data.motivos.length)
         pintarMotivos(el.motivosBox, data.motivos, true);
-      }
-      console.warn('[fichaje] registrar_fichaje rechazado:', data);
-      return;
+      console.warn('[fichaje] registrar_fichaje rechazado:', data); return;
     }
-
     mostrarConfirmacionFinal(data);
   } catch (err) {
     const info = interpretarError(err);
     irA(el.pasoResultado);
-    el.btnEntrada.disabled = false;
-    el.btnSalida.disabled = false;
+    el.btnEntrada.disabled = false; el.btnSalida.disabled = false;
     mostrarErrorResultado(info.mensajeUsuario);
-    console.error('[fichaje] registrar_fichaje excepción (' + info.etiquetaLog + '):', err);
+    console.error('[fichaje] registrar_fichaje excepción:', err);
   }
 }
 
 function mostrarConfirmacionFinal(r) {
-  const esEntrada = r.tipo === 'entrada';
-  el.finalTick.textContent = '✓';
-  el.finalTitulo.textContent = esEntrada ? T('entrada_ok') : T('salida_ok');
+  el.finalTick.textContent   = '✓';
+  el.finalTitulo.textContent = r.tipo === 'entrada' ? T('entrada_ok') : T('salida_ok');
   el.finalNombre.textContent = estado.validacion && estado.validacion.trabajador_nombre
-    ? estado.validacion.trabajador_nombre.trim()
-    : '';
-  el.finalHora.textContent = formatearHora(r.hora);
+    ? estado.validacion.trabajador_nombre.trim() : '';
+  el.finalHora.textContent   = formatearHora(r.hora);
 
   if (r.estado === 'naranja' || r.excepcion_autorizada) {
     pintarMotivos(el.finalMotivos, r.motivos, false);
   } else {
     el.finalMotivos.classList.add('oculto');
   }
-
   irA(el.pasoFinal);
 }
 </script>
