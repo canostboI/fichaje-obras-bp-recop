@@ -771,7 +771,6 @@ const MOTIVOS_DOCS = {
     '[Empresa]':         { ar: '[الشركة]',        ro: '[Companie]' },
     '[Cambio de empresa]':{ ar: '[تغيير الشركة]', ro: '[Schimbare companie]' }
   },
-  // Texto fijo del mensaje de cambio de empresa
   cambio_empresa_texto: {
     ar: 'تم تجاهل وثائق:',
     ro: 'Au fost ignorate documentele de la:'
@@ -806,6 +805,7 @@ function traducirMotivo(texto, lang) {
   }
 
   // Formato estándar: "NombreDoc (Estado) → resultado"
+  // Usamos (.+) codicioso para capturar nombres de documento con paréntesis internos
   const match = resto.match(/^(.+) \(([^)]+)\) → (.+)$/);
   if (match) {
     const [, nombreDoc, estadoDoc, resultado] = match;
@@ -856,6 +856,12 @@ function aplicarIdioma(lang) {
   // Re-renderizar aviso GPS si está visible
   if (!el.avisoGps.classList.contains('oculto')) {
     mostrarAvisoGps(ultimoCodigoGps);
+  }
+
+  // Re-renderizar motivos si el paso resultado está visible
+  if (!el.pasoResultado.classList.contains('oculto') && estado.validacion) {
+    const esCritico = estado.validacion.estado === 'rojo' && !estado.validacion.tiene_excepcion_hoy;
+    pintarMotivos(el.motivosBox, estado.validacion.motivos, esCritico);
   }
 }
 
