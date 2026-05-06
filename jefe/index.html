@@ -62,7 +62,7 @@
   .vacio { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
 
-  /* Panel avisos bloqueos rojos (nuevo) */
+  /* Panel avisos bloqueos rojos */
   .panel-bloqueos { background: rgba(244,67,54,0.08); border: 1px solid rgba(244,67,54,0.4); border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; }
   .panel-bloqueos.oculto { display: none; }
   .panel-bloqueos h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--rojo); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
@@ -76,7 +76,7 @@
   .btn-visto-rojo:hover { background: var(--bg3); }
   .btn-visto-rojo:disabled { opacity: 0.5; cursor: default; }
 
-  /* Panel avisos autocierre (existente) */
+  /* Panel avisos autocierre */
   .panel-avisos { background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.4); border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; }
   .panel-avisos.oculto { display: none; }
   .panel-avisos h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--naranja); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
@@ -135,11 +135,11 @@
     <div class="stats">
       <div class="stat"><div class="numero verde" id="stat-dentro">—</div><div class="etiqueta">En obra ahora</div></div>
       <div class="stat"><div class="numero naranja" id="stat-naranja">—</div><div class="etiqueta">Documentación naranja</div></div>
-      <div class="stat"><div class="numero rojo" id="stat-rojo">—</div><div class="etiqueta">Documentación roja</div></div>
+      <div class="stat"><div class="numero rojo" id="stat-rojo">—</div><div class="etiqueta">Accesos denegados hoy</div></div>
     </div>
     <div style="height:20px"></div>
 
-    <!-- Panel bloqueos rojos (nuevo) -->
+    <!-- Panel bloqueos rojos -->
     <div class="panel-bloqueos oculto" id="panel-bloqueos">
       <h3>🚫 <span id="bloqueos-titulo">Accesos denegados hoy</span></h3>
       <div id="bloqueos-lista"></div>
@@ -276,7 +276,6 @@ async function cargarPresencia() {
   if (!fichajes || fichajes.length === 0) {
     document.getElementById('stat-dentro').textContent = '0';
     document.getElementById('stat-naranja').textContent = '0';
-    document.getElementById('stat-rojo').textContent = '0';
     document.getElementById('badge-presencia').textContent = '0 dentro';
     document.getElementById('tabla-presencia').innerHTML = '<div class="vacio">Nadie ha fichado entrada hoy</div>';
     return;
@@ -306,11 +305,9 @@ async function cargarPresencia() {
 
   const nDentro = dentro.length;
   const nNaranja = dentro.filter(t => validaciones[t.trabajador.id] === 'naranja').length;
-  const nRojo = dentro.filter(t => validaciones[t.trabajador.id] === 'rojo').length;
 
   document.getElementById('stat-dentro').textContent = nDentro;
   document.getElementById('stat-naranja').textContent = nNaranja;
-  document.getElementById('stat-rojo').textContent = nRojo;
   document.getElementById('badge-presencia').textContent = nDentro + ' dentro';
 
   if (dentro.length === 0) {
@@ -338,7 +335,7 @@ async function cargarPresencia() {
     </table>`;
 }
 
-// ── Bloqueos rojos (nuevo) ────────────────────────────────────────────────────
+// ── Bloqueos rojos ────────────────────────────────────────────────────────────
 async function cargarBloqueos() {
   const panel = document.getElementById('panel-bloqueos');
   const lista = document.getElementById('bloqueos-lista');
@@ -346,6 +343,7 @@ async function cargarBloqueos() {
 
   panel.classList.add('oculto');
   lista.innerHTML = '';
+  document.getElementById('stat-rojo').textContent = '0';
 
   if (!obraActual) return;
 
@@ -386,6 +384,9 @@ async function cargarBloqueos() {
   const grupos = Object.values(porTrabajador);
   const totalIntentos = grupos.reduce((s, g) => s + g.intentos, 0);
   const totalPersonas = grupos.length;
+
+  // Actualizar el card rojo con el total de intentos denegados
+  document.getElementById('stat-rojo').textContent = totalIntentos;
 
   titulo.textContent = totalPersonas === 1
     ? `1 persona · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'}`
@@ -428,7 +429,7 @@ async function marcarVistoRojo(incidenciaId, btn) {
   await cargarBloqueos();
 }
 
-// ── Avisos de autocierre (existente) ──────────────────────────────────────────
+// ── Avisos de autocierre ──────────────────────────────────────────────────────
 async function cargarAvisosAutocierre() {
   const panel = document.getElementById('panel-avisos');
   const lista = document.getElementById('avisos-lista');
