@@ -616,6 +616,7 @@
 
   let presentesCache = [];
   let intervalRelativo = null;
+  let intervalPresencia = null;
 
   async function init() {
     const { data: { session } } = await sb.auth.getSession();
@@ -694,7 +695,30 @@
 
     if (intervalRelativo) clearInterval(intervalRelativo);
     intervalRelativo = setInterval(actualizarTextosRelativos, 60 * 1000);
+
+    iniciarRefrescoPresencia();
   }
+
+  // Auto-refresh de presencia (I2)
+  // Refresca cada 60s. Pausa cuando la pestaña no es visible.
+  function iniciarRefrescoPresencia() {
+    if (intervalPresencia) {
+      clearInterval(intervalPresencia);
+      intervalPresencia = null;
+    }
+    intervalPresencia = setInterval(() => {
+      if (document.hidden) return;
+      if (!obraActualId) return;
+      cargarPresencia(obraActualId);
+    }, 60 * 1000);
+  }
+
+  // Cuando vuelves a la pestaña, refresca al instante (no esperes 60s)
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && obraActualId) {
+      cargarPresencia(obraActualId);
+    }
+  });
 
   // ============================================
   // Panel bloqueos rojos (nuevo)
