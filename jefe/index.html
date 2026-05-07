@@ -46,8 +46,10 @@
   .stat .numero.naranja { color: var(--naranja); }
   .stat .numero.rojo    { color: var(--rojo); }
   .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
-  .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; }
+  .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .seccion-cab-textos { display: flex; flex-direction: column; gap: 2px; }
   .seccion-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .seccion-cab-fecha { font-size: 12px; color: var(--texto2); font-weight: 400; text-transform: none; letter-spacing: 0; }
   .badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
   .badge.verde { background: rgba(76,175,80,0.15); color: var(--verde); }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -153,7 +155,10 @@
 
     <div class="seccion">
       <div class="seccion-cab">
-        <h2>Trabajadores en obra ahora</h2>
+        <div class="seccion-cab-textos">
+          <h2>Trabajadores en obra ahora</h2>
+          <div class="seccion-cab-fecha" id="fecha-hoy"></div>
+        </div>
         <span class="badge verde" id="badge-presencia">—</span>
       </div>
       <div id="tabla-presencia"><div class="cargando">Selecciona una obra…</div></div>
@@ -285,7 +290,18 @@ function rangoHoyLocal() {
   return { desdeISO: desde.toISOString(), hastaISO: hasta.toISOString() };
 }
 
+// PJ2 — Fecha con día de la semana en cabecera de presencia
+function actualizarFechaHoy() {
+  const el = document.getElementById('fecha-hoy');
+  if (!el) return;
+  const txt = new Date().toLocaleDateString('es-ES', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+  });
+  el.textContent = txt.charAt(0).toUpperCase() + txt.slice(1);
+}
+
 async function cargarPresencia() {
+  actualizarFechaHoy();
   document.getElementById('tabla-presencia').innerHTML = '<div class="cargando">Cargando…</div>';
   const { desdeISO, hastaISO } = rangoHoyLocal();
 
