@@ -232,6 +232,9 @@
           <button class="btn btn-outline" onclick="location.reload()">Cancelar</button>
           <span id="msgConfirmar" style="font-size:13px;color:var(--texto2);"></span>
         </div>
+
+        <!-- Resumen final + lista de fallidos -->
+        <div id="resumenFinal" style="margin-top:18px;"></div>
       </div>
     </div>
 
@@ -967,7 +970,8 @@ function cambiarEstado(i, nuevoEstado) {
   resultadoFinal[i].estadoManual = estadoSeguro(nuevoEstado);
 }
 
-// ── CONFIRMAR ─────────────────────────────────────────────────────────────────
+// ── HELPERS PARA EMPRESA ─────────────────────────────────────────────────────
+// "OMAX BUSINESS SL - B23815764" → { nombre: 'OMAX BUSINESS SL', cif: 'B23815764' }
 function extraerEmpresa(texto) {
   if (!texto) return { nombre: '', cif: '' };
   const partes = texto.split(' - ');
@@ -980,6 +984,7 @@ function extraerEmpresa(texto) {
   return { nombre: texto.trim(), cif: '' };
 }
 
+// ── CONFIRMAR ─────────────────────────────────────────────────────────────────
 async function confirmarImportacion() {
   const obraId = document.getElementById('obraSelect').value;
 
@@ -992,64 +997,86 @@ async function confirmarImportacion() {
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Guardando...';
 
-  let creados = 0, actualizados = 0, errores = 0;
+  // Limpiar resumen anterior por si era una segunda confirmación
+  document.getElementById('resumenFinal').innerHTML = '';
 
-  // Caché de empresas creadas en esta sesión: cif/nombre -> id
-  const empresaCache = {};
+  let creados = 0;
+  let actualizados = 0;
+  const fallos = []; // [{ dni, nombre, fase, mensaje }]
 
   for (const r of resultadoFinal) {
+    let trabajadorId = r.trabajadorId;
+
+    // ── 1. Crear/actualizar trabajador (con empresa) vía RPC ────────────────
+    // La RPC gestiona también la empresa internamente y respeta RLS.
+    // Si el trabajador ya existe en BD, igualmente la llamamos para refrescar
+    // su empresa por si ha cambiado de subcontrata desde el último import.
     try {
-      let trabajadorId = r.trabajadorId;
+      const { nombre: empNombre, cif: empCif } = extraerEmpresa(r.empresaRaw || '');
 
-      // Si no está en la app, crearlo
-      if (!r.enApp) {
-        // 1. Crear o recuperar empresa
-        let empresaId = null;
-        if (r.empresaRaw) {
-          const { nombre, cif } = extraerEmpresa(r.empresaRaw);
-          const cacheKey = cif || nombre;
-
-          if (empresaCache[cacheKey]) {
-            empresaId = empresaCache[cacheKey];
-          } else {
-            // Buscar si ya existe por CIF
-            let empExist = null;
-            if (cif) {
-              const { data } = await sb.from('empresas').select('id').eq('cif', cif).maybeSingle();
-              empExist = data;
-            }
-            if (!empExist && nombre) {
-              const { data } = await sb.from('empresas').select('id').eq('nombre', nombre).maybeSingle();
-              empExist = data;
-            }
-
-            if (empExist) {
-              empresaId = empExist.id;
-            } else {
-              // Crear empresa
-              const { data: empNew, error: empErr } = await sb.from('empresas')
-                .insert({ nombre, cif }).select('id').single();
-              if (empErr) throw empErr;
-              empresaId = empNew.id;
-            }
-            empresaCache[cacheKey] = empresaId;
-          }
+      const { data: rpcData, error: rpcErr } = await sb.rpc(
+        'crear_o_actualizar_trabajador_para_import',
+        {
+          p_nombre:         r.nombre || '',
+          p_apellidos:      '',
+          p_dni:            r.dni,
+          p_categoria:      'peon',
+          p_empresa_nombre: empNombre || '',
+          p_empresa_cif:    empCif || ''
         }
+      );
 
-        // 2. Crear trabajador
-        const { data: trabNew, error: trabErr } = await sb.from('trabajadores')
-          .insert({
-            nombre: r.nombre,
-            dni: r.dni,
-            empresa_id: empresaId || null,
-            categoria: 'peon'
-          }).select('id').single();
-        if (trabErr) throw trabErr;
-        trabajadorId = trabNew.id;
-        creados++;
+      if (rpcErr) {
+        fallos.push({
+          dni: r.dni,
+          nombre: r.nombre,
+          fase: 'crear/actualizar trabajador',
+          mensaje: rpcErr.message || String(rpcErr)
+        });
+        continue;
       }
 
-      // 3. Upsert en validaciones_obra
+      // La RPC devuelve { ok, id, empresa_id } o { ok:false, error }
+      if (!rpcData || rpcData.ok === false) {
+        fallos.push({
+          dni: r.dni,
+          nombre: r.nombre,
+          fase: 'crear/actualizar trabajador',
+          mensaje: (rpcData && rpcData.error) || 'La RPC no ha devuelto ok=true'
+        });
+        continue;
+      }
+
+      const idDevuelto = rpcData.id;
+      if (!idDevuelto) {
+        fallos.push({
+          dni: r.dni,
+          nombre: r.nombre,
+          fase: 'crear/actualizar trabajador',
+          mensaje: 'La RPC no ha devuelto id de trabajador'
+        });
+        continue;
+      }
+
+      // Marcamos si era nuevo o actualizado para el resumen final
+      if (!r.enApp) creados++;
+      else actualizados++;
+
+      trabajadorId = idDevuelto;
+
+    } catch (err) {
+      console.error('Excepción al crear/actualizar trabajador', r.dni, err);
+      fallos.push({
+        dni: r.dni,
+        nombre: r.nombre,
+        fase: 'crear/actualizar trabajador',
+        mensaje: err.message || String(err)
+      });
+      continue;
+    }
+
+    // ── 2. Upsert en validaciones_obra (estado documental para esta obra) ──
+    try {
       const motivos = r.motivos.length ? r.motivos : null;
       const { error: valErr } = await sb.from('validaciones_obra').upsert({
         trabajador_id: trabajadorId,
@@ -1058,31 +1085,75 @@ async function confirmarImportacion() {
         motivos: motivos,
         fecha_validacion: new Date().toISOString()
       }, { onConflict: 'trabajador_id,obra_id' });
-      if (valErr) throw valErr;
 
-      if (r.enApp) actualizados++;
-
+      if (valErr) {
+        fallos.push({
+          dni: r.dni,
+          nombre: r.nombre,
+          fase: 'asignar a obra',
+          mensaje: valErr.message || String(valErr)
+        });
+      }
     } catch (err) {
-      console.error('Error con', r.dni, err);
-      errores++;
+      console.error('Excepción en validaciones_obra', r.dni, err);
+      fallos.push({
+        dni: r.dni,
+        nombre: r.nombre,
+        fase: 'asignar a obra',
+        mensaje: err.message || String(err)
+      });
     }
   }
 
   btn.disabled = false;
   btn.innerHTML = '✅ Confirmar importación';
 
+  // ── Resumen final ──────────────────────────────────────────────────────────
   const msg = document.getElementById('msgConfirmar');
-  if (errores === 0) {
+  const resumenCont = document.getElementById('resumenFinal');
+
+  if (fallos.length === 0) {
     msg.style.color = 'var(--verde)';
-    msg.textContent = `✅ ${creados} trabajadores creados, ${actualizados} actualizados.`;
-    document.getElementById('alertas').innerHTML = `
+    msg.textContent = `✅ ${creados} creados, ${actualizados} actualizados.`;
+    resumenCont.innerHTML = `
       <div class="alert alert-success">
-        Importación completada. ${creados} trabajadores nuevos creados, ${actualizados} actualizados.
+        Importación completada. <strong>${creados}</strong> trabajadores nuevos creados, <strong>${actualizados}</strong> actualizados. Sin errores.
       </div>`;
   } else {
     msg.style.color = 'var(--rojo)';
-    msg.textContent = `⚠️ ${creados} creados, ${actualizados} actualizados, ${errores} errores. Revisa la consola.`;
+    msg.textContent = `⚠️ ${creados} creados, ${actualizados} actualizados, ${fallos.length} con error.`;
+
+    const filasFallos = fallos.map(f => `
+      <tr>
+        <td>${escHtml(f.nombre || '(sin nombre)')}</td>
+        <td><code>${escHtml(f.dni)}</code></td>
+        <td>${escHtml(f.fase)}</td>
+        <td style="font-size:12px;">${escHtml(f.mensaje)}</td>
+      </tr>
+    `).join('');
+
+    resumenCont.innerHTML = `
+      <div class="alert alert-error">
+        <strong>Importación con errores</strong>
+        <p style="margin:6px 0 10px;">
+          ${creados} trabajadores nuevos creados, ${actualizados} actualizados, <strong>${fallos.length} con error</strong>.
+          Revisa los detalles abajo. Puedes volver a importar el archivo después de corregir el problema.
+        </p>
+        <table style="margin-top:8px;">
+          <thead>
+            <tr>
+              <th>Trabajador</th>
+              <th>DNI</th>
+              <th>Fase</th>
+              <th>Mensaje</th>
+            </tr>
+          </thead>
+          <tbody>${filasFallos}</tbody>
+        </table>
+      </div>`;
   }
+
+  resumenCont.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
