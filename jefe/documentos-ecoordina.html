@@ -106,6 +106,27 @@
     .alert-success { background: rgba(76,175,80,0.1);   color: var(--verde);   border-left: 3px solid var(--verde); }
     .alert-error   { background: rgba(244,67,54,0.1);   color: var(--rojo);    border-left: 3px solid var(--rojo); }
 
+    /* AVISO "AÚN NO GUARDADO" — Mejora 1 */
+    .aviso-no-guardado {
+      background: rgba(255,152,0,0.15);
+      border: 2px solid var(--naranja);
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-top: 18px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 14px;
+      color: var(--texto);
+    }
+    .aviso-no-guardado .ico-grande {
+      font-size: 28px;
+      flex-shrink: 0;
+    }
+    .aviso-no-guardado strong { color: var(--naranja); }
+    .aviso-no-guardado.oculto { display: none; }
+
     /* STATS */
     .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
     .stat-box {
@@ -145,6 +166,43 @@
 
     #resultado { display: none; }
     #paso-obra { display: none; }
+
+    /* DETAILS — listas plegables del resumen final (Mejora 2) */
+    details.lista-plegable {
+      background: var(--bg3);
+      border: 1px solid var(--borde);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-top: 10px;
+    }
+    details.lista-plegable summary {
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--texto);
+      user-select: none;
+    }
+    details.lista-plegable summary:hover { color: var(--color-acento); }
+    details.lista-plegable[open] summary { margin-bottom: 10px; }
+    details.lista-plegable ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 280px;
+      overflow-y: auto;
+      font-size: 13px;
+    }
+    details.lista-plegable li {
+      padding: 5px 0;
+      border-bottom: 1px solid var(--borde);
+      color: var(--texto);
+    }
+    details.lista-plegable li:last-child { border-bottom: none; }
+    details.lista-plegable li code {
+      background: var(--bg2);
+      font-size: 11px;
+      margin-left: 6px;
+    }
   </style>
 </head>
 <body>
@@ -225,7 +283,16 @@
           <tbody id="tbodyResultado"></tbody>
         </table>
 
-        <div style="margin-top:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <!-- Mejora 1: aviso de "aún no guardado" -->
+        <div class="aviso-no-guardado" id="avisoNoGuardado">
+          <div class="ico-grande">⚠️</div>
+          <div>
+            <strong>Aún NO se ha guardado nada en la app.</strong><br>
+            Revisa la tabla de arriba y pulsa <strong>"Confirmar importación"</strong> para guardar los cambios.
+          </div>
+        </div>
+
+        <div style="margin-top:8px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
           <button class="btn btn-success" id="btnConfirmar" onclick="confirmarImportacion()">
             ✅ Confirmar importación
           </button>
@@ -862,6 +929,11 @@ async function procesarExcel() {
   renderAlertaCambiosEmpresa();
   renderAlertaSinRegla();
 
+  // Mejora 1: al procesar de nuevo, restablecer estado visual (mostrar aviso, limpiar resumen)
+  document.getElementById('avisoNoGuardado').classList.remove('oculto');
+  document.getElementById('resumenFinal').innerHTML = '';
+  document.getElementById('msgConfirmar').textContent = '';
+
   btn.disabled = false;
   btn.innerHTML = 'Procesar archivo';
   document.getElementById('resultado').style.display = 'block';
@@ -1000,9 +1072,10 @@ async function confirmarImportacion() {
   // Limpiar resumen anterior por si era una segunda confirmación
   document.getElementById('resumenFinal').innerHTML = '';
 
-  let creados = 0;
-  let actualizados = 0;
-  const fallos = []; // [{ dni, nombre, fase, mensaje }]
+  // Mejora 2: acumular listas de creados / actualizados con nombre + DNI
+  const creadosLista = [];        // [{ nombre, dni }]
+  const actualizadosLista = [];   // [{ nombre, dni }]
+  const fallos = [];              // [{ dni, nombre, fase, mensaje }]
 
   for (const r of resultadoFinal) {
     let trabajadorId = r.trabajadorId;
@@ -1058,9 +1131,12 @@ async function confirmarImportacion() {
         continue;
       }
 
-      // Marcamos si era nuevo o actualizado para el resumen final
-      if (!r.enApp) creados++;
-      else actualizados++;
+      // Mejora 2: registrar en lista correspondiente
+      if (!r.enApp) {
+        creadosLista.push({ nombre: r.nombre, dni: r.dni });
+      } else {
+        actualizadosLista.push({ nombre: r.nombre, dni: r.dni });
+      }
 
       trabajadorId = idDevuelto;
 
@@ -1108,9 +1184,28 @@ async function confirmarImportacion() {
   btn.disabled = false;
   btn.innerHTML = '✅ Confirmar importación';
 
+  // Mejora 1: ya está guardado, ocultamos el aviso
+  document.getElementById('avisoNoGuardado').classList.add('oculto');
+
   // ── Resumen final ──────────────────────────────────────────────────────────
   const msg = document.getElementById('msgConfirmar');
   const resumenCont = document.getElementById('resumenFinal');
+
+  // Mejora 2: helper para construir lista plegable
+  const construirLista = (titulo, items, color) => {
+    if (!items.length) return '';
+    const li = items.map(i =>
+      `<li>${escHtml(i.nombre || '(sin nombre)')} <code>${escHtml(i.dni)}</code></li>`
+    ).join('');
+    return `
+      <details class="lista-plegable">
+        <summary style="color:${color}">${escHtml(titulo)} (${items.length})</summary>
+        <ul>${li}</ul>
+      </details>`;
+  };
+
+  const creados = creadosLista.length;
+  const actualizados = actualizadosLista.length;
 
   if (fallos.length === 0) {
     msg.style.color = 'var(--verde)';
@@ -1118,7 +1213,10 @@ async function confirmarImportacion() {
     resumenCont.innerHTML = `
       <div class="alert alert-success">
         Importación completada. <strong>${creados}</strong> trabajadores nuevos creados, <strong>${actualizados}</strong> actualizados. Sin errores.
-      </div>`;
+      </div>
+      ${construirLista('🆕 Trabajadores nuevos creados', creadosLista, 'var(--verde)')}
+      ${construirLista('🔁 Trabajadores actualizados', actualizadosLista, 'var(--azul)')}
+    `;
   } else {
     msg.style.color = 'var(--rojo)';
     msg.textContent = `⚠️ ${creados} creados, ${actualizados} actualizados, ${fallos.length} con error.`;
@@ -1150,7 +1248,10 @@ async function confirmarImportacion() {
           </thead>
           <tbody>${filasFallos}</tbody>
         </table>
-      </div>`;
+      </div>
+      ${construirLista('🆕 Trabajadores nuevos creados', creadosLista, 'var(--verde)')}
+      ${construirLista('🔁 Trabajadores actualizados', actualizadosLista, 'var(--azul)')}
+    `;
   }
 
   resumenCont.scrollIntoView({ behavior: 'smooth', block: 'center' });
