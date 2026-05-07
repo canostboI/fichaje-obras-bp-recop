@@ -336,18 +336,24 @@ async function cargarPresencia() {
   const dentro = Object.values(porTrabajador).filter(t => t.entradas.length > t.salidas.length);
 
   const ids = dentro.map(t => t.trabajador.id);
+  // PJ3 Paso 1 — traer también motivos para mostrarlos en el mini-modal
   let validaciones = {};
   if (ids.length > 0) {
     const { data: vals } = await sb
       .from('validaciones_obra')
-      .select('trabajador_id, estado')
+      .select('trabajador_id, estado, motivos')
       .eq('obra_id', obraActual)
       .in('trabajador_id', ids);
-    (vals || []).forEach(v => { validaciones[v.trabajador_id] = v.estado; });
+    (vals || []).forEach(v => {
+      validaciones[v.trabajador_id] = { estado: v.estado, motivos: v.motivos || [] };
+    });
   }
 
+  // PJ3 Paso 1 — log temporal para verificar que llegan los motivos. Quitar en Paso 2.
+  console.log('[PJ3] validaciones:', validaciones);
+
   const nDentro = dentro.length;
-  const nNaranja = dentro.filter(t => validaciones[t.trabajador.id] === 'naranja').length;
+  const nNaranja = dentro.filter(t => validaciones[t.trabajador.id]?.estado === 'naranja').length;
 
   document.getElementById('stat-dentro').textContent = nDentro;
   document.getElementById('stat-naranja').textContent = nNaranja;
@@ -366,7 +372,7 @@ async function cargarPresencia() {
       <tbody>
         ${dentro.map(t => {
           const ultimaEntrada = t.entradas[t.entradas.length - 1];
-          const estado = validaciones[t.trabajador.id] || 'verde';
+          const estado = validaciones[t.trabajador.id]?.estado || 'verde';
           return `<tr>
             <td><strong>${esc(t.trabajador.nombre)} ${esc(t.trabajador.apellidos)}</strong></td>
             <td>${esc(t.trabajador.dni)}</td>
