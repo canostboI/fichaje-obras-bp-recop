@@ -30,7 +30,9 @@
   .btn-salir:hover { background: var(--bg3); color: var(--texto); }
   .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
   .topbar { padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .topbar-left { display: flex; flex-direction: column; gap: 4px; }
   .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+  .topbar-fecha { font-size: 14px; color: var(--texto2); font-weight: 400; }
   .topbar-right { display: flex; align-items: center; gap: 14px; }
   .usuario { font-size: 13px; color: var(--texto2); }
   .selector-obra { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 8px 12px; font-family: inherit; }
@@ -47,9 +49,7 @@
   .stat .numero.rojo    { color: var(--rojo); }
   .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
   .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .seccion-cab-textos { display: flex; flex-direction: column; gap: 2px; }
   .seccion-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-  .seccion-cab-fecha { font-size: 12px; color: var(--texto2); font-weight: 400; text-transform: none; letter-spacing: 0; }
   .badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
   .badge.verde { background: rgba(76,175,80,0.15); color: var(--verde); }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -124,7 +124,10 @@
 
 <div class="main">
   <div class="topbar">
-    <h1>Presencia</h1>
+    <div class="topbar-left">
+      <h1>Presencia</h1>
+      <div class="topbar-fecha" id="fecha-hoy"></div>
+    </div>
     <div class="topbar-right">
       <button class="btn-qr" id="btn-ver-qr">📱 Ver QR</button>
       <select class="selector-obra" id="selector-obra">
@@ -155,10 +158,7 @@
 
     <div class="seccion">
       <div class="seccion-cab">
-        <div class="seccion-cab-textos">
-          <h2>Trabajadores en obra ahora</h2>
-          <div class="seccion-cab-fecha" id="fecha-hoy"></div>
-        </div>
+        <h2>Trabajadores en obra ahora</h2>
         <span class="badge verde" id="badge-presencia">—</span>
       </div>
       <div id="tabla-presencia"><div class="cargando">Selecciona una obra…</div></div>
@@ -202,6 +202,9 @@ let intervalPresencia = null;
   if (!miUsuario) { window.location.href = '../'; return; }
 
   document.getElementById('usuario-nombre').textContent = miUsuario.nombre || session.user.email;
+
+  // Pintar fecha de hoy en el topbar
+  actualizarFechaHoy();
 
   const { data: misObras, error } = await sb
     .from('usuarios_obra')
@@ -290,7 +293,7 @@ function rangoHoyLocal() {
   return { desdeISO: desde.toISOString(), hastaISO: hasta.toISOString() };
 }
 
-// PJ2 — Fecha con día de la semana en cabecera de presencia
+// PJ2 — Fecha con día de la semana en topbar
 function actualizarFechaHoy() {
   const el = document.getElementById('fecha-hoy');
   if (!el) return;
