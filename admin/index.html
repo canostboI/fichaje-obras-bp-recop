@@ -98,7 +98,7 @@
     <div class="stats">
       <div class="stat"><div class="numero azul" id="stat-fichajes">—</div><div class="etiqueta">Fichajes hoy</div></div>
       <div class="stat"><div class="numero verde" id="stat-obras">—</div><div class="etiqueta">Obras activas</div></div>
-      <div class="stat"><div class="numero rojo" id="stat-rojos">—</div><div class="etiqueta">Trabajadores en rojo</div></div>
+      <div class="stat"><div class="numero rojo" id="stat-rojos">—</div><div class="etiqueta">Accesos denegados hoy</div></div>
       <div class="stat"><div class="numero naranja" id="stat-incidencias">—</div><div class="etiqueta">Incidencias hoy</div></div>
     </div>
     <div class="seccion">
@@ -141,7 +141,13 @@ function rangoHoyLocal() {
   const { data: usuario } = await sb.from('usuarios_app').select('rol, nombre').eq('auth_user_id', session.user.id).single();
   if (!usuario || usuario.rol !== 'admin') { window.location.href = '../'; return; }
   document.getElementById('usuario-email').textContent = usuario.nombre || session.user.email;
-  await Promise.all([cargarFichajes(), cargarObras(), cargarRojos(), cargarIncidencias()]);
+  await Promise.all([
+    cargarFichajes(),
+    cargarObras(),
+    cargarAccesosDenegadosHoy(),
+    cargarTablaRojos(),
+    cargarIncidencias()
+  ]);
 })();
 
 document.getElementById('btn-salir').addEventListener('click', async () => {
@@ -170,10 +176,28 @@ async function cargarObras() {
   document.getElementById('tabla-obras').innerHTML = `<table><thead><tr><th>Nombre</th><th>Dirección</th><th>Empresa</th></tr></thead><tbody>${data.map(o => `<tr><td><strong>${esc(o.nombre)}</strong></td><td>${esc(o.direccion || '—')}</td><td>${esc(o.empresa_marca || '—')}</td></tr>`).join('')}</tbody></table>`;
 }
 
-async function cargarRojos() {
+// Card rojo: cuenta intentos de acceso denegados HOY (incidencias bloqueo_rojo, estado nueva).
+// Mismo cálculo que jefe/index.html y encargado/index.html, pero sin filtrar por obra.
+async function cargarAccesosDenegadosHoy() {
+  const { desdeISO, hastaISO } = rangoHoyLocal();
+  const { count, error } = await sb.from('incidencias')
+    .select('id', { count: 'exact', head: true })
+    .eq('tipo', 'bloqueo_rojo')
+    .eq('estado', 'nueva')
+    .gte('created_at', desdeISO)
+    .lte('created_at', hastaISO);
+  if (error) {
+    document.getElementById('stat-rojos').textContent = '—';
+    return;
+  }
+  document.getElementById('stat-rojos').textContent = count ?? 0;
+}
+
+// Tabla "Trabajadores con documentación en rojo": info de gestión (no es la del card).
+// Se mantiene tal cual estaba.
+async function cargarTablaRojos() {
   const { data } = await sb.from('validaciones_obra').select('motivos, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)').eq('estado', 'rojo').limit(50);
   const n = data ? data.length : 0;
-  document.getElementById('stat-rojos').textContent = n;
   document.getElementById('badge-rojos').textContent = n + ' trabajadores';
   if (!data || data.length === 0) { document.getElementById('tabla-rojos').innerHTML = '<div class="vacio">Ningún trabajador en rojo ✓</div>'; return; }
   document.getElementById('tabla-rojos').innerHTML = `<table><thead><tr><th>Trabajador</th><th>DNI</th><th>Obra</th><th>Motivos</th></tr></thead><tbody>${data.map(v => `<tr><td><strong>${esc(v.trabajador?.nombre)} ${esc(v.trabajador?.apellidos)}</strong></td><td>${esc(v.trabajador?.dni)}</td><td>${esc(v.obra?.nombre)}</td><td>${Array.isArray(v.motivos) ? v.motivos.map(m => esc(m)).join(', ') : '—'}</td></tr>`).join('')}</tbody></table>`;
