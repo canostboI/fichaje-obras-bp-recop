@@ -164,9 +164,38 @@
     font-family: inherit;
   }
   .btn-cerrar-motivos:hover { background: var(--borde); }
+
+  /* Banner de conexión (I3) */
+  .conexion-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    padding: 10px 20px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+    background: var(--rojo);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    transform: translateY(0);
+    transition: transform 0.3s ease, background 0.3s ease;
+  }
+  .conexion-banner.oculto {
+    transform: translateY(-100%);
+  }
+  .conexion-banner.online {
+    background: var(--verde);
+  }
 </style>
 </head>
 <body>
+
+<!-- Banner de conexión (I3) -->
+<div id="conexion-banner" class="conexion-banner oculto">
+  <span id="conexion-banner-texto">⚠ Sin conexión — Los datos pueden estar desactualizados</span>
+</div>
 
 <div class="sidebar">
   <div class="sidebar-brand">
@@ -268,6 +297,47 @@ let intervalPresencia = null;
 
 // PJ3 — caché de validaciones por trabajador para que el modal abra al instante
 let validacionesCache = {};
+
+// I3 — estado del indicador de conexión
+let estaOffline = false;
+let timeoutBannerOnline = null;
+
+// ── Indicador de conexión (I3) ────────────────────────────────────────────────
+function marcarOffline() {
+  if (estaOffline) return; // ya estaba marcado
+  estaOffline = true;
+  if (timeoutBannerOnline) {
+    clearTimeout(timeoutBannerOnline);
+    timeoutBannerOnline = null;
+  }
+  const banner = document.getElementById('conexion-banner');
+  const texto = document.getElementById('conexion-banner-texto');
+  texto.textContent = '⚠ Sin conexión — Los datos pueden estar desactualizados';
+  banner.classList.remove('online');
+  banner.classList.remove('oculto');
+}
+
+function marcarOnline() {
+  if (!estaOffline) return; // nunca estuvo offline, no mostramos nada
+  estaOffline = false;
+  const banner = document.getElementById('conexion-banner');
+  const texto = document.getElementById('conexion-banner-texto');
+  texto.textContent = '✓ Conexión restaurada';
+  banner.classList.add('online');
+  banner.classList.remove('oculto');
+  // Ocultar tras 2,5s
+  if (timeoutBannerOnline) clearTimeout(timeoutBannerOnline);
+  timeoutBannerOnline = setTimeout(() => {
+    banner.classList.add('oculto');
+    // Tras la animación, devolver el banner al estado rojo por defecto
+    setTimeout(() => { banner.classList.remove('online'); }, 350);
+    timeoutBannerOnline = null;
+  }, 2500);
+}
+
+// Listeners nativos del navegador
+window.addEventListener('offline', marcarOffline);
+window.addEventListener('online', marcarOnline);
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -388,13 +458,28 @@ async function cargarPresencia() {
   document.getElementById('tabla-presencia').innerHTML = '<div class="cargando">Cargando…</div>';
   const { desdeISO, hastaISO } = rangoHoyLocal();
 
-  const { data: fichajes } = await sb
-    .from('fichajes')
-    .select('id, tipo, hora, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni)')
-    .eq('obra_id', obraActual)
-    .gte('hora', desdeISO)
-    .lte('hora', hastaISO)
-    .order('hora', { ascending: true });
+  // I3 — envolvemos la query principal en try/catch para detectar caídas de red
+  let fichajes;
+  try {
+    const resp = await sb
+      .from('fichajes')
+      .select('id, tipo, hora, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni)')
+      .eq('obra_id', obraActual)
+      .gte('hora', desdeISO)
+      .lte('hora', hastaISO)
+      .order('hora', { ascending: true });
+
+    if (resp.error) throw resp.error;
+    fichajes = resp.data;
+    // Si llegamos aquí, hay conexión real con Supabase
+    marcarOnline();
+  } catch (err) {
+    // Fallo de red o de Supabase → marcamos offline y dejamos la tabla como estaba
+    marcarOffline();
+    document.getElementById('tabla-presencia').innerHTML =
+      '<div class="vacio">No se pudo cargar la presencia. Reintentando automáticamente…</div>';
+    return;
+  }
 
   if (!fichajes || fichajes.length === 0) {
     document.getElementById('stat-dentro').textContent = '0';
