@@ -450,6 +450,30 @@
       color: #721c24;
     }
 
+    /* Banner de conexión (I3) */
+    .conexion-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 200;
+      padding: 10px 20px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: white;
+      background: #e53935;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      transform: translateY(0);
+      transition: transform 0.3s ease, background 0.3s ease;
+    }
+    .conexion-banner.oculto {
+      transform: translateY(-100%);
+    }
+    .conexion-banner.online {
+      background: #2e7d32;
+    }
+
     @media (max-width: 600px) {
       header { align-items: flex-start; flex-direction: column; }
       .header-right { width: 100%; }
@@ -474,6 +498,11 @@
   </style>
 </head>
 <body>
+
+<!-- Banner de conexión (I3) -->
+<div id="conexion-banner" class="conexion-banner oculto">
+  <span id="conexion-banner-texto">⚠ Sin conexión — Los datos pueden estar desactualizados</span>
+</div>
 
 <header>
   <div class="header-left">
@@ -617,6 +646,45 @@
   let presentesCache = [];
   let intervalRelativo = null;
   let intervalPresencia = null;
+
+  // I3 — estado del indicador de conexión
+  let estaOffline = false;
+  let timeoutBannerOnline = null;
+
+  // ── Indicador de conexión (I3) ──────────────────────────────────────────────
+  function marcarOffline() {
+    if (estaOffline) return;
+    estaOffline = true;
+    if (timeoutBannerOnline) {
+      clearTimeout(timeoutBannerOnline);
+      timeoutBannerOnline = null;
+    }
+    const banner = document.getElementById('conexion-banner');
+    const texto = document.getElementById('conexion-banner-texto');
+    texto.textContent = '⚠ Sin conexión — Los datos pueden estar desactualizados';
+    banner.classList.remove('online');
+    banner.classList.remove('oculto');
+  }
+
+  function marcarOnline() {
+    if (!estaOffline) return;
+    estaOffline = false;
+    const banner = document.getElementById('conexion-banner');
+    const texto = document.getElementById('conexion-banner-texto');
+    texto.textContent = '✓ Conexión restaurada';
+    banner.classList.add('online');
+    banner.classList.remove('oculto');
+    if (timeoutBannerOnline) clearTimeout(timeoutBannerOnline);
+    timeoutBannerOnline = setTimeout(() => {
+      banner.classList.add('oculto');
+      setTimeout(() => { banner.classList.remove('online'); }, 350);
+      timeoutBannerOnline = null;
+    }, 2500);
+  }
+
+  // Listeners nativos del navegador
+  window.addEventListener('offline', marcarOffline);
+  window.addEventListener('online', marcarOnline);
 
   async function init() {
     const { data: { session } } = await sb.auth.getSession();
@@ -943,29 +1011,42 @@
 
     const { desdeISO, hastaISO } = rangoHoyLocal();
 
-    let { data: fichajes, error } = await sb
-      .from('fichajes')
-      .select('tipo, hora, trabajador_id, trabajadores(nombre, apellidos, dni, empresas(nombre))')
-      .eq('obra_id', obraId)
-      .gte('hora', desdeISO)
-      .lte('hora', hastaISO)
-      .order('hora', { ascending: true });
-
-    if (error) {
-      const fb = await sb
+    // I3 — try/catch para detectar caídas de red.
+    // Respetamos el fallback existente: si la query con empresa falla por
+    // estructura/RLS, intentamos otra sin empresa. Solo marcamos offline si
+    // ambas fallan o si lanzan excepción de red.
+    let fichajes;
+    try {
+      let { data, error } = await sb
         .from('fichajes')
-        .select('tipo, hora, trabajador_id, trabajadores(nombre, apellidos, dni)')
+        .select('tipo, hora, trabajador_id, trabajadores(nombre, apellidos, dni, empresas(nombre))')
         .eq('obra_id', obraId)
         .gte('hora', desdeISO)
         .lte('hora', hastaISO)
         .order('hora', { ascending: true });
 
-      if (fb.error) {
-        lista.innerHTML = '<p style="color:red">Error al cargar presencia.</p>';
-        pintarContador(0, null);
-        return;
+      if (error) {
+        // Fallback existente: intento sin empresa
+        const fb = await sb
+          .from('fichajes')
+          .select('tipo, hora, trabajador_id, trabajadores(nombre, apellidos, dni)')
+          .eq('obra_id', obraId)
+          .gte('hora', desdeISO)
+          .lte('hora', hastaISO)
+          .order('hora', { ascending: true });
+
+        if (fb.error) throw fb.error;
+        data = fb.data;
       }
-      fichajes = fb.data;
+
+      fichajes = data;
+      // Llegamos aquí → hay conexión real con Supabase
+      marcarOnline();
+    } catch (err) {
+      // Fallo de red → marcamos offline y dejamos la UI tal cual
+      marcarOffline();
+      lista.innerHTML = '<p class="loading">No se pudo cargar la presencia. Reintentando automáticamente…</p>';
+      return;
     }
 
     const estado = {};
