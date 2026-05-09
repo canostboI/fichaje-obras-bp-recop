@@ -348,11 +348,13 @@ async function cargarTrabajadores() {
 
   const hoy = new Date().toISOString().slice(0, 10);
 
+  // S3: filtrar solo excepciones activas (no revocadas)
   const { data: excepciones } = await sb
     .from('excepciones_acceso')
     .select('id, trabajador_id, obra_id, motivo_autorizacion, created_at, autorizado_por:autorizado_por_user_id(nombre)')
     .in('obra_id', obraIds)
-    .eq('fecha', hoy);
+    .eq('fecha', hoy)
+    .eq('estado', 'activa');
 
   const excepcionesPorKey = {};
   (excepciones || []).forEach(ex => {
