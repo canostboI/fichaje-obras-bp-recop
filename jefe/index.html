@@ -304,7 +304,7 @@ let timeoutBannerOnline = null;
 
 // ── Indicador de conexión (I3) ────────────────────────────────────────────────
 function marcarOffline() {
-  if (estaOffline) return; // ya estaba marcado
+  if (estaOffline) return;
   estaOffline = true;
   if (timeoutBannerOnline) {
     clearTimeout(timeoutBannerOnline);
@@ -318,24 +318,21 @@ function marcarOffline() {
 }
 
 function marcarOnline() {
-  if (!estaOffline) return; // nunca estuvo offline, no mostramos nada
+  if (!estaOffline) return;
   estaOffline = false;
   const banner = document.getElementById('conexion-banner');
   const texto = document.getElementById('conexion-banner-texto');
   texto.textContent = '✓ Conexión restaurada';
   banner.classList.add('online');
   banner.classList.remove('oculto');
-  // Ocultar tras 2,5s
   if (timeoutBannerOnline) clearTimeout(timeoutBannerOnline);
   timeoutBannerOnline = setTimeout(() => {
     banner.classList.add('oculto');
-    // Tras la animación, devolver el banner al estado rojo por defecto
     setTimeout(() => { banner.classList.remove('online'); }, 350);
     timeoutBannerOnline = null;
   }, 2500);
 }
 
-// Listeners nativos del navegador
 window.addEventListener('offline', marcarOffline);
 window.addEventListener('online', marcarOnline);
 
@@ -353,7 +350,6 @@ window.addEventListener('online', marcarOnline);
 
   document.getElementById('usuario-nombre').textContent = miUsuario.nombre || session.user.email;
 
-  // Pintar fecha de hoy en el topbar
   actualizarFechaHoy();
 
   const { data: misObras, error } = await sb
@@ -396,7 +392,6 @@ window.addEventListener('online', marcarOnline);
 })();
 
 // Auto-refresh de presencia (I2)
-// Refresca cada 60s. Pausa cuando la pestaña no es visible.
 function iniciarRefrescoPresencia() {
   if (intervalPresencia) {
     clearInterval(intervalPresencia);
@@ -409,7 +404,6 @@ function iniciarRefrescoPresencia() {
   }, 60 * 1000);
 }
 
-// Cuando vuelves a la pestaña, refresca al instante (no esperes 60s)
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && obraActual) {
     cargarPresencia();
@@ -458,7 +452,6 @@ async function cargarPresencia() {
   document.getElementById('tabla-presencia').innerHTML = '<div class="cargando">Cargando…</div>';
   const { desdeISO, hastaISO } = rangoHoyLocal();
 
-  // I3 — envolvemos la query principal en try/catch para detectar caídas de red
   let fichajes;
   try {
     const resp = await sb
@@ -471,10 +464,8 @@ async function cargarPresencia() {
 
     if (resp.error) throw resp.error;
     fichajes = resp.data;
-    // Si llegamos aquí, hay conexión real con Supabase
     marcarOnline();
   } catch (err) {
-    // Fallo de red o de Supabase → marcamos offline y dejamos la tabla como estaba
     marcarOffline();
     document.getElementById('tabla-presencia').innerHTML =
       '<div class="vacio">No se pudo cargar la presencia. Reintentando automáticamente…</div>';
@@ -501,7 +492,6 @@ async function cargarPresencia() {
   const dentro = Object.values(porTrabajador).filter(t => t.entradas.length > t.salidas.length);
 
   const ids = dentro.map(t => t.trabajador.id);
-  // PJ3 — traer estado y motivos para que el modal abra instantáneo
   let validaciones = {};
   if (ids.length > 0) {
     const { data: vals } = await sb
@@ -514,7 +504,6 @@ async function cargarPresencia() {
     });
   }
 
-  // PJ3 — cachear nombre + estado + motivos por trabajador para el modal
   validacionesCache = {};
   dentro.forEach(t => {
     const tid = t.trabajador.id;
@@ -547,7 +536,6 @@ async function cargarPresencia() {
         ${dentro.map(t => {
           const ultimaEntrada = t.entradas[t.entradas.length - 1];
           const estado = validaciones[t.trabajador.id]?.estado || 'verde';
-          // PJ3 — pill clicable solo si hay algo que mostrar (naranja o rojo)
           const esClicable = estado === 'naranja' || estado === 'rojo';
           const pillHtml = esClicable
             ? `<span class="pill ${estado} clicable" onclick="abrirMotivos('${t.trabajador.id}')" title="Ver motivos">${estado}</span>`
@@ -564,8 +552,6 @@ async function cargarPresencia() {
 }
 
 // ── Modal Motivos (PJ3) ───────────────────────────────────────────────────────
-// Limpia motivos del tipo "Apto médico (Caducado) → naranja" quitando el sufijo
-// " → estado" final que es redundante porque el modal ya muestra el estado.
 function limpiarMotivo(texto) {
   if (!texto) return '';
   return String(texto).replace(/\s*→\s*(verde|naranja|rojo)\s*$/i, '').trim();
@@ -597,12 +583,10 @@ function cerrarMotivos() {
   document.getElementById('modal-motivos-overlay').classList.remove('visible');
 }
 
-// Cerrar modal motivos haciendo click fuera del cuadro
 document.getElementById('modal-motivos-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-motivos-overlay')) cerrarMotivos();
 });
 
-// Cerrar cualquier modal con la tecla Escape
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     cerrarMotivos();
@@ -610,7 +594,10 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// ── Bloqueos rojos ────────────────────────────────────────────────────────────
+// ── Bloqueos rojos (S5) ───────────────────────────────────────────────────────
+// El card rojo muestra el total histórico del día (todos los intentos,
+// independientemente de si ya se marcaron como vistos).
+// El panel rojo muestra solo los pendientes de revisar (estado = 'nueva').
 async function cargarBloqueos() {
   const panel = document.getElementById('panel-bloqueos');
   const lista = document.getElementById('bloqueos-lista');
@@ -624,6 +611,20 @@ async function cargarBloqueos() {
 
   const { desdeISO, hastaISO } = rangoHoyLocal();
 
+  // S5 — Query 1: contador histórico (sin filtro de estado)
+  // Cuenta todos los intentos denegados hoy, ya revisados o no.
+  const { count: totalHistorico } = await sb
+    .from('incidencias')
+    .select('*', { count: 'exact', head: true })
+    .eq('obra_id', obraActual)
+    .eq('tipo', 'bloqueo_rojo')
+    .gte('created_at', desdeISO)
+    .lte('created_at', hastaISO);
+
+  document.getElementById('stat-rojo').textContent = totalHistorico ?? 0;
+
+  // S5 — Query 2: pendientes de revisar (estado = 'nueva')
+  // Solo estas aparecen en el panel con botón "✓ Visto".
   const { data: incidencias, error } = await sb
     .from('incidencias')
     .select('id, detalle, created_at, trabajador:trabajador_id(id, nombre, apellidos, dni)')
@@ -657,15 +658,12 @@ async function cargarBloqueos() {
   });
 
   const grupos = Object.values(porTrabajador);
-  const totalIntentos = grupos.reduce((s, g) => s + g.intentos, 0);
   const totalPersonas = grupos.length;
-
-  // Actualizar el card rojo con el total de intentos denegados
-  document.getElementById('stat-rojo').textContent = totalIntentos;
+  const totalPendientes = grupos.reduce((s, g) => s + g.intentos, 0);
 
   titulo.textContent = totalPersonas === 1
-    ? `1 persona · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'}`
-    : `${totalPersonas} personas · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'}`;
+    ? `1 persona · ${totalPendientes} ${totalPendientes === 1 ? 'intento pendiente' : 'intentos pendientes'}`
+    : `${totalPersonas} personas · ${totalPendientes} ${totalPendientes === 1 ? 'intento pendiente' : 'intentos pendientes'}`;
 
   lista.innerHTML = grupos.map(g => {
     const t = g.trabajador || {};
