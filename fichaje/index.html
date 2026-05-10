@@ -939,16 +939,34 @@ function ocultarDniRecordado() {
   el.btnUltimoDni.dataset.dni = '';
   el.ultimoDniBox.classList.add('oculto');
 }
+
+// =====================================================================
+// G3 — NIVEL 1: protección contra DNI compartido
+// Si el DNI que ficha es distinto al que había guardado en localStorage,
+// se interpreta que el móvil está siendo usado por otra persona.
+// En ese caso se borra el DNI guardado en lugar de sobreescribirlo.
+// Así el siguiente trabajador no ve el DNI del compañero anterior.
+// =====================================================================
 function gestionarRecordatorioDni(dni, validacion) {
-  if (validacion && validacion.encontrado && el.chkRecordarDni.checked) {
-    const limpio = normalizarDni(dni);
-    localStorage.setItem('ultimo_dni', limpio);
-    mostrarDniRecordado(limpio);
-  } else if (!el.chkRecordarDni.checked) {
+  if (!el.chkRecordarDni.checked) {
     localStorage.removeItem('ultimo_dni');
     ocultarDniRecordado();
+    return;
+  }
+  if (validacion && validacion.encontrado) {
+    const limpio  = normalizarDni(dni);
+    const guardado = localStorage.getItem('ultimo_dni') || '';
+    if (guardado && guardado !== limpio) {
+      // DNI distinto al guardado → móvil compartido, no guardar nada
+      localStorage.removeItem('ultimo_dni');
+      ocultarDniRecordado();
+    } else {
+      localStorage.setItem('ultimo_dni', limpio);
+      mostrarDniRecordado(limpio);
+    }
   }
 }
+
 function mostrarErrorDni(texto) {
   el.errorDni.textContent = texto;
   el.errorDni.classList.remove('oculto');
