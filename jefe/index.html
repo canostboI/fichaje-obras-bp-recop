@@ -42,6 +42,9 @@
   .contenido { padding: 24px 28px; }
   .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
   .stat { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 20px 22px; }
+  .stat-clickable { cursor: pointer; transition: border-color 0.15s, transform 0.1s, background 0.15s; }
+  .stat-clickable:hover { border-color: var(--rojo); background: var(--bg3); }
+  .stat-clickable:active { transform: scale(0.99); }
   .stat .numero { font-size: 38px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
   .stat .etiqueta { font-size: 13px; color: var(--texto2); }
   .stat .numero.verde   { color: var(--verde); }
@@ -165,6 +168,32 @@
   }
   .btn-cerrar-motivos:hover { background: var(--borde); }
 
+  /* Modal accesos denegados */
+  .modal-accesos {
+    background: var(--bg2);
+    color: var(--texto);
+    border: 1px solid var(--borde);
+    border-radius: 14px;
+    padding: 24px;
+    max-width: 720px;
+    width: 92%;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  }
+  .modal-accesos-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 6px; }
+  .modal-accesos-cab h3 { font-size: 18px; font-weight: 800; line-height: 1.25; }
+  .modal-accesos-sub { color: var(--texto2); font-size: 13px; margin-bottom: 16px; }
+  .btn-cerrar-accesos { background: var(--bg3); color: var(--texto); border: 1px solid var(--borde); width: 34px; height: 34px; border-radius: 8px; cursor: pointer; font-size: 20px; line-height: 1; }
+  .btn-cerrar-accesos:hover { background: var(--borde); }
+  .accesos-resumen { background: rgba(244,67,54,0.08); border: 1px solid rgba(244,67,54,0.35); color: var(--rojo); border-radius: 10px; padding: 12px 14px; font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+  .acceso-item { border: 1px solid var(--borde); background: var(--bg3); border-radius: 10px; padding: 13px 14px; margin-top: 10px; }
+  .acceso-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .acceso-nombre { font-size: 15px; font-weight: 800; }
+  .acceso-meta { color: var(--texto2); font-size: 13px; margin-top: 3px; line-height: 1.45; }
+  .acceso-contador { white-space: nowrap; color: var(--rojo); font-weight: 800; font-size: 14px; }
+  .acceso-detalle { margin-top: 9px; color: var(--texto2); font-size: 13px; line-height: 1.45; }
+
   /* Banner de conexión (I3) */
   .conexion-banner {
     position: fixed;
@@ -231,7 +260,7 @@
     <div class="stats">
       <div class="stat"><div class="numero verde" id="stat-dentro">—</div><div class="etiqueta">En obra ahora</div></div>
       <div class="stat"><div class="numero naranja" id="stat-naranja">—</div><div class="etiqueta">Documentación naranja</div></div>
-      <div class="stat"><div class="numero rojo" id="stat-rojo">—</div><div class="etiqueta">Accesos denegados hoy</div></div>
+      <div class="stat stat-clickable" id="card-rojos" role="button" tabindex="0" title="Ver detalle de accesos denegados"><div class="numero rojo" id="stat-rojo">—</div><div class="etiqueta">Accesos denegados hoy</div></div>
     </div>
     <div style="height:20px"></div>
 
@@ -282,6 +311,21 @@
     <div class="modal-motivos-btns">
       <button class="btn-cerrar-motivos" onclick="cerrarMotivos()">Cerrar</button>
     </div>
+  </div>
+</div>
+
+<!-- Modal Accesos denegados -->
+<div class="modal-overlay" id="modal-accesos-overlay">
+  <div class="modal-accesos">
+    <div class="modal-accesos-cab">
+      <div>
+        <h3>Accesos denegados hoy</h3>
+        <div class="modal-accesos-sub" id="modal-accesos-sub">Detalle de intentos bloqueados por documentación en rojo</div>
+      </div>
+      <button class="btn-cerrar-accesos" onclick="cerrarModalAccesos()" aria-label="Cerrar">×</button>
+    </div>
+    <div id="modal-accesos-resumen" class="accesos-resumen" style="display:none"></div>
+    <div id="modal-accesos-contenido"><div class="cargando">Cargando…</div></div>
   </div>
 </div>
 
@@ -338,6 +382,17 @@ window.addEventListener('online', marcarOnline);
 
 // I3 — comprobación inicial: si ya estamos offline al cargar la página
 if (!navigator.onLine) { marcarOffline(); }
+
+const cardRojos = document.getElementById('card-rojos');
+if (cardRojos) {
+  cardRojos.addEventListener('click', abrirModalAccesosDenegados);
+  cardRojos.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      abrirModalAccesosDenegados();
+    }
+  });
+}
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -705,6 +760,110 @@ async function marcarVistoRojo(incidenciaId, btn) {
   await cargarBloqueos();
 }
 
+
+async function abrirModalAccesosDenegados() {
+  const overlay = document.getElementById('modal-accesos-overlay');
+  const contenido = document.getElementById('modal-accesos-contenido');
+  const resumen = document.getElementById('modal-accesos-resumen');
+  const sub = document.getElementById('modal-accesos-sub');
+
+  overlay.classList.add('visible');
+  contenido.innerHTML = '<div class="cargando">Cargando…</div>';
+  resumen.style.display = 'none';
+  resumen.textContent = '';
+
+  if (!obraActual) {
+    contenido.innerHTML = '<div class="modal-motivos-vacio">Selecciona una obra para ver el detalle.</div>';
+    return;
+  }
+
+  const obraNombre = document.getElementById('selector-obra').options[document.getElementById('selector-obra').selectedIndex]?.text || 'obra seleccionada';
+  sub.textContent = `Detalle de intentos bloqueados hoy en ${obraNombre}`;
+
+  const { desdeISO, hastaISO } = rangoHoyLocal();
+  const { data, error } = await sb
+    .from('incidencias')
+    .select('id, detalle, estado, created_at, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni)')
+    .eq('obra_id', obraActual)
+    .eq('tipo', 'bloqueo_rojo')
+    .gte('created_at', desdeISO)
+    .lte('created_at', hastaISO)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    contenido.innerHTML = `<div class="modal-motivos-vacio">No se pudo cargar el detalle: ${esc(error.message)}</div>`;
+    return;
+  }
+
+  pintarDetalleAccesos(data || [], { mostrarObra: false });
+}
+
+function pintarDetalleAccesos(incidencias, opciones = {}) {
+  const contenido = document.getElementById('modal-accesos-contenido');
+  const resumen = document.getElementById('modal-accesos-resumen');
+
+  if (!incidencias || incidencias.length === 0) {
+    resumen.style.display = 'none';
+    contenido.innerHTML = '<div class="modal-motivos-vacio">Hoy no hay accesos denegados en esta obra.</div>';
+    return;
+  }
+
+  const porTrabajador = {};
+  incidencias.forEach(inc => {
+    const t = inc.trabajador || null;
+    const key = t?.id || inc.trabajador_id || ('sin_trabajador_' + (inc.detalle || ''));
+    if (!porTrabajador[key]) {
+      porTrabajador[key] = {
+        trabajador: t,
+        intentos: 0,
+        pendientes: 0,
+        revisados: 0,
+        ultimo: inc.created_at,
+        detalles: new Set()
+      };
+    }
+    const g = porTrabajador[key];
+    g.intentos++;
+    if ((inc.estado || 'nueva') === 'nueva') g.pendientes++;
+    else g.revisados++;
+    if (inc.created_at && new Date(inc.created_at) > new Date(g.ultimo)) g.ultimo = inc.created_at;
+    if (inc.detalle) g.detalles.add(inc.detalle);
+  });
+
+  const grupos = Object.values(porTrabajador).sort((a, b) => new Date(b.ultimo) - new Date(a.ultimo));
+  const totalIntentos = incidencias.length;
+  const totalPersonas = grupos.length;
+  const totalPendientes = grupos.reduce((s, g) => s + g.pendientes, 0);
+
+  resumen.style.display = 'block';
+  resumen.textContent = `${totalPersonas} ${totalPersonas === 1 ? 'persona' : 'personas'} · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'} hoy · ${totalPendientes} pendiente${totalPendientes === 1 ? '' : 's'} de revisar`;
+
+  contenido.innerHTML = grupos.map(g => {
+    const t = g.trabajador || {};
+    const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || 'Trabajador no identificado';
+    const dni = t.dni ? `DNI: ${t.dni}` : 'DNI no disponible';
+    const estadoTxt = g.pendientes > 0
+      ? `${g.pendientes} pendiente${g.pendientes === 1 ? '' : 's'}${g.revisados ? ` · ${g.revisados} revisado${g.revisados === 1 ? '' : 's'}` : ''}`
+      : `Todo revisado (${g.revisados})`;
+    const detalles = Array.from(g.detalles).slice(0, 3).map(d => esc(d)).join('<br>');
+    return `
+      <div class="acceso-item">
+        <div class="acceso-top">
+          <div>
+            <div class="acceso-nombre">${esc(nombre)}</div>
+            <div class="acceso-meta">${esc(dni)} · Último intento: ${esc(formatHora(g.ultimo))}</div>
+          </div>
+          <div class="acceso-contador">${g.intentos} ${g.intentos === 1 ? 'intento' : 'intentos'}</div>
+        </div>
+        <div class="acceso-detalle">${esc(estadoTxt)}${detalles ? '<br>' + detalles : ''}</div>
+      </div>`;
+  }).join('');
+}
+
+function cerrarModalAccesos() {
+  document.getElementById('modal-accesos-overlay').classList.remove('visible');
+}
+
 // ── Avisos de autocierre ──────────────────────────────────────────────────────
 async function cargarAvisosAutocierre() {
   const panel = document.getElementById('panel-avisos');
@@ -828,6 +987,14 @@ function imprimirQR() {
 
 document.getElementById('modal-qr').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-qr')) cerrarQR();
+});
+
+document.getElementById('modal-accesos-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-accesos-overlay')) cerrarModalAccesos();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') cerrarModalAccesos();
 });
 
 function esc(txt) {
