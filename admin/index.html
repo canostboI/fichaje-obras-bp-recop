@@ -39,6 +39,9 @@
   .contenido { padding: 24px 28px; }
   .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
   .stat { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 20px 22px; }
+  .stat-clickable { cursor: pointer; transition: border-color 0.15s, transform 0.1s, background 0.15s; }
+  .stat-clickable:hover { border-color: var(--rojo); background: var(--bg3); }
+  .stat-clickable:active { transform: scale(0.99); }
   .stat .numero { font-size: 38px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
   .stat .etiqueta { font-size: 13px; color: var(--texto2); }
   .stat .numero.verde   { color: var(--verde); }
@@ -66,6 +69,22 @@
   .pill.rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
   .vacio { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.visible { display: flex; }
+  .modal-accesos { background: var(--bg2); color: var(--texto); border: 1px solid var(--borde); border-radius: 14px; padding: 24px; max-width: 820px; width: 94%; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+  .modal-accesos-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 6px; }
+  .modal-accesos-cab h3 { font-size: 18px; font-weight: 800; line-height: 1.25; }
+  .modal-accesos-sub { color: var(--texto2); font-size: 13px; margin-bottom: 16px; }
+  .btn-cerrar-accesos { background: var(--bg3); color: var(--texto); border: 1px solid var(--borde); width: 34px; height: 34px; border-radius: 8px; cursor: pointer; font-size: 20px; line-height: 1; }
+  .btn-cerrar-accesos:hover { background: var(--borde); }
+  .accesos-resumen { background: rgba(244,67,54,0.08); border: 1px solid rgba(244,67,54,0.35); color: var(--rojo); border-radius: 10px; padding: 12px 14px; font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+  .acceso-item { border: 1px solid var(--borde); background: var(--bg3); border-radius: 10px; padding: 13px 14px; margin-top: 10px; }
+  .acceso-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .acceso-nombre { font-size: 15px; font-weight: 800; }
+  .acceso-meta { color: var(--texto2); font-size: 13px; margin-top: 3px; line-height: 1.45; }
+  .acceso-contador { white-space: nowrap; color: var(--rojo); font-weight: 800; font-size: 14px; }
+  .acceso-detalle { margin-top: 9px; color: var(--texto2); font-size: 13px; line-height: 1.45; }
 </style>
 </head>
 <body>
@@ -98,7 +117,7 @@
     <div class="stats">
       <div class="stat"><div class="numero azul" id="stat-fichajes">—</div><div class="etiqueta">Fichajes hoy</div></div>
       <div class="stat"><div class="numero verde" id="stat-obras">—</div><div class="etiqueta">Obras activas</div></div>
-      <div class="stat"><div class="numero rojo" id="stat-rojos">—</div><div class="etiqueta">Accesos denegados hoy</div></div>
+      <div class="stat stat-clickable" id="card-rojos" role="button" tabindex="0" title="Ver detalle de accesos denegados"><div class="numero rojo" id="stat-rojos">—</div><div class="etiqueta">Accesos denegados hoy</div></div>
       <div class="stat"><div class="numero naranja" id="stat-incidencias">—</div><div class="etiqueta">Incidencias hoy</div></div>
     </div>
     <div class="seccion">
@@ -120,11 +139,36 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-accesos-overlay">
+  <div class="modal-accesos">
+    <div class="modal-accesos-cab">
+      <div>
+        <h3>Accesos denegados hoy</h3>
+        <div class="modal-accesos-sub">Detalle global de intentos bloqueados por documentación en rojo</div>
+      </div>
+      <button class="btn-cerrar-accesos" onclick="cerrarModalAccesos()" aria-label="Cerrar">×</button>
+    </div>
+    <div id="modal-accesos-resumen" class="accesos-resumen" style="display:none"></div>
+    <div id="modal-accesos-contenido"><div class="cargando">Cargando…</div></div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const cardRojos = document.getElementById('card-rojos');
+if (cardRojos) {
+  cardRojos.addEventListener('click', abrirModalAccesosDenegados);
+  cardRojos.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      abrirModalAccesosDenegados();
+    }
+  });
+}
 
 // Devuelve { desdeISO, hastaISO } del día actual en hora LOCAL convertido a UTC.
 // Esto evita perder registros de medianoche en CET/CEST.
@@ -176,14 +220,13 @@ async function cargarObras() {
   document.getElementById('tabla-obras').innerHTML = `<table><thead><tr><th>Nombre</th><th>Dirección</th><th>Empresa</th></tr></thead><tbody>${data.map(o => `<tr><td><strong>${esc(o.nombre)}</strong></td><td>${esc(o.direccion || '—')}</td><td>${esc(o.empresa_marca || '—')}</td></tr>`).join('')}</tbody></table>`;
 }
 
-// Card rojo: cuenta intentos de acceso denegados HOY (incidencias bloqueo_rojo, estado nueva).
-// Mismo cálculo que jefe/index.html y encargado/index.html, pero sin filtrar por obra.
+// Card rojo: cuenta todos los intentos de acceso denegados HOY (revisados o pendientes).
+// Mismo enfoque que jefe/index.html: histórico del día, sin filtrar por estado.
 async function cargarAccesosDenegadosHoy() {
   const { desdeISO, hastaISO } = rangoHoyLocal();
   const { count, error } = await sb.from('incidencias')
     .select('id', { count: 'exact', head: true })
     .eq('tipo', 'bloqueo_rojo')
-    .eq('estado', 'nueva')
     .gte('created_at', desdeISO)
     .lte('created_at', hastaISO);
   if (error) {
@@ -215,6 +258,111 @@ async function cargarIncidencias() {
   if (!data || data.length === 0) { document.getElementById('tabla-incidencias').innerHTML = '<div class="vacio">No hay incidencias hoy</div>'; return; }
   document.getElementById('tabla-incidencias').innerHTML = `<table><thead><tr><th>Trabajador</th><th>Obra</th><th>Tipo</th><th>Detalle</th><th>Hora</th></tr></thead><tbody>${data.map(i => `<tr><td><strong>${esc(i.trabajador?.nombre)} ${esc(i.trabajador?.apellidos)}</strong></td><td>${esc(i.obra?.nombre)}</td><td><span class="pill naranja">${esc(i.tipo)}</span></td><td>${esc(i.detalle || '—')}${i.comentario ? '<br><small style="color:var(--texto2)">' + esc(i.comentario) + '</small>' : ''}</td><td>${formatHora(i.created_at)}</td></tr>`).join('')}</tbody></table>`;
 }
+
+async function abrirModalAccesosDenegados() {
+  const overlay = document.getElementById('modal-accesos-overlay');
+  const contenido = document.getElementById('modal-accesos-contenido');
+  const resumen = document.getElementById('modal-accesos-resumen');
+
+  overlay.classList.add('visible');
+  contenido.innerHTML = '<div class="cargando">Cargando…</div>';
+  resumen.style.display = 'none';
+  resumen.textContent = '';
+
+  const { desdeISO, hastaISO } = rangoHoyLocal();
+  const { data, error } = await sb
+    .from('incidencias')
+    .select('id, detalle, estado, created_at, trabajador_id, obra_id, trabajador:trabajador_id(id, nombre, apellidos, dni), obra:obra_id(id, nombre)')
+    .eq('tipo', 'bloqueo_rojo')
+    .gte('created_at', desdeISO)
+    .lte('created_at', hastaISO)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    contenido.innerHTML = `<div class="vacio">No se pudo cargar el detalle: ${esc(error.message)}</div>`;
+    return;
+  }
+
+  pintarDetalleAccesos(data || []);
+}
+
+function pintarDetalleAccesos(incidencias) {
+  const contenido = document.getElementById('modal-accesos-contenido');
+  const resumen = document.getElementById('modal-accesos-resumen');
+
+  if (!incidencias || incidencias.length === 0) {
+    resumen.style.display = 'none';
+    contenido.innerHTML = '<div class="vacio">Hoy no hay accesos denegados.</div>';
+    return;
+  }
+
+  const porTrabajadorObra = {};
+  incidencias.forEach(inc => {
+    const t = inc.trabajador || null;
+    const o = inc.obra || null;
+    const key = `${inc.obra_id || 'sin_obra'}|${t?.id || inc.trabajador_id || inc.detalle || 'sin_trabajador'}`;
+    if (!porTrabajadorObra[key]) {
+      porTrabajadorObra[key] = {
+        trabajador: t,
+        obra: o,
+        intentos: 0,
+        pendientes: 0,
+        revisados: 0,
+        ultimo: inc.created_at,
+        detalles: new Set()
+      };
+    }
+    const g = porTrabajadorObra[key];
+    g.intentos++;
+    if ((inc.estado || 'nueva') === 'nueva') g.pendientes++;
+    else g.revisados++;
+    if (inc.created_at && new Date(inc.created_at) > new Date(g.ultimo)) g.ultimo = inc.created_at;
+    if (inc.detalle) g.detalles.add(inc.detalle);
+  });
+
+  const grupos = Object.values(porTrabajadorObra).sort((a, b) => new Date(b.ultimo) - new Date(a.ultimo));
+  const totalIntentos = incidencias.length;
+  const totalPersonasObra = grupos.length;
+  const totalPendientes = grupos.reduce((s, g) => s + g.pendientes, 0);
+
+  resumen.style.display = 'block';
+  resumen.textContent = `${totalPersonasObra} ${totalPersonasObra === 1 ? 'trabajador/obra' : 'trabajadores/obra'} · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'} hoy · ${totalPendientes} pendiente${totalPendientes === 1 ? '' : 's'} de revisar`;
+
+  contenido.innerHTML = grupos.map(g => {
+    const t = g.trabajador || {};
+    const o = g.obra || {};
+    const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || 'Trabajador no identificado';
+    const dni = t.dni ? `DNI: ${t.dni}` : 'DNI no disponible';
+    const obra = o.nombre ? `Obra: ${o.nombre}` : 'Obra no disponible';
+    const estadoTxt = g.pendientes > 0
+      ? `${g.pendientes} pendiente${g.pendientes === 1 ? '' : 's'}${g.revisados ? ` · ${g.revisados} revisado${g.revisados === 1 ? '' : 's'}` : ''}`
+      : `Todo revisado (${g.revisados})`;
+    const detalles = Array.from(g.detalles).slice(0, 3).map(d => esc(d)).join('<br>');
+    return `
+      <div class="acceso-item">
+        <div class="acceso-top">
+          <div>
+            <div class="acceso-nombre">${esc(nombre)}</div>
+            <div class="acceso-meta">${esc(dni)} · ${esc(obra)} · Último intento: ${esc(formatHora(g.ultimo))}</div>
+          </div>
+          <div class="acceso-contador">${g.intentos} ${g.intentos === 1 ? 'intento' : 'intentos'}</div>
+        </div>
+        <div class="acceso-detalle">${esc(estadoTxt)}${detalles ? '<br>' + detalles : ''}</div>
+      </div>`;
+  }).join('');
+}
+
+function cerrarModalAccesos() {
+  document.getElementById('modal-accesos-overlay').classList.remove('visible');
+}
+
+document.getElementById('modal-accesos-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-accesos-overlay')) cerrarModalAccesos();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') cerrarModalAccesos();
+});
 
 function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
 function formatHora(iso) { if (!iso) return '—'; return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); }
