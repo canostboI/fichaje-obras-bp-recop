@@ -804,6 +804,7 @@ function imprimirQR() {
       h1 { font-size: 24px; margin-bottom: 8px; }
       .empresa { color: #888; font-size: 13px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
       p { color: #666; font-size: 14px; margin-bottom: 24px; }
+      .sub-ar { display: block; margin-top: 8px; font-size: 18px; font-weight: 700; color: #444; direction: rtl; }
       img.qr { display: block; margin: 0 auto; width: 280px; }
 
       .aviso-obligatorio { margin: 26px auto 0; max-width: 560px; border: 2px solid #111; border-radius: 12px; padding: 16px 18px; color: #111; background: #fff; }
@@ -812,9 +813,8 @@ function imprimirQR() {
     </style>
     </head><body>
     ${logoUrl ? `<img class="logo-marca" src="${logoUrl}" alt="${marcaNombre}" />` : ''}
-    <div class="empresa">${marcaNombre}</div>
     <h1>${obraNombre}</h1>
-    <p>Escanea este código QR para fichar tu entrada/salida</p>
+    <p>Escanea este código QR para fichar tu entrada/salida<span class="sub-ar" lang="ar" dir="rtl">امسح رمز QR هذا لتسجيل دخولك/خروجك</span></p>
     <img class="qr" src="${dataUrl}" />
 
     <div class="aviso-obligatorio">
