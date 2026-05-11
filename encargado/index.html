@@ -65,6 +65,18 @@
     .card-rojos-label { font-size: 0.95rem; font-weight: 700; color: #333; }
     .card-rojos-ayuda { font-size: 0.82rem; color: #777; margin-top: 4px; }
 
+    .card-naranjas {
+      border-left: 5px solid #ff9800;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.15s ease;
+    }
+    .card-naranjas:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(255,152,0,0.18);
+    }
+    .card-naranjas:active { transform: translateY(0); }
+    .card-naranjas-numero { font-size: 2.6rem; font-weight: 800; color: #ff9800; line-height: 1; }
+
     h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #333; }
 
     select, input, textarea {
@@ -406,6 +418,11 @@
       font-weight: 700;
       margin-bottom: 0.8rem;
     }
+    .accesos-resumen.naranja {
+      background: #fff8e1;
+      border-color: #ffd54f;
+      color: #8a5a00;
+    }
     .acceso-item {
       border: 1px solid #eee;
       background: #fafafa;
@@ -422,6 +439,7 @@
     .acceso-nombre { font-weight: 800; color: #333; }
     .acceso-meta, .acceso-detalle { color: #666; font-size: 0.86rem; line-height: 1.45; margin-top: 0.25rem; }
     .acceso-contador { color: #e53935; font-weight: 800; white-space: nowrap; }
+    .acceso-contador.naranja { color: #ff9800; }
 
     /* ============================================ */
     /* Ronda de control — rediseño                  */
@@ -692,6 +710,16 @@
       </div>
     </div>
 
+    <div class="card card-naranjas" id="card-naranjas" role="button" tabindex="0" title="Ver trabajadores presentes con documentación naranja">
+      <div class="card-rojos-contenido">
+        <div>
+          <div class="card-rojos-label">⚠️ Documentación naranja</div>
+          <div class="card-rojos-ayuda">Pulsa para ver trabajadores presentes con aviso</div>
+        </div>
+        <div class="card-naranjas-numero" id="stat-naranjas">0</div>
+      </div>
+    </div>
+
     <!-- Panel bloqueos rojos -->
     <div id="panel-bloqueos" class="panel-bloqueos" style="display:none"></div>
 
@@ -753,6 +781,20 @@
     </div>
     <div id="modal-accesos-resumen" class="accesos-resumen" style="display:none"></div>
     <div id="modal-accesos-contenido"><p class="loading">Cargando...</p></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-naranjas-overlay">
+  <div class="modal-accesos">
+    <div class="modal-accesos-cab">
+      <div>
+        <h2>Documentación naranja</h2>
+        <div class="modal-accesos-sub">Trabajadores presentes ahora con documentación naranja</div>
+      </div>
+      <button class="btn-cerrar-accesos" onclick="cerrarModalNaranjas()" aria-label="Cerrar">×</button>
+    </div>
+    <div id="modal-naranjas-resumen" class="accesos-resumen naranja" style="display:none"></div>
+    <div id="modal-naranjas-contenido"><p class="loading">Cargando...</p></div>
   </div>
 </div>
 
@@ -826,8 +868,21 @@
   let trabajadoresObra = [];
 
   let presentesCache = [];
+  let naranjasActualesCache = [];
   let intervalRelativo = null;
   let intervalPresencia = null;
+
+
+  const cardNaranjas = document.getElementById('card-naranjas');
+  if (cardNaranjas) {
+    cardNaranjas.addEventListener('click', abrirModalNaranjas);
+    cardNaranjas.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        abrirModalNaranjas();
+      }
+    });
+  }
 
   const cardRojos = document.getElementById('card-rojos');
   if (cardRojos) {
@@ -1418,6 +1473,31 @@
       .sort((a, b) => new Date(b.horaISO) - new Date(a.horaISO));
 
     presentesCache = presentes;
+    naranjasActualesCache = [];
+
+    if (presentes.length > 0) {
+      const ids = presentes.map(t => t.id);
+      const { data: vals } = await sb
+        .from('validaciones_obra')
+        .select('trabajador_id, estado, motivos')
+        .eq('obra_id', obraId)
+        .in('trabajador_id', ids);
+
+      const validaciones = {};
+      (vals || []).forEach(v => {
+        validaciones[v.trabajador_id] = { estado: v.estado || 'verde', motivos: v.motivos || [] };
+      });
+
+      presentes.forEach(t => {
+        const v = validaciones[t.id] || { estado: 'verde', motivos: [] };
+        t.estado = v.estado;
+        t.motivos = v.motivos;
+      });
+      naranjasActualesCache = presentes.filter(t => t.estado === 'naranja');
+    }
+
+    const statNaranjas = document.getElementById('stat-naranjas');
+    if (statNaranjas) statNaranjas.textContent = naranjasActualesCache.length;
 
     pintarContador(presentes.length, presentes.length > 0 ? presentes[0] : null);
     pintarTarjetas(presentes);
@@ -1514,6 +1594,56 @@
     if (horas < 24) return mins === 0 ? `hace ${horas} h` : `hace ${horas} h ${mins} min`;
     return t.toLocaleDateString('es-ES', { day:'2-digit', month:'2-digit' });
   }
+
+
+  function limpiarMotivo(texto) {
+    if (!texto) return '';
+    return String(texto).replace(/\s*→\s*(verde|naranja|rojo)\s*$/i, '').trim();
+  }
+
+  function abrirModalNaranjas() {
+    const overlay = document.getElementById('modal-naranjas-overlay');
+    const contenido = document.getElementById('modal-naranjas-contenido');
+    const resumen = document.getElementById('modal-naranjas-resumen');
+
+    overlay.classList.add('visible');
+    resumen.style.display = 'none';
+    resumen.textContent = '';
+
+    const lista = naranjasActualesCache || [];
+    if (lista.length === 0) {
+      contenido.innerHTML = '<p class="lista-vacia">Ahora mismo no hay trabajadores presentes con documentación naranja.</p>';
+      return;
+    }
+
+    resumen.style.display = 'block';
+    resumen.textContent = `${lista.length} ${lista.length === 1 ? 'trabajador presente' : 'trabajadores presentes'} con documentación naranja`;
+
+    contenido.innerHTML = lista.map(t => {
+      const motivos = (t.motivos || []).map(m => esc(limpiarMotivo(m))).join('<br>') || 'Sin motivos registrados';
+      const dni = t.dni ? `DNI: ${t.dni}` : 'DNI no disponible';
+      const entrada = t.horaISO ? `Entrada: ${t.horaTexto || formatHora(t.horaISO)}` : 'Entrada no disponible';
+      return `
+        <div class="acceso-item">
+          <div class="acceso-top">
+            <div>
+              <div class="acceso-nombre">${esc(t.nombre)}</div>
+              <div class="acceso-meta">${esc(dni)} · ${esc(t.empresa || 'Empresa no disponible')} · ${esc(entrada)}</div>
+            </div>
+            <div class="acceso-contador naranja">Naranja</div>
+          </div>
+          <div class="acceso-detalle">${motivos}</div>
+        </div>`;
+    }).join('');
+  }
+
+  function cerrarModalNaranjas() {
+    document.getElementById('modal-naranjas-overlay').classList.remove('visible');
+  }
+
+  document.getElementById('modal-naranjas-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-naranjas-overlay')) cerrarModalNaranjas();
+  });
 
   async function cargarTrabajadoresObra() {
     const { data, error } = await sb
@@ -1692,7 +1822,10 @@
   });
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') cerrarModalAccesos();
+    if (e.key === 'Escape') {
+      cerrarModalAccesos();
+      cerrarModalNaranjas();
+    }
   });
 
   document.getElementById('modal-manual').addEventListener('click', e => {
