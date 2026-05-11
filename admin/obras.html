@@ -185,6 +185,7 @@
     <canvas id="qr-canvas"></canvas>
     <div class="modal-acciones">
       <button class="btn-secundario" id="btn-cerrar-qr">Cerrar</button>
+      <button class="btn-secundario" id="btn-imprimir-qr">Imprimir cartel</button>
       <a id="btn-descargar-qr" class="btn-primario" download="qr-obra.png" style="text-decoration:none;">Descargar QR</a>
     </div>
   </div>
@@ -236,6 +237,7 @@ let obraEditandoId = null;
 let obraEquipoId = null;
 let todosUsuarios = [];
 let todasObras = [];
+let qrActual = null;
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -426,7 +428,12 @@ function abrirQRPorId(id) {
   }
 
   const url = `https://canostboi.github.io/fichaje-obras-bp-recop/fichaje/?obra=${o.id}`;
-  document.getElementById('qr-titulo').textContent = 'QR — ' + (o.nombre || 'Obra');
+  qrActual = {
+    nombre: o.nombre || 'Obra',
+    empresa_marca: o.empresa_marca || 'bosch_pascual',
+    url
+  };
+  document.getElementById('qr-titulo').textContent = 'QR — ' + qrActual.nombre;
   document.getElementById('qr-url').textContent = url;
 
   const canvas = document.getElementById('qr-canvas');
@@ -448,6 +455,62 @@ function abrirQRPorId(id) {
 document.getElementById('btn-cerrar-qr').onclick = () => {
   document.getElementById('modal-qr').classList.remove('visible');
 };
+
+document.getElementById('btn-imprimir-qr').onclick = imprimirQR;
+
+function obtenerMarcaQR(empresaMarca) {
+  if (empresaMarca === 'recop') {
+    return {
+      nombre: 'Rècop',
+      logo: 'assets/logos/recop_logo.svg'
+    };
+  }
+  return {
+    nombre: 'Bosch Pascual',
+    logo: 'assets/logos/bosch_pascual_logo.svg'
+  };
+}
+
+function imprimirQR() {
+  if (!qrActual) {
+    alert('Primero abre el QR de una obra.');
+    return;
+  }
+
+  const canvas = document.getElementById('qr-canvas');
+  const dataUrl = canvas ? canvas.toDataURL('image/png') : '';
+  const marca = obtenerMarcaQR(qrActual.empresa_marca);
+  const logoUrl = window.location.origin + window.location.pathname.replace(/admin\/.*$/, '') + marca.logo;
+
+  const win = window.open('', '_blank');
+  win.document.write(`
+    <!DOCTYPE html><html><head>
+    <title>QR — ${qrActual.nombre}</title>
+    <style>
+      body { font-family: sans-serif; text-align: center; padding: 40px; }
+      .logo-marca { max-height: 60px; max-width: 220px; margin-bottom: 20px; }
+      h1 { font-size: 24px; margin-bottom: 8px; }
+      .empresa { color: #888; font-size: 13px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
+      p { color: #666; font-size: 14px; margin-bottom: 24px; }
+      .sub-ar { display: block; margin-top: 8px; font-size: 18px; font-weight: 700; color: #444; direction: rtl; }
+      img.qr { display: block; margin: 0 auto; width: 280px; }
+      .aviso-obligatorio { margin: 26px auto 0; max-width: 560px; border: 2px solid #111; border-radius: 12px; padding: 16px 18px; color: #111; background: #fff; }
+      .aviso-obligatorio .es { font-size: 16px; font-weight: 800; line-height: 1.35; margin-bottom: 10px; }
+      .aviso-obligatorio .ar { font-size: 18px; font-weight: 800; line-height: 1.6; direction: rtl; }
+    </style>
+    </head><body>
+    <img class="logo-marca" src="${logoUrl}" alt="${marca.nombre}" />
+    <h1>${qrActual.nombre}</h1>
+    <p>Escanea este código QR para fichar tu entrada/salida<span class="sub-ar" lang="ar" dir="rtl">امسح رمز QR هذا لتسجيل دخولك/خروجك</span></p>
+    <img class="qr" src="${dataUrl}" />
+    <div class="aviso-obligatorio">
+      <div class="es">En esta obra es obligatorio fichar tanto a la entrada como a la salida. El incumplimiento puede tener consecuencias disciplinarias.</div>
+      <div class="ar" lang="ar" dir="rtl">في هذا الموقع، تسجيل الحضور عند الدخول والخروج إلزامي.<br>عدم الامتثال قد يترتب عليه عواقب تأديبية.</div>
+    </div>
+    <script>window.onload = () => { window.print(); }<\/script>
+    </body></html>`);
+  win.document.close();
+}
 
 async function abrirEquipoPorId(id) {
   const o = todasObras.find(x => x.id === id);
