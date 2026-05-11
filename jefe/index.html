@@ -43,7 +43,9 @@
   .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
   .stat { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 20px 22px; }
   .stat-clickable { cursor: pointer; transition: border-color 0.15s, transform 0.1s, background 0.15s; }
-  .stat-clickable:hover { border-color: var(--rojo); background: var(--bg3); }
+  .stat-clickable:hover { background: var(--bg3); }
+  .stat-clickable.rojo-hover:hover { border-color: var(--rojo); }
+  .stat-clickable.naranja-hover:hover { border-color: var(--naranja); }
   .stat-clickable:active { transform: scale(0.99); }
   .stat .numero { font-size: 38px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
   .stat .etiqueta { font-size: 13px; color: var(--texto2); }
@@ -187,11 +189,13 @@
   .btn-cerrar-accesos { background: var(--bg3); color: var(--texto); border: 1px solid var(--borde); width: 34px; height: 34px; border-radius: 8px; cursor: pointer; font-size: 20px; line-height: 1; }
   .btn-cerrar-accesos:hover { background: var(--borde); }
   .accesos-resumen { background: rgba(244,67,54,0.08); border: 1px solid rgba(244,67,54,0.35); color: var(--rojo); border-radius: 10px; padding: 12px 14px; font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+  .accesos-resumen.naranja { background: rgba(255,152,0,0.08); border-color: rgba(255,152,0,0.35); color: var(--naranja); }
   .acceso-item { border: 1px solid var(--borde); background: var(--bg3); border-radius: 10px; padding: 13px 14px; margin-top: 10px; }
   .acceso-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
   .acceso-nombre { font-size: 15px; font-weight: 800; }
   .acceso-meta { color: var(--texto2); font-size: 13px; margin-top: 3px; line-height: 1.45; }
   .acceso-contador { white-space: nowrap; color: var(--rojo); font-weight: 800; font-size: 14px; }
+  .acceso-contador.naranja { color: var(--naranja); }
   .acceso-detalle { margin-top: 9px; color: var(--texto2); font-size: 13px; line-height: 1.45; }
 
   /* Banner de conexión (I3) */
@@ -259,8 +263,8 @@
   <div class="contenido">
     <div class="stats">
       <div class="stat"><div class="numero verde" id="stat-dentro">—</div><div class="etiqueta">En obra ahora</div></div>
-      <div class="stat"><div class="numero naranja" id="stat-naranja">—</div><div class="etiqueta">Documentación naranja</div></div>
-      <div class="stat stat-clickable" id="card-rojos" role="button" tabindex="0" title="Ver detalle de accesos denegados"><div class="numero rojo" id="stat-rojo">—</div><div class="etiqueta">Accesos denegados hoy</div></div>
+      <div class="stat stat-clickable naranja-hover" id="card-naranjas" role="button" tabindex="0" title="Ver trabajadores presentes con documentación naranja"><div class="numero naranja" id="stat-naranja">—</div><div class="etiqueta">Documentación naranja</div></div>
+      <div class="stat stat-clickable rojo-hover" id="card-rojos" role="button" tabindex="0" title="Ver detalle de accesos denegados"><div class="numero rojo" id="stat-rojo">—</div><div class="etiqueta">Accesos denegados hoy</div></div>
     </div>
     <div style="height:20px"></div>
 
@@ -329,6 +333,21 @@
   </div>
 </div>
 
+<!-- Modal Documentación naranja -->
+<div class="modal-overlay" id="modal-naranjas-overlay">
+  <div class="modal-accesos">
+    <div class="modal-accesos-cab">
+      <div>
+        <h3>Documentación naranja</h3>
+        <div class="modal-accesos-sub">Trabajadores presentes ahora con documentación naranja</div>
+      </div>
+      <button class="btn-cerrar-accesos" onclick="cerrarModalNaranjas()" aria-label="Cerrar">×</button>
+    </div>
+    <div id="modal-naranjas-resumen" class="accesos-resumen naranja" style="display:none"></div>
+    <div id="modal-naranjas-contenido"><div class="cargando">Cargando…</div></div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
@@ -341,6 +360,7 @@ let intervalPresencia = null;
 
 // PJ3 — caché de validaciones por trabajador para que el modal abra al instante
 let validacionesCache = {};
+let naranjasActualesCache = [];
 
 // I3 — estado del indicador de conexión
 let estaOffline = false;
@@ -382,6 +402,18 @@ window.addEventListener('online', marcarOnline);
 
 // I3 — comprobación inicial: si ya estamos offline al cargar la página
 if (!navigator.onLine) { marcarOffline(); }
+
+
+const cardNaranjas = document.getElementById('card-naranjas');
+if (cardNaranjas) {
+  cardNaranjas.addEventListener('click', abrirModalNaranjas);
+  cardNaranjas.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      abrirModalNaranjas();
+    }
+  });
+}
 
 const cardRojos = document.getElementById('card-rojos');
 if (cardRojos) {
@@ -533,6 +565,7 @@ async function cargarPresencia() {
   if (!fichajes || fichajes.length === 0) {
     document.getElementById('stat-dentro').textContent = '0';
     document.getElementById('stat-naranja').textContent = '0';
+    naranjasActualesCache = [];
     document.getElementById('badge-presencia').textContent = '0 dentro';
     document.getElementById('tabla-presencia').innerHTML = '<div class="vacio">Nadie ha fichado entrada hoy</div>';
     return;
@@ -573,8 +606,22 @@ async function cargarPresencia() {
     };
   });
 
+  naranjasActualesCache = dentro
+    .filter(t => validaciones[t.trabajador.id]?.estado === 'naranja')
+    .map(t => {
+      const ultimaEntrada = t.entradas[t.entradas.length - 1];
+      const v = validaciones[t.trabajador.id] || {};
+      return {
+        id: t.trabajador.id,
+        nombre: [t.trabajador.nombre, t.trabajador.apellidos].filter(Boolean).join(' ') || '(sin nombre)',
+        dni: t.trabajador.dni || '',
+        horaEntrada: ultimaEntrada?.hora || null,
+        motivos: v.motivos || []
+      };
+    });
+
   const nDentro = dentro.length;
-  const nNaranja = dentro.filter(t => validaciones[t.trabajador.id]?.estado === 'naranja').length;
+  const nNaranja = naranjasActualesCache.length;
 
   document.getElementById('stat-dentro').textContent = nDentro;
   document.getElementById('stat-naranja').textContent = nNaranja;
@@ -649,7 +696,54 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     cerrarMotivos();
     cerrarQR();
+    cerrarModalNaranjas();
   }
+});
+
+
+// ── Modal Documentación naranja ───────────────────────────────────────────────
+function abrirModalNaranjas() {
+  const overlay = document.getElementById('modal-naranjas-overlay');
+  const contenido = document.getElementById('modal-naranjas-contenido');
+  const resumen = document.getElementById('modal-naranjas-resumen');
+
+  overlay.classList.add('visible');
+  resumen.style.display = 'none';
+  resumen.textContent = '';
+
+  const lista = naranjasActualesCache || [];
+  if (lista.length === 0) {
+    contenido.innerHTML = '<div class="vacio">Ahora mismo no hay trabajadores presentes con documentación naranja.</div>';
+    return;
+  }
+
+  resumen.style.display = 'block';
+  resumen.textContent = `${lista.length} ${lista.length === 1 ? 'trabajador presente' : 'trabajadores presentes'} con documentación naranja`;
+
+  contenido.innerHTML = lista.map(t => {
+    const motivos = (t.motivos || []).map(m => esc(limpiarMotivo(m))).join('<br>') || 'Sin motivos registrados';
+    const dni = t.dni ? `DNI: ${t.dni}` : 'DNI no disponible';
+    const entrada = t.horaEntrada ? `Entrada: ${formatHora(t.horaEntrada)}` : 'Entrada no disponible';
+    return `
+      <div class="acceso-item">
+        <div class="acceso-top">
+          <div>
+            <div class="acceso-nombre">${esc(t.nombre)}</div>
+            <div class="acceso-meta">${esc(dni)} · ${esc(entrada)}</div>
+          </div>
+          <div class="acceso-contador naranja">Naranja</div>
+        </div>
+        <div class="acceso-detalle">${motivos}</div>
+      </div>`;
+  }).join('');
+}
+
+function cerrarModalNaranjas() {
+  document.getElementById('modal-naranjas-overlay').classList.remove('visible');
+}
+
+document.getElementById('modal-naranjas-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-naranjas-overlay')) cerrarModalNaranjas();
 });
 
 // ── Bloqueos rojos (S5) ───────────────────────────────────────────────────────
@@ -994,7 +1088,10 @@ document.getElementById('modal-accesos-overlay').addEventListener('click', e => 
 });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') cerrarModalAccesos();
+  if (e.key === 'Escape') {
+    cerrarModalAccesos();
+    cerrarModalNaranjas();
+  }
 });
 
 function esc(txt) {
