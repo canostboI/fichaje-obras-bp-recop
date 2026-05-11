@@ -209,7 +209,7 @@
     .badge-naranja { background: #fff3cd; color: #856404; }
 
     /* ============================================ */
-    /* Panel avisos — naranja (autocierres)         */
+    /* Panel avisos — naranja (autocierres + móvil) */
     /* ============================================ */
     .panel-avisos {
       background: #fff8e1;
@@ -608,7 +608,7 @@
     <!-- Panel bloqueos rojos -->
     <div id="panel-bloqueos" class="panel-bloqueos" style="display:none"></div>
 
-    <!-- Panel autocierres -->
+    <!-- Panel avisos (autocierres + móvil compartido) -->
     <div id="panel-avisos" class="panel-avisos" style="display:none"></div>
 
     <!-- Contador grande de presencia -->
@@ -948,7 +948,7 @@
   }
 
   // ============================================
-  // Panel autocierres
+  // Panel avisos (autocierres + móvil compartido)
   // ============================================
   async function cargarAvisosAutocierre() {
     const panel = document.getElementById('panel-avisos');
@@ -956,33 +956,36 @@
 
     const { data, error } = await sb
       .from('incidencias')
-      .select('id, detalle, created_at, trabajador_id, trabajadores(nombre, apellidos)')
+      .select('id, tipo, detalle, created_at, trabajador_id, trabajadores(nombre, apellidos)')
       .eq('obra_id', obraActualId)
-      .eq('tipo', 'autocierre')
+      .in('tipo', ['autocierre', 'movil_compartido'])
       .eq('estado', 'nueva')
       .order('created_at', { ascending: false });
 
     if (error) { panel.style.display = 'none'; return; }
     if (!data || data.length === 0) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
 
-    let html = `<h2>⚠️ Avisos de cierre automático (${data.length})</h2>`;
-    html += `<p style="font-size:0.85rem; color:#8a6d00; margin-bottom:0.6rem;">
-      Estos trabajadores no ficharon su salida y el sistema cerró la jornada automáticamente.
-      Si la hora no es correcta, avisa al jefe para que la corrija.
-    </p>`;
+    let html = `<h2>⚠️ Avisos (${data.length})</h2>`;
 
     data.forEach(inc => {
-      const t = inc.trabajadores;
-      const nombre = t ? `${t.nombre || ''} ${t.apellidos || ''}`.trim() || 'Trabajador desconocido' : 'Trabajador desconocido';
-      const fecha = formatFecha(inc.created_at);
-      const desc = inc.detalle || 'Cierre automático de jornada';
+      let textoAviso = '';
+
+      if (inc.tipo === 'autocierre') {
+        const t = inc.trabajadores;
+        const nombre = t ? `${t.nombre || ''} ${t.apellidos || ''}`.trim() || 'Trabajador desconocido' : 'Trabajador desconocido';
+        const fecha = formatFecha(inc.created_at);
+        const desc = inc.detalle || 'Cierre automático de jornada';
+        textoAviso = `<strong>${esc(nombre)}</strong><br>
+          <span class="aviso-fecha">${esc(fecha)}</span> — ${esc(desc)}`;
+      } else if (inc.tipo === 'movil_compartido') {
+        const fecha = formatFecha(inc.created_at);
+        textoAviso = `<strong>📱 Posible móvil compartido</strong><br>
+          <span class="aviso-fecha">${esc(fecha)}</span> — ${esc(inc.detalle || '')}`;
+      }
 
       html += `
         <div class="aviso-item" data-id="${inc.id}">
-          <div class="aviso-info">
-            <strong>${esc(nombre)}</strong><br>
-            <span class="aviso-fecha">${esc(fecha)}</span> — ${esc(desc)}
-          </div>
+          <div class="aviso-info">${textoAviso}</div>
           <button class="btn-visto" onclick="marcarVisto('${inc.id}')">✓ Visto</button>
         </div>
       `;
@@ -1011,7 +1014,7 @@
     if (restantes === 0) { panel.style.display = 'none'; panel.innerHTML = ''; }
     else {
       const titulo = panel.querySelector('h2');
-      if (titulo) titulo.textContent = `⚠️ Avisos de cierre automático (${restantes})`;
+      if (titulo) titulo.textContent = `⚠️ Avisos (${restantes})`;
     }
   }
 
@@ -1019,7 +1022,6 @@
   // Ronda de control — lógica
   // ============================================
 
-  // Actualiza el botón de ronda con el número actual de presentes
   function actualizarBotonRonda(numPresentes) {
     const btn = document.getElementById('btn-ronda');
     const numEl = document.getElementById('ronda-numero');
@@ -1041,7 +1043,6 @@
     }
   }
 
-  // Carga y muestra la última ronda registrada hoy
   async function cargarUltimaRonda() {
     const el = document.getElementById('ronda-ultima');
     if (!obraActualId) { el.style.display = 'none'; return; }
@@ -1077,7 +1078,6 @@
     if (numPresentes === 0) return;
 
     btn.disabled = true;
-    const numEl = document.getElementById('ronda-numero');
     const textoEl = document.getElementById('ronda-texto');
     textoEl.textContent = 'Registrando...';
     msg.style.display = 'none';
@@ -1171,7 +1171,7 @@
       return;
     }
 
-    const estado = {};
+    const estadoTrab = {};
     fichajes.forEach(f => {
       const id = f.trabajador_id;
       const nombreCompleto = f.trabajadores
@@ -1180,14 +1180,14 @@
       const empresa = (f.trabajadores && f.trabajadores.empresas)
         ? (f.trabajadores.empresas.nombre || '')
         : '';
-      estado[id] = {
+      estadoTrab[id] = {
         id, nombre: nombreCompleto || 'Desconocido', empresa,
         tipo: f.tipo, horaISO: f.hora,
         horaTexto: new Date(f.hora).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
       };
     });
 
-    const presentes = Object.values(estado)
+    const presentes = Object.values(estadoTrab)
       .filter(t => t.tipo === 'entrada')
       .sort((a, b) => new Date(b.horaISO) - new Date(a.horaISO));
 
