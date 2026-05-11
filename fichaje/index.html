@@ -967,6 +967,76 @@ function gestionarRecordatorioDni(dni, validacion) {
   }
 }
 
+// =====================================================================
+// G3 — NIVEL 2: detección de patrón de móvil compartido
+//
+// Tras cada fichaje exitoso se guarda en localStorage un historial
+// de DNIs: clave "movil_historial", valor array JSON de
+// { dni: string, ts: number (epoch ms) }.
+//
+// Al añadir una entrada se limpian automáticamente las que tienen
+// más de 2 horas. Si quedan 3 o más DNIs distintos en ese periodo,
+// se considera que el móvil está siendo usado por varios trabajadores
+// y se registra una incidencia en Supabase para el encargado.
+//
+// La llamada a Supabase es fire-and-forget: si falla, no molesta
+// al trabajador ni bloquea el flujo.
+// =====================================================================
+const G3_VENTANA_MS  = 2 * 60 * 60 * 1000; // 2 horas en ms
+const G3_UMBRAL_DNIS = 3;                   // 3 DNIs distintos = alerta
+const G3_CLAVE_LOCAL = 'movil_historial';
+
+function registrarHistorialDni(dni) {
+  const limpio = normalizarDni(dni);
+  if (!limpio) return;
+
+  const ahora  = Date.now();
+  const limite = ahora - G3_VENTANA_MS;
+
+  // Leer historial existente
+  let historial = [];
+  try {
+    historial = JSON.parse(localStorage.getItem(G3_CLAVE_LOCAL) || '[]');
+  } catch (_) { historial = []; }
+
+  // Eliminar entradas antiguas
+  historial = historial.filter(e => e.ts >= limite);
+
+  // Añadir la entrada actual
+  historial.push({ dni: limpio, ts: ahora });
+
+  // Guardar
+  try {
+    localStorage.setItem(G3_CLAVE_LOCAL, JSON.stringify(historial));
+  } catch (_) { /* cuota llena: ignorar silenciosamente */ }
+
+  return historial;
+}
+
+async function detectarMovilCompartido(obraId, historial) {
+  if (!obraId || !historial || historial.length === 0) return;
+
+  // Contar DNIs únicos en la ventana
+  const dnisUnicos = new Set(historial.map(e => e.dni));
+  if (dnisUnicos.size < G3_UMBRAL_DNIS) return;
+
+  // Umbral alcanzado: registrar incidencia (fire-and-forget)
+  const detalle =
+    dnisUnicos.size + ' DNIs distintos en las últimas 2h desde el mismo navegador. ' +
+    'Posible uso compartido del móvil de obra.';
+
+  try {
+    await sb.rpc('registrar_incidencia_movil_compartido', {
+      p_obra_id: obraId,
+      p_detalle: detalle
+    });
+    // Limpiar historial tras reportar para no disparar la alerta en cada fichaje siguiente
+    localStorage.removeItem(G3_CLAVE_LOCAL);
+  } catch (err) {
+    console.warn('[G3] No se pudo registrar incidencia movil_compartido:', err);
+  }
+}
+
 function mostrarErrorDni(texto) {
   el.errorDni.textContent = texto;
   el.errorDni.classList.remove('oculto');
@@ -1306,6 +1376,11 @@ function mostrarConfirmacionFinal(r) {
   } else {
     el.finalMotivos.classList.add('oculto');
   }
+
+  // G3 Nivel 2: registrar DNI en historial y detectar patrón de móvil compartido
+  const historial = registrarHistorialDni(estado.dni);
+  detectarMovilCompartido(estado.obraId, historial);
+
   irA(el.pasoFinal);
 }
 </script>
