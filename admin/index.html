@@ -40,7 +40,9 @@
   .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
   .stat { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 20px 22px; }
   .stat-clickable { cursor: pointer; transition: border-color 0.15s, transform 0.1s, background 0.15s; }
-  .stat-clickable:hover { border-color: var(--rojo); background: var(--bg3); }
+  .stat-clickable:hover { background: var(--bg3); }
+  .stat-clickable.rojo-hover:hover { border-color: var(--rojo); }
+  .stat-clickable.naranja-hover:hover { border-color: var(--naranja); }
   .stat-clickable:active { transform: scale(0.99); }
   .stat .numero { font-size: 38px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
   .stat .etiqueta { font-size: 13px; color: var(--texto2); }
@@ -79,11 +81,13 @@
   .btn-cerrar-accesos { background: var(--bg3); color: var(--texto); border: 1px solid var(--borde); width: 34px; height: 34px; border-radius: 8px; cursor: pointer; font-size: 20px; line-height: 1; }
   .btn-cerrar-accesos:hover { background: var(--borde); }
   .accesos-resumen { background: rgba(244,67,54,0.08); border: 1px solid rgba(244,67,54,0.35); color: var(--rojo); border-radius: 10px; padding: 12px 14px; font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+  .accesos-resumen.naranja { background: rgba(255,152,0,0.08); border-color: rgba(255,152,0,0.35); color: var(--naranja); }
   .acceso-item { border: 1px solid var(--borde); background: var(--bg3); border-radius: 10px; padding: 13px 14px; margin-top: 10px; }
   .acceso-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
   .acceso-nombre { font-size: 15px; font-weight: 800; }
   .acceso-meta { color: var(--texto2); font-size: 13px; margin-top: 3px; line-height: 1.45; }
   .acceso-contador { white-space: nowrap; color: var(--rojo); font-weight: 800; font-size: 14px; }
+  .acceso-contador.naranja { color: var(--naranja); }
   .acceso-detalle { margin-top: 9px; color: var(--texto2); font-size: 13px; line-height: 1.45; }
 </style>
 </head>
@@ -117,8 +121,8 @@
     <div class="stats">
       <div class="stat"><div class="numero azul" id="stat-fichajes">—</div><div class="etiqueta">Fichajes hoy</div></div>
       <div class="stat"><div class="numero verde" id="stat-obras">—</div><div class="etiqueta">Obras activas</div></div>
-      <div class="stat stat-clickable" id="card-rojos" role="button" tabindex="0" title="Ver detalle de accesos denegados"><div class="numero rojo" id="stat-rojos">—</div><div class="etiqueta">Accesos denegados hoy</div></div>
-      <div class="stat"><div class="numero naranja" id="stat-incidencias">—</div><div class="etiqueta">Incidencias hoy</div></div>
+      <div class="stat stat-clickable rojo-hover" id="card-rojos" role="button" tabindex="0" title="Ver detalle de accesos denegados"><div class="numero rojo" id="stat-rojos">—</div><div class="etiqueta">Accesos denegados hoy</div></div>
+      <div class="stat stat-clickable naranja-hover" id="card-incidencias" role="button" tabindex="0" title="Ver detalle de incidencias de hoy"><div class="numero naranja" id="stat-incidencias">—</div><div class="etiqueta">Incidencias hoy</div></div>
     </div>
     <div class="seccion">
       <div class="seccion-cab"><h2>Fichajes de hoy</h2><span class="badge azul" id="badge-fichajes">cargando…</span></div>
@@ -153,11 +157,37 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-incidencias-overlay">
+  <div class="modal-accesos">
+    <div class="modal-accesos-cab">
+      <div>
+        <h3>Incidencias hoy</h3>
+        <div class="modal-accesos-sub">Detalle global de incidencias registradas durante el día</div>
+      </div>
+      <button class="btn-cerrar-accesos" onclick="cerrarModalIncidencias()" aria-label="Cerrar">×</button>
+    </div>
+    <div id="modal-incidencias-resumen" class="accesos-resumen naranja" style="display:none"></div>
+    <div id="modal-incidencias-contenido"><div class="cargando">Cargando…</div></div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+
+const cardIncidencias = document.getElementById('card-incidencias');
+if (cardIncidencias) {
+  cardIncidencias.addEventListener('click', abrirModalIncidencias);
+  cardIncidencias.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      abrirModalIncidencias();
+    }
+  });
+}
 
 const cardRojos = document.getElementById('card-rojos');
 if (cardRojos) {
@@ -361,7 +391,87 @@ document.getElementById('modal-accesos-overlay').addEventListener('click', e => 
 });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') cerrarModalAccesos();
+  if (e.key === 'Escape') {
+    cerrarModalAccesos();
+    cerrarModalIncidencias();
+  }
+});
+
+
+async function abrirModalIncidencias() {
+  const overlay = document.getElementById('modal-incidencias-overlay');
+  const contenido = document.getElementById('modal-incidencias-contenido');
+  const resumen = document.getElementById('modal-incidencias-resumen');
+
+  overlay.classList.add('visible');
+  contenido.innerHTML = '<div class="cargando">Cargando…</div>';
+  resumen.style.display = 'none';
+  resumen.textContent = '';
+
+  const { desdeISO, hastaISO } = rangoHoyLocal();
+  const { data, error } = await sb
+    .from('incidencias')
+    .select('id, tipo, detalle, estado, comentario, created_at, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)')
+    .gte('created_at', desdeISO)
+    .lte('created_at', hastaISO)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    contenido.innerHTML = `<div class="vacio">No se pudo cargar el detalle: ${esc(error.message)}</div>`;
+    return;
+  }
+
+  pintarDetalleIncidencias(data || []);
+}
+
+function pintarDetalleIncidencias(incidencias) {
+  const contenido = document.getElementById('modal-incidencias-contenido');
+  const resumen = document.getElementById('modal-incidencias-resumen');
+
+  if (!incidencias || incidencias.length === 0) {
+    resumen.style.display = 'none';
+    contenido.innerHTML = '<div class="vacio">Hoy no hay incidencias.</div>';
+    return;
+  }
+
+  const porTipo = incidencias.reduce((acc, inc) => {
+    const tipo = inc.tipo || 'sin_tipo';
+    acc[tipo] = (acc[tipo] || 0) + 1;
+    return acc;
+  }, {});
+
+  resumen.style.display = 'block';
+  resumen.textContent = `${incidencias.length} ${incidencias.length === 1 ? 'incidencia' : 'incidencias'} hoy · ` +
+    Object.entries(porTipo).map(([tipo, n]) => `${tipo}: ${n}`).join(' · ');
+
+  contenido.innerHTML = incidencias.map(inc => {
+    const t = inc.trabajador || {};
+    const o = inc.obra || {};
+    const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || 'Trabajador no identificado';
+    const dni = t.dni ? `DNI: ${t.dni}` : 'DNI no disponible';
+    const obra = o.nombre ? `Obra: ${o.nombre}` : 'Obra no disponible';
+    const estado = inc.estado || 'nueva';
+    const detalle = inc.detalle || inc.comentario || 'Sin detalle registrado';
+    return `
+      <div class="acceso-item">
+        <div class="acceso-top">
+          <div>
+            <div class="acceso-nombre">${esc(nombre)}</div>
+            <div class="acceso-meta">${esc(dni)} · ${esc(obra)} · ${esc(formatHora(inc.created_at))}</div>
+          </div>
+          <div class="acceso-contador naranja">${esc(inc.tipo || 'incidencia')}</div>
+        </div>
+        <div class="acceso-detalle">Estado: ${esc(estado)}<br>${esc(detalle)}</div>
+      </div>`;
+  }).join('');
+}
+
+function cerrarModalIncidencias() {
+  document.getElementById('modal-incidencias-overlay').classList.remove('visible');
+}
+
+document.getElementById('modal-incidencias-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-incidencias-overlay')) cerrarModalIncidencias();
 });
 
 function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
