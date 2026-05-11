@@ -42,11 +42,14 @@
   .contenido { padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
 
   .barra-acciones { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+  .barra-botones { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .buscador { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 14px; font-family: inherit; width: 280px; }
   .buscador:focus { outline: none; border-color: var(--color-acento); }
   .buscador::placeholder { color: var(--texto2); }
   .btn-nuevo { background: var(--color-acento); color: #000; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; }
   .btn-nuevo:hover { opacity: 0.85; }
+  .btn-resumen { background: rgba(255,152,0,0.12); color: var(--naranja); border: 1px solid rgba(255,152,0,0.45); border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; }
+  .btn-resumen:hover { background: rgba(255,152,0,0.2); }
 
   .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: auto; }
   .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; }
@@ -134,6 +137,20 @@
   .msg-error { color: var(--rojo); font-size: 13px; }
   .msg-ok { color: var(--verde); font-size: 13px; }
 
+
+  /* Modal resumen documental por empresa */
+  .modal-resumen { width: 820px; max-width: 96vw; }
+  .resumen-intro { background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.35); border-radius: 8px; padding: 12px 14px; color: var(--texto); font-size: 13px; line-height: 1.45; }
+  .resumen-empresa { background: var(--bg3); border: 1px solid var(--borde); border-radius: 10px; padding: 14px; margin-top: 12px; }
+  .resumen-empresa-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+  .resumen-empresa h4 { font-size: 14px; font-weight: 800; color: var(--texto); }
+  .resumen-empresa small { color: var(--texto2); font-size: 12px; }
+  .resumen-textarea { width: 100%; min-height: 210px; resize: vertical; background: #0f1117; border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); padding: 12px; font-family: Consolas, 'Courier New', monospace; font-size: 13px; line-height: 1.5; }
+  .resumen-textarea:focus { outline: none; border-color: var(--naranja); }
+  .btn-copiar { background: var(--naranja); color: #000; border: none; border-radius: 8px; padding: 8px 13px; font-size: 12px; font-weight: 800; cursor: pointer; font-family: inherit; white-space: nowrap; }
+  .btn-copiar:hover { opacity: 0.9; }
+  .resumen-copiado { color: var(--verde); font-size: 12px; min-height: 18px; margin-top: 6px; }
+
   .dni-hint { font-size: 12px; color: var(--texto2); margin-top: 2px; }
 </style>
 </head>
@@ -168,7 +185,10 @@
   <div class="contenido">
     <div class="barra-acciones">
       <input class="buscador" id="buscador" type="text" placeholder="Buscar por nombre o DNI…">
-      <button class="btn-nuevo" id="btn-nuevo">＋ Nuevo trabajador</button>
+      <div class="barra-botones">
+        <button class="btn-resumen" id="btn-resumen-naranja">📨 Resumen doc.</button>
+        <button class="btn-nuevo" id="btn-nuevo">＋ Nuevo trabajador</button>
+      </div>
     </div>
 
     <div class="seccion">
@@ -266,6 +286,20 @@
   </div>
 </div>
 
+
+<div class="modal-overlay" id="modal-resumen-overlay">
+  <div class="modal modal-resumen">
+    <h3>Resumen documental por empresa</h3>
+    <div class="resumen-intro">
+      Agrupa los trabajadores con documentación en naranja y rojo por subcontrata y genera textos listos para copiar en WhatsApp o correo. Solo se incluyen tus obras asignadas.
+    </div>
+    <div id="resumen-naranja-contenido"></div>
+    <div class="modal-acciones">
+      <button type="button" class="btn-cancelar" id="btn-cerrar-resumen">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
@@ -336,15 +370,48 @@ document.getElementById('btn-actualizar').addEventListener('click', () => {
   cargarTrabajadores();
 });
 
+document.getElementById('btn-resumen-naranja').addEventListener('click', abrirResumenDocumental);
+document.getElementById('btn-cerrar-resumen').addEventListener('click', cerrarResumenDocumental);
+document.getElementById('modal-resumen-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-resumen-overlay')) cerrarResumenDocumental();
+});
+
 async function cargarTrabajadores() {
   document.getElementById('tabla-trabajadores').innerHTML = '<div class="cargando">Cargando…</div>';
 
   const obraIds = misObras.map(o => o.id);
 
-  const { data: validaciones } = await sb
+  let { data: validaciones, error: errorValidaciones } = await sb
     .from('validaciones_obra')
-    .select('trabajador_id, obra_id, estado, estado_forzado, motivo_forzado, motivos, forzado_en, trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado)')
+    .select(`
+      trabajador_id,
+      obra_id,
+      estado,
+      estado_forzado,
+      motivo_forzado,
+      motivos,
+      forzado_en,
+      trabajador:trabajador_id(
+        id,
+        nombre,
+        apellidos,
+        dni,
+        categoria,
+        precio_hora_personalizado,
+        empresa:empresa_id(nombre)
+      )
+    `)
     .in('obra_id', obraIds);
+
+  // Fallback conservador: si algún entorno no devuelve el join de empresa,
+  // la tabla sigue cargando como antes y el resumen agrupa como "Sin empresa asignada".
+  if (errorValidaciones) {
+    const fallback = await sb
+      .from('validaciones_obra')
+      .select('trabajador_id, obra_id, estado, estado_forzado, motivo_forzado, motivos, forzado_en, trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado)')
+      .in('obra_id', obraIds);
+    validaciones = fallback.data || [];
+  }
 
   const hoy = new Date().toISOString().slice(0, 10);
 
@@ -374,6 +441,7 @@ async function cargarTrabajadores() {
         dni: v.trabajador.dni,
         categoria: v.trabajador.categoria,
         precio_hora_personalizado: v.trabajador.precio_hora_personalizado,
+        empresa: v.trabajador.empresa || null,
         obras: []
       };
     }
@@ -929,6 +997,161 @@ document.getElementById('btn-quitar-autorizacion').addEventListener('click', asy
     cargarTrabajadores();
   }, 800);
 });
+
+
+function abrirResumenDocumental() {
+  const cont = document.getElementById('resumen-naranja-contenido');
+  const grupos = construirResumenDocumentalPorEmpresa();
+
+  if (grupos.length === 0) {
+    cont.innerHTML = '<div class="vacio">No hay trabajadores en naranja ni rojo en tus obras asignadas.</div>';
+  } else {
+    cont.innerHTML = grupos.map((g, idx) => {
+      const totalRojos = g.items.filter(x => x.estado === 'rojo').length;
+      const totalNaranjas = g.items.filter(x => x.estado === 'naranja').length;
+      const resumenEstados = [
+        totalRojos ? `${totalRojos} en rojo` : '',
+        totalNaranjas ? `${totalNaranjas} en naranja` : ''
+      ].filter(Boolean).join(' · ');
+
+      return `
+        <div class="resumen-empresa">
+          <div class="resumen-empresa-cab">
+            <div>
+              <h4>${esc(g.empresa)}</h4>
+              <small>${resumenEstados || 'Sin incidencias documentales'}</small>
+            </div>
+            <button type="button" class="btn-copiar" onclick="copiarResumenEmpresa(${idx})">Copiar texto</button>
+          </div>
+          <textarea class="resumen-textarea" id="resumen-texto-${idx}" readonly>${esc(g.texto)}</textarea>
+          <div class="resumen-copiado" id="resumen-copiado-${idx}"></div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  document.getElementById('modal-resumen-overlay').classList.add('abierto');
+}
+
+function cerrarResumenDocumental() {
+  document.getElementById('modal-resumen-overlay').classList.remove('abierto');
+}
+
+// Compatibilidad por si alguna llamada antigua queda viva en navegador/cache.
+function abrirResumenNaranja() { abrirResumenDocumental(); }
+function cerrarResumenNaranja() { cerrarResumenDocumental(); }
+
+function construirResumenDocumentalPorEmpresa() {
+  const grupos = {};
+
+  todosTrabajadores.forEach(t => {
+    const empresa = t.empresa?.nombre || 'Sin empresa asignada';
+
+    (t.obras || []).forEach(o => {
+      if (o.estado !== 'naranja' && o.estado !== 'rojo') return;
+
+      if (!grupos[empresa]) grupos[empresa] = [];
+      grupos[empresa].push({ trabajador: t, obra: o, estado: o.estado });
+    });
+  });
+
+  return Object.keys(grupos)
+    .sort((a, b) => a.localeCompare(b, 'es'))
+    .map(empresa => {
+      const items = grupos[empresa].sort((a, b) => {
+        const prioridadA = a.estado === 'rojo' ? 0 : 1;
+        const prioridadB = b.estado === 'rojo' ? 0 : 1;
+        if (prioridadA !== prioridadB) return prioridadA - prioridadB;
+        const na = nombreCompleto(a.trabajador).localeCompare(nombreCompleto(b.trabajador), 'es');
+        if (na !== 0) return na;
+        return String(a.obra.nombre || '').localeCompare(String(b.obra.nombre || ''), 'es');
+      });
+      return { empresa, items, texto: generarTextoResumenEmpresa(empresa, items) };
+    });
+}
+
+function generarTextoResumenEmpresa(empresa, items) {
+  const fecha = new Date().toLocaleDateString('es-ES', {
+    day: '2-digit', month: '2-digit', year: 'numeric'
+  });
+
+  const rojos = items.filter(item => item.estado === 'rojo');
+  const naranjas = items.filter(item => item.estado === 'naranja');
+
+  const lineas = [];
+  lineas.push('Buenos días,');
+  lineas.push('');
+  lineas.push(`Os paso el resumen de documentación pendiente en e-Coordina a fecha ${fecha}.`);
+  lineas.push('');
+
+  if (rojos.length > 0) {
+    lineas.push('TRABAJADORES EN ROJO — ACCESO DENEGADO');
+    lineas.push('Estos trabajadores no pueden acceder a obra mientras no se regularice la documentación, salvo autorización expresa y puntual del jefe de obra.');
+    lineas.push('');
+    rojos.forEach((item, index) => añadirTrabajadorResumen(lineas, item, index));
+  }
+
+  if (naranjas.length > 0) {
+    lineas.push('TRABAJADORES EN NARANJA — DOCUMENTACIÓN CON AVISOS');
+    lineas.push('Estos trabajadores constan con documentación pendiente o con avisos. Os pedimos que lo reviséis y regularicéis cuanto antes para evitar incidencias de acceso en obra.');
+    lineas.push('');
+    naranjas.forEach((item, index) => añadirTrabajadorResumen(lineas, item, index));
+  }
+
+  lineas.push('Por favor, cuando lo tengáis corregido, avisadnos para volver a revisarlo.');
+  lineas.push('');
+  lineas.push('Gracias.');
+
+  return lineas.join('\n');
+}
+
+function añadirTrabajadorResumen(lineas, item, index) {
+  const t = item.trabajador;
+  const o = item.obra;
+  lineas.push(`${index + 1}. ${nombreCompleto(t)} — DNI: ${t.dni || 'sin DNI'} — Obra: ${o.nombre || 'sin obra'}`);
+
+  const motivos = extraerListaMotivos(o.motivos).map(limpiarMotivo).filter(Boolean);
+  if (motivos.length > 0) {
+    motivos.forEach(m => lineas.push(`   - ${m}`));
+  } else if (o.estado_forzado && o.motivo_forzado) {
+    lineas.push(`   - Estado forzado: ${o.motivo_forzado}`);
+  } else {
+    lineas.push('   - Motivo no especificado en la validación.');
+  }
+  lineas.push('');
+}
+
+async function copiarResumenEmpresa(idx) {
+  const textarea = document.getElementById(`resumen-texto-${idx}`);
+  const aviso = document.getElementById(`resumen-copiado-${idx}`);
+  if (!textarea) return;
+
+  const texto = textarea.value;
+
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(texto);
+    } else {
+      textarea.removeAttribute('readonly');
+      textarea.select();
+      document.execCommand('copy');
+      textarea.setAttribute('readonly', 'readonly');
+      window.getSelection()?.removeAllRanges();
+    }
+    if (aviso) {
+      aviso.textContent = 'Texto copiado al portapapeles.';
+      setTimeout(() => { aviso.textContent = ''; }, 2500);
+    }
+  } catch (err) {
+    if (aviso) aviso.textContent = 'No se ha podido copiar automáticamente. Selecciona el texto y cópialo manualmente.';
+  }
+}
+
+function limpiarMotivo(motivo) {
+  return String(motivo || '')
+    .replace(/\s*→\s*(verde|naranja|rojo)\s*$/i, '')
+    .trim();
+}
 
 function nombreCompleto(t) {
   const partes = [t.nombre, t.apellidos]
