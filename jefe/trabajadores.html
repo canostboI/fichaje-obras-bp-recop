@@ -42,10 +42,13 @@
   .contenido { padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
 
   .barra-acciones { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+  .barra-filtros { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .barra-botones { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .buscador { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 14px; font-family: inherit; width: 280px; }
   .buscador:focus { outline: none; border-color: var(--color-acento); }
   .buscador::placeholder { color: var(--texto2); }
+  .selector-obra-trabajadores { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 12px; font-family: inherit; min-width: 230px; }
+  .selector-obra-trabajadores:focus { outline: none; border-color: var(--color-acento); }
   .btn-nuevo { background: var(--color-acento); color: #000; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; }
   .btn-nuevo:hover { opacity: 0.85; }
   .btn-resumen { background: rgba(255,152,0,0.12); color: var(--naranja); border: 1px solid rgba(255,152,0,0.45); border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; }
@@ -191,7 +194,12 @@
 
   <div class="contenido">
     <div class="barra-acciones">
-      <input class="buscador" id="buscador" type="text" placeholder="Buscar por nombre o DNI…">
+      <div class="barra-filtros">
+        <select class="selector-obra-trabajadores" id="filtro-obra-trabajadores" title="Filtrar trabajadores por obra">
+          <option value="">Todas mis obras</option>
+        </select>
+        <input class="buscador" id="buscador" type="text" placeholder="Buscar por nombre o DNI…">
+      </div>
       <div class="barra-botones">
         <button class="btn-resumen" id="btn-resumen-naranja">📨 Resumen doc.</button>
         <button class="btn-nuevo" id="btn-nuevo">＋ Nuevo trabajador</button>
@@ -200,7 +208,7 @@
 
     <div class="seccion">
       <div class="seccion-cab">
-        <h2>Trabajadores en mis obras</h2>
+        <h2 id="titulo-listado-trabajadores">Trabajadores en mis obras</h2>
         <span style="font-size:13px;color:var(--texto2)" id="contador"></span>
       </div>
       <div id="tabla-trabajadores"><div class="cargando">Cargando…</div></div>
@@ -324,6 +332,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let misObras = [];
 let todosTrabajadores = [];
+let obraFiltroTrabajadores = '';
 let miUsuarioId = null;
 
 let forzarCtx = null;
@@ -353,8 +362,9 @@ let estadoSeleccionado = null;
   if (error || !obrasJefe || obrasJefe.length === 0) { window.location.href = '../'; return; }
 
   misObras = obrasJefe.map(uo => uo.obra);
+  prepararFiltroTrabajadores();
 
-  const marca = misObras[0]?.empresa_marca || 'bosch_pascual';
+  const marca = obtenerObraFiltro()?.empresa_marca || misObras[0]?.empresa_marca || 'bosch_pascual';
   aplicarBrandingObra(marca);
 
   await cargarTrabajadores();
@@ -384,6 +394,18 @@ document.getElementById('btn-salir').addEventListener('click', async () => {
 // G1 — Capa 1: botón manual
 document.getElementById('btn-actualizar').addEventListener('click', () => {
   cargarTrabajadores();
+});
+
+document.getElementById('filtro-obra-trabajadores').addEventListener('change', e => {
+  obraFiltroTrabajadores = e.target.value || '';
+  if (obraFiltroTrabajadores) {
+    localStorage.setItem('jefe_trabajadores_obra_filtro', obraFiltroTrabajadores);
+  } else {
+    localStorage.removeItem('jefe_trabajadores_obra_filtro');
+  }
+  const obra = obtenerObraFiltro();
+  aplicarBrandingObra(obra?.empresa_marca || misObras[0]?.empresa_marca || 'bosch_pascual');
+  aplicarFiltrosTabla();
 });
 
 document.getElementById('btn-resumen-naranja').addEventListener('click', abrirResumenDocumental);
@@ -483,16 +505,70 @@ async function cargarTrabajadores() {
   });
 
   todosTrabajadores = Object.values(porTrabajador);
-  renderTabla(todosTrabajadores);
+  aplicarFiltrosTabla();
+}
+
+function prepararFiltroTrabajadores() {
+  const select = document.getElementById('filtro-obra-trabajadores');
+  if (!select) return;
+
+  select.innerHTML = '<option value="">Todas mis obras</option>' + misObras.map(o => `
+    <option value="${esc(o.id)}">${esc(o.nombre || 'Obra sin nombre')}</option>
+  `).join('');
+
+  const guardada = localStorage.getItem('jefe_trabajadores_obra_filtro') || '';
+  select.value = misObras.some(o => o.id === guardada) ? guardada : '';
+  obraFiltroTrabajadores = select.value || '';
+}
+
+function obtenerObraFiltro() {
+  if (!obraFiltroTrabajadores) return null;
+  return misObras.find(o => o.id === obraFiltroTrabajadores) || null;
+}
+
+function aplicarFiltrosTabla() {
+  const q = (document.getElementById('buscador')?.value || '').toLowerCase().trim();
+  let lista = todosTrabajadores;
+
+  if (obraFiltroTrabajadores) {
+    lista = lista
+      .map(t => ({ ...t, obras: (t.obras || []).filter(o => o.obra_id === obraFiltroTrabajadores) }))
+      .filter(t => t.obras.length > 0);
+  }
+
+  if (q) {
+    lista = lista.filter(t => {
+      const texto = [
+        nombreCompleto(t),
+        t.dni || '',
+        t.categoria || '',
+        t.empresa?.nombre || '',
+        ...(t.obras || []).map(o => o.nombre || '')
+      ].join(' ').toLowerCase();
+      return texto.includes(q);
+    });
+  }
+
+  renderTabla(lista);
 }
 
 function renderTabla(lista) {
-  document.getElementById('contador').textContent = lista.length + ' trabajadores';
+  const obraFiltrada = obtenerObraFiltro();
+  const titulo = document.getElementById('titulo-listado-trabajadores');
+  if (titulo) {
+    titulo.textContent = obraFiltrada ? `Trabajadores — ${obraFiltrada.nombre || 'Obra seleccionada'}` : 'Trabajadores en mis obras';
+  }
+
+  document.getElementById('contador').textContent = obraFiltrada
+    ? `${lista.length} trabajadores en esta obra`
+    : `${lista.length} trabajadores`;
 
   const contenedor = document.getElementById('tabla-trabajadores');
 
   if (lista.length === 0) {
-    contenedor.innerHTML = '<div class="vacio">No hay trabajadores. Pulsa "Nuevo trabajador" para añadir el primero.</div>';
+    contenedor.innerHTML = obraFiltrada
+      ? '<div class="vacio">No hay trabajadores asignados a esta obra todavía. Pulsa "Nuevo trabajador" para crear o asignar trabajadores a esta obra.</div>'
+      : '<div class="vacio">No hay trabajadores. Pulsa "Nuevo trabajador" para añadir el primero.</div>';
     return;
   }
 
@@ -565,11 +641,8 @@ function pillObra(trabajador, obra) {
   `;
 }
 
-document.getElementById('buscador').addEventListener('input', e => {
-  const q = e.target.value.toLowerCase();
-  renderTabla(todosTrabajadores.filter(t =>
-    (nombreCompleto(t) + ' ' + (t.dni || '') + ' ' + (t.categoria || '')).toLowerCase().includes(q)
-  ));
+document.getElementById('buscador').addEventListener('input', () => {
+  aplicarFiltrosTabla();
 });
 
 let modoEdicion = null;
@@ -599,7 +672,7 @@ document.getElementById('btn-nuevo').addEventListener('click', () => {
   document.getElementById('modal-precio-hora').value = '';
   document.getElementById('modal-msg').textContent = '';
   document.getElementById('btn-guardar').disabled = false;
-  renderCheckObras(misObras.length === 1 ? [misObras[0].id] : []);
+  renderCheckObras(obraFiltroTrabajadores ? [obraFiltroTrabajadores] : (misObras.length === 1 ? [misObras[0].id] : []));
   document.getElementById('modal-overlay').classList.add('abierto');
   document.getElementById('modal-nombre').focus();
 });
@@ -1027,7 +1100,7 @@ function prepararFiltroResumenObras() {
   const select = document.getElementById('resumen-filtro-obra');
   if (!select) return;
 
-  const valorPrevio = select.value || '';
+  const valorPrevio = select.value || obraFiltroTrabajadores || '';
   select.innerHTML = '<option value="">Todas mis obras</option>' + misObras.map(o => `
     <option value="${esc(o.id)}">${esc(o.nombre || 'Obra sin nombre')}</option>
   `).join('');
