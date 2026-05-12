@@ -63,6 +63,7 @@
   .modal-acciones { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
   .error-modal { background: rgba(244,67,54,0.1); color: var(--rojo); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; display: none; }
 </style>
+  <script src="./js/auto-logout.js"></script>
 </head>
 <body>
 
@@ -161,7 +162,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+AutoLogout.init(sb);
 let trabajadorEditandoId = null;
 let todosTrabajadores = [];
 
