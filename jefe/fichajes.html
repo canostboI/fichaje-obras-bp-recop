@@ -224,6 +224,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+const CLAVE_OBRA_ACTIVA_JEFE = 'jefe_obra_activa_id';
+
 let obraActual = null;
 let brandingActual = null;
 let fichajeCorrigiendoId = null;
@@ -262,8 +264,12 @@ let miUsuarioAppId = null;
     selector.appendChild(opt);
   });
 
-  obraActual = misObras[0].obra.id;
-  aplicarBrandingObra(misObras[0].obra.empresa_marca);
+  const obraGuardada = localStorage.getItem(CLAVE_OBRA_ACTIVA_JEFE);
+  const obraInicial = misObras.find(uo => uo.obra.id === obraGuardada) || misObras[0];
+  obraActual = obraInicial.obra.id;
+  selector.value = obraActual;
+  localStorage.setItem(CLAVE_OBRA_ACTIVA_JEFE, obraActual);
+  aplicarBrandingObra(obraInicial.obra.empresa_marca);
   document.getElementById('filtro-fecha').value = fechaHoy();
   document.getElementById('filtro-mes').value = mesActual();
   await cargarTrabajadoresObra();
@@ -271,6 +277,7 @@ let miUsuarioAppId = null;
 
   selector.addEventListener('change', async () => {
     obraActual = selector.value;
+    localStorage.setItem(CLAVE_OBRA_ACTIVA_JEFE, obraActual);
     const marca = selector.options[selector.selectedIndex].dataset.marca;
     aplicarBrandingObra(marca);
     // Limpiar mensaje de export al cambiar de obra
