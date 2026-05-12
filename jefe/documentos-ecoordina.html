@@ -475,7 +475,7 @@ async function cargarObras() {
 
   misObras = obras || [];
 
-  // Aplicar branding según la primera obra
+  // Aplicar branding según la primera obra (fallback)
   const marcaInicial = misObras[0]?.empresa_marca || 'bosch_pascual';
   aplicarBrandingObra(marcaInicial);
 
@@ -484,10 +484,21 @@ async function cargarObras() {
     ? '<option value="">— Selecciona una obra —</option>' + misObras.map(o => `<option value="${escHtml(o.id)}">${escHtml(o.nombre)}</option>`).join('')
     : '<option value="">No tienes obras asignadas</option>';
 
-  // Actualizar branding al cambiar de obra
+  // Preseleccionar obra activa guardada en localStorage (MO3)
+  const obraGuardada = localStorage.getItem('jefe_obra_activa_id');
+  if (obraGuardada && misObras.find(o => o.id === obraGuardada)) {
+    sel.value = obraGuardada;
+    const obraActiva = misObras.find(o => o.id === obraGuardada);
+    if (obraActiva) aplicarBrandingObra(obraActiva.empresa_marca || 'bosch_pascual');
+  }
+
+  // Actualizar branding y localStorage al cambiar de obra
   sel.addEventListener('change', () => {
     const obra = misObras.find(o => o.id === sel.value);
-    if (obra) aplicarBrandingObra(obra.empresa_marca || 'bosch_pascual');
+    if (obra) {
+      aplicarBrandingObra(obra.empresa_marca || 'bosch_pascual');
+      localStorage.setItem('jefe_obra_activa_id', obra.id);
+    }
   });
 }
 
