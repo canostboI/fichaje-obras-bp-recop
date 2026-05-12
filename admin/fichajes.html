@@ -63,6 +63,7 @@
   .vacio { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); }
 </style>
+  <script src="./js/auto-logout.js"></script>
 </head>
 <body>
 
@@ -125,6 +126,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  AutoLogout.init(sb);
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
