@@ -158,11 +158,11 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const emailEl    = document.getElementById('email');
-const passEl     = document.getElementById('password');
-const btnLogin   = document.getElementById('btn-login');
-const errorBox   = document.getElementById('error-box');
-const spinner    = document.getElementById('spinner');
+const emailEl  = document.getElementById('email');
+const passEl   = document.getElementById('password');
+const btnLogin = document.getElementById('btn-login');
+const errorBox = document.getElementById('error-box');
+const spinner  = document.getElementById('spinner');
 
 // Si ya hay sesión activa, redirigir directamente
 (async function () {
@@ -212,44 +212,18 @@ btnLogin.addEventListener('click', async () => {
 });
 
 async function redirigirSegunRol() {
-  const { data: { session: s } } = await sb.auth.getSession();
+  // La RPC busca por auth_user_id (flujo normal) o por email con auth_user_id NULL
+  // (primer login). En este segundo caso también hace el UPDATE de vinculación.
+  const { data: rol, error } = await sb.rpc('vincular_y_obtener_rol');
 
-  // Intento 1: buscar por auth_user_id (flujo normal)
-  let { data, error } = await sb
-    .from('usuarios_app')
-    .select('id, rol')
-    .eq('auth_user_id', s.user.id)
-    .single();
-
-  // Intento 2: si no encontró nada, buscar por email (primer login de usuario nuevo)
-  if (error || !data) {
-    const { data: porEmail, error: errorEmail } = await sb
-      .from('usuarios_app')
-      .select('id, rol, auth_user_id')
-      .eq('email', s.user.email)
-      .is('auth_user_id', null)
-      .single();
-
-    if (!errorEmail && porEmail) {
-      // Vincular auth_user_id automáticamente
-      await sb
-        .from('usuarios_app')
-        .update({ auth_user_id: s.user.id })
-        .eq('id', porEmail.id);
-
-      data = porEmail;
-      error = null;
-    }
-  }
-
-  if (error || !data) {
+  if (error || !rol) {
     await sb.auth.signOut();
     mostrarError('Tu usuario no tiene acceso configurado. Contacta con el administrador.');
     setCargando(false);
     return;
   }
 
-  switch (data.rol) {
+  switch (rol) {
     case 'admin':
       window.location.href = 'admin/';
       break;
