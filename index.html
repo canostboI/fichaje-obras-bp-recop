@@ -212,13 +212,35 @@ btnLogin.addEventListener('click', async () => {
 });
 
 async function redirigirSegunRol() {
-  // Consultar rol del usuario en usuarios_app
   const { data: { session: s } } = await sb.auth.getSession();
-  const { data, error } = await sb
+
+  // Intento 1: buscar por auth_user_id (flujo normal)
+  let { data, error } = await sb
     .from('usuarios_app')
-    .select('rol')
+    .select('id, rol')
     .eq('auth_user_id', s.user.id)
     .single();
+
+  // Intento 2: si no encontró nada, buscar por email (primer login de usuario nuevo)
+  if (error || !data) {
+    const { data: porEmail, error: errorEmail } = await sb
+      .from('usuarios_app')
+      .select('id, rol, auth_user_id')
+      .eq('email', s.user.email)
+      .is('auth_user_id', null)
+      .single();
+
+    if (!errorEmail && porEmail) {
+      // Vincular auth_user_id automáticamente
+      await sb
+        .from('usuarios_app')
+        .update({ auth_user_id: s.user.id })
+        .eq('id', porEmail.id);
+
+      data = porEmail;
+      error = null;
+    }
+  }
 
   if (error || !data) {
     await sb.auth.signOut();
