@@ -59,6 +59,7 @@
   .campo-fila { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .modal-acciones { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
   .error-modal { background: rgba(244,67,54,0.1); color: var(--rojo); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; display: none; }
+  .ok-modal { background: rgba(76,175,80,0.1); color: var(--verde); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; display: none; }
   .modal-qr { text-align: center; }
   .url-qr { font-size: 12px; color: var(--texto2); word-break: break-all; margin: 14px 0; padding: 10px; background: var(--bg3); border-radius: 8px; }
   #qr-canvas { margin: 16px auto; display: block; border-radius: 8px; background: white; padding: 8px; }
@@ -73,6 +74,11 @@
   .equipo-anadir h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--texto2); margin-bottom: 14px; }
   .btn-peligro { background: transparent; color: var(--rojo); border: 1px solid rgba(244,67,54,0.3); padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; }
   .btn-peligro:hover { background: rgba(244,67,54,0.1); }
+
+  /* Sección crear usuario nuevo */
+  .crear-usuario { margin-top: 4px; }
+  .crear-usuario h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--texto2); margin-bottom: 14px; }
+  .aviso-crear { background: rgba(33,150,243,0.08); border: 1px solid rgba(33,150,243,0.2); border-radius: 8px; padding: 10px 12px; font-size: 12px; color: var(--texto2); margin-bottom: 14px; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -108,6 +114,7 @@
   </div>
 </div>
 
+<!-- Modal obra -->
 <div class="modal-overlay" id="modal-obra">
   <div class="modal">
     <h2 id="modal-titulo">Nueva obra</h2>
@@ -178,6 +185,7 @@
   </div>
 </div>
 
+<!-- Modal QR -->
 <div class="modal-overlay" id="modal-qr">
   <div class="modal modal-qr">
     <h2 id="qr-titulo">QR de la obra</h2>
@@ -191,19 +199,23 @@
   </div>
 </div>
 
+<!-- Modal equipo -->
 <div class="modal-overlay" id="modal-equipo">
   <div class="modal">
     <h2 id="equipo-titulo">Equipo de la obra</h2>
     <div class="error-modal" id="error-equipo"></div>
+    <div class="ok-modal" id="ok-equipo"></div>
 
+    <!-- Miembros actuales -->
     <div class="equipo-lista" id="equipo-lista">
       <div class="cargando">Cargando…</div>
     </div>
 
     <hr class="separador">
 
+    <!-- Asignar usuario existente -->
     <div class="equipo-anadir">
-      <h3>Añadir usuario</h3>
+      <h3>Añadir usuario existente</h3>
       <div class="campo">
         <label>Usuario</label>
         <select id="eq-usuario">
@@ -217,11 +229,45 @@
           <option value="encargado">Encargado</option>
         </select>
       </div>
+      <div style="display:flex; justify-content:flex-end;">
+        <button class="btn-primario" id="btn-anadir-equipo">Añadir</button>
+      </div>
     </div>
+
+    <hr class="separador">
+
+    <!-- Crear usuario nuevo -->
+    <div class="crear-usuario">
+      <h3>Crear usuario nuevo</h3>
+      <div class="aviso-crear">
+        Crea aquí el usuario y luego ve a <strong>Supabase → Authentication → Add user → Create user</strong>
+        con el mismo email y la contraseña que quieras asignarle.
+        La primera vez que inicie sesión quedará vinculado automáticamente.
+      </div>
+      <div class="campo">
+        <label>Nombre</label>
+        <input type="text" id="nu-nombre" placeholder="Ej: Pere García">
+      </div>
+      <div class="campo">
+        <label>Email</label>
+        <input type="email" id="nu-email" placeholder="pere@empresa.com">
+      </div>
+      <div class="campo">
+        <label>Rol</label>
+        <select id="nu-rol">
+          <option value="jefe_obra">Jefe de obra</option>
+          <option value="encargado">Encargado</option>
+        </select>
+      </div>
+      <div style="display:flex; justify-content:flex-end;">
+        <button class="btn-primario" id="btn-crear-usuario">Crear y asignar a esta obra</button>
+      </div>
+    </div>
+
+    <hr class="separador">
 
     <div class="modal-acciones">
       <button class="btn-secundario" id="btn-cerrar-equipo">Cerrar</button>
-      <button class="btn-primario" id="btn-anadir-equipo">Añadir</button>
     </div>
   </div>
 </div>
@@ -325,6 +371,8 @@ async function cargarUsuarios() {
   todosUsuarios = data || [];
 }
 
+// ── Modal obra ──────────────────────────────────────────────────────────
+
 document.getElementById('btn-nueva').onclick = () => {
   obraEditandoId = null;
   document.getElementById('modal-titulo').textContent = 'Nueva obra';
@@ -344,10 +392,7 @@ document.getElementById('btn-nueva').onclick = () => {
 
 function abrirEditarPorId(id) {
   const o = todasObras.find(x => x.id === id);
-  if (!o) {
-    alert('No se ha encontrado la obra.');
-    return;
-  }
+  if (!o) { alert('No se ha encontrado la obra.'); return; }
 
   obraEditandoId = o.id;
   document.getElementById('modal-titulo').textContent = 'Editar obra';
@@ -370,80 +415,63 @@ document.getElementById('btn-cancelar').onclick = () => {
 };
 
 document.getElementById('btn-guardar').onclick = async () => {
-  const numeroRaw = document.getElementById('f-numero').value.trim();
-  const nombre = document.getElementById('f-nombre').value.trim();
-  const direccion = document.getElementById('f-direccion').value.trim();
+  const numeroRaw  = document.getElementById('f-numero').value.trim();
+  const nombre     = document.getElementById('f-nombre').value.trim();
+  const direccion  = document.getElementById('f-direccion').value.trim();
   const latitudRaw = document.getElementById('f-latitud').value;
-  const longitudRaw = document.getElementById('f-longitud').value;
-  const radioRaw = document.getElementById('f-radio').value;
+  const longitudRaw= document.getElementById('f-longitud').value;
+  const radioRaw   = document.getElementById('f-radio').value;
   const entradaRaw = document.getElementById('f-entrada').value;
-  const salidaRaw = document.getElementById('f-salida').value;
+  const salidaRaw  = document.getElementById('f-salida').value;
   const empresa_marca = document.getElementById('f-empresa').value;
-  const activa = document.getElementById('f-activa').value === 'true';
+  const activa     = document.getElementById('f-activa').value === 'true';
 
-  const latitud = parseFloat(latitudRaw);
+  const latitud  = parseFloat(latitudRaw);
   const longitud = parseFloat(longitudRaw);
-  const radio_gps = parseInt(radioRaw, 10);
+  const radio_gps= parseInt(radioRaw, 10);
 
-  if (!nombre) { mostrarError('El nombre es obligatorio.'); return; }
+  if (!nombre)                        { mostrarError('El nombre es obligatorio.'); return; }
   if (isNaN(latitud) || isNaN(longitud)) { mostrarError('Las coordenadas son obligatorias.'); return; }
-  if (isNaN(radio_gps)) { mostrarError('El radio GPS es obligatorio.'); return; }
-  if (!entradaRaw || !salidaRaw) { mostrarError('El horario es obligatorio.'); return; }
+  if (isNaN(radio_gps))               { mostrarError('El radio GPS es obligatorio.'); return; }
+  if (!entradaRaw || !salidaRaw)      { mostrarError('El horario es obligatorio.'); return; }
 
   const payload = {
     numero_obra: numeroRaw === '' ? null : numeroRaw,
-    nombre,
-    direccion,
-    latitud: Number(latitud.toFixed(4)),
+    nombre, direccion,
+    latitud:  Number(latitud.toFixed(4)),
     longitud: Number(longitud.toFixed(4)),
     radio_gps,
     hora_entrada_default: entradaRaw + ':00',
-    hora_salida_default: salidaRaw + ':00',
-    empresa_marca,
-    activa
+    hora_salida_default:  salidaRaw  + ':00',
+    empresa_marca, activa
   };
 
   let error;
-
   if (obraEditandoId) {
     ({ error } = await sb.from('obras').update(payload).eq('id', obraEditandoId));
   } else {
     ({ error } = await sb.from('obras').insert(payload));
   }
 
-  if (error) {
-    mostrarError('Error al guardar: ' + error.message);
-    return;
-  }
+  if (error) { mostrarError('Error al guardar: ' + error.message); return; }
 
   document.getElementById('modal-obra').classList.remove('visible');
   await cargarObras();
 };
 
+// ── Modal QR ─────────────────────────────────────────────────────────────
+
 function abrirQRPorId(id) {
   const o = todasObras.find(x => x.id === id);
-  if (!o) {
-    alert('No se ha encontrado la obra.');
-    return;
-  }
+  if (!o) { alert('No se ha encontrado la obra.'); return; }
 
   const url = `https://canostboi.github.io/fichaje-obras-bp-recop/fichaje/?obra=${o.id}`;
-  qrActual = {
-    nombre: o.nombre || 'Obra',
-    empresa_marca: o.empresa_marca || 'bosch_pascual',
-    url
-  };
+  qrActual = { nombre: o.nombre || 'Obra', empresa_marca: o.empresa_marca || 'bosch_pascual', url };
   document.getElementById('qr-titulo').textContent = 'QR — ' + qrActual.nombre;
   document.getElementById('qr-url').textContent = url;
 
   const canvas = document.getElementById('qr-canvas');
-  new QRious({
-    element: canvas,
-    value: url,
-    size: 220,
-    background: 'white',
-    foreground: 'black'
-  });
+  new QRious({ element: canvas, value: url, size: 220, background: 'white', foreground: 'black' });
 
   const btn = document.getElementById('btn-descargar-qr');
   btn.href = canvas.toDataURL('image/png');
@@ -459,27 +487,16 @@ document.getElementById('btn-cerrar-qr').onclick = () => {
 document.getElementById('btn-imprimir-qr').onclick = imprimirQR;
 
 function obtenerMarcaQR(empresaMarca) {
-  if (empresaMarca === 'recop') {
-    return {
-      nombre: 'Rècop',
-      logo: 'assets/logos/recop_logo.svg'
-    };
-  }
-  return {
-    nombre: 'Bosch Pascual',
-    logo: 'assets/logos/bosch_pascual_logo.svg'
-  };
+  if (empresaMarca === 'recop') return { nombre: 'Rècop', logo: 'assets/logos/recop_logo.svg' };
+  return { nombre: 'Bosch Pascual', logo: 'assets/logos/bosch_pascual_logo.svg' };
 }
 
 function imprimirQR() {
-  if (!qrActual) {
-    alert('Primero abre el QR de una obra.');
-    return;
-  }
+  if (!qrActual) { alert('Primero abre el QR de una obra.'); return; }
 
-  const canvas = document.getElementById('qr-canvas');
+  const canvas  = document.getElementById('qr-canvas');
   const dataUrl = canvas ? canvas.toDataURL('image/png') : '';
-  const marca = obtenerMarcaQR(qrActual.empresa_marca);
+  const marca   = obtenerMarcaQR(qrActual.empresa_marca);
   const logoUrl = window.location.origin + window.location.pathname.replace(/admin\/.*$/, '') + marca.logo;
 
   const win = window.open('', '_blank');
@@ -490,7 +507,6 @@ function imprimirQR() {
       body { font-family: sans-serif; text-align: center; padding: 40px; }
       .logo-marca { max-height: 60px; max-width: 220px; margin-bottom: 20px; }
       h1 { font-size: 24px; margin-bottom: 8px; }
-      .empresa { color: #888; font-size: 13px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
       p { color: #666; font-size: 14px; margin-bottom: 24px; }
       .sub-ar { display: block; margin-top: 8px; font-size: 18px; font-weight: 700; color: #444; direction: rtl; }
       img.qr { display: block; margin: 0 auto; width: 280px; }
@@ -512,16 +528,16 @@ function imprimirQR() {
   win.document.close();
 }
 
+// ── Modal equipo ──────────────────────────────────────────────────────────
+
 async function abrirEquipoPorId(id) {
   const o = todasObras.find(x => x.id === id);
-  if (!o) {
-    alert('No se ha encontrado la obra.');
-    return;
-  }
+  if (!o) { alert('No se ha encontrado la obra.'); return; }
 
   obraEquipoId = o.id;
   document.getElementById('equipo-titulo').textContent = '👥 Equipo — ' + (o.nombre || 'Obra');
-  document.getElementById('error-equipo').style.display = 'none';
+  ocultarMensajesEquipo();
+  limpiarFormularioNuevoUsuario();
   document.getElementById('modal-equipo').classList.add('visible');
 
   await cargarEquipo();
@@ -566,7 +582,6 @@ async function cargarEquipo() {
 function rellenarSelectUsuarios() {
   const select = document.getElementById('eq-usuario');
   select.innerHTML = '<option value="">Selecciona un usuario…</option>';
-
   todosUsuarios.forEach(u => {
     const opt = document.createElement('option');
     opt.value = u.id;
@@ -578,12 +593,10 @@ function rellenarSelectUsuarios() {
 document.getElementById('btn-anadir-equipo').onclick = async () => {
   const usuarioAppId = document.getElementById('eq-usuario').value;
   const rol = document.getElementById('eq-rol').value;
-  const errEl = document.getElementById('error-equipo');
-  errEl.style.display = 'none';
+  ocultarMensajesEquipo();
 
   if (!usuarioAppId) {
-    errEl.textContent = 'Selecciona un usuario.';
-    errEl.style.display = 'block';
+    mostrarErrorEquipo('Selecciona un usuario.');
     return;
   }
 
@@ -594,10 +607,9 @@ document.getElementById('btn-anadir-equipo').onclick = async () => {
   });
 
   if (error) {
-    errEl.textContent = error.code === '23505'
+    mostrarErrorEquipo(error.code === '23505'
       ? 'Este usuario ya está asignado a esta obra.'
-      : 'Error: ' + error.message;
-    errEl.style.display = 'block';
+      : 'Error: ' + error.message);
     return;
   }
 
@@ -605,18 +617,60 @@ document.getElementById('btn-anadir-equipo').onclick = async () => {
   await cargarEquipo();
 };
 
+document.getElementById('btn-crear-usuario').onclick = async () => {
+  const nombre = document.getElementById('nu-nombre').value.trim();
+  const email  = document.getElementById('nu-email').value.trim();
+  const rol    = document.getElementById('nu-rol').value;
+  ocultarMensajesEquipo();
+
+  if (!nombre) { mostrarErrorEquipo('El nombre es obligatorio.'); return; }
+  if (!email)  { mostrarErrorEquipo('El email es obligatorio.'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    mostrarErrorEquipo('El email no tiene un formato válido.');
+    return;
+  }
+
+  // 1. Crear fila en usuarios_app
+  const { data: nuevoUsuario, error: errorInsert } = await sb
+    .from('usuarios_app')
+    .insert({ nombre, email, rol, activo: true })
+    .select('id')
+    .single();
+
+  if (errorInsert) {
+    mostrarErrorEquipo(errorInsert.code === '23505'
+      ? 'Ya existe un usuario con ese email.'
+      : 'Error al crear usuario: ' + errorInsert.message);
+    return;
+  }
+
+  // 2. Asignar a la obra
+  const { error: errorAsignar } = await sb.from('usuarios_obra').insert({
+    usuario_app_id: nuevoUsuario.id,
+    obra_id: obraEquipoId,
+    rol_en_obra: rol
+  });
+
+  if (errorAsignar) {
+    mostrarErrorEquipo('Usuario creado pero error al asignarlo a la obra: ' + errorAsignar.message);
+    return;
+  }
+
+  // 3. Actualizar lista local y refrescar
+  todosUsuarios.push({ id: nuevoUsuario.id, nombre, email, rol });
+  rellenarSelectUsuarios();
+  limpiarFormularioNuevoUsuario();
+  await cargarEquipo();
+  mostrarOkEquipo(`✓ Usuario "${nombre}" creado y asignado. Recuerda crearlo también en Supabase → Authentication con el mismo email.`);
+};
+
 async function quitarDelEquipo(usuariosObraId) {
   if (!confirm('¿Quitar este usuario de la obra?')) return;
 
-  const { error } = await sb
-    .from('usuarios_obra')
-    .delete()
-    .eq('id', usuariosObraId);
+  const { error } = await sb.from('usuarios_obra').delete().eq('id', usuariosObraId);
 
   if (error) {
-    const errEl = document.getElementById('error-equipo');
-    errEl.textContent = 'Error al quitar: ' + error.message;
-    errEl.style.display = 'block';
+    mostrarErrorEquipo('Error al quitar: ' + error.message);
     return;
   }
 
@@ -626,6 +680,31 @@ async function quitarDelEquipo(usuariosObraId) {
 document.getElementById('btn-cerrar-equipo').onclick = () => {
   document.getElementById('modal-equipo').classList.remove('visible');
 };
+
+function limpiarFormularioNuevoUsuario() {
+  document.getElementById('nu-nombre').value = '';
+  document.getElementById('nu-email').value  = '';
+  document.getElementById('nu-rol').value    = 'jefe_obra';
+}
+
+function mostrarErrorEquipo(msg) {
+  const el = document.getElementById('error-equipo');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function mostrarOkEquipo(msg) {
+  const el = document.getElementById('ok-equipo');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function ocultarMensajesEquipo() {
+  document.getElementById('error-equipo').style.display = 'none';
+  document.getElementById('ok-equipo').style.display = 'none';
+}
+
+// ── Utilidades generales ──────────────────────────────────────────────────
 
 function mostrarError(msg) {
   const el = document.getElementById('error-modal');
