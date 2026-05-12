@@ -7,6 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="../js/branding.js"></script>
+  <script src="../js/auto-logout.js"></script>
 <script src="../js/excel-proforma.js"></script>
 <style>
   :root {
@@ -223,6 +224,7 @@ const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  AutoLogout.init(sb);
 
 const CLAVE_OBRA_ACTIVA_JEFE = 'jefe_obra_activa_id';
 
