@@ -141,6 +141,12 @@
   /* Modal resumen documental por empresa */
   .modal-resumen { width: 820px; max-width: 96vw; }
   .resumen-intro { background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.35); border-radius: 8px; padding: 12px 14px; color: var(--texto); font-size: 13px; line-height: 1.45; }
+  .resumen-filtros { display: grid; grid-template-columns: minmax(220px, 320px) 1fr; gap: 12px; align-items: end; margin-top: 12px; }
+  .resumen-filtro-campo { display: flex; flex-direction: column; gap: 6px; }
+  .resumen-filtro-campo label { font-size: 11px; font-weight: 800; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; }
+  .resumen-filtro-campo select { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 12px; font-family: inherit; }
+  .resumen-filtro-campo select:focus { outline: none; border-color: var(--naranja); }
+  .resumen-filtro-ayuda { color: var(--texto2); font-size: 12px; line-height: 1.4; padding-bottom: 2px; }
   .resumen-empresa { background: var(--bg3); border: 1px solid var(--borde); border-radius: 10px; padding: 14px; margin-top: 12px; }
   .resumen-empresa-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
   .resumen-empresa h4 { font-size: 14px; font-weight: 800; color: var(--texto); }
@@ -150,6 +156,7 @@
   .btn-copiar { background: var(--naranja); color: #000; border: none; border-radius: 8px; padding: 8px 13px; font-size: 12px; font-weight: 800; cursor: pointer; font-family: inherit; white-space: nowrap; }
   .btn-copiar:hover { opacity: 0.9; }
   .resumen-copiado { color: var(--verde); font-size: 12px; min-height: 18px; margin-top: 6px; }
+  @media (max-width: 700px) { .resumen-filtros { grid-template-columns: 1fr; } }
 
   .dni-hint { font-size: 12px; color: var(--texto2); margin-top: 2px; }
 </style>
@@ -293,6 +300,15 @@
     <div class="resumen-intro">
       Agrupa los trabajadores con documentación en naranja y rojo por subcontrata y genera textos listos para copiar en WhatsApp o correo. Solo se incluyen tus obras asignadas.
     </div>
+    <div class="resumen-filtros">
+      <div class="resumen-filtro-campo">
+        <label for="resumen-filtro-obra">Obra incluida</label>
+        <select id="resumen-filtro-obra"></select>
+      </div>
+      <div class="resumen-filtro-ayuda">
+        Puedes sacar un resumen conjunto de todas tus obras o limitarlo a una obra concreta antes de copiar el mensaje.
+      </div>
+    </div>
     <div id="resumen-naranja-contenido"></div>
     <div class="modal-acciones">
       <button type="button" class="btn-cancelar" id="btn-cerrar-resumen">Cerrar</button>
@@ -372,6 +388,7 @@ document.getElementById('btn-actualizar').addEventListener('click', () => {
 
 document.getElementById('btn-resumen-naranja').addEventListener('click', abrirResumenDocumental);
 document.getElementById('btn-cerrar-resumen').addEventListener('click', cerrarResumenDocumental);
+document.getElementById('resumen-filtro-obra').addEventListener('change', pintarResumenDocumental);
 document.getElementById('modal-resumen-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-resumen-overlay')) cerrarResumenDocumental();
 });
@@ -999,38 +1016,66 @@ document.getElementById('btn-quitar-autorizacion').addEventListener('click', asy
 });
 
 
+
 function abrirResumenDocumental() {
+  prepararFiltroResumenObras();
+  pintarResumenDocumental();
+  document.getElementById('modal-resumen-overlay').classList.add('abierto');
+}
+
+function prepararFiltroResumenObras() {
+  const select = document.getElementById('resumen-filtro-obra');
+  if (!select) return;
+
+  const valorPrevio = select.value || '';
+  select.innerHTML = '<option value="">Todas mis obras</option>' + misObras.map(o => `
+    <option value="${esc(o.id)}">${esc(o.nombre || 'Obra sin nombre')}</option>
+  `).join('');
+
+  if ([...select.options].some(opt => opt.value === valorPrevio)) {
+    select.value = valorPrevio;
+  }
+}
+
+function pintarResumenDocumental() {
   const cont = document.getElementById('resumen-naranja-contenido');
-  const grupos = construirResumenDocumentalPorEmpresa();
+  const selectObra = document.getElementById('resumen-filtro-obra');
+  const obraFiltroId = selectObra ? selectObra.value : '';
+  const obraFiltroNombre = obraFiltroId
+    ? (misObras.find(o => o.id === obraFiltroId)?.nombre || 'obra seleccionada')
+    : '';
+
+  const grupos = construirResumenDocumentalPorEmpresa(obraFiltroId);
 
   if (grupos.length === 0) {
-    cont.innerHTML = '<div class="vacio">No hay trabajadores en naranja ni rojo en tus obras asignadas.</div>';
-  } else {
-    cont.innerHTML = grupos.map((g, idx) => {
-      const totalRojos = g.items.filter(x => x.estado === 'rojo').length;
-      const totalNaranjas = g.items.filter(x => x.estado === 'naranja').length;
-      const resumenEstados = [
-        totalRojos ? `${totalRojos} en rojo` : '',
-        totalNaranjas ? `${totalNaranjas} en naranja` : ''
-      ].filter(Boolean).join(' · ');
-
-      return `
-        <div class="resumen-empresa">
-          <div class="resumen-empresa-cab">
-            <div>
-              <h4>${esc(g.empresa)}</h4>
-              <small>${resumenEstados || 'Sin incidencias documentales'}</small>
-            </div>
-            <button type="button" class="btn-copiar" onclick="copiarResumenEmpresa(${idx})">Copiar texto</button>
-          </div>
-          <textarea class="resumen-textarea" id="resumen-texto-${idx}" readonly>${esc(g.texto)}</textarea>
-          <div class="resumen-copiado" id="resumen-copiado-${idx}"></div>
-        </div>
-      `;
-    }).join('');
+    const ambito = obraFiltroNombre ? ` en ${obraFiltroNombre}` : ' en tus obras asignadas';
+    cont.innerHTML = `<div class="vacio">No hay trabajadores en naranja ni rojo${esc(ambito)}.</div>`;
+    return;
   }
 
-  document.getElementById('modal-resumen-overlay').classList.add('abierto');
+  cont.innerHTML = grupos.map((g, idx) => {
+    const totalRojos = g.items.filter(x => x.estado === 'rojo').length;
+    const totalNaranjas = g.items.filter(x => x.estado === 'naranja').length;
+    const resumenEstados = [
+      totalRojos ? `${totalRojos} en rojo` : '',
+      totalNaranjas ? `${totalNaranjas} en naranja` : '',
+      obraFiltroNombre ? obraFiltroNombre : 'todas mis obras'
+    ].filter(Boolean).join(' · ');
+
+    return `
+      <div class="resumen-empresa">
+        <div class="resumen-empresa-cab">
+          <div>
+            <h4>${esc(g.empresa)}</h4>
+            <small>${resumenEstados || 'Sin incidencias documentales'}</small>
+          </div>
+          <button type="button" class="btn-copiar" onclick="copiarResumenEmpresa(${idx})">Copiar texto</button>
+        </div>
+        <textarea class="resumen-textarea" id="resumen-texto-${idx}" readonly>${esc(g.texto)}</textarea>
+        <div class="resumen-copiado" id="resumen-copiado-${idx}"></div>
+      </div>
+    `;
+  }).join('');
 }
 
 function cerrarResumenDocumental() {
@@ -1041,19 +1086,24 @@ function cerrarResumenDocumental() {
 function abrirResumenNaranja() { abrirResumenDocumental(); }
 function cerrarResumenNaranja() { cerrarResumenDocumental(); }
 
-function construirResumenDocumentalPorEmpresa() {
+function construirResumenDocumentalPorEmpresa(obraFiltroId = '') {
   const grupos = {};
 
   todosTrabajadores.forEach(t => {
     const empresa = t.empresa?.nombre || 'Sin empresa asignada';
 
     (t.obras || []).forEach(o => {
+      if (obraFiltroId && o.obra_id !== obraFiltroId) return;
       if (o.estado !== 'naranja' && o.estado !== 'rojo') return;
 
       if (!grupos[empresa]) grupos[empresa] = [];
       grupos[empresa].push({ trabajador: t, obra: o, estado: o.estado });
     });
   });
+
+  const obraFiltroNombre = obraFiltroId
+    ? (misObras.find(o => o.id === obraFiltroId)?.nombre || '')
+    : '';
 
   return Object.keys(grupos)
     .sort((a, b) => a.localeCompare(b, 'es'))
@@ -1062,15 +1112,17 @@ function construirResumenDocumentalPorEmpresa() {
         const prioridadA = a.estado === 'rojo' ? 0 : 1;
         const prioridadB = b.estado === 'rojo' ? 0 : 1;
         if (prioridadA !== prioridadB) return prioridadA - prioridadB;
-        const na = nombreCompleto(a.trabajador).localeCompare(nombreCompleto(b.trabajador), 'es');
-        if (na !== 0) return na;
-        return String(a.obra.nombre || '').localeCompare(String(b.obra.nombre || ''), 'es');
+        const obraA = String(a.obra.nombre || '');
+        const obraB = String(b.obra.nombre || '');
+        const cmpObra = obraA.localeCompare(obraB, 'es');
+        if (cmpObra !== 0) return cmpObra;
+        return nombreCompleto(a.trabajador).localeCompare(nombreCompleto(b.trabajador), 'es');
       });
-      return { empresa, items, texto: generarTextoResumenEmpresa(empresa, items) };
+      return { empresa, items, texto: generarTextoResumenEmpresa(empresa, items, obraFiltroNombre) };
     });
 }
 
-function generarTextoResumenEmpresa(empresa, items) {
+function generarTextoResumenEmpresa(empresa, items, obraFiltroNombre = '') {
   const fecha = new Date().toLocaleDateString('es-ES', {
     day: '2-digit', month: '2-digit', year: 'numeric'
   });
@@ -1081,21 +1133,21 @@ function generarTextoResumenEmpresa(empresa, items) {
   const lineas = [];
   lineas.push('Buenos días,');
   lineas.push('');
-  lineas.push(`Os paso el resumen de documentación pendiente en e-Coordina a fecha ${fecha}.`);
+  lineas.push(`Os paso el resumen de documentación pendiente en e-Coordina a fecha ${fecha}${obraFiltroNombre ? ` para la obra ${obraFiltroNombre}` : ''}.`);
   lineas.push('');
 
   if (rojos.length > 0) {
     lineas.push('TRABAJADORES EN ROJO — ACCESO DENEGADO');
     lineas.push('Estos trabajadores no pueden acceder a obra mientras no se regularice la documentación, salvo autorización expresa y puntual del jefe de obra.');
     lineas.push('');
-    rojos.forEach((item, index) => añadirTrabajadorResumen(lineas, item, index));
+    rojos.forEach((item, index) => añadirTrabajadorResumen(lineas, item, index, !obraFiltroNombre));
   }
 
   if (naranjas.length > 0) {
     lineas.push('TRABAJADORES EN NARANJA — DOCUMENTACIÓN CON AVISOS');
     lineas.push('Estos trabajadores constan con documentación pendiente o con avisos. Os pedimos que lo reviséis y regularicéis cuanto antes para evitar incidencias de acceso en obra.');
     lineas.push('');
-    naranjas.forEach((item, index) => añadirTrabajadorResumen(lineas, item, index));
+    naranjas.forEach((item, index) => añadirTrabajadorResumen(lineas, item, index, !obraFiltroNombre));
   }
 
   lineas.push('Por favor, cuando lo tengáis corregido, avisadnos para volver a revisarlo.');
@@ -1105,10 +1157,11 @@ function generarTextoResumenEmpresa(empresa, items) {
   return lineas.join('\n');
 }
 
-function añadirTrabajadorResumen(lineas, item, index) {
+function añadirTrabajadorResumen(lineas, item, index, mostrarObra = true) {
   const t = item.trabajador;
   const o = item.obra;
-  lineas.push(`${index + 1}. ${nombreCompleto(t)} — DNI: ${t.dni || 'sin DNI'} — Obra: ${o.nombre || 'sin obra'}`);
+  const obraTxt = mostrarObra ? ` — Obra: ${o.nombre || 'sin obra'}` : '';
+  lineas.push(`${index + 1}. ${nombreCompleto(t)} — DNI: ${t.dni || 'sin DNI'}${obraTxt}`);
 
   const motivos = extraerListaMotivos(o.motivos).map(limpiarMotivo).filter(Boolean);
   if (motivos.length > 0) {
