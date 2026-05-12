@@ -330,6 +330,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+const CLAVE_OBRA_ACTIVA_JEFE = 'jefe_obra_activa_id';
+const CLAVE_OBRA_FILTRO_TRABAJADORES = 'jefe_trabajadores_obra_filtro';
+
 let misObras = [];
 let todosTrabajadores = [];
 let obraFiltroTrabajadores = '';
@@ -399,9 +402,11 @@ document.getElementById('btn-actualizar').addEventListener('click', () => {
 document.getElementById('filtro-obra-trabajadores').addEventListener('change', e => {
   obraFiltroTrabajadores = e.target.value || '';
   if (obraFiltroTrabajadores) {
-    localStorage.setItem('jefe_trabajadores_obra_filtro', obraFiltroTrabajadores);
+    localStorage.setItem(CLAVE_OBRA_ACTIVA_JEFE, obraFiltroTrabajadores);
+    localStorage.setItem(CLAVE_OBRA_FILTRO_TRABAJADORES, obraFiltroTrabajadores);
   } else {
-    localStorage.removeItem('jefe_trabajadores_obra_filtro');
+    localStorage.removeItem(CLAVE_OBRA_ACTIVA_JEFE);
+    localStorage.removeItem(CLAVE_OBRA_FILTRO_TRABAJADORES);
   }
   const obra = obtenerObraFiltro();
   aplicarBrandingObra(obra?.empresa_marca || misObras[0]?.empresa_marca || 'bosch_pascual');
@@ -516,9 +521,13 @@ function prepararFiltroTrabajadores() {
     <option value="${esc(o.id)}">${esc(o.nombre || 'Obra sin nombre')}</option>
   `).join('');
 
-  const guardada = localStorage.getItem('jefe_trabajadores_obra_filtro') || '';
+  const guardada = localStorage.getItem(CLAVE_OBRA_ACTIVA_JEFE) || localStorage.getItem(CLAVE_OBRA_FILTRO_TRABAJADORES) || '';
   select.value = misObras.some(o => o.id === guardada) ? guardada : '';
   obraFiltroTrabajadores = select.value || '';
+  if (obraFiltroTrabajadores) {
+    localStorage.setItem(CLAVE_OBRA_ACTIVA_JEFE, obraFiltroTrabajadores);
+    localStorage.setItem(CLAVE_OBRA_FILTRO_TRABAJADORES, obraFiltroTrabajadores);
+  }
 }
 
 function obtenerObraFiltro() {
