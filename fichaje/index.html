@@ -240,6 +240,32 @@
   }
   .motivos li { margin: 4px 0; }
 
+  /* Aviso autocierre */
+  .aviso-autocierre {
+    background: #fff4e6;
+    border: 2px solid var(--naranja);
+    border-radius: 10px;
+    padding: 16px;
+    margin: 14px 0;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  .aviso-autocierre .aviso-titulo {
+    display: block;
+    font-weight: 700;
+    font-size: 16px;
+    margin-bottom: 8px;
+    color: var(--naranja);
+  }
+  .aviso-autocierre p {
+    margin: 6px 0;
+    color: #555;
+  }
+  .aviso-autocierre .aviso-alerta {
+    font-weight: 700;
+    color: var(--rojo);
+  }
+
   .confirmacion-final {
     text-align: center;
     padding: 30px 16px;
@@ -370,6 +396,7 @@
   }
   html[dir="rtl"] .motivos.criticos { border-right-color: var(--rojo); }
   html[dir="rtl"] .aviso-gps        { text-align: right; }
+  html[dir="rtl"] .aviso-autocierre { text-align: right; }
   html[dir="rtl"] .ultimo-dni .btn-borrar-dni {
     margin-left: 0;
     margin-right: 8px;
@@ -435,6 +462,7 @@
   <!-- PASO 3: resultado validación -->
   <div class="tarjeta oculto" id="paso-resultado">
     <div class="estado-box" id="estado-box"></div>
+    <div class="aviso-autocierre oculto" id="aviso-autocierre-box"></div>
     <div class="motivos oculto" id="motivos-box"></div>
     <div class="error-banner oculto" id="error-resultado"></div>
     <div class="botones-fichaje" id="botones-fichaje">
@@ -479,35 +507,36 @@ const estado = {
 let ultimoCodigoGps = null;
 
 const el = {
-  logoMarca:      document.getElementById('logo-marca'),
-  pieMarca:       document.getElementById('pie-marca'),
-  obraNombre:     document.getElementById('obra-nombre'),
-  pasoDni:        document.getElementById('paso-dni'),
-  pasoCargando:   document.getElementById('paso-cargando'),
-  pasoResultado:  document.getElementById('paso-resultado'),
-  pasoFinal:      document.getElementById('paso-final'),
-  inputDni:       document.getElementById('dni'),
-  btnContinuar:   document.getElementById('btn-continuar'),
-  ultimoDniBox:   document.getElementById('ultimo-dni-box'),
-  btnUltimoDni:   document.getElementById('btn-ultimo-dni'),
-  btnBorrarDni:   document.getElementById('btn-borrar-dni'),
-  chkRecordarDni: document.getElementById('chk-recordar-dni'),
-  errorDni:       document.getElementById('error-dni'),
-  avisoGps:       document.getElementById('aviso-gps'),
-  errorResultado: document.getElementById('error-resultado'),
-  cargandoTexto:  document.getElementById('cargando-texto'),
-  estadoBox:      document.getElementById('estado-box'),
-  motivosBox:     document.getElementById('motivos-box'),
-  botonesFichaje: document.getElementById('botones-fichaje'),
-  btnEntrada:     document.getElementById('btn-entrada'),
-  btnSalida:      document.getElementById('btn-salida'),
-  btnVolver:      document.getElementById('btn-volver'),
-  finalTick:      document.getElementById('final-tick'),
-  finalTitulo:    document.getElementById('final-titulo'),
-  finalNombre:    document.getElementById('final-nombre'),
-  finalHora:      document.getElementById('final-hora'),
-  finalMotivos:   document.getElementById('final-motivos'),
-  btnNuevo:       document.getElementById('btn-nuevo-fichaje')
+  logoMarca:          document.getElementById('logo-marca'),
+  pieMarca:           document.getElementById('pie-marca'),
+  obraNombre:         document.getElementById('obra-nombre'),
+  pasoDni:            document.getElementById('paso-dni'),
+  pasoCargando:       document.getElementById('paso-cargando'),
+  pasoResultado:      document.getElementById('paso-resultado'),
+  pasoFinal:          document.getElementById('paso-final'),
+  inputDni:           document.getElementById('dni'),
+  btnContinuar:       document.getElementById('btn-continuar'),
+  ultimoDniBox:       document.getElementById('ultimo-dni-box'),
+  btnUltimoDni:       document.getElementById('btn-ultimo-dni'),
+  btnBorrarDni:       document.getElementById('btn-borrar-dni'),
+  chkRecordarDni:     document.getElementById('chk-recordar-dni'),
+  errorDni:           document.getElementById('error-dni'),
+  avisoGps:           document.getElementById('aviso-gps'),
+  avisoAutocierreBox: document.getElementById('aviso-autocierre-box'),
+  errorResultado:     document.getElementById('error-resultado'),
+  cargandoTexto:      document.getElementById('cargando-texto'),
+  estadoBox:          document.getElementById('estado-box'),
+  motivosBox:         document.getElementById('motivos-box'),
+  botonesFichaje:     document.getElementById('botones-fichaje'),
+  btnEntrada:         document.getElementById('btn-entrada'),
+  btnSalida:          document.getElementById('btn-salida'),
+  btnVolver:          document.getElementById('btn-volver'),
+  finalTick:          document.getElementById('final-tick'),
+  finalTitulo:        document.getElementById('final-titulo'),
+  finalNombre:        document.getElementById('final-nombre'),
+  finalHora:          document.getElementById('final-hora'),
+  finalMotivos:       document.getElementById('final-motivos'),
+  btnNuevo:           document.getElementById('btn-nuevo-fichaje')
 };
 
 // =====================================================================
@@ -552,6 +581,10 @@ const TEXTOS = {
     error_generico:      'No se pudo completar la operación. Inténtelo de nuevo.',
     fichaje_rechazado:   'No se pudo registrar el fichaje.',
     reintentar:          'Reintentar',
+    aviso_autocierre_titulo: '⚠ Atención: ayer no fichaste la salida',
+    aviso_autocierre_texto1: 'El sistema cerró tu jornada automáticamente a las',
+    aviso_autocierre_texto2: 'Esa hora es la que cuenta en tu factura.',
+    aviso_autocierre_alerta: 'Si esa hora no es correcta, pierdes horas pagadas. Avisa al encargado para que lo corrija.',
     gps: {
       denegado_titulo: '⚠ No tenemos acceso a su ubicación',
       denegado_pasos:  [
@@ -622,6 +655,10 @@ const TEXTOS = {
     error_generico:      'تعذّر إتمام العملية. أعد المحاولة.',
     fichaje_rechazado:   'تعذّر تسجيل الحضور.',
     reintentar:          'إعادة المحاولة',
+    aviso_autocierre_titulo: '⚠ تنبيه: لم تسجّل خروجك أمس',
+    aviso_autocierre_texto1: 'أغلق النظام وردة عملك تلقائياً في الساعة',
+    aviso_autocierre_texto2: 'هذا هو الوقت الذي يُحتسب في فاتورتك.',
+    aviso_autocierre_alerta: 'إذا كان الوقت غير صحيح، ستخسر ساعات مدفوعة. أخبر المسؤول ليصحح ذلك.',
     gps: {
       denegado_titulo: '⚠ لا يمكننا الوصول إلى موقعك',
       denegado_pasos:  [
@@ -692,6 +729,10 @@ const TEXTOS = {
     error_generico:      'Operațiunea nu a putut fi finalizată. Reîncercați.',
     fichaje_rechazado:   'Pontajul nu a putut fi înregistrat.',
     reintentar:          'Reîncercați',
+    aviso_autocierre_titulo: '⚠ Atenție: ieri nu ai înregistrat ieșirea',
+    aviso_autocierre_texto1: 'Sistemul ți-a închis tura automat la ora',
+    aviso_autocierre_texto2: 'Aceasta este ora care se contabilizează în factura ta.',
+    aviso_autocierre_alerta: 'Dacă ora nu este corectă, pierzi ore plătite. Anunță responsabilul pentru a corecta.',
     gps: {
       denegado_titulo: '⚠ Nu avem acces la locația dvs.',
       denegado_pasos:  [
@@ -727,8 +768,6 @@ const TEXTOS = {
 
 // =====================================================================
 // DICCIONARIO DE MOTIVOS
-// Traduce los textos que genera el importador de e-Coordina.
-// Formato típico: "NombreDocumento (EstadoEcoordina) → resultado"
 // =====================================================================
 const MOTIVOS_DOCS = {
   docs: {
@@ -777,15 +816,10 @@ const MOTIVOS_DOCS = {
   }
 };
 
-// Traduce un motivo individual al idioma actual.
 function traducirMotivo(texto, lang) {
   if (!texto || lang === 'es') return texto;
   const d = MOTIVOS_DOCS;
-
-  // Mensaje especial del sistema (sin patrón doc/estado)
   if (d.especiales[texto]) return d.especiales[texto][lang] || texto;
-
-  // Detectar prefijo
   let prefijo = '';
   let resto = texto;
   for (const [prefES, prefTrad] of Object.entries(d.prefijos)) {
@@ -795,17 +829,12 @@ function traducirMotivo(texto, lang) {
       break;
     }
   }
-
-  // Mensaje de cambio de empresa: "[Cambio de empresa] Se han ignorado..."
   if (prefijo && resto.startsWith('Se han ignorado')) {
     const partes = resto.split(': ');
     const nombreEmpresa = partes.slice(1).join(': ');
     const textoFijo = d.cambio_empresa_texto[lang] || resto;
     return prefijo + textoFijo + (nombreEmpresa ? ' ' + nombreEmpresa : '');
   }
-
-  // Formato estándar: "NombreDoc (Estado) → resultado"
-  // Usamos (.+) codicioso para capturar nombres de documento con paréntesis internos
   const match = resto.match(/^(.+) \(([^)]+)\) → (.+)$/);
   if (match) {
     const [, nombreDoc, estadoDoc, resultado] = match;
@@ -814,8 +843,6 @@ function traducirMotivo(texto, lang) {
     const resTrad    = (d.resultados[resultado] && d.resultados[resultado][lang]) || resultado;
     return prefijo + docTrad + ' (' + estadoTrad + ') → ' + resTrad;
   }
-
-  // Sin coincidencia: devolver con prefijo traducido
   return prefijo + resto;
 }
 
@@ -853,15 +880,14 @@ function aplicarIdioma(lang) {
 
   localStorage.setItem('idioma_fichaje', lang);
 
-  // Re-renderizar aviso GPS si está visible
   if (!el.avisoGps.classList.contains('oculto')) {
     mostrarAvisoGps(ultimoCodigoGps);
   }
 
-  // Re-renderizar motivos si el paso resultado está visible
   if (!el.pasoResultado.classList.contains('oculto') && estado.validacion) {
     const esCritico = estado.validacion.estado === 'rojo' && !estado.validacion.tiene_excepcion_hoy;
     pintarMotivos(el.motivosBox, estado.validacion.motivos, esCritico);
+    pintarAvisoAutocierre(estado.validacion.aviso_autocierre);
   }
 }
 
@@ -941,11 +967,7 @@ function ocultarDniRecordado() {
 }
 
 // =====================================================================
-// G3 — NIVEL 1: protección contra DNI compartido
-// Si el DNI que ficha es distinto al que había guardado en localStorage,
-// se interpreta que el móvil está siendo usado por otra persona.
-// En ese caso se borra el DNI guardado en lugar de sobreescribirlo.
-// Así el siguiente trabajador no ve el DNI del compañero anterior.
+// G3 — NIVEL 1
 // =====================================================================
 function gestionarRecordatorioDni(dni, validacion) {
   if (!el.chkRecordarDni.checked) {
@@ -957,7 +979,6 @@ function gestionarRecordatorioDni(dni, validacion) {
     const limpio  = normalizarDni(dni);
     const guardado = localStorage.getItem('ultimo_dni') || '';
     if (guardado && guardado !== limpio) {
-      // DNI distinto al guardado → móvil compartido, no guardar nada
       localStorage.removeItem('ultimo_dni');
       ocultarDniRecordado();
     } else {
@@ -968,69 +989,34 @@ function gestionarRecordatorioDni(dni, validacion) {
 }
 
 // =====================================================================
-// G3 — NIVEL 2: detección de patrón de móvil compartido
-//
-// Tras cada fichaje exitoso se guarda en localStorage un historial
-// de DNIs: clave "movil_historial", valor array JSON de
-// { dni: string, ts: number (epoch ms) }.
-//
-// Al añadir una entrada se limpian automáticamente las que tienen
-// más de 2 horas. Si quedan 3 o más DNIs distintos en ese periodo,
-// se considera que el móvil está siendo usado por varios trabajadores
-// y se registra una incidencia en Supabase para el encargado.
-//
-// La llamada a Supabase es fire-and-forget: si falla, no molesta
-// al trabajador ni bloquea el flujo.
+// G3 — NIVEL 2
 // =====================================================================
-const G3_VENTANA_MS  = 2 * 60 * 60 * 1000; // 2 horas en ms
-const G3_UMBRAL_DNIS = 3;                   // 3 DNIs distintos = alerta
+const G3_VENTANA_MS  = 2 * 60 * 60 * 1000;
+const G3_UMBRAL_DNIS = 3;
 const G3_CLAVE_LOCAL = 'movil_historial';
 
 function registrarHistorialDni(dni) {
   const limpio = normalizarDni(dni);
   if (!limpio) return;
-
   const ahora  = Date.now();
   const limite = ahora - G3_VENTANA_MS;
-
-  // Leer historial existente
   let historial = [];
-  try {
-    historial = JSON.parse(localStorage.getItem(G3_CLAVE_LOCAL) || '[]');
-  } catch (_) { historial = []; }
-
-  // Eliminar entradas antiguas
+  try { historial = JSON.parse(localStorage.getItem(G3_CLAVE_LOCAL) || '[]'); } catch (_) { historial = []; }
   historial = historial.filter(e => e.ts >= limite);
-
-  // Añadir la entrada actual
   historial.push({ dni: limpio, ts: ahora });
-
-  // Guardar
-  try {
-    localStorage.setItem(G3_CLAVE_LOCAL, JSON.stringify(historial));
-  } catch (_) { /* cuota llena: ignorar silenciosamente */ }
-
+  try { localStorage.setItem(G3_CLAVE_LOCAL, JSON.stringify(historial)); } catch (_) {}
   return historial;
 }
 
 async function detectarMovilCompartido(obraId, historial) {
   if (!obraId || !historial || historial.length === 0) return;
-
-  // Contar DNIs únicos en la ventana
   const dnisUnicos = new Set(historial.map(e => e.dni));
   if (dnisUnicos.size < G3_UMBRAL_DNIS) return;
-
-  // Umbral alcanzado: registrar incidencia (fire-and-forget)
   const detalle =
     dnisUnicos.size + ' DNIs distintos en las últimas 2h desde el mismo navegador. ' +
     'Posible uso compartido del móvil de obra.';
-
   try {
-    await sb.rpc('registrar_incidencia_movil_compartido', {
-      p_obra_id: obraId,
-      p_detalle: detalle
-    });
-    // Limpiar historial tras reportar para no disparar la alerta en cada fichaje siguiente
+    await sb.rpc('registrar_incidencia_movil_compartido', { p_obra_id: obraId, p_detalle: detalle });
     localStorage.removeItem(G3_CLAVE_LOCAL);
   } catch (err) {
     console.warn('[G3] No se pudo registrar incidencia movil_compartido:', err);
@@ -1047,25 +1033,20 @@ function mostrarAvisoGps(codigo) {
   ultimoCodigoGps = codigo;
   el.avisoGps.classList.remove('oculto');
   ocultarErrorDni();
-
   let tituloKey, pasosKey, notaKey;
   if      (codigo === 1) { tituloKey = 'denegado_titulo'; pasosKey = 'denegado_pasos'; notaKey = 'denegado_nota'; }
   else if (codigo === 2) { tituloKey = 'nodispo_titulo';  pasosKey = 'nodispo_pasos';  notaKey = 'nodispo_nota'; }
   else if (codigo === 3) { tituloKey = 'timeout_titulo';  pasosKey = 'timeout_pasos';  notaKey = 'timeout_nota'; }
   else                   { tituloKey = 'generico_titulo'; pasosKey = 'generico_pasos'; notaKey = 'generico_nota'; }
-
   const titulo = Tgps(tituloKey);
   const pasos  = Tgps(pasosKey);
   const nota   = Tgps(notaKey);
-
   const pasosHtml = Array.isArray(pasos) ? pasos.map(p => '<li>' + p + '</li>').join('') : '';
   const notaHtml  = nota ? '<span class="nota">' + escapar(nota) + '</span>' : '';
-
   el.avisoGps.innerHTML =
     '<span class="titulo-aviso">' + escapar(titulo) + '</span>' +
     '<ol>' + pasosHtml + '</ol>' + notaHtml +
     '<button type="button" class="reintentar" id="btn-reintentar-gps">' + escapar(T('reintentar')) + '</button>';
-
   document.getElementById('btn-reintentar-gps').addEventListener('click', reintentarGps);
 }
 
@@ -1087,7 +1068,6 @@ function irA(paso) {
   paso.classList.remove('oculto');
 }
 
-// Pinta motivos traduciéndolos al idioma actual
 function pintarMotivos(contenedor, motivos, criticos) {
   if (!motivos || motivos.length === 0) {
     contenedor.classList.add('oculto');
@@ -1099,6 +1079,21 @@ function pintarMotivos(contenedor, motivos, criticos) {
     motivos.map(m => '<li>' + escapar(traducirMotivo(m, idiomaActual)) + '</li>').join('') +
     '</ul>';
   contenedor.classList.remove('oculto');
+}
+
+// Pinta el aviso de autocierre del día anterior
+function pintarAvisoAutocierre(aviso) {
+  if (!aviso || !aviso.hora) {
+    el.avisoAutocierreBox.classList.add('oculto');
+    el.avisoAutocierreBox.innerHTML = '';
+    return;
+  }
+  el.avisoAutocierreBox.innerHTML =
+    '<span class="aviso-titulo">' + escapar(T('aviso_autocierre_titulo')) + '</span>' +
+    '<p>' + escapar(T('aviso_autocierre_texto1')) + ' <strong>' + escapar(aviso.hora) + '</strong>. ' +
+    escapar(T('aviso_autocierre_texto2')) + '</p>' +
+    '<p class="aviso-alerta">' + escapar(T('aviso_autocierre_alerta')) + '</p>';
+  el.avisoAutocierreBox.classList.remove('oculto');
 }
 
 function escapar(txt) {
@@ -1123,19 +1118,13 @@ function interpretarError(err) {
 
 // =====================================================================
 // GPS — FALLBACK GRADUADO (G2)
-// Intento 1: alta precisión, timeout 8s, maximumAge 60s
-// Intento 2 (solo si timeout): baja precisión, timeout 15s, maximumAge 120s
-// Si falla por permiso denegado (1) o GPS apagado (2), falla inmediato.
 // =====================================================================
 function obtenerUbicacion() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) return reject({ codigo: null, mensaje: 'GPS no soportado.' });
-
-    // Intento 1: alta precisión
     navigator.geolocation.getCurrentPosition(
       pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
       err => {
-        // Solo en timeout intentamos de nuevo con menor precisión
         if (err.code === 3) {
           console.log('[GPS] Timeout en intento 1, reintentando con baja precisión…');
           navigator.geolocation.getCurrentPosition(
@@ -1297,18 +1286,21 @@ function mostrarResultadoValidacion(v) {
       el.estadoBox.classList.add('estado-verde');
       el.estadoBox.textContent = T('acceso_ok');
       pintarMotivos(el.motivosBox, null);
+      pintarAvisoAutocierre(v.aviso_autocierre);
       configurarBotonesFichaje('verde', tipoSugerido);
       break;
     case 'naranja':
       el.estadoBox.classList.add('estado-naranja');
       el.estadoBox.textContent = T('acceso_aviso');
       pintarMotivos(el.motivosBox, v.motivos, false);
+      pintarAvisoAutocierre(v.aviso_autocierre);
       configurarBotonesFichaje('naranja', tipoSugerido);
       break;
     case 'excepcion':
       el.estadoBox.classList.add('estado-naranja');
       el.estadoBox.textContent = T('acceso_excepcion');
       pintarMotivos(el.motivosBox, v.motivos, false);
+      pintarAvisoAutocierre(v.aviso_autocierre);
       configurarBotonesFichaje('naranja', tipoSugerido);
       break;
     case 'rojo':
@@ -1316,6 +1308,8 @@ function mostrarResultadoValidacion(v) {
       el.estadoBox.classList.add('estado-rojo');
       el.estadoBox.textContent = T('acceso_denegado');
       pintarMotivos(el.motivosBox, v.motivos, true);
+      // En rojo bloqueado no mostramos el aviso de autocierre (no van a poder fichar)
+      el.avisoAutocierreBox.classList.add('oculto');
       el.botonesFichaje.classList.add('oculto');
       el.btnEntrada.disabled = true;
       el.btnSalida.disabled  = true;
@@ -1377,7 +1371,6 @@ function mostrarConfirmacionFinal(r) {
     el.finalMotivos.classList.add('oculto');
   }
 
-  // G3 Nivel 2: registrar DNI en historial y detectar patrón de móvil compartido
   const historial = registrarHistorialDni(estado.dni);
   detectarMovilCompartido(estado.obraId, historial);
 
