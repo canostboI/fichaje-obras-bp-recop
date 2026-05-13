@@ -151,58 +151,48 @@
 
     trabajadores.forEach(t => {
       t.dias = {};
-      // dias_autocierre[d] = nº de salidas autocerradas ese día.
-      // Lo usaremos en pintarHoja como "marcar amarillo si > 0" y para sumar el contador global.
       t.dias_autocierre = {};
       for (let d = 1; d <= diasMes; d++) {
         t.dias[d] = 0;
         t.dias_autocierre[d] = 0;
       }
 
-      const porDia = {};
-
-      t.fichajes.forEach(f => {
-        // I1: Date(iso) interpreta el ISO como UTC y getDate() devuelve el día
-        // en zona local del navegador (España) -> correcto para asignar al calendario.
-        const d = new Date(f.hora);
-        const dia = d.getDate();
-        if (!porDia[dia]) porDia[dia] = [];
-        porDia[dia].push({
+      // FIX A-05: emparejar entrada/salida de forma consecutiva global,
+      // sin agrupar por día primero. Así las jornadas que cruzan medianoche
+      // se emparejan correctamente y las horas se asignan al día de la entrada.
+      const eventos = t.fichajes
+        .map(f => ({
           tipo: f.tipo,
-          hora: d,
+          hora: new Date(f.hora),
           cierre_automatico: !!f.cierre_automatico
-        });
-      });
+        }))
+        .sort((a, b) => a.hora - b.hora);
 
-      Object.keys(porDia).forEach(diaStr => {
-        const dia = Number(diaStr);
-        const eventos = porDia[dia].sort((a, b) => a.hora - b.hora);
-        let entrada = null;
-        let horas = 0;
-        let autocierresDia = 0;
+      let entrada = null;
 
-        eventos.forEach(ev => {
-          if (ev.tipo === 'entrada') {
-            if (!entrada) entrada = ev.hora;
-          } else if (ev.tipo === 'salida') {
-            if (entrada) {
-              const diff = (ev.hora - entrada) / 3600000;
-              if (diff > 0 && diff < 24) horas += diff;
-              entrada = null;
+      eventos.forEach(ev => {
+        if (ev.tipo === 'entrada') {
+          // Solo abrimos nueva entrada si no hay una abierta ya
+          if (!entrada) entrada = ev;
+        } else if (ev.tipo === 'salida') {
+          if (entrada) {
+            const diff = (ev.hora - entrada.hora) / 3600000;
+            // Jornada válida: positiva y menor de 24h
+            if (diff > 0 && diff < 24) {
+              const dia = entrada.hora.getDate();
+              t.dias[dia] = redondear2((t.dias[dia] || 0) + diff);
+              if (ev.cierre_automatico) {
+                t.dias_autocierre[dia] = (t.dias_autocierre[dia] || 0) + 1;
+              }
             }
-            // Contamos cualquier salida autocerrada del día,
-            // emparejada o no: cada salida autocerrada cuenta 1.
-            if (ev.cierre_automatico) autocierresDia++;
+            entrada = null;
           }
-        });
-
-        t.dias[dia] = redondear2(horas);
-        t.dias_autocierre[dia] = autocierresDia;
+          // Salida sin entrada previa: ignorar (dato huérfano)
+        }
       });
 
       t.horas_mes = redondear2(Object.values(t.dias).reduce((a, b) => a + b, 0));
       t.total = t.precio_hora ? redondear2(t.horas_mes * Number(t.precio_hora)) : 0;
-      // Total de autocierres del mes para este trabajador
       t.autocierres_mes = Object.values(t.dias_autocierre).reduce((a, b) => a + b, 0);
     });
 
