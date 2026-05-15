@@ -224,7 +224,7 @@ const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  AutoLogout.init(sb);
+AutoLogout.init(sb);
 
 const CLAVE_OBRA_ACTIVA_JEFE = 'jefe_obra_activa_id';
 
@@ -282,7 +282,6 @@ let miUsuarioAppId = null;
     localStorage.setItem(CLAVE_OBRA_ACTIVA_JEFE, obraActual);
     const marca = selector.options[selector.selectedIndex].dataset.marca;
     aplicarBrandingObra(marca);
-    // Limpiar mensaje de export al cambiar de obra
     const msg = document.getElementById('msg-export');
     msg.className = 'msg-export';
     msg.textContent = '';
@@ -496,7 +495,6 @@ function abrirCorreccion(id, nombre, hora) {
   fichajeCorrigiendoId = id;
   fichajeCorrigiendoHora = hora;
   document.getElementById('correccion-subtitulo').textContent = nombre;
-  // Mostrar la hora original en hora LOCAL del navegador (no del ISO crudo)
   const d = new Date(hora);
   const hh = String(d.getHours()).padStart(2, '0');
   const mi = String(d.getMinutes()).padStart(2, '0');
@@ -519,13 +517,8 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   if (!nuevaHora) { mostrarError('La hora es obligatoria.'); return; }
   if (!motivo) { mostrarError('El motivo es obligatorio.'); return; }
 
-  if (!miUsuarioAppId) {
-    mostrarError('No se ha podido identificar al usuario.');
-    return;
-  }
-
-  // Construir la nueva hora respetando zona horaria local del navegador
-  // La fecha base se toma del fichaje original (en hora local del navegador)
+  // Construir la nueva hora respetando zona horaria local del navegador.
+  // La fecha base se toma del fichaje original (en hora local del navegador).
   const dOriginal = new Date(fichajeCorrigiendoHora);
   if (isNaN(dOriginal.getTime())) {
     mostrarError('La fecha original del fichaje no es válida.');
@@ -544,21 +537,25 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
 
   document.getElementById('btn-guardar').disabled = true;
 
-  const { error } = await sb
-    .from('fichajes')
-    .update({
-      hora: horaLocal.toISOString(),
-      motivo_correccion: motivo,
-      corregido_por: miUsuarioAppId,
-      corregido_en: new Date().toISOString()
-    })
-    .eq('id', fichajeCorrigiendoId);
+  // ── CAMBIO PASO 2.1: sustituido UPDATE directo por RPC corregir_fichaje ──
+  const { data: rpcData, error } = await sb.rpc('corregir_fichaje', {
+    p_fichaje_id: fichajeCorrigiendoId,
+    p_nueva_hora: horaLocal.toISOString(),
+    p_motivo: motivo
+  });
 
   if (error) {
     document.getElementById('btn-guardar').disabled = false;
     mostrarError('Error al guardar: ' + error.message);
     return;
   }
+
+  if (!rpcData || rpcData.success !== true) {
+    document.getElementById('btn-guardar').disabled = false;
+    mostrarError((rpcData && rpcData.error) ? rpcData.error : 'No se ha podido guardar la corrección.');
+    return;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   document.getElementById('ok-correccion').textContent = 'Corrección guardada.';
   document.getElementById('ok-correccion').style.display = 'block';
@@ -572,15 +569,6 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
 // =====================================================================
 // EXPORTACIÓN EXCEL MENSUAL
 // =====================================================================
-// El generador del Excel vive en js/excel-proforma.js (window.ExcelProforma).
-// Aquí solo:
-//   1) validamos formulario,
-//   2) consultamos los datos a Supabase con permisos de jefe (RLS aplica),
-//   3) llamamos al módulo (que devuelve { buffer, autocierres }),
-//   4) si hay autocierres avisamos al usuario y le dejamos cancelar,
-//   5) descargamos el archivo.
-// =====================================================================
-
 async function exportarExcelMensual() {
   const msg = document.getElementById('msg-export');
   const btn = document.getElementById('btn-exportar');
@@ -631,11 +619,8 @@ async function exportarExcelMensual() {
       return;
     }
 
-    // El módulo devuelve { buffer, autocierres }. autocierres es el número
-    // total de salidas con cierre_automatico = true en el mes.
     const { buffer, autocierres } = await window.ExcelProforma.generar({ obra, mes, fichajes });
 
-    // Aviso previo: si hay autocierres, preguntar antes de descargar.
     if (autocierres > 0) {
       const seguir = window.confirm(
         `Atención: se han detectado ${autocierres} ${autocierres === 1 ? 'salida' : 'salidas'} con cierre automático en este mes.\n\n` +
@@ -685,17 +670,12 @@ async function obtenerObra(obraId) {
 }
 
 async function obtenerFichajesMes(obraId, mes) {
-  // I1: rango del mes en hora local española (Europe/Madrid).
-  // El primer día del mes a las 00:00 local y el primer día del mes siguiente a las 00:00 local,
-  // luego se convierten a UTC ISO para enviar a Supabase.
   const [year, month] = mes.split('-').map(Number);
   const desde = new Date(year, month - 1, 1, 0, 0, 0, 0);
   const hasta = new Date(year, month, 1, 0, 0, 0, 0);
   const inicio = desde.toISOString();
   const fin = hasta.toISOString();
 
-  // Intento 1: con join a empresa
-  // Frente B: pedimos cierre_automatico para marcar en amarillo en el Excel.
   let { data, error } = await sb
     .from('fichajes')
     .select(`
@@ -721,7 +701,6 @@ async function obtenerFichajesMes(obraId, mes) {
 
   if (!error) return data || [];
 
-  // Fallback: sin empresa (por si el FK no existe en algún entorno)
   const fallback = await sb
     .from('fichajes')
     .select(`
@@ -749,7 +728,7 @@ async function obtenerFichajesMes(obraId, mes) {
 }
 
 // =====================================================================
-// Helpers locales
+// Helpers
 // =====================================================================
 
 function descargarBuffer(buffer, filename) {
