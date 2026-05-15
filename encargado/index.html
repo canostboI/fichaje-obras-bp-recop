@@ -7,6 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
   <script src="../js/branding.js"></script>
+  <script src="../js/auto-logout.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: sans-serif; background: #f4f4f4; color: #222; }
@@ -526,6 +527,90 @@
       display: none;
     }
 
+    /* ============================================ */
+    /* Modal confirmación de presencia              */
+    /* ============================================ */
+    .modal-confirmacion {
+      background: white;
+      color: #222;
+      border-radius: 14px;
+      padding: 1.8rem;
+      max-width: 480px;
+      width: 92%;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.35);
+    }
+    .modal-confirmacion h3 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #1b5e20;
+      margin-bottom: 1.2rem;
+    }
+    .declaracion-texto {
+      background: #f8faf8;
+      border: 1px solid #c8e6c9;
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      font-size: 0.97rem;
+      line-height: 1.65;
+      color: #222;
+      margin-bottom: 1.2rem;
+    }
+    .declaracion-texto strong {
+      color: #1b5e20;
+    }
+    .checkbox-declaracion {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 1.4rem;
+      cursor: pointer;
+    }
+    .checkbox-declaracion input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      min-width: 20px;
+      margin-top: 2px;
+      cursor: pointer;
+      accent-color: #1b5e20;
+    }
+    .checkbox-declaracion span {
+      font-size: 0.92rem;
+      color: #333;
+      line-height: 1.4;
+    }
+    .modal-confirmacion-acciones {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    .btn-confirmar-ronda {
+      background: #1b5e20;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.4rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-confirmar-ronda:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+    .btn-confirmar-ronda:hover:not(:disabled) {
+      background: #2e7d32;
+    }
+    .btn-cancelar-ronda {
+      background: #f1f5f9;
+      color: #333;
+      border: none;
+      padding: 0.75rem 1.2rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .btn-cancelar-ronda:hover { background: #e2e8f0; }
+
     .loading { color: #888; font-style: italic; }
 
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
@@ -770,6 +855,7 @@
   <p id="msg-error" style="color:red; display:none"></p>
 </main>
 
+<!-- Modal accesos denegados -->
 <div class="modal-overlay" id="modal-accesos-overlay">
   <div class="modal-accesos">
     <div class="modal-accesos-cab">
@@ -784,6 +870,7 @@
   </div>
 </div>
 
+<!-- Modal documentación naranja -->
 <div class="modal-overlay" id="modal-naranjas-overlay">
   <div class="modal-accesos">
     <div class="modal-accesos-cab">
@@ -798,6 +885,7 @@
   </div>
 </div>
 
+<!-- Modal QR -->
 <div class="modal-overlay" id="modal-qr">
   <div class="modal-qr">
     <h3 id="qr-obra-nombre">Obra</h3>
@@ -810,6 +898,7 @@
   </div>
 </div>
 
+<!-- Modal fichaje manual -->
 <div class="modal-overlay" id="modal-manual">
   <div class="modal-manual">
     <h3>Fichar por trabajador</h3>
@@ -856,31 +945,48 @@
   </div>
 </div>
 
+<!-- ── NUEVO: Modal confirmación de presencia (Paso 3.2 Parte A) ── -->
+<div class="modal-overlay" id="modal-confirmacion-overlay">
+  <div class="modal-confirmacion">
+    <h3>✅ Confirmación de presencia</h3>
+    <div class="declaracion-texto" id="declaracion-texto">
+      <!-- Se rellena dinámicamente con nombre, obra, fecha, hora y nº de personas -->
+    </div>
+    <label class="checkbox-declaracion">
+      <input type="checkbox" id="checkbox-declaracion">
+      <span>He verificado presencialmente que estas son todas las personas en obra y no hay ninguna más.</span>
+    </label>
+    <div class="modal-confirmacion-acciones">
+      <button class="btn-cancelar-ronda" id="btn-cancelar-confirmacion">Cancelar</button>
+      <button class="btn-confirmar-ronda" id="btn-confirmar-ronda" disabled>Confirmar</button>
+    </div>
+  </div>
+</div>
+<!-- ──────────────────────────────────────────────────────────────── -->
+
 <script>
   const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
   const { createClient } = supabase;
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  AutoLogout.init(sb);
 
   let obraActualId = null;
   let obraActualNombre = '';
   let brandingActual = null;
   let trabajadoresObra = [];
+  let nombreEncargado = '';
 
   let presentesCache = [];
   let naranjasActualesCache = [];
   let intervalRelativo = null;
   let intervalPresencia = null;
 
-
   const cardNaranjas = document.getElementById('card-naranjas');
   if (cardNaranjas) {
     cardNaranjas.addEventListener('click', abrirModalNaranjas);
     cardNaranjas.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        abrirModalNaranjas();
-      }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirModalNaranjas(); }
     });
   }
 
@@ -888,28 +994,20 @@
   if (cardRojos) {
     cardRojos.addEventListener('click', abrirModalAccesosDenegados);
     cardRojos.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        abrirModalAccesosDenegados();
-      }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirModalAccesosDenegados(); }
     });
   }
 
-  // I3 — estado del indicador de conexión
+  // I3 — indicador de conexión
   let estaOffline = false;
   let timeoutBannerOnline = null;
 
-  // ── Indicador de conexión (I3) ──────────────────────────────────────────────
   function marcarOffline() {
     if (estaOffline) return;
     estaOffline = true;
-    if (timeoutBannerOnline) {
-      clearTimeout(timeoutBannerOnline);
-      timeoutBannerOnline = null;
-    }
+    if (timeoutBannerOnline) { clearTimeout(timeoutBannerOnline); timeoutBannerOnline = null; }
     const banner = document.getElementById('conexion-banner');
-    const texto = document.getElementById('conexion-banner-texto');
-    texto.textContent = '⚠ Sin conexión — Los datos pueden estar desactualizados';
+    document.getElementById('conexion-banner-texto').textContent = '⚠ Sin conexión — Los datos pueden estar desactualizados';
     banner.classList.remove('online');
     banner.classList.remove('oculto');
   }
@@ -918,8 +1016,7 @@
     if (!estaOffline) return;
     estaOffline = false;
     const banner = document.getElementById('conexion-banner');
-    const texto = document.getElementById('conexion-banner-texto');
-    texto.textContent = '✓ Conexión restaurada';
+    document.getElementById('conexion-banner-texto').textContent = '✓ Conexión restaurada';
     banner.classList.add('online');
     banner.classList.remove('oculto');
     if (timeoutBannerOnline) clearTimeout(timeoutBannerOnline);
@@ -947,6 +1044,8 @@
       mostrarError('Acceso denegado. No tienes rol de encargado.');
       return;
     }
+
+    nombreEncargado = usuario.nombre || 'Encargado';
 
     const { data: asignaciones } = await sb
       .from('usuarios_obra')
@@ -1015,12 +1114,8 @@
     iniciarRefrescoPresencia();
   }
 
-  // Auto-refresh de presencia (I2)
   function iniciarRefrescoPresencia() {
-    if (intervalPresencia) {
-      clearInterval(intervalPresencia);
-      intervalPresencia = null;
-    }
+    if (intervalPresencia) { clearInterval(intervalPresencia); intervalPresencia = null; }
     intervalPresencia = setInterval(() => {
       if (document.hidden) return;
       if (!obraActualId) return;
@@ -1029,9 +1124,7 @@
   }
 
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && obraActualId) {
-      cargarPresencia(obraActualId);
-    }
+    if (!document.hidden && obraActualId) cargarPresencia(obraActualId);
   });
 
   // ============================================
@@ -1070,12 +1163,7 @@
     data.forEach(inc => {
       const tid = inc.trabajador_id || 'desconocido';
       if (!porTrabajador[tid]) {
-        porTrabajador[tid] = {
-          incidencia_id: inc.id,
-          trabajador: inc.trabajadores,
-          ultimo_intento: inc.created_at,
-          intentos: 1
-        };
+        porTrabajador[tid] = { incidencia_id: inc.id, trabajador: inc.trabajadores, ultimo_intento: inc.created_at, intentos: 1 };
       } else {
         porTrabajador[tid].intentos++;
       }
@@ -1094,7 +1182,6 @@
       const dni = t ? (t.dni || '') : '';
       const horaUltimo = formatHora(g.ultimo_intento);
       const intentosTexto = g.intentos === 1 ? '1 intento' : `${g.intentos} intentos`;
-
       html += `
         <div class="bloqueo-item" data-id="${g.incidencia_id}">
           <div class="bloqueo-info">
@@ -1103,8 +1190,7 @@
             <div class="bloqueo-hora">Último intento: ${esc(horaUltimo)} · ${esc(intentosTexto)}</div>
           </div>
           <button class="btn-visto-rojo" onclick="marcarVistoBloqueo('${g.incidencia_id}', this)">✓ Visto</button>
-        </div>
-      `;
+        </div>`;
     });
 
     panel.innerHTML = html;
@@ -1123,7 +1209,6 @@
     }
     await cargarBloqueos();
   }
-
 
   async function abrirModalAccesosDenegados() {
     const overlay = document.getElementById('modal-accesos-overlay');
@@ -1158,7 +1243,6 @@
       contenido.innerHTML = `<p class="loading">No se pudo cargar el detalle: ${esc(error.message)}</p>`;
       return;
     }
-
     pintarDetalleAccesos(data || []);
   }
 
@@ -1177,19 +1261,11 @@
       const t = inc.trabajadores || null;
       const key = t?.id || inc.trabajador_id || ('sin_trabajador_' + (inc.detalle || ''));
       if (!porTrabajador[key]) {
-        porTrabajador[key] = {
-          trabajador: t,
-          intentos: 0,
-          pendientes: 0,
-          revisados: 0,
-          ultimo: inc.created_at,
-          detalles: new Set()
-        };
+        porTrabajador[key] = { trabajador: t, intentos: 0, pendientes: 0, revisados: 0, ultimo: inc.created_at, detalles: new Set() };
       }
       const g = porTrabajador[key];
       g.intentos++;
-      if ((inc.estado || 'nueva') === 'nueva') g.pendientes++;
-      else g.revisados++;
+      if ((inc.estado || 'nueva') === 'nueva') g.pendientes++; else g.revisados++;
       if (inc.created_at && new Date(inc.created_at) > new Date(g.ultimo)) g.ultimo = inc.created_at;
       if (inc.detalle) g.detalles.add(inc.detalle);
     });
@@ -1250,26 +1326,20 @@
 
     data.forEach(inc => {
       let textoAviso = '';
-
       if (inc.tipo === 'autocierre') {
         const t = inc.trabajadores;
         const nombre = t ? `${t.nombre || ''} ${t.apellidos || ''}`.trim() || 'Trabajador desconocido' : 'Trabajador desconocido';
-        const fecha = formatFecha(inc.created_at);
-        const desc = inc.detalle || 'Cierre automático de jornada';
         textoAviso = `<strong>${esc(nombre)}</strong><br>
-          <span class="aviso-fecha">${esc(fecha)}</span> — ${esc(desc)}`;
+          <span class="aviso-fecha">${esc(formatFecha(inc.created_at))}</span> — ${esc(inc.detalle || 'Cierre automático de jornada')}`;
       } else if (inc.tipo === 'movil_compartido') {
-        const fecha = formatFecha(inc.created_at);
         textoAviso = `<strong>📱 Posible móvil compartido</strong><br>
-          <span class="aviso-fecha">${esc(fecha)}</span> — ${esc(inc.detalle || '')}`;
+          <span class="aviso-fecha">${esc(formatFecha(inc.created_at))}</span> — ${esc(inc.detalle || '')}`;
       }
-
       html += `
         <div class="aviso-item" data-id="${inc.id}">
           <div class="aviso-info">${textoAviso}</div>
           <button class="btn-visto" onclick="marcarVisto('${inc.id}')">✓ Visto</button>
-        </div>
-      `;
+        </div>`;
     });
 
     panel.innerHTML = html;
@@ -1300,7 +1370,7 @@
   }
 
   // ============================================
-  // Ronda de control — lógica
+  // Confirmación de presencia — modal formal
   // ============================================
 
   function actualizarBotonRonda(numPresentes) {
@@ -1338,10 +1408,7 @@
       .order('momento', { ascending: false })
       .limit(1);
 
-    if (error || !data || data.length === 0) {
-      el.style.display = 'none';
-      return;
-    }
+    if (error || !data || data.length === 0) { el.style.display = 'none'; return; }
 
     const r = data[0];
     const hora = formatHora(r.momento);
@@ -1350,17 +1417,51 @@
     el.style.display = 'block';
   }
 
-  document.getElementById('btn-ronda').addEventListener('click', async () => {
+  // Botón principal: abre el modal formal en lugar de llamar directamente a la RPC
+  document.getElementById('btn-ronda').addEventListener('click', () => {
     if (!obraActualId) return;
-    const btn = document.getElementById('btn-ronda');
-    const msg = document.getElementById('msg-ronda');
     const numPresentes = presentesCache.length;
-
     if (numPresentes === 0) return;
 
-    btn.disabled = true;
-    const textoEl = document.getElementById('ronda-texto');
-    textoEl.textContent = 'Registrando...';
+    // Rellenar el texto declarativo con los datos actuales
+    const ahora = new Date();
+    const fechaTexto = ahora.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+    const horaTexto = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    const personasTexto = numPresentes === 1 ? '1 persona' : `${numPresentes} personas`;
+
+    document.getElementById('declaracion-texto').innerHTML =
+      `Yo, <strong>${esc(nombreEncargado)}</strong>, encargado de la obra <strong>${esc(obraActualNombre)}</strong>, ` +
+      `declaro que el día <strong>${esc(fechaTexto)}</strong> a las <strong>${esc(horaTexto)}</strong> ` +
+      `hay <strong>${esc(personasTexto)}</strong> trabajando en esta obra, y no más.`;
+
+    // Resetear el checkbox y el botón
+    document.getElementById('checkbox-declaracion').checked = false;
+    document.getElementById('btn-confirmar-ronda').disabled = true;
+
+    document.getElementById('modal-confirmacion-overlay').classList.add('visible');
+  });
+
+  // El checkbox habilita/deshabilita el botón Confirmar
+  document.getElementById('checkbox-declaracion').addEventListener('change', function() {
+    document.getElementById('btn-confirmar-ronda').disabled = !this.checked;
+  });
+
+  // Cancelar: cierra el modal sin hacer nada
+  document.getElementById('btn-cancelar-confirmacion').addEventListener('click', () => {
+    document.getElementById('modal-confirmacion-overlay').classList.remove('visible');
+  });
+
+  // Confirmar: llama a la RPC y cierra el modal
+  document.getElementById('btn-confirmar-ronda').addEventListener('click', async () => {
+    if (!obraActualId) return;
+    const numPresentes = presentesCache.length;
+    if (numPresentes === 0) return;
+
+    const btnConfirmar = document.getElementById('btn-confirmar-ronda');
+    btnConfirmar.disabled = true;
+    btnConfirmar.textContent = 'Registrando…';
+
+    const msg = document.getElementById('msg-ronda');
     msg.style.display = 'none';
 
     const { data, error } = await sb.rpc('marcar_ronda', {
@@ -1368,6 +1469,10 @@
       p_nota: null,
       p_personas_en_obra: numPresentes
     });
+
+    // Cerrar modal independientemente del resultado
+    document.getElementById('modal-confirmacion-overlay').classList.remove('visible');
+    btnConfirmar.textContent = 'Confirmar';
 
     if (error) {
       msg.textContent = 'Error al registrar: ' + error.message;
@@ -1484,9 +1589,7 @@
         .in('trabajador_id', ids);
 
       const validaciones = {};
-      (vals || []).forEach(v => {
-        validaciones[v.trabajador_id] = { estado: v.estado || 'verde', motivos: v.motivos || [] };
-      });
+      (vals || []).forEach(v => { validaciones[v.trabajador_id] = { estado: v.estado || 'verde', motivos: v.motivos || [] }; });
 
       presentes.forEach(t => {
         const v = validaciones[t.id] || { estado: 'verde', motivos: [] };
@@ -1555,8 +1658,7 @@
         <div class="tarjeta-hora">
           <div class="tarjeta-hora-grande">${esc(t.horaTexto)}</div>
           <div class="tarjeta-hora-rel">${esc(textoRelativo(t.horaISO))}</div>
-        </div>
-      `;
+        </div>`;
       lista.appendChild(card);
     });
   }
@@ -1594,7 +1696,6 @@
     if (horas < 24) return mins === 0 ? `hace ${horas} h` : `hace ${horas} h ${mins} min`;
     return t.toLocaleDateString('es-ES', { day:'2-digit', month:'2-digit' });
   }
-
 
   function limpiarMotivo(texto) {
     if (!texto) return '';
@@ -1658,10 +1759,7 @@
       const t = v.trabajador;
       if (!t || !t.id || t.activo === false) return;
       if (!mapa.has(t.id)) {
-        mapa.set(t.id, {
-          id: t.id, nombre: t.nombre || '', apellidos: t.apellidos || '',
-          dni: t.dni || '', estado: v.estado || 'verde'
-        });
+        mapa.set(t.id, { id: t.id, nombre: t.nombre || '', apellidos: t.apellidos || '', dni: t.dni || '', estado: v.estado || 'verde' });
       }
     });
 
@@ -1793,7 +1891,6 @@
         p { color: #666; font-size: 14px; margin-bottom: 24px; }
         .sub-ar { display: block; margin-top: 8px; font-size: 18px; font-weight: 700; color: #444; direction: rtl; }
         img.qr { display: block; margin: 0 auto; width: 280px; }
-
         .aviso-obligatorio { margin: 26px auto 0; max-width: 560px; border: 2px solid #111; border-radius: 12px; padding: 16px 18px; color: #111; background: #fff; }
         .aviso-obligatorio .es { font-size: 16px; font-weight: 800; line-height: 1.35; margin-bottom: 10px; }
         .aviso-obligatorio .ar { font-size: 18px; font-weight: 800; line-height: 1.6; direction: rtl; }
@@ -1803,7 +1900,6 @@
       <h1>${obraNombre}</h1>
       <p>Escanea este código QR para fichar tu entrada/salida<span class="sub-ar" lang="ar" dir="rtl">امسح رمز QR هذا لتسجيل دخولك/خروجك</span></p>
       <img class="qr" src="${dataUrl}" />
-
       <div class="aviso-obligatorio">
         <div class="es">En esta obra es obligatorio fichar tanto a la entrada como a la salida. El incumplimiento puede tener consecuencias disciplinarias.</div>
         <div class="ar" lang="ar" dir="rtl">في هذا الموقع، تسجيل الحضور عند الدخول والخروج إلزامي.<br>عدم الامتثال قد يترتب عليه عواقب تأديبية.</div>
@@ -1825,6 +1921,7 @@
     if (e.key === 'Escape') {
       cerrarModalAccesos();
       cerrarModalNaranjas();
+      document.getElementById('modal-confirmacion-overlay').classList.remove('visible');
     }
   });
 
