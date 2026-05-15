@@ -107,7 +107,7 @@
     .alert-success { background: rgba(76,175,80,0.1);   color: var(--verde);   border-left: 3px solid var(--verde); }
     .alert-error   { background: rgba(244,67,54,0.1);   color: var(--rojo);    border-left: 3px solid var(--rojo); }
 
-    /* AVISO "AÚN NO GUARDADO" — Mejora 1 */
+    /* AVISO "AÚN NO GUARDADO" */
     .aviso-no-guardado {
       background: rgba(255,152,0,0.15);
       border: 2px solid var(--naranja);
@@ -121,12 +121,31 @@
       font-size: 14px;
       color: var(--texto);
     }
-    .aviso-no-guardado .ico-grande {
-      font-size: 28px;
-      flex-shrink: 0;
-    }
+    .aviso-no-guardado .ico-grande { font-size: 28px; flex-shrink: 0; }
     .aviso-no-guardado strong { color: var(--naranja); }
     .aviso-no-guardado.oculto { display: none; }
+
+    /* BLOQUE DESAPARECIDOS */
+    .bloque-desaparecidos {
+      background: rgba(244,67,54,0.08);
+      border: 2px solid var(--rojo);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-top: 14px;
+      margin-bottom: 14px;
+    }
+    .bloque-desaparecidos.oculto { display: none; }
+    .bloque-desaparecidos h3 {
+      font-size: 14px; font-weight: 700; color: var(--rojo); margin-bottom: 10px;
+    }
+    .bloque-desaparecidos p { font-size: 13px; color: var(--texto2); margin-bottom: 12px; }
+    .desaparecido-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 0; border-bottom: 1px solid var(--borde);
+      font-size: 13px; color: var(--texto);
+    }
+    .desaparecido-item:last-child { border-bottom: none; }
+    .desaparecido-item input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--rojo); }
 
     /* STATS */
     .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
@@ -137,22 +156,13 @@
     .stat-box .num { font-size: 24px; font-weight: 800; }
     .stat-box .label { font-size: 11px; color: var(--texto2); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-    .override-select {
-      padding: 5px 8px; border: 1px solid var(--borde); border-radius: 6px;
-      font-size: 12px; background: var(--bg3); color: var(--texto);
-      font-family: inherit;
-    }
-    .override-select:focus { outline: none; border-color: var(--color-acento); }
-
     /* SPINNER */
     .spinner {
       display: inline-block; width: 14px; height: 14px;
       border: 2px solid rgba(0,0,0,0.3); border-top-color: #000;
       border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle;
     }
-    .btn-success .spinner {
-      border-color: rgba(255,255,255,0.3); border-top-color: #fff;
-    }
+    .btn-success .spinner { border-color: rgba(255,255,255,0.3); border-top-color: #fff; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* FORM */
@@ -168,42 +178,24 @@
     #resultado { display: none; }
     #paso-obra { display: none; }
 
-    /* DETAILS — listas plegables del resumen final (Mejora 2) */
+    /* DETAILS — listas plegables */
     details.lista-plegable {
-      background: var(--bg3);
-      border: 1px solid var(--borde);
-      border-radius: 8px;
-      padding: 10px 14px;
-      margin-top: 10px;
+      background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px;
+      padding: 10px 14px; margin-top: 10px;
     }
     details.lista-plegable summary {
-      cursor: pointer;
-      font-weight: 700;
-      font-size: 13px;
-      color: var(--texto);
-      user-select: none;
+      cursor: pointer; font-weight: 700; font-size: 13px; color: var(--texto); user-select: none;
     }
     details.lista-plegable summary:hover { color: var(--color-acento); }
     details.lista-plegable[open] summary { margin-bottom: 10px; }
     details.lista-plegable ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      max-height: 280px;
-      overflow-y: auto;
-      font-size: 13px;
+      list-style: none; padding: 0; margin: 0; max-height: 280px; overflow-y: auto; font-size: 13px;
     }
     details.lista-plegable li {
-      padding: 5px 0;
-      border-bottom: 1px solid var(--borde);
-      color: var(--texto);
+      padding: 5px 0; border-bottom: 1px solid var(--borde); color: var(--texto);
     }
     details.lista-plegable li:last-child { border-bottom: none; }
-    details.lista-plegable li code {
-      background: var(--bg2);
-      font-size: 11px;
-      margin-left: 6px;
-    }
+    details.lista-plegable li code { background: var(--bg2); font-size: 11px; margin-left: 6px; }
   </style>
 </head>
 <body>
@@ -265,8 +257,9 @@
         <div class="stats" id="stats"></div>
 
         <p class="ayuda">
-          Puedes ajustar manualmente el estado de cualquier trabajador antes de confirmar.
-          Los trabajadores que no existen en la app se crearán automáticamente con su empresa.
+          Revisa los estados calculados por las reglas documentales.
+          Los trabajadores que no existen en la app se crearán automáticamente.
+          <br><strong>El estado calculado no es editable:</strong> si necesitas cambiar el estado de un trabajador, usa el forzado manual desde el panel de Trabajadores.
         </p>
 
         <table id="tablaResultado">
@@ -277,14 +270,26 @@
               <th>Empresa</th>
               <th>Estado calculado</th>
               <th>Motivos</th>
-              <th>Ajuste manual</th>
               <th>En app</th>
             </tr>
           </thead>
           <tbody id="tbodyResultado"></tbody>
         </table>
 
-        <!-- Mejora 1: aviso de "aún no guardado" -->
+        <!-- Bloque de desaparecidos -->
+        <div class="bloque-desaparecidos oculto" id="bloqueDesaparecidos">
+          <h3>⚠️ Trabajadores asignados a esta obra que NO aparecen en el Excel</h3>
+          <p>
+            Los siguientes trabajadores estaban asignados a esta obra pero no aparecen en este archivo de e-Coordina.
+            Marca los que quieras <strong>bloquear (poner en rojo)</strong> — no podrán fichar hasta que vuelvan a aparecer en un Excel posterior.
+          </p>
+          <div id="listaDesaparecidos"></div>
+          <p style="margin-top:10px;font-size:12px;color:var(--texto2);">
+            Si no marcas ninguno, se guardarán tal como están actualmente.
+          </p>
+        </div>
+
+        <!-- Aviso "aún no guardado" -->
         <div class="aviso-no-guardado" id="avisoNoGuardado">
           <div class="ico-grande">⚠️</div>
           <div>
@@ -301,7 +306,7 @@
           <span id="msgConfirmar" style="font-size:13px;color:var(--texto2);"></span>
         </div>
 
-        <!-- Resumen final + lista de fallidos -->
+        <!-- Resumen final -->
         <div id="resumenFinal" style="margin-top:18px;"></div>
       </div>
     </div>
@@ -325,14 +330,13 @@ let session = null;
 let misObras = [];
 let reglas = [];
 let trabajadoresApp = {}; // dni -> {id, nombre}
-let datosExcel = null; // filas parseadas desde CSV o Excel
-let resultadoFinal = []; // trabajadores con semáforo calculado
-let descartadosMultiEmpresa = []; // info de filas filtradas por cambio de empresa
-let sinRegla = new Set(); // pares "doc||estado" que no tienen regla definida
+let datosExcel = null;
+let resultadoFinal = [];
+let descartadosMultiEmpresa = [];
+let sinRegla = new Set();
+// DNIs actualmente en validaciones_obra para la obra seleccionada
+let dnisEnObra = {}; // dni -> { trabajador_id, nombre, estado }
 
-// Escapa textos que vienen del Excel o de la base de datos antes de pintarlos
-// con innerHTML. Evita que un valor raro tipo "<img onerror=...>" se ejecute
-// en el navegador durante la revisión de la importación.
 function escHtml(valor) {
   return String(valor ?? '')
     .replace(/&/g, '&amp;')
@@ -350,134 +354,64 @@ function estadoSeguro(estado) {
 async function init() {
   try {
     const { data: { session: s }, error: sessionError } = await sb.auth.getSession();
-
-    if (sessionError) {
-      console.error('Error leyendo sesión:', sessionError);
-    }
-
-    if (!s) {
-      window.location.href = '../index.html';
-      return;
-    }
-
+    if (sessionError) console.error('Error leyendo sesión:', sessionError);
+    if (!s) { window.location.href = '../index.html'; return; }
     session = s;
 
-    // Verificar rol de forma flexible y con mensaje claro si algo falla
     const { data: ua, error: uaError } = await sb.from('usuarios_app')
       .select('id, rol')
       .eq('auth_user_id', s.user.id)
       .maybeSingle();
 
-    if (uaError) {
-      console.error('Error leyendo usuarios_app:', uaError);
-      alert('No se ha podido comprobar tu usuario. Revisa la consola del navegador.');
-      return;
-    }
-
-    if (!ua) {
-      alert('Tu usuario no está encontrado en usuarios_app.');
-      return;
-    }
-
-    // Por seguridad permitimos las variantes que hemos usado en el proyecto.
+    if (uaError) { console.error('Error leyendo usuarios_app:', uaError); alert('No se ha podido comprobar tu usuario.'); return; }
+    if (!ua) { alert('Tu usuario no está encontrado en usuarios_app.'); return; }
     if (!['admin', 'jefe_obra', 'jefe'].includes(ua.rol)) {
-      alert('Tu usuario no tiene permiso para entrar en e-Coordina. Rol detectado: ' + ua.rol);
-      return;
+      alert('Tu usuario no tiene permiso para entrar en e-Coordina. Rol detectado: ' + ua.rol); return;
     }
 
     await cargarObras();
     await cargarReglas();
-
   } catch (err) {
     console.error('Error arrancando e-Coordina:', err);
     alert('Error arrancando e-Coordina: ' + (err.message || err));
   }
 }
 
-// Aplica branding (colores + logo sidebar) según la marca de la obra
 function aplicarBrandingObra(marca) {
-  if (typeof aplicarBranding !== 'function') {
-    console.warn('branding.js no está cargado o aplicarBranding no existe. Se continúa con colores por defecto.');
-    return;
-  }
-
+  if (typeof aplicarBranding !== 'function') return;
   const branding = aplicarBranding(marca);
   window.brandingActual = branding;
   const logoImg = document.getElementById('sidebar-logo');
-  if (logoImg && branding && branding.logo_blanco) {
-    logoImg.src = '../' + branding.logo_blanco;
-  }
+  if (logoImg && branding && branding.logo_blanco) logoImg.src = '../' + branding.logo_blanco;
 }
 
 async function cargarObras() {
   const { data: { session: s } } = await sb.auth.getSession();
-
-  if (!s) {
-    window.location.href = '../index.html';
-    return;
-  }
+  if (!s) { window.location.href = '../index.html'; return; }
 
   const { data: ua, error: uaError } = await sb.from('usuarios_app')
-    .select('id, rol')
-    .eq('auth_user_id', s.user.id)
-    .maybeSingle();
+    .select('id, rol').eq('auth_user_id', s.user.id).maybeSingle();
 
-  if (uaError || !ua) {
-    console.error('Error cargando usuarios_app en cargarObras:', uaError);
-    misObras = [];
-    document.getElementById('obraSelect').innerHTML = '<option value="">No se ha podido cargar el usuario</option>';
-    return;
-  }
+  if (uaError || !ua) { console.error('Error cargando usuarios_app:', uaError); return; }
 
   let obras = [];
   if (ua.rol === 'admin') {
-    const { data, error } = await sb.from('obras')
-      .select('id, nombre, empresa_marca')
-      .eq('activa', true)
-      .order('nombre');
-
-    if (error) {
-      console.error('Error cargando obras como admin:', error);
-      document.getElementById('obraSelect').innerHTML = '<option value="">Error cargando obras</option>';
-      return;
-    }
-
+    const { data, error } = await sb.from('obras').select('id, nombre, empresa_marca').eq('activa', true).order('nombre');
+    if (error) { console.error('Error cargando obras como admin:', error); return; }
     obras = data || [];
   } else {
     const { data: uo, error: uoError } = await sb.from('usuarios_obra')
-      .select('obra_id')
-      .eq('usuario_app_id', ua.id)
-      .in('rol_en_obra', ['jefe_obra', 'jefe']);
-
-    if (uoError) {
-      console.error('Error cargando usuarios_obra:', uoError);
-      document.getElementById('obraSelect').innerHTML = '<option value="">Error cargando obras asignadas</option>';
-      return;
-    }
-
+      .select('obra_id').eq('usuario_app_id', ua.id).in('rol_en_obra', ['jefe_obra', 'jefe']);
+    if (uoError) { console.error('Error cargando usuarios_obra:', uoError); return; }
     const ids = (uo || []).map(r => r.obra_id);
-    if (!ids.length) {
-      obras = [];
-    } else {
-      const { data, error } = await sb.from('obras')
-        .select('id, nombre, empresa_marca')
-        .in('id', ids)
-        .eq('activa', true)
-        .order('nombre');
-
-      if (error) {
-        console.error('Error cargando obras:', error);
-        document.getElementById('obraSelect').innerHTML = '<option value="">Error cargando obras</option>';
-        return;
-      }
-
+    if (ids.length) {
+      const { data, error } = await sb.from('obras').select('id, nombre, empresa_marca').in('id', ids).eq('activa', true).order('nombre');
+      if (error) { console.error('Error cargando obras:', error); return; }
       obras = data || [];
     }
   }
 
-  misObras = obras || [];
-
-  // Aplicar branding según la primera obra (fallback)
+  misObras = obras;
   const marcaInicial = misObras[0]?.empresa_marca || 'bosch_pascual';
   aplicarBrandingObra(marcaInicial);
 
@@ -486,7 +420,6 @@ async function cargarObras() {
     ? '<option value="">— Selecciona una obra —</option>' + misObras.map(o => `<option value="${escHtml(o.id)}">${escHtml(o.nombre)}</option>`).join('')
     : '<option value="">No tienes obras asignadas</option>';
 
-  // Preseleccionar obra activa guardada en localStorage (MO3)
   const obraGuardada = localStorage.getItem('jefe_obra_activa_id');
   if (obraGuardada && misObras.find(o => o.id === obraGuardada)) {
     sel.value = obraGuardada;
@@ -494,7 +427,6 @@ async function cargarObras() {
     if (obraActiva) aplicarBrandingObra(obraActiva.empresa_marca || 'bosch_pascual');
   }
 
-  // Actualizar branding y localStorage al cambiar de obra
   sel.addEventListener('change', () => {
     const obra = misObras.find(o => o.id === sel.value);
     if (obra) {
@@ -506,12 +438,7 @@ async function cargarObras() {
 
 async function cargarReglas() {
   const { data, error } = await sb.from('reglas_documentales').select('*');
-  if (error) {
-    console.error('Error cargando reglas documentales:', error);
-    reglas = [];
-    alert('No se han podido cargar las reglas documentales. Revisa la consola.');
-    return;
-  }
+  if (error) { console.error('Error cargando reglas:', error); reglas = []; return; }
   reglas = data || [];
 }
 
@@ -526,48 +453,24 @@ dropZone.addEventListener('drop', e => {
   const file = e.dataTransfer.files[0];
   if (file) procesarArchivo(file);
 });
-fileInput.addEventListener('change', () => {
-  if (fileInput.files[0]) procesarArchivo(fileInput.files[0]);
-});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) procesarArchivo(fileInput.files[0]); });
 
 function convertirWorkbookAFilas(wb) {
   const ws = wb.Sheets[wb.SheetNames[0]];
+  if (!ws) throw new Error('El archivo no contiene ninguna hoja o tabla legible.');
 
-  if (!ws) {
-    throw new Error('El archivo no contiene ninguna hoja o tabla legible.');
-  }
-
-  // Leemos como matriz para poder ignorar la primera fila de fecha de e-Coordina.
-  // Sirve tanto para Excel como para CSV.
   const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
-
-  // e-Coordina suele traer:
-  // Fila 0: "Fecha: 28/04/2026"
-  // Fila 1: cabeceras reales
-  // Pero lo buscamos de forma flexible por si cambia un poco.
   const headerIndex = rawRows.findIndex(row => {
     const cols = row.map(c => String(c).trim());
-    return cols.includes('Documento') &&
-           cols.includes('Estado') &&
-           cols.includes('Empresa') &&
-           cols.includes('Trabajador');
+    return cols.includes('Documento') && cols.includes('Estado') &&
+           cols.includes('Empresa') && cols.includes('Trabajador');
   });
 
-  if (headerIndex === -1) {
-    throw new Error('No se han encontrado las cabeceras esperadas de e-Coordina: Documento, Estado, Empresa y Trabajador.');
-  }
+  if (headerIndex === -1) throw new Error('No se han encontrado las cabeceras esperadas de e-Coordina.');
 
   const headers = rawRows[headerIndex].map(h => String(h).trim());
-
   return rawRows.slice(headerIndex + 1)
-    .map(row => {
-      const obj = {};
-      headers.forEach((h, i) => {
-        if (!h) return;
-        obj[h] = row[i] ?? '';
-      });
-      return obj;
-    })
+    .map(row => { const obj = {}; headers.forEach((h, i) => { if (h) obj[h] = row[i] ?? ''; }); return obj; })
     .filter(obj => Object.values(obj).some(v => String(v).trim() !== ''));
 }
 
@@ -575,69 +478,40 @@ function procesarArchivo(file) {
   const nombre = file.name.toLowerCase();
   const esCsv = nombre.endsWith('.csv');
   const esExcel = nombre.endsWith('.xlsx') || nombre.endsWith('.xls');
-
-  if (!esCsv && !esExcel) {
-    alert('Solo se aceptan archivos .csv, .xlsx o .xls');
-    return;
-  }
+  if (!esCsv && !esExcel) { alert('Solo se aceptan archivos .csv, .xlsx o .xls'); return; }
 
   const reader = new FileReader();
-
   reader.onload = e => {
     try {
       let wb;
-
       if (esCsv) {
-        // El CSV real de e-Coordina viene en codificación española/Latin-1
-        // y separado por punto y coma (;).
-        wb = XLSX.read(e.target.result, {
-          type: 'string',
-          raw: false,
-          FS: ';'
-        });
+        wb = XLSX.read(e.target.result, { type: 'string', raw: false, FS: ';' });
       } else {
         wb = XLSX.read(e.target.result, { type: 'array' });
       }
-
       const filas = convertirWorkbookAFilas(wb);
-
-      if (!filas.length) {
-        alert('El archivo se ha leído, pero no se han encontrado filas de datos.');
-        return;
-      }
-
+      if (!filas.length) { alert('El archivo se ha leído, pero no se han encontrado filas de datos.'); return; }
       datosExcel = filas;
-
-      // Mostrar nombre del archivo en drop zone
       dropZone.innerHTML = `
         <div class="icon">✅</div>
         <p><strong>${escHtml(file.name)}</strong> cargado</p>
         <p style="font-size:12px;margin-top:4px;">${filas.length} registros leídos</p>
       `;
-
-      // Mostrar paso 2
       document.getElementById('paso-obra').style.display = 'block';
     } catch (err) {
       console.error(err);
       alert('No se ha podido leer el archivo de e-Coordina: ' + (err.message || err));
     }
   };
-
-  reader.onerror = () => {
-    alert('No se ha podido leer el archivo seleccionado.');
-  };
-
+  reader.onerror = () => alert('No se ha podido leer el archivo seleccionado.');
   if (esCsv) {
-    // Importante: el CSV de e-Coordina no viene en UTF-8, viene en ISO-8859-1/Latin-1.
     reader.readAsText(file, 'ISO-8859-1');
   } else {
     reader.readAsArrayBuffer(file);
   }
 }
 
-// ── EXTRAER DNI ───────────────────────────────────────────────────────────────
-// Columna Trabajador: "APELLIDO, NOMBRE - X1234567A"
-// Columna Empresa:    "EMPRESA SL - B12345678"
+// ── EXTRAER DNI / NOMBRE / EMPRESA ───────────────────────────────────────────
 function extraerDniDeTrabajador(texto) {
   if (!texto) return null;
   const partes = texto.split(' - ');
@@ -646,76 +520,63 @@ function extraerDniDeTrabajador(texto) {
   if (/^[A-Z0-9]{6,10}$/i.test(dni)) return dni.toUpperCase();
   return null;
 }
-
 function extraerNombreTrabajador(texto) {
   if (!texto) return '';
-  const partes = texto.split(' - ');
-  return partes[0].replace(/^[,\s]+/, '').trim();
+  return texto.split(' - ')[0].replace(/^[,\s]+/, '').trim();
 }
-
 function extraerNombreEmpresa(texto) {
   if (!texto) return '';
-  const partes = texto.split(' - ');
-  return partes[0].trim();
+  return texto.split(' - ')[0].trim();
 }
 
-// ── PARSEO DE FECHAS DE E-COORDINA ───────────────────────────────────────────
-// e-Coordina exporta fechas en formato dd/mm/yyyy. Devolvemos un timestamp
-// (ms) para poder comparar; null si no se puede parsear.
+// ── PARSEO DE FECHAS ─────────────────────────────────────────────────────────
 function parsearFechaEcoordina(texto) {
   if (!texto) return null;
   const t = String(texto).trim();
-  if (!t) return null;
   const m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (!m) return null;
-  const dia = parseInt(m[1], 10);
-  const mes = parseInt(m[2], 10) - 1;
-  const ano = parseInt(m[3], 10);
-  const d = new Date(ano, mes, dia);
-  if (isNaN(d.getTime())) return null;
-  return d.getTime();
+  const d = new Date(parseInt(m[3],10), parseInt(m[2],10)-1, parseInt(m[1],10));
+  return isNaN(d.getTime()) ? null : d.getTime();
 }
-
-// Para una fila del CSV, calcula la fecha "más reciente" entre las
-// columnas relevantes para decidir qué empresa es la actual.
 function fechaMasRecienteDeFila(fila) {
-  const candidatos = [
-    fila['F.emisión'],
-    fila['F.emision'], // por si el acento se pierde en algún export
-    fila['F.verificado'],
-    fila['F.cumplimentado'],
-    fila['F.solicitado']
-  ];
+  const candidatos = [fila['F.emisión'], fila['F.emision'], fila['F.verificado'], fila['F.cumplimentado'], fila['F.solicitado']];
   let max = -Infinity;
-  for (const c of candidatos) {
-    const t = parsearFechaEcoordina(c);
-    if (t !== null && t > max) max = t;
-  }
+  for (const c of candidatos) { const t = parsearFechaEcoordina(c); if (t !== null && t > max) max = t; }
   return max === -Infinity ? null : max;
 }
 
 // ── APLICAR REGLAS ────────────────────────────────────────────────────────────
 function aplicarRegla(nombreDoc, estadoEcoordina, tipoAplica) {
-  // Buscar regla exacta primero
-  let regla = reglas.find(r =>
-    r.aplica_a === tipoAplica &&
-    r.nombre_documento === nombreDoc &&
-    r.estado_ecoordina === estadoEcoordina
-  );
-  // Si no hay regla exacta, buscar comodín (*)
-  if (!regla) {
-    regla = reglas.find(r =>
-      r.aplica_a === tipoAplica &&
-      r.nombre_documento === '*' &&
-      r.estado_ecoordina === estadoEcoordina
-    );
-  }
+  let regla = reglas.find(r => r.aplica_a === tipoAplica && r.nombre_documento === nombreDoc && r.estado_ecoordina === estadoEcoordina);
+  if (!regla) regla = reglas.find(r => r.aplica_a === tipoAplica && r.nombre_documento === '*' && r.estado_ecoordina === estadoEcoordina);
   return regla || null;
 }
-
 function peorEstado(a, b) {
   const orden = { rojo: 3, naranja: 2, verde: 1 };
   return (orden[a] || 0) >= (orden[b] || 0) ? a : b;
+}
+
+// ── CARGAR DNIs EN OBRA (para detectar desaparecidos) ────────────────────────
+async function cargarDnisEnObra(obraId) {
+  dnisEnObra = {};
+  // Hacemos JOIN entre validaciones_obra y trabajadores para obtener el DNI
+  const { data, error } = await sb
+    .from('validaciones_obra')
+    .select('trabajador_id, estado, trabajadores(id, dni, nombre, apellidos)')
+    .eq('obra_id', obraId);
+
+  if (error) { console.error('Error cargando validaciones_obra:', error); return; }
+
+  for (const row of (data || [])) {
+    const t = row.trabajadores;
+    if (!t || !t.dni) continue;
+    const dni = String(t.dni).toUpperCase();
+    dnisEnObra[dni] = {
+      trabajador_id: t.id,
+      nombre: [t.nombre, t.apellidos].filter(Boolean).join(' ') || t.dni,
+      estado: row.estado
+    };
+  }
 }
 
 // ── PROCESAR ARCHIVO ──────────────────────────────────────────────────────────
@@ -724,7 +585,6 @@ async function procesarExcel() {
   if (!obraId) { alert('Selecciona una obra primero'); return; }
   if (!datosExcel) { alert('Primero sube el archivo de e-Coordina'); return; }
 
-  // Resetear Set por si se reprocesa el archivo
   sinRegla = new Set();
 
   const btn = document.getElementById('btnProcesar');
@@ -736,185 +596,108 @@ async function procesarExcel() {
   if (trabErr) {
     console.error('Error cargando trabajadores:', trabErr);
     alert('No se han podido cargar los trabajadores de la app.');
-    btn.disabled = false;
-    btn.innerHTML = 'Procesar archivo';
-    return;
+    btn.disabled = false; btn.innerHTML = 'Procesar archivo'; return;
   }
-
   trabajadoresApp = {};
-  (trabApp || []).forEach(t => {
-    if (t.dni) {
-      trabajadoresApp[String(t.dni).toUpperCase()] = { id: t.id, nombre: t.nombre };
-    }
-  });
+  (trabApp || []).forEach(t => { if (t.dni) trabajadoresApp[String(t.dni).toUpperCase()] = { id: t.id, nombre: t.nombre }; });
 
-  // Separar filas: con DNI (trabajador) vs sin DNI (empresa)
+  // Cargar DNIs ya asignados a esta obra
+  await cargarDnisEnObra(obraId);
+
+  // Separar filas empresa / trabajador
   const filasEmpresa = [];
   const filasTrabajador = [];
-
   for (const fila of datosExcel) {
     const trabajadorRaw = fila['Trabajador'] || '';
     const dni = extraerDniDeTrabajador(trabajadorRaw);
     if (dni) {
-      filasTrabajador.push({
-        ...fila,
-        _dni: dni,
-        _nombreTrabajador: extraerNombreTrabajador(trabajadorRaw),
-        _empresaRaw: String(fila['Empresa'] || '').trim(),
-        _fechaRef: fechaMasRecienteDeFila(fila)
-      });
+      filasTrabajador.push({ ...fila, _dni: dni, _nombreTrabajador: extraerNombreTrabajador(trabajadorRaw), _empresaRaw: String(fila['Empresa'] || '').trim(), _fechaRef: fechaMasRecienteDeFila(fila) });
     } else {
       filasEmpresa.push(fila);
     }
   }
 
-  // ── FIX cambio de empresa ──────────────────────────────────────────────
-  // Si un mismo DNI aparece bajo varias empresas (caso típico: el trabajador
-  // cambió de subcontrata pero sigue en la obra), e-Coordina exporta
-  // ambas empresas. Nos quedamos solo con UNA empresa (la "actual") y
-  // descartamos las filas del resto, para no heredar documentos antiguos en rojo.
-  //
-  // Criterios de desempate, en este orden:
-  //   1. La empresa con MÁS documentos en estado "Validado".
-  //   2. Si empatan, la empresa con MENOS documentos problemáticos
-  //      (No válido / Sin presentar / Caducado / Pendiente).
-  //   3. Si siguen empatadas, la empresa con la fecha de emisión más reciente.
-  //
-  // Esto refleja la realidad: cuando un trabajador cambia de subcontrata,
-  // la empresa nueva se encarga de subir la documentación al día, y la
-  // antigua acumula documentos sin renovar.
+  // Fix cambio de empresa
   descartadosMultiEmpresa = [];
-
   const ESTADOS_PROBLEMATICOS = new Set(['No válido', 'Sin presentar', 'Caducado', 'Pendiente']);
-
-  // Paso 1: agregar estadísticas por (dni, empresa)
-  const statsPorDniEmpresa = {}; // dni -> empresa -> { validados, problematicos, fechaMax }
+  const statsPorDniEmpresa = {};
   for (const fila of filasTrabajador) {
-    const dni = fila._dni;
-    const emp = fila._empresaRaw || '(sin empresa)';
+    const dni = fila._dni; const emp = fila._empresaRaw || '(sin empresa)';
     if (!statsPorDniEmpresa[dni]) statsPorDniEmpresa[dni] = {};
-    if (!statsPorDniEmpresa[dni][emp]) {
-      statsPorDniEmpresa[dni][emp] = { validados: 0, problematicos: 0, fechaMax: null };
-    }
+    if (!statsPorDniEmpresa[dni][emp]) statsPorDniEmpresa[dni][emp] = { validados: 0, problematicos: 0, fechaMax: null };
     const s = statsPorDniEmpresa[dni][emp];
     const estado = String(fila['Estado'] || '').trim();
     if (estado === 'Validado') s.validados++;
     else if (ESTADOS_PROBLEMATICOS.has(estado)) s.problematicos++;
-    if (fila._fechaRef !== null && (s.fechaMax === null || fila._fechaRef > s.fechaMax)) {
-      s.fechaMax = fila._fechaRef;
-    }
+    if (fila._fechaRef !== null && (s.fechaMax === null || fila._fechaRef > s.fechaMax)) s.fechaMax = fila._fechaRef;
   }
-
-  // Paso 2: para cada DNI con varias empresas, elegir la "ganadora"
-  const empresaGanadoraPorDni = {}; // dni -> empresaRaw
+  const empresaGanadoraPorDni = {};
   for (const [dni, empresas] of Object.entries(statsPorDniEmpresa)) {
     const claves = Object.keys(empresas);
-    if (claves.length <= 1) {
-      empresaGanadoraPorDni[dni] = claves[0] || '';
-      continue;
-    }
+    if (claves.length <= 1) { empresaGanadoraPorDni[dni] = claves[0] || ''; continue; }
     claves.sort((a, b) => {
-      const sa = empresas[a];
-      const sb = empresas[b];
-      // 1. más Validados gana
-      if (sa.validados !== sb.validados) return sb.validados - sa.validados;
-      // 2. menos problemáticos gana
-      if (sa.problematicos !== sb.problematicos) return sa.problematicos - sb.problematicos;
-      // 3. fecha más reciente gana (nulls al final)
-      const fa = sa.fechaMax, fb = sb.fechaMax;
+      const sa = empresas[a], sb2 = empresas[b];
+      if (sa.validados !== sb2.validados) return sb2.validados - sa.validados;
+      if (sa.problematicos !== sb2.problematicos) return sa.problematicos - sb2.problematicos;
+      const fa = sa.fechaMax, fb = sb2.fechaMax;
       if (fa == null && fb == null) return 0;
-      if (fa == null) return 1;
-      if (fb == null) return -1;
+      if (fa == null) return 1; if (fb == null) return -1;
       return fb - fa;
     });
     empresaGanadoraPorDni[dni] = claves[0];
-    descartadosMultiEmpresa.push({
-      dni,
-      ganadora: claves[0],
-      descartadas: claves.slice(1)
-    });
+    descartadosMultiEmpresa.push({ dni, ganadora: claves[0], descartadas: claves.slice(1) });
   }
-
-  // Paso 3: filtrar filas para conservar solo las de la empresa ganadora
   const filasTrabajadorFiltradas = filasTrabajador.filter(fila => {
     const ganadora = empresaGanadoraPorDni[fila._dni];
-    if (!ganadora) return true;
-    return fila._empresaRaw === ganadora;
+    return !ganadora || fila._empresaRaw === ganadora;
   });
-  // ── fin del fix ────────────────────────────────────────────────────────
 
-  // Calcular problemas por empresa
-  // Usamos el texto completo de Empresa como clave para evitar fallos de coincidencia
+  // Problemas por empresa
   const problemasPorEmpresa = {};
   for (const fila of filasEmpresa) {
     const empresaRaw = String(fila['Empresa'] || '').trim();
     if (!empresaRaw) continue;
-    const nombreDoc = fila['Documento'] || '';
-    const estado = fila['Estado'] || '';
-    if (estado === 'Validado') continue; // sin problema
+    const nombreDoc = fila['Documento'] || '', estado = fila['Estado'] || '';
+    if (estado === 'Validado') continue;
     const regla = aplicarRegla(nombreDoc, estado, 'empresa');
     if (regla) {
       if (!problemasPorEmpresa[empresaRaw]) problemasPorEmpresa[empresaRaw] = [];
-      problemasPorEmpresa[empresaRaw].push({
-        doc: nombreDoc,
-        estado,
-        resultado: regla.resultado
-      });
-    } else {
-      sinRegla.add(`${nombreDoc}||${estado}`);
-    }
+      problemasPorEmpresa[empresaRaw].push({ doc: nombreDoc, estado, resultado: regla.resultado });
+    } else { sinRegla.add(`${nombreDoc}||${estado}`); }
   }
 
-  // Agrupar filas por trabajador (dni) — ya filtradas a una sola empresa
+  // Agrupar por trabajador
   const porTrabajador = {};
   for (const fila of filasTrabajadorFiltradas) {
     const dni = fila._dni;
     if (!porTrabajador[dni]) {
-      porTrabajador[dni] = {
-        dni,
-        nombre: fila._nombreTrabajador,
-        empresa: extraerNombreEmpresa(fila['Empresa'] || ''),
-        empresaRaw: fila._empresaRaw, // texto completo "EMPRESA SL - B12345678"
-        docs: []
-      };
+      porTrabajador[dni] = { dni, nombre: fila._nombreTrabajador, empresa: extraerNombreEmpresa(fila['Empresa'] || ''), empresaRaw: fila._empresaRaw, docs: [] };
     }
-    porTrabajador[dni].docs.push({
-      doc: fila['Documento'] || '',
-      estado: fila['Estado'] || ''
-    });
+    porTrabajador[dni].docs.push({ doc: fila['Documento'] || '', estado: fila['Estado'] || '' });
   }
 
-  // Calcular semáforo por trabajador
+  // Calcular semáforo
   resultadoFinal = [];
   for (const [dni, info] of Object.entries(porTrabajador)) {
     let estadoFinal = 'verde';
     const motivos = [];
 
-    // 1. Docs propios del trabajador
     for (const { doc, estado } of info.docs) {
-      if (estado === 'Validado') continue; // sin problema
+      if (estado === 'Validado') continue;
       const regla = aplicarRegla(doc, estado, 'trabajador');
-      if (regla) {
-        estadoFinal = peorEstado(estadoFinal, regla.resultado);
-        motivos.push(`${doc} (${estado}) → ${regla.resultado}`);
-      } else {
-        sinRegla.add(`${doc}||${estado}`);
-      }
+      if (regla) { estadoFinal = peorEstado(estadoFinal, regla.resultado); motivos.push(`${doc} (${estado}) → ${regla.resultado}`); }
+      else { sinRegla.add(`${doc}||${estado}`); }
     }
 
-    // 2. Docs heredados de su empresa (usando empresaRaw como clave)
     const empProblemas = problemasPorEmpresa[info.empresaRaw] || [];
     for (const p of empProblemas) {
       estadoFinal = peorEstado(estadoFinal, p.resultado);
       motivos.push(`[Empresa] ${p.doc} (${p.estado}) → ${p.resultado}`);
     }
 
-    // 3. Aviso si descartamos otra(s) empresa(s) por cambio de subcontrata
     const descInfo = descartadosMultiEmpresa.find(d => d.dni === dni);
     if (descInfo) {
-      const nombresDesc = descInfo.descartadas
-        .map(e => extraerNombreEmpresa(e))
-        .join(', ');
+      const nombresDesc = descInfo.descartadas.map(e => extraerNombreEmpresa(e)).join(', ');
       motivos.push(`[Cambio de empresa] Se han ignorado los documentos de: ${nombresDesc}`);
     }
 
@@ -925,7 +708,6 @@ async function procesarExcel() {
       empresa: info.empresa,
       empresaRaw: info.empresaRaw,
       estadoCalculado: estadoFinal,
-      estadoManual: estadoFinal,
       motivos,
       enApp,
       trabajadorId: enApp ? trabajadoresApp[dni].id : null,
@@ -933,7 +715,6 @@ async function procesarExcel() {
     });
   }
 
-  // Ordenar: rojos primero, luego naranja, luego verde
   const orden = { rojo: 0, naranja: 1, verde: 2 };
   resultadoFinal.sort((a, b) => orden[a.estadoCalculado] - orden[b.estadoCalculado]);
 
@@ -941,14 +722,13 @@ async function procesarExcel() {
   renderStats();
   renderAlertaCambiosEmpresa();
   renderAlertaSinRegla();
+  renderDesaparecidos();
 
-  // Mejora 1: al procesar de nuevo, restablecer estado visual (mostrar aviso, limpiar resumen)
   document.getElementById('avisoNoGuardado').classList.remove('oculto');
   document.getElementById('resumenFinal').innerHTML = '';
   document.getElementById('msgConfirmar').textContent = '';
 
-  btn.disabled = false;
-  btn.innerHTML = 'Procesar archivo';
+  btn.disabled = false; btn.innerHTML = 'Procesar archivo';
   document.getElementById('resultado').style.display = 'block';
   document.getElementById('resultado').scrollIntoView({ behavior: 'smooth' });
 }
@@ -960,82 +740,82 @@ function renderStats() {
   const naranjas = enApp.filter(r => r.estadoCalculado === 'naranja').length;
   const verdes = enApp.filter(r => r.estadoCalculado === 'verde').length;
   const ignorados = resultadoFinal.filter(r => !r.enApp).length;
-
   document.getElementById('stats').innerHTML = `
     <div class="stat-box"><div class="num" style="color:var(--rojo)">${rojos}</div><div class="label">🔴 Rojos</div></div>
     <div class="stat-box"><div class="num" style="color:var(--naranja)">${naranjas}</div><div class="label">🟡 Naranja</div></div>
     <div class="stat-box"><div class="num" style="color:var(--verde)">${verdes}</div><div class="label">🟢 Verde</div></div>
-    <div class="stat-box"><div class="num" style="color:var(--texto2)">${ignorados}</div><div class="label">⚪ No en app (se crearán)</div></div>
+    <div class="stat-box"><div class="num" style="color:var(--texto2)">${ignorados}</div><div class="label">⚪ Nuevos (se crearán)</div></div>
   `;
 }
 
 function renderAlertaCambiosEmpresa() {
   const cont = document.getElementById('alertas');
-  if (!descartadosMultiEmpresa.length) {
-    cont.innerHTML = '';
-    return;
-  }
+  if (!descartadosMultiEmpresa.length) { cont.innerHTML = ''; return; }
   const lineas = descartadosMultiEmpresa.map(d => {
     const trabajador = resultadoFinal.find(r => r.dni === d.dni);
     const nombre = trabajador ? trabajador.nombre : d.dni;
-    const ganadoraNombre = extraerNombreEmpresa(d.ganadora);
-    const descNombres = d.descartadas.map(e => extraerNombreEmpresa(e)).join(', ');
-    return `<li><strong>${escHtml(nombre)}</strong> (${escHtml(d.dni)}): se ha usado <strong>${escHtml(ganadoraNombre)}</strong> e ignorado <em>${escHtml(descNombres)}</em></li>`;
+    return `<li><strong>${escHtml(nombre)}</strong> (${escHtml(d.dni)}): se ha usado <strong>${escHtml(extraerNombreEmpresa(d.ganadora))}</strong> e ignorado <em>${escHtml(d.descartadas.map(e => extraerNombreEmpresa(e)).join(', '))}</em></li>`;
   }).join('');
   cont.innerHTML = `
     <div class="alert alert-info">
       <strong>Cambios de empresa detectados</strong>
-      <p style="margin:6px 0 8px;">Algunos trabajadores aparecen en e-Coordina con varias empresas. Se ha tomado la empresa con la documentación más reciente y se han descartado las demás:</p>
+      <p style="margin:6px 0 8px;">Algunos trabajadores aparecen con varias empresas. Se ha tomado la empresa con documentación más reciente:</p>
       <ul style="margin-left:18px;">${lineas}</ul>
-    </div>
-  `;
+    </div>`;
 }
 
 function renderAlertaSinRegla() {
-  const cont = document.getElementById('alertas');
   if (!sinRegla.size) return;
-
   const filas = [...sinRegla].map(par => {
     const [doc, estado] = par.split('||');
     return `<li><strong>${escHtml(doc)}</strong> — estado: <em>${escHtml(estado)}</em></li>`;
   }).join('');
-
-  cont.innerHTML += `
+  document.getElementById('alertas').innerHTML += `
     <div class="alert alert-warning" style="margin-top:10px;">
       <strong>⚠️ Documentos sin regla definida (${sinRegla.size})</strong>
-      <p style="margin:6px 0 8px;">
-        Los siguientes documentos aparecen en e-Coordina con un estado
-        que no tiene regla en la app. Se han <strong>ignorado</strong> al
-        calcular el semáforo. Si alguno debería afectar al estado,
-        añade la regla en <a href="../admin/reglas.html" style="color:var(--naranja)">Admin → Reglas documentales</a>.
-      </p>
+      <p style="margin:6px 0 8px;">Estos documentos no tienen regla y se han <strong>ignorado</strong> al calcular el semáforo. Añade la regla en <a href="../admin/reglas.html" style="color:var(--naranja)">Admin → Reglas documentales</a>.</p>
       <ul style="margin-left:18px;">${filas}</ul>
     </div>`;
+}
+
+function renderDesaparecidos() {
+  // DNIs que están en la obra en BD pero NO aparecen en el Excel
+  const dnisEnExcel = new Set(resultadoFinal.map(r => r.dni.toUpperCase()));
+  const desaparecidos = Object.entries(dnisEnObra).filter(([dni]) => !dnisEnExcel.has(dni));
+
+  const bloque = document.getElementById('bloqueDesaparecidos');
+  const lista = document.getElementById('listaDesaparecidos');
+
+  if (!desaparecidos.length) {
+    bloque.classList.add('oculto');
+    lista.innerHTML = '';
+    return;
+  }
+
+  lista.innerHTML = desaparecidos.map(([dni, info]) => `
+    <div class="desaparecido-item">
+      <input type="checkbox" id="des_${escHtml(dni)}" value="${escHtml(dni)}">
+      <label for="des_${escHtml(dni)}" style="cursor:pointer;flex:1;">
+        <strong>${escHtml(info.nombre)}</strong>
+        <code style="margin-left:8px;">${escHtml(dni)}</code>
+        <span class="badge badge-${escHtml(estadoSeguro(info.estado))}" style="margin-left:8px;">${escHtml((info.estado || '').toUpperCase())}</span>
+      </label>
+    </div>
+  `).join('');
+
+  bloque.classList.remove('oculto');
 }
 
 function renderTabla() {
   const tbody = document.getElementById('tbodyResultado');
   tbody.innerHTML = '';
-
-  for (let i = 0; i < resultadoFinal.length; i++) {
-    const r = resultadoFinal[i];
+  for (const r of resultadoFinal) {
     const estadoCalc = estadoSeguro(r.estadoCalculado);
-    const estadoManual = estadoSeguro(r.estadoManual);
     const badgeClass = `badge-${estadoCalc}`;
-    const enAppBadge = r.enApp
-      ? `<span class="badge badge-verde">✓ Sí</span>`
-      : `<span class="badge badge-naranja">Nuevo</span>`;
-
+    const enAppBadge = r.enApp ? `<span class="badge badge-verde">✓ Sí</span>` : `<span class="badge badge-naranja">Nuevo</span>`;
     const motivosHtml = r.motivos.length
       ? r.motivos.map(m => `<div class="motivos">• ${escHtml(m)}</div>`).join('')
       : '<div class="motivos" style="color:var(--verde)">Sin incidencias documentales</div>';
-
-    const selectManual = `
-      <select class="override-select" onchange="cambiarEstado(${i}, this.value)">
-        <option value="verde" ${estadoManual === 'verde' ? 'selected' : ''}>🟢 Verde</option>
-        <option value="naranja" ${estadoManual === 'naranja' ? 'selected' : ''}>🟡 Naranja</option>
-        <option value="rojo" ${estadoManual === 'rojo' ? 'selected' : ''}>🔴 Rojo</option>
-      </select>`;
 
     tbody.insertAdjacentHTML('beforeend', `
       <tr>
@@ -1044,181 +824,137 @@ function renderTabla() {
         <td style="font-size:12px;color:var(--texto2)">${escHtml(r.empresa)}</td>
         <td><span class="badge ${badgeClass}">${escHtml(estadoCalc.toUpperCase())}</span></td>
         <td>${motivosHtml}</td>
-        <td>${selectManual}</td>
         <td>${enAppBadge}</td>
       </tr>`);
   }
 }
 
-function cambiarEstado(i, nuevoEstado) {
-  if (!resultadoFinal[i]) return;
-  resultadoFinal[i].estadoManual = estadoSeguro(nuevoEstado);
-}
-
-// ── HELPERS PARA EMPRESA ─────────────────────────────────────────────────────
-// "OMAX BUSINESS SL - B23815764" → { nombre: 'OMAX BUSINESS SL', cif: 'B23815764' }
+// ── HELPERS EMPRESA ───────────────────────────────────────────────────────────
 function extraerEmpresa(texto) {
   if (!texto) return { nombre: '', cif: '' };
   const partes = texto.split(' - ');
-  if (partes.length >= 2) {
-    return {
-      nombre: partes.slice(0, partes.length - 1).join(' - ').trim(),
-      cif: partes[partes.length - 1].trim()
-    };
-  }
+  if (partes.length >= 2) return { nombre: partes.slice(0, partes.length - 1).join(' - ').trim(), cif: partes[partes.length - 1].trim() };
   return { nombre: texto.trim(), cif: '' };
 }
 
 // ── CONFIRMAR ─────────────────────────────────────────────────────────────────
 async function confirmarImportacion() {
   const obraId = document.getElementById('obraSelect').value;
-
-  if (!resultadoFinal.length) {
-    document.getElementById('msgConfirmar').textContent = 'No hay trabajadores para importar.';
-    return;
-  }
+  if (!resultadoFinal.length) { document.getElementById('msgConfirmar').textContent = 'No hay trabajadores para importar.'; return; }
 
   const btn = document.getElementById('btnConfirmar');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Guardando...';
-
-  // Limpiar resumen anterior por si era una segunda confirmación
   document.getElementById('resumenFinal').innerHTML = '';
 
-  // Mejora 2: acumular listas de creados / actualizados con nombre + DNI
-  const creadosLista = [];        // [{ nombre, dni }]
-  const actualizadosLista = [];   // [{ nombre, dni }]
-  const fallos = [];              // [{ dni, nombre, fase, mensaje }]
+  const creadosLista = [];
+  const actualizadosLista = [];
+  const fallos = [];
+
+  // ── Paso 1: Crear/actualizar trabajadores y recoger sus IDs ──────────────
+  const resultadosConId = []; // { ...r, trabajadorId (real) }
 
   for (const r of resultadoFinal) {
-    let trabajadorId = r.trabajadorId;
-
-    // ── 1. Crear/actualizar trabajador (con empresa) vía RPC ────────────────
-    // La RPC gestiona también la empresa internamente y respeta RLS.
-    // Si el trabajador ya existe en BD, igualmente la llamamos para refrescar
-    // su empresa por si ha cambiado de subcontrata desde el último import.
     try {
       const { nombre: empNombre, cif: empCif } = extraerEmpresa(r.empresaRaw || '');
+      const { data: rpcData, error: rpcErr } = await sb.rpc('crear_o_actualizar_trabajador_para_import', {
+        p_nombre: r.nombre || '',
+        p_apellidos: '',
+        p_dni: r.dni,
+        p_categoria: 'peon',
+        p_empresa_nombre: empNombre || '',
+        p_empresa_cif: empCif || ''
+      });
 
-      const { data: rpcData, error: rpcErr } = await sb.rpc(
-        'crear_o_actualizar_trabajador_para_import',
-        {
-          p_nombre:         r.nombre || '',
-          p_apellidos:      '',
-          p_dni:            r.dni,
-          p_categoria:      'peon',
-          p_empresa_nombre: empNombre || '',
-          p_empresa_cif:    empCif || ''
-        }
-      );
-
-      if (rpcErr) {
-        fallos.push({
-          dni: r.dni,
-          nombre: r.nombre,
-          fase: 'crear/actualizar trabajador',
-          mensaje: rpcErr.message || String(rpcErr)
-        });
-        continue;
-      }
-
-      // La RPC devuelve { ok, id, empresa_id } o { ok:false, error }
-      if (!rpcData || rpcData.ok === false) {
-        fallos.push({
-          dni: r.dni,
-          nombre: r.nombre,
-          fase: 'crear/actualizar trabajador',
-          mensaje: (rpcData && rpcData.error) || 'La RPC no ha devuelto ok=true'
-        });
+      if (rpcErr || !rpcData || rpcData.ok === false) {
+        fallos.push({ dni: r.dni, nombre: r.nombre, fase: 'crear/actualizar trabajador', mensaje: (rpcErr && rpcErr.message) || (rpcData && rpcData.error) || 'Error desconocido' });
         continue;
       }
 
       const idDevuelto = rpcData.id;
       if (!idDevuelto) {
-        fallos.push({
-          dni: r.dni,
-          nombre: r.nombre,
-          fase: 'crear/actualizar trabajador',
-          mensaje: 'La RPC no ha devuelto id de trabajador'
-        });
+        fallos.push({ dni: r.dni, nombre: r.nombre, fase: 'crear/actualizar trabajador', mensaje: 'La RPC no ha devuelto id' });
         continue;
       }
 
-      // Mejora 2: registrar en lista correspondiente
-      if (!r.enApp) {
-        creadosLista.push({ nombre: r.nombre, dni: r.dni });
-      } else {
-        actualizadosLista.push({ nombre: r.nombre, dni: r.dni });
-      }
+      if (!r.enApp) creadosLista.push({ nombre: r.nombre, dni: r.dni });
+      else actualizadosLista.push({ nombre: r.nombre, dni: r.dni });
 
-      trabajadorId = idDevuelto;
+      resultadosConId.push({ ...r, trabajadorId: idDevuelto });
 
     } catch (err) {
       console.error('Excepción al crear/actualizar trabajador', r.dni, err);
-      fallos.push({
-        dni: r.dni,
-        nombre: r.nombre,
-        fase: 'crear/actualizar trabajador',
-        mensaje: err.message || String(err)
-      });
-      continue;
+      fallos.push({ dni: r.dni, nombre: r.nombre, fase: 'crear/actualizar trabajador', mensaje: err.message || String(err) });
     }
+  }
 
-    // ── 2. Upsert en validaciones_obra (estado documental para esta obra) ──
+  // ── Paso 2: Construir array para la RPC ──────────────────────────────────
+  const p_resultados = resultadosConId.map(r => ({
+    trabajador_id: r.trabajadorId,
+    estado: r.estadoCalculado,
+    motivos: r.motivos.length ? r.motivos : null
+  }));
+
+  // ── Paso 3: Recoger DNIs marcados como "bloquear" ─────────────────────────
+  const checkboxes = document.querySelectorAll('#listaDesaparecidos input[type="checkbox"]:checked');
+  const p_dnis_a_bloquear = Array.from(checkboxes).map(cb => ({ dni: cb.value }));
+
+  // ── Paso 4: Llamar a la RPC principal ────────────────────────────────────
+  let saltadosPorForzado = 0;
+  let bloqueadosPorAusencia = 0;
+
+  if (p_resultados.length || p_dnis_a_bloquear.length) {
     try {
-      const motivos = r.motivos.length ? r.motivos : null;
-      const { error: valErr } = await sb.from('validaciones_obra').upsert({
-        trabajador_id: trabajadorId,
-        obra_id: obraId,
-        estado: r.estadoManual,
-        motivos: motivos,
-        fecha_validacion: new Date().toISOString()
-      }, { onConflict: 'trabajador_id,obra_id' });
+      const { data: rpcResult, error: rpcErr } = await sb.rpc('aplicar_resultado_ecoordina', {
+        p_obra_id: obraId,
+        p_resultados: p_resultados,
+        p_dnis_a_bloquear: p_dnis_a_bloquear
+      });
 
-      if (valErr) {
-        fallos.push({
-          dni: r.dni,
-          nombre: r.nombre,
-          fase: 'asignar a obra',
-          mensaje: valErr.message || String(valErr)
-        });
+      if (rpcErr) {
+        fallos.push({ dni: '—', nombre: '—', fase: 'aplicar resultado (RPC)', mensaje: rpcErr.message || String(rpcErr) });
+      } else if (rpcResult && rpcResult.ok === false) {
+        fallos.push({ dni: '—', nombre: '—', fase: 'aplicar resultado (RPC)', mensaje: rpcResult.error || 'La RPC devolvió ok=false' });
+      } else if (rpcResult) {
+        saltadosPorForzado = rpcResult.saltados_por_forzado || 0;
+        bloqueadosPorAusencia = rpcResult.bloqueados_por_ausencia || 0;
       }
     } catch (err) {
-      console.error('Excepción en validaciones_obra', r.dni, err);
-      fallos.push({
-        dni: r.dni,
-        nombre: r.nombre,
-        fase: 'asignar a obra',
-        mensaje: err.message || String(err)
-      });
+      console.error('Excepción en aplicar_resultado_ecoordina:', err);
+      fallos.push({ dni: '—', nombre: '—', fase: 'aplicar resultado (RPC)', mensaje: err.message || String(err) });
     }
   }
 
   btn.disabled = false;
   btn.innerHTML = '✅ Confirmar importación';
-
-  // Mejora 1: ya está guardado, ocultamos el aviso
   document.getElementById('avisoNoGuardado').classList.add('oculto');
 
   // ── Resumen final ──────────────────────────────────────────────────────────
   const msg = document.getElementById('msgConfirmar');
   const resumenCont = document.getElementById('resumenFinal');
 
-  // Mejora 2: helper para construir lista plegable
   const construirLista = (titulo, items, color) => {
     if (!items.length) return '';
-    const li = items.map(i =>
-      `<li>${escHtml(i.nombre || '(sin nombre)')} <code>${escHtml(i.dni)}</code></li>`
-    ).join('');
-    return `
-      <details class="lista-plegable">
-        <summary style="color:${color}">${escHtml(titulo)} (${items.length})</summary>
-        <ul>${li}</ul>
-      </details>`;
+    const li = items.map(i => `<li>${escHtml(i.nombre || '(sin nombre)')} <code>${escHtml(i.dni)}</code></li>`).join('');
+    return `<details class="lista-plegable"><summary style="color:${color}">${escHtml(titulo)} (${items.length})</summary><ul>${li}</ul></details>`;
   };
 
   const creados = creadosLista.length;
   const actualizados = actualizadosLista.length;
+
+  // Aviso de forzados saltados
+  const avisoForzados = saltadosPorForzado > 0
+    ? `<div class="alert alert-warning" style="margin-top:10px;">
+        ⚠️ <strong>${saltadosPorForzado} trabajador${saltadosPorForzado > 1 ? 'es' : ''} con estado forzado</strong> no se ha${saltadosPorForzado > 1 ? 'n' : ''} modificado.
+        Si quieres actualizarlos, quita el forzado manualmente desde el panel de Trabajadores.
+      </div>`
+    : '';
+
+  const avisoBloqueados = bloqueadosPorAusencia > 0
+    ? `<div class="alert alert-info" style="margin-top:10px;">
+        🔴 <strong>${bloqueadosPorAusencia} trabajador${bloqueadosPorAusencia > 1 ? 'es marcados' : ' marcado'} como rojo</strong> por no aparecer en el Excel.
+      </div>`
+    : '';
 
   if (fallos.length === 0) {
     msg.style.color = 'var(--verde)';
@@ -1227,41 +963,32 @@ async function confirmarImportacion() {
       <div class="alert alert-success">
         Importación completada. <strong>${creados}</strong> trabajadores nuevos creados, <strong>${actualizados}</strong> actualizados. Sin errores.
       </div>
+      ${avisoForzados}
+      ${avisoBloqueados}
       ${construirLista('🆕 Trabajadores nuevos creados', creadosLista, 'var(--verde)')}
       ${construirLista('🔁 Trabajadores actualizados', actualizadosLista, 'var(--azul)')}
     `;
   } else {
     msg.style.color = 'var(--rojo)';
     msg.textContent = `⚠️ ${creados} creados, ${actualizados} actualizados, ${fallos.length} con error.`;
-
     const filasFallos = fallos.map(f => `
       <tr>
         <td>${escHtml(f.nombre || '(sin nombre)')}</td>
         <td><code>${escHtml(f.dni)}</code></td>
         <td>${escHtml(f.fase)}</td>
         <td style="font-size:12px;">${escHtml(f.mensaje)}</td>
-      </tr>
-    `).join('');
-
+      </tr>`).join('');
     resumenCont.innerHTML = `
       <div class="alert alert-error">
         <strong>Importación con errores</strong>
-        <p style="margin:6px 0 10px;">
-          ${creados} trabajadores nuevos creados, ${actualizados} actualizados, <strong>${fallos.length} con error</strong>.
-          Revisa los detalles abajo. Puedes volver a importar el archivo después de corregir el problema.
-        </p>
+        <p style="margin:6px 0 10px;">${creados} creados, ${actualizados} actualizados, <strong>${fallos.length} con error</strong>.</p>
         <table style="margin-top:8px;">
-          <thead>
-            <tr>
-              <th>Trabajador</th>
-              <th>DNI</th>
-              <th>Fase</th>
-              <th>Mensaje</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Trabajador</th><th>DNI</th><th>Fase</th><th>Mensaje</th></tr></thead>
           <tbody>${filasFallos}</tbody>
         </table>
       </div>
+      ${avisoForzados}
+      ${avisoBloqueados}
       ${construirLista('🆕 Trabajadores nuevos creados', creadosLista, 'var(--verde)')}
       ${construirLista('🔁 Trabajadores actualizados', actualizadosLista, 'var(--azul)')}
     `;
