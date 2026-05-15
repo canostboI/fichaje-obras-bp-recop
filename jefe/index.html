@@ -7,7 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
 <script src="../js/branding.js"></script>
-  <script src="../js/auto-logout.js"></script>
+<script src="../js/auto-logout.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -101,6 +101,29 @@
   .btn-visto:hover { background: var(--bg3); }
   .btn-visto:disabled { opacity: 0.5; cursor: default; }
 
+  /* ── Banner confirmación encargado (Paso 3.2 Parte B) ── */
+  .banner-ronda {
+    border-radius: 10px;
+    padding: 13px 18px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .banner-ronda.confirmado {
+    background: rgba(76,175,80,0.1);
+    border: 1px solid rgba(76,175,80,0.35);
+    color: var(--verde);
+  }
+  .banner-ronda.pendiente {
+    background: rgba(139,144,158,0.08);
+    border: 1px solid var(--borde);
+    color: var(--texto2);
+  }
+  .banner-ronda.oculto { display: none; }
+  /* ───────────────────────────────────────────────────── */
+
   /* Modal QR */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
   .modal-overlay.visible { display: flex; }
@@ -114,75 +137,25 @@
 
   /* Modal Motivos (PJ3) */
   .modal-motivos {
-    background: var(--bg2);
-    color: var(--texto);
-    border: 1px solid var(--borde);
-    border-radius: 14px;
-    padding: 24px;
-    max-width: 480px;
-    width: 90%;
-    max-height: 85vh;
-    overflow-y: auto;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    background: var(--bg2); color: var(--texto); border: 1px solid var(--borde);
+    border-radius: 14px; padding: 24px; max-width: 480px; width: 90%;
+    max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.5);
   }
-  .modal-motivos-cab {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 12px; margin-bottom: 6px;
-  }
-  .modal-motivos-cab h3 {
-    font-size: 17px; font-weight: 700; line-height: 1.3;
-  }
-  .modal-motivos-sub {
-    font-size: 13px; color: var(--texto2); margin-bottom: 18px;
-  }
-  .modal-motivos-lista {
-    list-style: none; padding: 0; margin: 0;
-    display: flex; flex-direction: column; gap: 8px;
-  }
-  .modal-motivos-lista li {
-    background: var(--bg3);
-    border: 1px solid var(--borde);
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 14px;
-    line-height: 1.4;
-  }
-  .modal-motivos-vacio {
-    background: var(--bg3);
-    border: 1px solid var(--borde);
-    border-radius: 8px;
-    padding: 14px;
-    color: var(--texto2);
-    font-size: 14px;
-    text-align: center;
-  }
-  .modal-motivos-btns {
-    display: flex; justify-content: flex-end; margin-top: 18px;
-  }
-  .btn-cerrar-motivos {
-    background: var(--bg3);
-    color: var(--texto);
-    border: 1px solid var(--borde);
-    padding: 9px 18px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 14px;
-    font-family: inherit;
-  }
+  .modal-motivos-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+  .modal-motivos-cab h3 { font-size: 17px; font-weight: 700; line-height: 1.3; }
+  .modal-motivos-sub { font-size: 13px; color: var(--texto2); margin-bottom: 18px; }
+  .modal-motivos-lista { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+  .modal-motivos-lista li { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 10px 14px; font-size: 14px; line-height: 1.4; }
+  .modal-motivos-vacio { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 14px; color: var(--texto2); font-size: 14px; text-align: center; }
+  .modal-motivos-btns { display: flex; justify-content: flex-end; margin-top: 18px; }
+  .btn-cerrar-motivos { background: var(--bg3); color: var(--texto); border: 1px solid var(--borde); padding: 9px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; font-family: inherit; }
   .btn-cerrar-motivos:hover { background: var(--borde); }
 
   /* Modal accesos denegados */
   .modal-accesos {
-    background: var(--bg2);
-    color: var(--texto);
-    border: 1px solid var(--borde);
-    border-radius: 14px;
-    padding: 24px;
-    max-width: 720px;
-    width: 92%;
-    max-height: 85vh;
-    overflow-y: auto;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    background: var(--bg2); color: var(--texto); border: 1px solid var(--borde);
+    border-radius: 14px; padding: 24px; max-width: 720px; width: 92%;
+    max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.5);
   }
   .modal-accesos-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 6px; }
   .modal-accesos-cab h3 { font-size: 18px; font-weight: 800; line-height: 1.25; }
@@ -201,27 +174,13 @@
 
   /* Banner de conexión (I3) */
   .conexion-banner {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 200;
-    padding: 10px 20px;
-    text-align: center;
-    font-size: 14px;
-    font-weight: 600;
-    color: white;
-    background: var(--rojo);
-    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-    transform: translateY(0);
-    transition: transform 0.3s ease, background 0.3s ease;
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    padding: 10px 20px; text-align: center; font-size: 14px; font-weight: 600;
+    color: white; background: var(--rojo); box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    transform: translateY(0); transition: transform 0.3s ease, background 0.3s ease;
   }
-  .conexion-banner.oculto {
-    transform: translateY(-100%);
-  }
-  .conexion-banner.online {
-    background: var(--verde);
-  }
+  .conexion-banner.oculto { transform: translateY(-100%); }
+  .conexion-banner.online { background: var(--verde); }
 </style>
 </head>
 <body>
@@ -280,6 +239,10 @@
       <h3>⚠️ <span id="avisos-titulo">Jornadas cerradas automáticamente</span></h3>
       <div id="avisos-lista"></div>
     </div>
+
+    <!-- ── Banner confirmación encargado (Paso 3.2 Parte B) ── -->
+    <div class="banner-ronda oculto" id="banner-ronda"></div>
+    <!-- ───────────────────────────────────────────────────── -->
 
     <div class="seccion">
       <div class="seccion-cab">
@@ -354,7 +317,7 @@ const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  AutoLogout.init(sb);
+AutoLogout.init(sb);
 
 const CLAVE_OBRA_ACTIVA_JEFE = 'jefe_obra_activa_id';
 
@@ -362,25 +325,18 @@ let obraActual = null;
 let brandingActual = null;
 let intervalPresencia = null;
 
-// PJ3 — caché de validaciones por trabajador para que el modal abra al instante
 let validacionesCache = {};
 let naranjasActualesCache = [];
 
-// I3 — estado del indicador de conexión
 let estaOffline = false;
 let timeoutBannerOnline = null;
 
-// ── Indicador de conexión (I3) ────────────────────────────────────────────────
 function marcarOffline() {
   if (estaOffline) return;
   estaOffline = true;
-  if (timeoutBannerOnline) {
-    clearTimeout(timeoutBannerOnline);
-    timeoutBannerOnline = null;
-  }
+  if (timeoutBannerOnline) { clearTimeout(timeoutBannerOnline); timeoutBannerOnline = null; }
   const banner = document.getElementById('conexion-banner');
-  const texto = document.getElementById('conexion-banner-texto');
-  texto.textContent = '⚠ Sin conexión — Los datos pueden estar desactualizados';
+  document.getElementById('conexion-banner-texto').textContent = '⚠ Sin conexión — Los datos pueden estar desactualizados';
   banner.classList.remove('online');
   banner.classList.remove('oculto');
 }
@@ -389,8 +345,7 @@ function marcarOnline() {
   if (!estaOffline) return;
   estaOffline = false;
   const banner = document.getElementById('conexion-banner');
-  const texto = document.getElementById('conexion-banner-texto');
-  texto.textContent = '✓ Conexión restaurada';
+  document.getElementById('conexion-banner-texto').textContent = '✓ Conexión restaurada';
   banner.classList.add('online');
   banner.classList.remove('oculto');
   if (timeoutBannerOnline) clearTimeout(timeoutBannerOnline);
@@ -403,19 +358,13 @@ function marcarOnline() {
 
 window.addEventListener('offline', marcarOffline);
 window.addEventListener('online', marcarOnline);
-
-// I3 — comprobación inicial: si ya estamos offline al cargar la página
 if (!navigator.onLine) { marcarOffline(); }
-
 
 const cardNaranjas = document.getElementById('card-naranjas');
 if (cardNaranjas) {
   cardNaranjas.addEventListener('click', abrirModalNaranjas);
   cardNaranjas.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      abrirModalNaranjas();
-    }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirModalNaranjas(); }
   });
 }
 
@@ -423,10 +372,7 @@ const cardRojos = document.getElementById('card-rojos');
 if (cardRojos) {
   cardRojos.addEventListener('click', abrirModalAccesosDenegados);
   cardRojos.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      abrirModalAccesosDenegados();
-    }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirModalAccesosDenegados(); }
   });
 }
 
@@ -443,7 +389,6 @@ if (cardRojos) {
   if (!miUsuario) { window.location.href = '../'; return; }
 
   document.getElementById('usuario-nombre').textContent = miUsuario.nombre || session.user.email;
-
   actualizarFechaHoy();
 
   const { data: misObras, error } = await sb
@@ -452,10 +397,7 @@ if (cardRojos) {
     .eq('usuario_app_id', miUsuario.id)
     .eq('rol_en_obra', 'jefe_obra');
 
-  if (error || !misObras || misObras.length === 0) {
-    window.location.href = '../';
-    return;
-  }
+  if (error || !misObras || misObras.length === 0) { window.location.href = '../'; return; }
 
   const selector = document.getElementById('selector-obra');
   selector.innerHTML = '';
@@ -476,6 +418,7 @@ if (cardRojos) {
   await cargarPresencia();
   await cargarBloqueos();
   await cargarAvisosAutocierre();
+  await cargarRondaEncargado();
   iniciarRefrescoPresencia();
 
   selector.addEventListener('change', async () => {
@@ -486,26 +429,25 @@ if (cardRojos) {
     await cargarPresencia();
     await cargarBloqueos();
     await cargarAvisosAutocierre();
+    await cargarRondaEncargado();
     iniciarRefrescoPresencia();
   });
 })();
 
-// Auto-refresh de presencia (I2)
 function iniciarRefrescoPresencia() {
-  if (intervalPresencia) {
-    clearInterval(intervalPresencia);
-    intervalPresencia = null;
-  }
+  if (intervalPresencia) { clearInterval(intervalPresencia); intervalPresencia = null; }
   intervalPresencia = setInterval(() => {
     if (document.hidden) return;
     if (!obraActual) return;
     cargarPresencia();
+    cargarRondaEncargado();
   }, 60 * 1000);
 }
 
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && obraActual) {
     cargarPresencia();
+    cargarRondaEncargado();
   }
 });
 
@@ -528,7 +470,6 @@ document.getElementById('btn-ver-qr').addEventListener('click', () => {
   abrirQR(obraActual, obraNombre);
 });
 
-// Patrón TZ correcto
 function rangoHoyLocal() {
   const a = new Date();
   const desde = new Date(a.getFullYear(), a.getMonth(), a.getDate(), 0, 0, 0, 0);
@@ -536,15 +477,42 @@ function rangoHoyLocal() {
   return { desdeISO: desde.toISOString(), hastaISO: hasta.toISOString() };
 }
 
-// PJ2 — Fecha con día de la semana en topbar
 function actualizarFechaHoy() {
   const el = document.getElementById('fecha-hoy');
   if (!el) return;
-  const txt = new Date().toLocaleDateString('es-ES', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-  });
+  const txt = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   el.textContent = txt.charAt(0).toUpperCase() + txt.slice(1);
 }
+
+// ── Banner confirmación encargado (Paso 3.2 Parte B) ─────────────────────────
+async function cargarRondaEncargado() {
+  const banner = document.getElementById('banner-ronda');
+  if (!obraActual) { banner.className = 'banner-ronda oculto'; return; }
+
+  const { desdeISO, hastaISO } = rangoHoyLocal();
+  const { data, error } = await sb
+    .from('rondas_encargado')
+    .select('momento, personas_en_obra, encargado:usuario_app_id(nombre)')
+    .eq('obra_id', obraActual)
+    .gte('momento', desdeISO)
+    .lte('momento', hastaISO)
+    .order('momento', { ascending: false })
+    .limit(1);
+
+  if (error || !data || data.length === 0) {
+    banner.className = 'banner-ronda pendiente';
+    banner.textContent = '⏳ Pendiente confirmación de presencia del encargado hoy';
+    return;
+  }
+
+  const r = data[0];
+  const hora = formatHora(r.momento);
+  const personas = r.personas_en_obra !== null ? ` · ${r.personas_en_obra} personas confirmadas` : '';
+  const nombre = r.encargado?.nombre ? ` ${r.encargado.nombre}` : '';
+  banner.className = 'banner-ronda confirmado';
+  banner.textContent = `✅ El encargado${nombre} ha confirmado presencia hoy a las ${hora}${personas}`;
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 async function cargarPresencia() {
   actualizarFechaHoy();
@@ -665,7 +633,6 @@ async function cargarPresencia() {
     </table>`;
 }
 
-// ── Modal Motivos (PJ3) ───────────────────────────────────────────────────────
 function limpiarMotivo(texto) {
   if (!texto) return '';
   return String(texto).replace(/\s*→\s*(verde|naranja|rojo)\s*$/i, '').trim();
@@ -674,13 +641,10 @@ function limpiarMotivo(texto) {
 function abrirMotivos(trabajadorId) {
   const v = validacionesCache[trabajadorId];
   if (!v) return;
-
   document.getElementById('motivos-nombre').textContent = v.nombre;
-
   const pill = document.getElementById('motivos-pill');
   pill.className = 'pill ' + v.estado;
   pill.textContent = v.estado;
-
   const cont = document.getElementById('motivos-contenido');
   if (!v.motivos || v.motivos.length === 0) {
     cont.innerHTML = '<div class="modal-motivos-vacio">Sin motivos registrados</div>';
@@ -689,7 +653,6 @@ function abrirMotivos(trabajadorId) {
       v.motivos.map(m => `<li>${esc(limpiarMotivo(m))}</li>`).join('') +
       '</ul>';
   }
-
   document.getElementById('modal-motivos-overlay').classList.add('visible');
 }
 
@@ -702,15 +665,9 @@ document.getElementById('modal-motivos-overlay').addEventListener('click', e => 
 });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    cerrarMotivos();
-    cerrarQR();
-    cerrarModalNaranjas();
-  }
+  if (e.key === 'Escape') { cerrarMotivos(); cerrarQR(); cerrarModalNaranjas(); }
 });
 
-
-// ── Modal Documentación naranja ───────────────────────────────────────────────
 function abrirModalNaranjas() {
   const overlay = document.getElementById('modal-naranjas-overlay');
   const contenido = document.getElementById('modal-naranjas-contenido');
@@ -755,10 +712,6 @@ document.getElementById('modal-naranjas-overlay').addEventListener('click', e =>
   if (e.target === document.getElementById('modal-naranjas-overlay')) cerrarModalNaranjas();
 });
 
-// ── Bloqueos rojos (S5) ───────────────────────────────────────────────────────
-// El card rojo muestra el total histórico del día (todos los intentos,
-// independientemente de si ya se marcaron como vistos).
-// El panel rojo muestra solo los pendientes de revisar (estado = 'nueva').
 async function cargarBloqueos() {
   const panel = document.getElementById('panel-bloqueos');
   const lista = document.getElementById('bloqueos-lista');
@@ -772,8 +725,6 @@ async function cargarBloqueos() {
 
   const { desdeISO, hastaISO } = rangoHoyLocal();
 
-  // S5 — Query 1: contador histórico (sin filtro de estado)
-  // Cuenta todos los intentos denegados hoy, ya revisados o no.
   const { count: totalHistorico } = await sb
     .from('incidencias')
     .select('*', { count: 'exact', head: true })
@@ -784,8 +735,6 @@ async function cargarBloqueos() {
 
   document.getElementById('stat-rojo').textContent = totalHistorico ?? 0;
 
-  // S5 — Query 2: pendientes de revisar (estado = 'nueva')
-  // Solo estas aparecen en el panel con botón "✓ Visto".
   const { data: incidencias, error } = await sb
     .from('incidencias')
     .select('id, detalle, created_at, trabajador:trabajador_id(id, nombre, apellidos, dni)')
@@ -798,23 +747,14 @@ async function cargarBloqueos() {
 
   if (error || !incidencias || incidencias.length === 0) return;
 
-  // Agrupar por trabajador
   const porTrabajador = {};
   incidencias.forEach(inc => {
     const tid = inc.trabajador?.id || 'desconocido';
     if (!porTrabajador[tid]) {
-      porTrabajador[tid] = {
-        incidencia_id: inc.id,
-        trabajador: inc.trabajador,
-        primer_intento: inc.created_at,
-        ultimo_intento: inc.created_at,
-        intentos: 1
-      };
+      porTrabajador[tid] = { incidencia_id: inc.id, trabajador: inc.trabajador, primer_intento: inc.created_at, ultimo_intento: inc.created_at, intentos: 1 };
     } else {
       porTrabajador[tid].intentos++;
-      if (inc.created_at < porTrabajador[tid].primer_intento) {
-        porTrabajador[tid].primer_intento = inc.created_at;
-      }
+      if (inc.created_at < porTrabajador[tid].primer_intento) porTrabajador[tid].primer_intento = inc.created_at;
     }
   });
 
@@ -848,21 +788,15 @@ async function cargarBloqueos() {
 async function marcarVistoRojo(incidenciaId, btn) {
   btn.disabled = true;
   btn.textContent = 'Marcando…';
-
-  const { data, error } = await sb.rpc('marcar_incidencia_vista', {
-    p_incidencia_id: incidenciaId
-  });
-
+  const { data, error } = await sb.rpc('marcar_incidencia_vista', { p_incidencia_id: incidenciaId });
   if (error || !data?.success) {
     btn.disabled = false;
     btn.textContent = '✓ Visto';
     alert('Error: ' + (error?.message || data?.error || 'No se pudo marcar'));
     return;
   }
-
   await cargarBloqueos();
 }
-
 
 async function abrirModalAccesosDenegados() {
   const overlay = document.getElementById('modal-accesos-overlay');
@@ -897,11 +831,10 @@ async function abrirModalAccesosDenegados() {
     contenido.innerHTML = `<div class="modal-motivos-vacio">No se pudo cargar el detalle: ${esc(error.message)}</div>`;
     return;
   }
-
-  pintarDetalleAccesos(data || [], { mostrarObra: false });
+  pintarDetalleAccesos(data || {});
 }
 
-function pintarDetalleAccesos(incidencias, opciones = {}) {
+function pintarDetalleAccesos(incidencias) {
   const contenido = document.getElementById('modal-accesos-contenido');
   const resumen = document.getElementById('modal-accesos-resumen');
 
@@ -916,19 +849,11 @@ function pintarDetalleAccesos(incidencias, opciones = {}) {
     const t = inc.trabajador || null;
     const key = t?.id || inc.trabajador_id || ('sin_trabajador_' + (inc.detalle || ''));
     if (!porTrabajador[key]) {
-      porTrabajador[key] = {
-        trabajador: t,
-        intentos: 0,
-        pendientes: 0,
-        revisados: 0,
-        ultimo: inc.created_at,
-        detalles: new Set()
-      };
+      porTrabajador[key] = { trabajador: t, intentos: 0, pendientes: 0, revisados: 0, ultimo: inc.created_at, detalles: new Set() };
     }
     const g = porTrabajador[key];
     g.intentos++;
-    if ((inc.estado || 'nueva') === 'nueva') g.pendientes++;
-    else g.revisados++;
+    if ((inc.estado || 'nueva') === 'nueva') g.pendientes++; else g.revisados++;
     if (inc.created_at && new Date(inc.created_at) > new Date(g.ultimo)) g.ultimo = inc.created_at;
     if (inc.detalle) g.detalles.add(inc.detalle);
   });
@@ -967,7 +892,6 @@ function cerrarModalAccesos() {
   document.getElementById('modal-accesos-overlay').classList.remove('visible');
 }
 
-// ── Avisos de autocierre ──────────────────────────────────────────────────────
 async function cargarAvisosAutocierre() {
   const panel = document.getElementById('panel-avisos');
   const lista = document.getElementById('avisos-lista');
@@ -995,12 +919,11 @@ async function cargarAvisosAutocierre() {
   lista.innerHTML = incidencias.map(inc => {
     const t = inc.trabajador || {};
     const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || '(sin nombre)';
-    const fecha = formatFecha(inc.created_at);
     return `
       <div class="aviso-item" data-id="${inc.id}">
         <div class="aviso-info">
           <strong>${esc(nombre)}</strong>
-          <div class="detalle">${esc(fecha)} — ${esc(inc.detalle || 'Cierre automático')}</div>
+          <div class="detalle">${esc(formatFecha(inc.created_at))} — ${esc(inc.detalle || 'Cierre automático')}</div>
         </div>
         <button class="btn-visto" onclick="marcarVisto('${inc.id}', this)">✓ Visto</button>
       </div>`;
@@ -1012,33 +935,21 @@ async function cargarAvisosAutocierre() {
 async function marcarVisto(incidenciaId, btn) {
   btn.disabled = true;
   btn.textContent = 'Marcando…';
-
-  const { data, error } = await sb.rpc('marcar_incidencia_vista', {
-    p_incidencia_id: incidenciaId
-  });
-
+  const { data, error } = await sb.rpc('marcar_incidencia_vista', { p_incidencia_id: incidenciaId });
   if (error || !data?.success) {
     btn.disabled = false;
     btn.textContent = '✓ Visto';
     alert('Error: ' + (error?.message || data?.error || 'No se pudo marcar como vista'));
     return;
   }
-
   await cargarAvisosAutocierre();
 }
 
-// ── QR ────────────────────────────────────────────────────────────────────────
 function abrirQR(obraId, obraNombre) {
   const url = `https://canostboi.github.io/fichaje-obras-bp-recop/fichaje/?obra=${obraId}`;
   document.getElementById('qr-obra-nombre').textContent = obraNombre;
   const canvas = document.getElementById('qr-canvas');
-  new QRious({
-    element: canvas,
-    value: url,
-    size: 280,
-    background: 'white',
-    foreground: 'black'
-  });
+  new QRious({ element: canvas, value: url, size: 280, background: 'white', foreground: 'black' });
   document.getElementById('modal-qr').classList.add('visible');
 }
 
@@ -1050,12 +961,10 @@ function imprimirQR() {
   const obraNombre = document.getElementById('qr-obra-nombre').textContent;
   const canvas = document.getElementById('qr-canvas');
   const dataUrl = canvas ? canvas.toDataURL('image/png') : '';
-
   const logoUrl = brandingActual
     ? window.location.origin + window.location.pathname.replace(/jefe\/.*$/, '') + brandingActual.logo
     : '';
   const marcaNombre = brandingActual ? brandingActual.nombre : '';
-
   const win = window.open('', '_blank');
   win.document.write(`
     <!DOCTYPE html><html><head>
@@ -1064,11 +973,9 @@ function imprimirQR() {
       body { font-family: sans-serif; text-align: center; padding: 40px; }
       .logo-marca { max-height: 60px; max-width: 220px; margin-bottom: 20px; }
       h1 { font-size: 24px; margin-bottom: 8px; }
-      .empresa { color: #888; font-size: 13px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
       p { color: #666; font-size: 14px; margin-bottom: 24px; }
       .sub-ar { display: block; margin-top: 8px; font-size: 18px; font-weight: 700; color: #444; direction: rtl; }
       img.qr { display: block; margin: 0 auto; width: 280px; }
-
       .aviso-obligatorio { margin: 26px auto 0; max-width: 560px; border: 2px solid #111; border-radius: 12px; padding: 16px 18px; color: #111; background: #fff; }
       .aviso-obligatorio .es { font-size: 16px; font-weight: 800; line-height: 1.35; margin-bottom: 10px; }
       .aviso-obligatorio .ar { font-size: 18px; font-weight: 800; line-height: 1.6; direction: rtl; }
@@ -1078,7 +985,6 @@ function imprimirQR() {
     <h1>${obraNombre}</h1>
     <p>Escanea este código QR para fichar tu entrada/salida<span class="sub-ar" lang="ar" dir="rtl">امسح رمز QR هذا لتسجيل دخولك/خروجك</span></p>
     <img class="qr" src="${dataUrl}" />
-
     <div class="aviso-obligatorio">
       <div class="es">En esta obra es obligatorio fichar tanto a la entrada como a la salida. El incumplimiento puede tener consecuencias disciplinarias.</div>
       <div class="ar" lang="ar" dir="rtl">في هذا الموقع، تسجيل الحضور عند الدخول والخروج إلزامي.<br>عدم الامتثال قد يترتب عليه عواقب تأديبية.</div>
@@ -1097,10 +1003,7 @@ document.getElementById('modal-accesos-overlay').addEventListener('click', e => 
 });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    cerrarModalAccesos();
-    cerrarModalNaranjas();
-  }
+  if (e.key === 'Escape') { cerrarModalAccesos(); cerrarModalNaranjas(); }
 });
 
 function esc(txt) {
