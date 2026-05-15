@@ -36,7 +36,6 @@
   .topbar-right { display: flex; align-items: center; gap: 14px; }
   .usuario { font-size: 13px; color: var(--texto2); }
 
-  /* G1: botón actualizar */
   .btn-actualizar { background: transparent; border: 1px solid var(--borde); color: var(--texto2); border-radius: 8px; padding: 7px 13px; font-size: 13px; cursor: pointer; font-family: inherit; transition: background 0.12s, color 0.12s; }
   .btn-actualizar:hover { background: var(--bg3); color: var(--texto); }
 
@@ -63,6 +62,24 @@
   td { padding: 13px 20px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: var(--bg3); }
+
+  /* Encabezado de grupo empresa */
+  tr.grupo-empresa-cab { cursor: pointer; user-select: none; }
+  tr.grupo-empresa-cab td { background: var(--bg3); border-bottom: 1px solid var(--borde); border-top: 2px solid var(--borde); padding: 10px 20px; }
+  tr.grupo-empresa-cab:first-child td { border-top: none; }
+  tr.grupo-empresa-cab:hover td { background: #272b34; }
+  .grupo-empresa-label { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--texto); }
+  .grupo-empresa-chevron { font-size: 10px; color: var(--texto2); transition: transform 0.18s; display: inline-block; }
+  .grupo-empresa-chevron.abierto { transform: rotate(90deg); }
+  .grupo-empresa-badges { display: flex; gap: 6px; margin-left: auto; }
+  .badge-empresa { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+  .badge-empresa.rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
+  .badge-empresa.naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
+  .badge-empresa.total   { background: rgba(139,144,158,0.15); color: var(--texto2); }
+
+  tr.grupo-fila { transition: opacity 0.15s; }
+  tr.grupo-fila.oculto { display: none; }
+
   .pill { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; margin: 2px; }
   .pill.verde   { background: rgba(76,175,80,0.15);  color: var(--verde); }
   .pill.naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
@@ -141,7 +158,6 @@
   .msg-error { color: var(--rojo); font-size: 13px; }
   .msg-ok { color: var(--verde); font-size: 13px; }
 
-
   /* Modal resumen documental por empresa */
   .modal-resumen { width: 820px; max-width: 96vw; }
   .resumen-intro { background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.35); border-radius: 8px; padding: 12px 14px; color: var(--texto); font-size: 13px; line-height: 1.45; }
@@ -187,7 +203,6 @@
   <div class="topbar">
     <h1>Trabajadores</h1>
     <div class="topbar-right">
-      <!-- G1: botón actualizar -->
       <button class="btn-actualizar" id="btn-actualizar" title="Recargar lista de trabajadores">🔄 Actualizar</button>
       <span class="usuario" id="usuario-nombre"></span>
     </div>
@@ -217,6 +232,7 @@
   </div>
 </div>
 
+<!-- Modal nuevo/editar trabajador -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
     <h3 id="modal-titulo">Nuevo trabajador</h3>
@@ -265,6 +281,7 @@
   </div>
 </div>
 
+<!-- Modal forzar estado documental -->
 <div class="modal-overlay" id="modal-forzar-overlay">
   <div class="modal">
     <h3>Estado documental</h3>
@@ -302,7 +319,7 @@
   </div>
 </div>
 
-
+<!-- Modal resumen documental por empresa -->
 <div class="modal-overlay" id="modal-resumen-overlay">
   <div class="modal modal-resumen">
     <h3>Resumen documental por empresa</h3>
@@ -330,10 +347,13 @@ const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  AutoLogout.init(sb);
+AutoLogout.init(sb);
 
 const CLAVE_OBRA_ACTIVA_JEFE = 'jefe_obra_activa_id';
 const CLAVE_OBRA_FILTRO_TRABAJADORES = 'jefe_trabajadores_obra_filtro';
+
+// Empresas que siempre van primero (en este orden), el resto alfabético.
+const EMPRESAS_PRIORITARIAS = ['Bosch Pascual', 'Rècop'];
 
 let misObras = [];
 let todosTrabajadores = [];
@@ -342,6 +362,10 @@ let miUsuarioId = null;
 
 let forzarCtx = null;
 let estadoSeleccionado = null;
+
+// Recordar qué grupos están abiertos/cerrados (por nombre de empresa).
+// Por defecto todos abiertos; al colapsar se añade la clave con false.
+const gruposAbiertos = {};
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -374,11 +398,8 @@ let estadoSeleccionado = null;
 
   await cargarTrabajadores();
 
-  // G1 — Capa 2: recargar al volver a esta pestaña (ej: tras importar en e-Coordina)
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-      cargarTrabajadores();
-    }
+    if (document.visibilityState === 'visible') cargarTrabajadores();
   });
 })();
 
@@ -396,7 +417,6 @@ document.getElementById('btn-salir').addEventListener('click', async () => {
   window.location.href = '../';
 });
 
-// G1 — Capa 1: botón manual
 document.getElementById('btn-actualizar').addEventListener('click', () => {
   cargarTrabajadores();
 });
@@ -449,8 +469,6 @@ async function cargarTrabajadores() {
     `)
     .in('obra_id', obraIds);
 
-  // Fallback conservador: si algún entorno no devuelve el join de empresa,
-  // la tabla sigue cargando como antes y el resumen agrupa como "Sin empresa asignada".
   if (errorValidaciones) {
     const fallback = await sb
       .from('validaciones_obra')
@@ -461,7 +479,6 @@ async function cargarTrabajadores() {
 
   const hoy = new Date().toISOString().slice(0, 10);
 
-  // S3: filtrar solo excepciones activas (no revocadas)
   const { data: excepciones } = await sb
     .from('excepciones_acceso')
     .select('id, trabajador_id, obra_id, motivo_autorizacion, created_at, autorizado_por:autorizado_por_user_id(nombre)')
@@ -563,11 +580,22 @@ function aplicarFiltrosTabla() {
   renderTabla(lista);
 }
 
+// ─── Ordenación de empresas: prioritarias primero, resto alfabético ───────────
+function ordenarEmpresas(nombresEmpresas) {
+  const prioritarias = EMPRESAS_PRIORITARIAS.filter(e => nombresEmpresas.includes(e));
+  const resto = nombresEmpresas
+    .filter(e => !EMPRESAS_PRIORITARIAS.includes(e))
+    .sort((a, b) => a.localeCompare(b, 'es'));
+  return [...prioritarias, ...resto];
+}
+
 function renderTabla(lista) {
   const obraFiltrada = obtenerObraFiltro();
   const titulo = document.getElementById('titulo-listado-trabajadores');
   if (titulo) {
-    titulo.textContent = obraFiltrada ? `Trabajadores — ${obraFiltrada.nombre || 'Obra seleccionada'}` : 'Trabajadores en mis obras';
+    titulo.textContent = obraFiltrada
+      ? `Trabajadores — ${obraFiltrada.nombre || 'Obra seleccionada'}`
+      : 'Trabajadores en mis obras';
   }
 
   document.getElementById('contador').textContent = obraFiltrada
@@ -583,36 +611,100 @@ function renderTabla(lista) {
     return;
   }
 
-  contenedor.innerHTML = `
-    <table>
-      <thead>
-        <tr>
-          <th>Nombre</th>
-          <th>DNI</th>
-          <th>Categoría</th>
-          <th>Precio hora</th>
-          <th>Obras asignadas</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${lista.map(t => `
-          <tr>
-            <td><strong>${esc(nombreCompleto(t))}</strong></td>
-            <td style="font-family:monospace">${esc(t.dni)}</td>
-            <td>${esc(t.categoria || '—')}</td>
-            <td>${formatearPrecio(t.precio_hora_personalizado)}</td>
-            <td>${t.obras.map(o => pillObra(t, o)).join('')}</td>
-            <td>
-              <div class="acciones">
-                <button class="btn-accion primario" onclick="abrirEdicion('${t.id}')">Editar</button>
-              </div>
-            </td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
+  // Agrupar por empresa
+  const porEmpresa = {};
+  lista.forEach(t => {
+    const empresa = t.empresa?.nombre || 'Sin empresa asignada';
+    if (!porEmpresa[empresa]) porEmpresa[empresa] = [];
+    porEmpresa[empresa].push(t);
+  });
+
+  const empresasOrdenadas = ordenarEmpresas(Object.keys(porEmpresa));
+
+  // Construir filas de la tabla con encabezados de grupo
+  const filasCabecera = `
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>DNI</th>
+        <th>Categoría</th>
+        <th>Precio hora</th>
+        <th>Obras asignadas</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
   `;
+
+  let filasBody = '';
+
+  empresasOrdenadas.forEach(empresa => {
+    const trabajadores = porEmpresa[empresa];
+
+    // Calcular badges de resumen para el encabezado
+    let rojos = 0;
+    let naranjas = 0;
+    trabajadores.forEach(t => {
+      t.obras.forEach(o => {
+        if (o.estado === 'rojo') rojos++;
+        else if (o.estado === 'naranja') naranjas++;
+      });
+    });
+
+    const grupoAbierto = gruposAbiertos[empresa] !== false; // por defecto abierto
+    const chevronClase = grupoAbierto ? 'grupo-empresa-chevron abierto' : 'grupo-empresa-chevron';
+    const filaClase = grupoAbierto ? 'grupo-fila' : 'grupo-fila oculto';
+
+    const badgesHtml = [
+      rojos > 0    ? `<span class="badge-empresa rojo">${rojos} rojo${rojos > 1 ? 's' : ''}</span>` : '',
+      naranjas > 0 ? `<span class="badge-empresa naranja">${naranjas} naranja${naranjas > 1 ? 's' : ''}</span>` : '',
+      `<span class="badge-empresa total">${trabajadores.length} trabajador${trabajadores.length > 1 ? 'es' : ''}</span>`
+    ].join('');
+
+    // Fila encabezado de grupo (ocupa todas las columnas)
+    filasBody += `
+      <tr class="grupo-empresa-cab" onclick="toggleGrupo('${esc(empresa)}')">
+        <td colspan="6">
+          <div class="grupo-empresa-label">
+            <span class="${chevronClase}" id="chevron-${esc(empresa)}">▶</span>
+            ${esc(empresa)}
+            <div class="grupo-empresa-badges">${badgesHtml}</div>
+          </div>
+        </td>
+      </tr>
+    `;
+
+    // Filas de trabajadores del grupo
+    trabajadores.forEach(t => {
+      filasBody += `
+        <tr class="${filaClase}" data-grupo="${esc(empresa)}">
+          <td><strong>${esc(nombreCompleto(t))}</strong></td>
+          <td style="font-family:monospace">${esc(t.dni)}</td>
+          <td>${esc(t.categoria || '—')}</td>
+          <td>${formatearPrecio(t.precio_hora_personalizado)}</td>
+          <td>${t.obras.map(o => pillObra(t, o)).join('')}</td>
+          <td>
+            <div class="acciones">
+              <button class="btn-accion primario" onclick="abrirEdicion('${t.id}')">Editar</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+  });
+
+  contenedor.innerHTML = `<table>${filasCabecera}<tbody>${filasBody}</tbody></table>`;
+}
+
+function toggleGrupo(empresa) {
+  const abierto = gruposAbiertos[empresa] !== false;
+  gruposAbiertos[empresa] = !abierto;
+
+  const chevron = document.getElementById(`chevron-${empresa}`);
+  if (chevron) chevron.classList.toggle('abierto', !abierto);
+
+  document.querySelectorAll(`tr.grupo-fila[data-grupo="${empresa}"]`).forEach(fila => {
+    fila.classList.toggle('oculto', abierto);
+  });
 }
 
 function pillObra(trabajador, obra) {
@@ -770,7 +862,6 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     return;
   }
 
-  // Llamada a RPC SECURITY DEFINER — evita error RLS en INSERT directo
   const { data: rpcData, error: rpcError } = await sb.rpc('crear_o_actualizar_trabajador', {
     p_nombre: nombre,
     p_apellidos: apellidos,
@@ -794,7 +885,6 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     return;
   }
 
-  // Si es edición, quitar obras desmarcadas (esto sí lo puede hacer el jefe via RLS)
   if (modoEdicion) {
     const trabajadorId = rpcData.id;
     const { data: asignacionesActuales } = await sb
@@ -1099,8 +1189,6 @@ document.getElementById('btn-quitar-autorizacion').addEventListener('click', asy
   }, 800);
 });
 
-
-
 function abrirResumenDocumental() {
   prepararFiltroResumenObras();
   pintarResumenDocumental();
@@ -1166,7 +1254,6 @@ function cerrarResumenDocumental() {
   document.getElementById('modal-resumen-overlay').classList.remove('abierto');
 }
 
-// Compatibilidad por si alguna llamada antigua queda viva en navegador/cache.
 function abrirResumenNaranja() { abrirResumenDocumental(); }
 function cerrarResumenNaranja() { cerrarResumenDocumental(); }
 
