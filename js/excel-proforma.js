@@ -45,9 +45,22 @@
   const COLOR_BAND    = 'F7F7F7';   // banding filas pares
   const COLOR_TOTAL   = 'FFF2CC';   // cols totales por trabajador
   const COLOR_FOOTER  = 'FFE699';   // fila TOTALES
+  const COLOR_SUBTOT  = 'FFF9E6';   // fila SUBTOTAL empresa (amarillo más suave que FOOTER)
   const COLOR_ALERTA  = 'FFE0B2';   // naranja claro: días con autocierre
   const COLOR_BLANCO  = 'FFFFFF';
   const COLOR_BORDE   = 'BFBFBF';   // bordes grises (no negros)
+
+  // ===== Colores de categoría (mejora B) =====
+  // Fondo de la celda CATEGORÍA según el valor del trabajador.
+  // Si no coincide con ningún clave, se usa el banding normal.
+  const CATEGORIA_COLORES = {
+    'peon':     'E8E8E8',   // gris claro
+    'peón':     'E8E8E8',
+    'oficial':  'BDD7EE',   // azul claro
+    'capataz':  'C6EFCE',   // verde claro
+    'tecnico':  'FCE4D6',   // salmón claro
+    'técnico':  'FCE4D6',
+  };
 
   // ===== Función pública =====
 
@@ -151,48 +164,58 @@
 
     trabajadores.forEach(t => {
       t.dias = {};
+      // dias_autocierre[d] = nº de salidas autocerradas ese día.
+      // Lo usaremos en pintarHoja como "marcar amarillo si > 0" y para sumar el contador global.
       t.dias_autocierre = {};
       for (let d = 1; d <= diasMes; d++) {
         t.dias[d] = 0;
         t.dias_autocierre[d] = 0;
       }
 
-      // FIX A-05: emparejar entrada/salida de forma consecutiva global,
-      // sin agrupar por día primero. Así las jornadas que cruzan medianoche
-      // se emparejan correctamente y las horas se asignan al día de la entrada.
-      const eventos = t.fichajes
-        .map(f => ({
+      const porDia = {};
+
+      t.fichajes.forEach(f => {
+        // I1: Date(iso) interpreta el ISO como UTC y getDate() devuelve el día
+        // en zona local del navegador (España) -> correcto para asignar al calendario.
+        const d = new Date(f.hora);
+        const dia = d.getDate();
+        if (!porDia[dia]) porDia[dia] = [];
+        porDia[dia].push({
           tipo: f.tipo,
-          hora: new Date(f.hora),
+          hora: d,
           cierre_automatico: !!f.cierre_automatico
-        }))
-        .sort((a, b) => a.hora - b.hora);
+        });
+      });
 
-      let entrada = null;
+      Object.keys(porDia).forEach(diaStr => {
+        const dia = Number(diaStr);
+        const eventos = porDia[dia].sort((a, b) => a.hora - b.hora);
+        let entrada = null;
+        let horas = 0;
+        let autocierresDia = 0;
 
-      eventos.forEach(ev => {
-        if (ev.tipo === 'entrada') {
-          // Solo abrimos nueva entrada si no hay una abierta ya
-          if (!entrada) entrada = ev;
-        } else if (ev.tipo === 'salida') {
-          if (entrada) {
-            const diff = (ev.hora - entrada.hora) / 3600000;
-            // Jornada válida: positiva y menor de 24h
-            if (diff > 0 && diff < 24) {
-              const dia = entrada.hora.getDate();
-              t.dias[dia] = redondear2((t.dias[dia] || 0) + diff);
-              if (ev.cierre_automatico) {
-                t.dias_autocierre[dia] = (t.dias_autocierre[dia] || 0) + 1;
-              }
+        eventos.forEach(ev => {
+          if (ev.tipo === 'entrada') {
+            if (!entrada) entrada = ev.hora;
+          } else if (ev.tipo === 'salida') {
+            if (entrada) {
+              const diff = (ev.hora - entrada) / 3600000;
+              if (diff > 0 && diff < 24) horas += diff;
+              entrada = null;
             }
-            entrada = null;
+            // Contamos cualquier salida autocerrada del día,
+            // emparejada o no: cada salida autocerrada cuenta 1.
+            if (ev.cierre_automatico) autocierresDia++;
           }
-          // Salida sin entrada previa: ignorar (dato huérfano)
-        }
+        });
+
+        t.dias[dia] = redondear2(horas);
+        t.dias_autocierre[dia] = autocierresDia;
       });
 
       t.horas_mes = redondear2(Object.values(t.dias).reduce((a, b) => a + b, 0));
       t.total = t.precio_hora ? redondear2(t.horas_mes * Number(t.precio_hora)) : 0;
+      // Total de autocierres del mes para este trabajador
       t.autocierres_mes = Object.values(t.dias_autocierre).reduce((a, b) => a + b, 0);
     });
 
@@ -321,19 +344,31 @@
         const row = ws.getRow(rowIndex);
         row.height = 22;
 
-        // NOMBRE / DNI / CATEGORÍA
-        [
-          { col: 1, val: t.nombre, align: 'left', indent: 1 },
-          { col: 2, val: t.dni, align: 'center' },
-          { col: 3, val: t.categoria || '', align: 'left' }
-        ].forEach(({ col, val, align, indent }) => {
-          const cell = row.getCell(col);
-          cell.value = val;
-          cell.font = { name: FUENTE_EXCEL, size: 10 };
-          cell.fill = fillSolid(bandColor);
-          cell.alignment = { horizontal: align, vertical: 'middle', wrapText: true, indent: indent || 0 };
-          cell.border = borderThinGris();
-        });
+        // NOMBRE
+        const cellNombre = row.getCell(1);
+        cellNombre.value = t.nombre;
+        cellNombre.font = { name: FUENTE_EXCEL, size: 10 };
+        cellNombre.fill = fillSolid(bandColor);
+        cellNombre.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true, indent: 1 };
+        cellNombre.border = borderThinGris();
+
+        // DNI
+        const cellDni = row.getCell(2);
+        cellDni.value = t.dni;
+        cellDni.font = { name: FUENTE_EXCEL, size: 10 };
+        cellDni.fill = fillSolid(bandColor);
+        cellDni.alignment = { horizontal: 'center', vertical: 'middle' };
+        cellDni.border = borderThinGris();
+
+        // CATEGORÍA — mejora B: color de fondo según categoría
+        const cellCat = row.getCell(3);
+        const catKey = (t.categoria || '').toLowerCase().trim();
+        const catColor = CATEGORIA_COLORES[catKey] || bandColor;
+        cellCat.value = t.categoria || '';
+        cellCat.font = { name: FUENTE_EXCEL, size: 10, bold: !!CATEGORIA_COLORES[catKey] };
+        cellCat.fill = fillSolid(catColor);
+        cellCat.alignment = { horizontal: 'left', vertical: 'middle' };
+        cellCat.border = borderThinGris();
 
         // FORM/EPIS/USO MAQ/FIRMA/TC2/ALTA SS — vacías con banding
         for (let c = 4; c <= 9; c++) {
@@ -418,6 +453,66 @@
 
     const filaFin = rowIndex - 1;
 
+    // ===== FILA SUBTOTAL empresa (mejora C) =====
+    // Solo se pinta si hay trabajadores. Resume horas y € de esta empresa.
+    if (trabajadores.length > 0) {
+      const filaSubtot = ws.getRow(rowIndex);
+      filaSubtot.height = 22;
+
+      // Etiqueta SUBTOTAL
+      ws.mergeCells(rowIndex, 1, rowIndex, 9);
+      const cellSubLabel = ws.getCell(rowIndex, 1);
+      cellSubLabel.value = `SUBTOTAL — ${nombreEmpresa}`;
+      cellSubLabel.font = { name: FUENTE_EXCEL, bold: true, size: 10, color: { argb: COLOR_OSCURO } };
+      cellSubLabel.fill = fillSolid(COLOR_SUBTOT);
+      cellSubLabel.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+      cellSubLabel.border = borderThinGris();
+      for (let c = 1; c <= 9; c++) {
+        ws.getCell(rowIndex, c).border = borderThinGris();
+        ws.getCell(rowIndex, c).fill = fillSolid(COLOR_SUBTOT);
+      }
+
+      // Suma por día
+      for (let d = 1; d <= diasMes; d++) {
+        const col = 9 + d;
+        const colLetter = letraExcel(col);
+        const cell = ws.getCell(rowIndex, col);
+        cell.value = { formula: `SUM(${colLetter}${filaInicio}:${colLetter}${filaFin})` };
+        cell.numFmt = '0.00;-0.00;';
+        cell.font = { name: FUENTE_EXCEL, bold: false, size: 8, color: { argb: COLOR_OSCURO } };
+        cell.fill = fillSolid(COLOR_SUBTOT);
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = borderThinGris();
+      }
+
+      // Subtotal horas
+      const colHLetra = letraExcel(colHoras);
+      const cellSubH = ws.getCell(rowIndex, colHoras);
+      cellSubH.value = { formula: `SUM(${colHLetra}${filaInicio}:${colHLetra}${filaFin})` };
+      cellSubH.numFmt = '0.00';
+      cellSubH.font = { name: FUENTE_EXCEL, bold: true, size: 10 };
+      cellSubH.fill = fillSolid(COLOR_SUBTOT);
+      cellSubH.alignment = { horizontal: 'center', vertical: 'middle' };
+      cellSubH.border = borderThinGris();
+
+      // Precio: vacío
+      const cellSubP = ws.getCell(rowIndex, colPrecio);
+      cellSubP.fill = fillSolid(COLOR_SUBTOT);
+      cellSubP.border = borderThinGris();
+
+      // Subtotal €
+      const colTLetra = letraExcel(colTotal);
+      const cellSubT = ws.getCell(rowIndex, colTotal);
+      cellSubT.value = { formula: `SUM(${colTLetra}${filaInicio}:${colTLetra}${filaFin})` };
+      cellSubT.numFmt = '#,##0.00 €';
+      cellSubT.font = { name: FUENTE_EXCEL, bold: true, size: 10 };
+      cellSubT.fill = fillSolid(COLOR_SUBTOT);
+      cellSubT.alignment = { horizontal: 'center', vertical: 'middle' };
+      cellSubT.border = borderThinGris();
+
+      rowIndex++;
+    }
+
     // ===== FILA TOTALES =====
     if (trabajadores.length > 0) {
       const filaTot = ws.getRow(rowIndex);
@@ -436,7 +531,8 @@
         ws.getCell(rowIndex, c).fill = fillSolid(COLOR_OSCURO);
       }
 
-      // Suma por día (fórmula)
+      // Suma por día (fórmula — suma desde filaInicio hasta filaFin,
+      // excluyendo la fila SUBTOTAL que hay justo antes)
       for (let d = 1; d <= diasMes; d++) {
         const col = 9 + d;
         const colLetter = letraExcel(col);
