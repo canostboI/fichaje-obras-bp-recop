@@ -47,8 +47,6 @@
   .btn-manual:hover { opacity: 0.9; }
   .btn-naranja { background: var(--naranja); color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
   .btn-naranja:hover { opacity: 0.9; }
-
-  /* === Bloque de exportación mensual (segunda barra) === */
   .bloque-export { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 14px 20px; margin-bottom: 16px; }
   .bloque-export-titulo { font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; }
   .bloque-export-fila { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
@@ -61,7 +59,6 @@
   .msg-export.err { color: var(--rojo); }
   .msg-export.ok { color: var(--verde); }
   .msg-export.aviso { color: var(--naranja); }
-
   .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
   .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; }
   .seccion-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -156,17 +153,14 @@
     <div class="subtitulo" id="correccion-subtitulo"></div>
     <div class="error-modal" id="error-correccion"></div>
     <div class="ok-modal" id="ok-correccion"></div>
-
     <div class="campo">
       <label>Nueva hora</label>
       <input type="time" id="f-hora">
     </div>
-
     <div class="campo">
       <label>Motivo</label>
       <textarea id="f-motivo" placeholder="Ej: El trabajador olvidó fichar la salida"></textarea>
     </div>
-
     <div class="modal-acciones">
       <button class="btn-secundario" id="btn-cancelar">Cancelar</button>
       <button class="btn-primario" id="btn-guardar">Guardar</button>
@@ -180,14 +174,12 @@
     <div class="subtitulo">Registra una entrada o salida manual cuando el trabajador no pueda fichar desde su móvil.</div>
     <div class="error-modal" id="error-manual"></div>
     <div class="ok-modal" id="ok-manual"></div>
-
     <div class="campo">
       <label>Trabajador</label>
       <select id="manual-trabajador">
         <option value="">Cargando trabajadores…</option>
       </select>
     </div>
-
     <div class="campo">
       <label>Tipo de fichaje</label>
       <select id="manual-tipo">
@@ -195,7 +187,6 @@
         <option value="salida">Salida</option>
       </select>
     </div>
-
     <div class="campo-fila">
       <div class="campo">
         <label>Fecha</label>
@@ -206,12 +197,10 @@
         <input type="time" id="manual-hora">
       </div>
     </div>
-
     <div class="campo">
       <label>Motivo</label>
       <textarea id="manual-motivo" placeholder="Ej: trabajador sin móvil / móvil sin batería / problema puntual con QR"></textarea>
     </div>
-
     <div class="modal-acciones">
       <button class="btn-secundario" id="btn-cancelar-manual">Cancelar</button>
       <button class="btn-primario" id="btn-guardar-manual">Registrar fichaje</button>
@@ -343,12 +332,7 @@ async function buscar() {
     <table>
       <thead>
         <tr>
-          <th>Trabajador</th>
-          <th>DNI</th>
-          <th>Tipo</th>
-          <th>Hora</th>
-          <th>Avisos</th>
-          <th>Acción</th>
+          <th>Trabajador</th><th>DNI</th><th>Tipo</th><th>Hora</th><th>Avisos</th><th>Acción</th>
         </tr>
       </thead>
       <tbody>
@@ -376,24 +360,14 @@ async function cargarTrabajadoresObra() {
     .select('estado, trabajador:trabajador_id(id, nombre, apellidos, dni, activo)')
     .eq('obra_id', obraActual);
 
-  if (error || !data) {
-    trabajadoresObra = [];
-    return;
-  }
+  if (error || !data) { trabajadoresObra = []; return; }
 
   const mapa = new Map();
-
   data.forEach(v => {
     const t = v.trabajador;
     if (!t || !t.id || t.activo === false) return;
     if (!mapa.has(t.id)) {
-      mapa.set(t.id, {
-        id: t.id,
-        nombre: t.nombre || '',
-        apellidos: t.apellidos || '',
-        dni: t.dni || '',
-        estado: v.estado || 'verde'
-      });
+      mapa.set(t.id, { id: t.id, nombre: t.nombre || '', apellidos: t.apellidos || '', dni: t.dni || '', estado: v.estado || 'verde' });
     }
   });
 
@@ -404,7 +378,6 @@ async function cargarTrabajadoresObra() {
 
 document.getElementById('btn-manual').addEventListener('click', async () => {
   await cargarTrabajadoresObra();
-
   document.getElementById('error-manual').style.display = 'none';
   document.getElementById('ok-manual').style.display = 'none';
   document.getElementById('manual-fecha').value = document.getElementById('filtro-fecha').value || fechaHoy();
@@ -412,7 +385,6 @@ document.getElementById('btn-manual').addEventListener('click', async () => {
   document.getElementById('manual-tipo').value = 'entrada';
   document.getElementById('manual-motivo').value = '';
   document.getElementById('btn-guardar-manual').disabled = false;
-
   rellenarSelectTrabajadoresManual();
   document.getElementById('modal-manual').classList.add('visible');
 });
@@ -420,14 +392,12 @@ document.getElementById('btn-manual').addEventListener('click', async () => {
 function rellenarSelectTrabajadoresManual() {
   const select = document.getElementById('manual-trabajador');
   select.innerHTML = '<option value="">Selecciona trabajador…</option>';
-
   trabajadoresObra.forEach(t => {
     const opt = document.createElement('option');
     opt.value = t.id;
     opt.textContent = `${t.apellidos ? t.apellidos + ', ' : ''}${t.nombre} — ${t.dni} (${t.estado})`;
     select.appendChild(opt);
   });
-
   if (trabajadoresObra.length === 0) {
     select.innerHTML = '<option value="">No hay trabajadores asociados a esta obra</option>';
   }
@@ -439,23 +409,19 @@ document.getElementById('btn-cancelar-manual').addEventListener('click', () => {
 
 document.getElementById('btn-guardar-manual').addEventListener('click', async () => {
   const trabajadorId = document.getElementById('manual-trabajador').value;
-  const tipo = document.getElementById('manual-tipo').value;
-  const fecha = document.getElementById('manual-fecha').value;
-  const hora = document.getElementById('manual-hora').value;
-  const motivo = document.getElementById('manual-motivo').value.trim();
+  const tipo         = document.getElementById('manual-tipo').value;
+  const fecha        = document.getElementById('manual-fecha').value;
+  const hora         = document.getElementById('manual-hora').value;
+  const motivo       = document.getElementById('manual-motivo').value.trim();
 
   if (!trabajadorId) { mostrarErrorManual('Selecciona un trabajador.'); return; }
-  if (!tipo) { mostrarErrorManual('Selecciona entrada o salida.'); return; }
-  if (!fecha) { mostrarErrorManual('La fecha es obligatoria.'); return; }
-  if (!hora) { mostrarErrorManual('La hora es obligatoria.'); return; }
-  if (!motivo) { mostrarErrorManual('El motivo es obligatorio.'); return; }
+  if (!tipo)         { mostrarErrorManual('Selecciona entrada o salida.'); return; }
+  if (!fecha)        { mostrarErrorManual('La fecha es obligatoria.'); return; }
+  if (!hora)         { mostrarErrorManual('La hora es obligatoria.'); return; }
+  if (!motivo)       { mostrarErrorManual('El motivo es obligatorio.'); return; }
 
   const horaLocal = new Date(`${fecha}T${hora}:00`);
-
-  if (isNaN(horaLocal.getTime())) {
-    mostrarErrorManual('La fecha u hora no son válidas.');
-    return;
-  }
+  if (isNaN(horaLocal.getTime())) { mostrarErrorManual('La fecha u hora no son válidas.'); return; }
 
   document.getElementById('btn-guardar-manual').disabled = true;
 
@@ -472,7 +438,6 @@ document.getElementById('btn-guardar-manual').addEventListener('click', async ()
     mostrarErrorManual('Error al registrar: ' + error.message);
     return;
   }
-
   if (!data || data.success !== true) {
     document.getElementById('btn-guardar-manual').disabled = false;
     mostrarErrorManual((data && data.error) ? data.error : 'No se ha podido registrar el fichaje.');
@@ -482,7 +447,6 @@ document.getElementById('btn-guardar-manual').addEventListener('click', async ()
   document.getElementById('ok-manual').textContent = 'Fichaje manual registrado correctamente.';
   document.getElementById('ok-manual').style.display = 'block';
   document.getElementById('error-manual').style.display = 'none';
-
   document.getElementById('filtro-fecha').value = fecha;
 
   setTimeout(async () => {
@@ -512,32 +476,20 @@ document.getElementById('btn-cancelar').addEventListener('click', () => {
 
 document.getElementById('btn-guardar').addEventListener('click', async () => {
   const nuevaHora = document.getElementById('f-hora').value;
-  const motivo = document.getElementById('f-motivo').value.trim();
+  const motivo    = document.getElementById('f-motivo').value.trim();
 
   if (!nuevaHora) { mostrarError('La hora es obligatoria.'); return; }
-  if (!motivo) { mostrarError('El motivo es obligatorio.'); return; }
+  if (!motivo)    { mostrarError('El motivo es obligatorio.'); return; }
 
-  // Construir la nueva hora respetando zona horaria local del navegador.
-  // La fecha base se toma del fichaje original (en hora local del navegador).
   const dOriginal = new Date(fichajeCorrigiendoHora);
-  if (isNaN(dOriginal.getTime())) {
-    mostrarError('La fecha original del fichaje no es válida.');
-    return;
-  }
-  const yy = dOriginal.getFullYear();
-  const mm = dOriginal.getMonth();
-  const dd = dOriginal.getDate();
-  const [hh, mi] = nuevaHora.split(':').map(Number);
-  const horaLocal = new Date(yy, mm, dd, hh, mi, 0, 0);
+  if (isNaN(dOriginal.getTime())) { mostrarError('La fecha original del fichaje no es válida.'); return; }
 
-  if (isNaN(horaLocal.getTime())) {
-    mostrarError('La hora no es válida.');
-    return;
-  }
+  const [hh, mi] = nuevaHora.split(':').map(Number);
+  const horaLocal = new Date(dOriginal.getFullYear(), dOriginal.getMonth(), dOriginal.getDate(), hh, mi, 0, 0);
+  if (isNaN(horaLocal.getTime())) { mostrarError('La hora no es válida.'); return; }
 
   document.getElementById('btn-guardar').disabled = true;
 
-  // ── CAMBIO PASO 2.1: sustituido UPDATE directo por RPC corregir_fichaje ──
   const { data: rpcData, error } = await sb.rpc('corregir_fichaje', {
     p_fichaje_id: fichajeCorrigiendoId,
     p_nueva_hora: horaLocal.toISOString(),
@@ -549,13 +501,11 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     mostrarError('Error al guardar: ' + error.message);
     return;
   }
-
   if (!rpcData || rpcData.success !== true) {
     document.getElementById('btn-guardar').disabled = false;
     mostrarError((rpcData && rpcData.error) ? rpcData.error : 'No se ha podido guardar la corrección.');
     return;
   }
-  // ─────────────────────────────────────────────────────────────────────────
 
   document.getElementById('ok-correccion').textContent = 'Corrección guardada.';
   document.getElementById('ok-correccion').style.display = 'block';
@@ -577,49 +527,51 @@ async function exportarExcelMensual() {
   msg.textContent = '';
 
   const obraId = obraActual;
-  const mes = document.getElementById('filtro-mes').value;
+  const mes    = document.getElementById('filtro-mes').value;
 
-  if (!obraId) {
-    msg.className = 'msg-export err';
-    msg.textContent = 'No hay obra seleccionada.';
-    return;
-  }
-
-  if (!mes) {
-    msg.className = 'msg-export err';
-    msg.textContent = 'Selecciona un mes.';
-    return;
-  }
-
-  if (!window.ExcelJS) {
-    msg.className = 'msg-export err';
-    msg.textContent = 'No se ha cargado ExcelJS. Recarga la página.';
-    return;
-  }
-
-  if (!window.ExcelProforma) {
-    msg.className = 'msg-export err';
-    msg.textContent = 'No se ha cargado js/excel-proforma.js. Recarga la página.';
-    return;
-  }
+  if (!obraId) { msg.className = 'msg-export err'; msg.textContent = 'No hay obra seleccionada.'; return; }
+  if (!mes)    { msg.className = 'msg-export err'; msg.textContent = 'Selecciona un mes.'; return; }
+  if (!window.ExcelJS)      { msg.className = 'msg-export err'; msg.textContent = 'No se ha cargado ExcelJS. Recarga la página.'; return; }
+  if (!window.ExcelProforma){ msg.className = 'msg-export err'; msg.textContent = 'No se ha cargado js/excel-proforma.js. Recarga la página.'; return; }
 
   btn.disabled = true;
   btn.textContent = 'Exportando…';
   msg.textContent = 'Preparando Excel…';
 
   try {
-    const obra = await obtenerObra(obraId);
+    const obra     = await obtenerObra(obraId);
     const fichajes = await obtenerFichajesMes(obraId, mes);
 
     if (!fichajes || fichajes.length === 0) {
       msg.className = 'msg-export err';
       msg.textContent = 'No hay fichajes en ese mes para esa obra.';
-      btn.disabled = false;
-      btn.textContent = 'Exportar Excel';
+      btn.disabled = false; btn.textContent = 'Exportar Excel';
       return;
     }
 
-    const { buffer, autocierres } = await window.ExcelProforma.generar({ obra, mes, fichajes });
+    // Cargar logo PNG según la marca de la obra
+    let logoBase64 = null;
+    try {
+      const marca = (obra?.empresa_marca || '').toLowerCase().trim();
+      const logoRutas = {
+        bosch_pascual: '../assets/logos/bosch_pascual_logo.png',
+        recop:         '../assets/logos/recop_logo.png',
+      };
+      const logoUrl = logoRutas[marca];
+      if (logoUrl) {
+        const resp = await fetch(logoUrl);
+        if (resp.ok) {
+          const blob = await resp.blob();
+          logoBase64 = await new Promise(res => {
+            const reader = new FileReader();
+            reader.onload = e => res(e.target.result);
+            reader.readAsDataURL(blob);
+          });
+        }
+      }
+    } catch (e) { logoBase64 = null; }
+
+    const { buffer, autocierres } = await window.ExcelProforma.generar({ obra, mes, fichajes, logoBase64 });
 
     if (autocierres > 0) {
       const seguir = window.confirm(
@@ -628,12 +580,9 @@ async function exportarExcelMensual() {
         'En el archivo, esos días aparecen marcados en naranja claro con un comentario.\n\n' +
         '¿Quieres exportar igualmente?'
       );
-
       if (!seguir) {
-        msg.className = 'msg-export aviso';
-        msg.textContent = 'Exportación cancelada.';
-        btn.disabled = false;
-        btn.textContent = 'Exportar Excel';
+        msg.className = 'msg-export aviso'; msg.textContent = 'Exportación cancelada.';
+        btn.disabled = false; btn.textContent = 'Exportar Excel';
         return;
       }
     }
@@ -641,13 +590,11 @@ async function exportarExcelMensual() {
     const nombreArchivo = `control_personal_${limpiarNombreArchivo(obra?.nombre || 'obra')}_${mes}.xlsx`;
     descargarBuffer(buffer, nombreArchivo);
 
-    if (autocierres > 0) {
-      msg.className = 'msg-export aviso';
-      msg.textContent = `Excel generado con ${autocierres} ${autocierres === 1 ? 'salida marcada' : 'salidas marcadas'} en naranja para revisar.`;
-    } else {
-      msg.className = 'msg-export ok';
-      msg.textContent = 'Excel generado.';
-    }
+    msg.className = autocierres > 0 ? 'msg-export aviso' : 'msg-export ok';
+    msg.textContent = autocierres > 0
+      ? `Excel generado con ${autocierres} ${autocierres === 1 ? 'salida marcada' : 'salidas marcadas'} en naranja para revisar.`
+      : 'Excel generado.';
+
   } catch (err) {
     console.error(err);
     msg.className = 'msg-export err';
@@ -664,7 +611,6 @@ async function obtenerObra(obraId) {
     .select('id, nombre, numero_obra, empresa_marca')
     .eq('id', obraId)
     .single();
-
   if (error) throw error;
   return data;
 }
@@ -673,54 +619,25 @@ async function obtenerFichajesMes(obraId, mes) {
   const [year, month] = mes.split('-').map(Number);
   const desde = new Date(year, month - 1, 1, 0, 0, 0, 0);
   const hasta = new Date(year, month, 1, 0, 0, 0, 0);
-  const inicio = desde.toISOString();
-  const fin = hasta.toISOString();
 
   let { data, error } = await sb
     .from('fichajes')
-    .select(`
-      id,
-      tipo,
-      hora,
-      cierre_automatico,
-      trabajador_id,
-      trabajador:trabajador_id(
-        id,
-        nombre,
-        apellidos,
-        dni,
-        categoria,
-        precio_hora_personalizado,
-        empresa:empresa_id(nombre)
-      )
-    `)
+    .select(`id, tipo, hora, cierre_automatico, trabajador_id,
+      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado, empresa:empresa_id(nombre))`)
     .eq('obra_id', obraId)
-    .gte('hora', inicio)
-    .lt('hora', fin)
+    .gte('hora', desde.toISOString())
+    .lt('hora', hasta.toISOString())
     .order('hora', { ascending: true });
 
   if (!error) return data || [];
 
   const fallback = await sb
     .from('fichajes')
-    .select(`
-      id,
-      tipo,
-      hora,
-      cierre_automatico,
-      trabajador_id,
-      trabajador:trabajador_id(
-        id,
-        nombre,
-        apellidos,
-        dni,
-        categoria,
-        precio_hora_personalizado
-      )
-    `)
+    .select(`id, tipo, hora, cierre_automatico, trabajador_id,
+      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado)`)
     .eq('obra_id', obraId)
-    .gte('hora', inicio)
-    .lt('hora', fin)
+    .gte('hora', desde.toISOString())
+    .lt('hora', hasta.toISOString())
     .order('hora', { ascending: true });
 
   if (fallback.error) throw fallback.error;
@@ -730,26 +647,17 @@ async function obtenerFichajesMes(obraId, mes) {
 // =====================================================================
 // Helpers
 // =====================================================================
-
 function descargarBuffer(buffer, filename) {
-  const blob = new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-  });
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
+  a.href = url; a.download = filename; a.click();
   setTimeout(() => window.URL.revokeObjectURL(url), 1000);
 }
 
 function limpiarNombreArchivo(txt) {
-  return String(txt || 'archivo')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+  return String(txt || 'archivo').toLowerCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
 function mesActual() {
@@ -759,14 +667,12 @@ function mesActual() {
 
 function mostrarError(msg) {
   const el = document.getElementById('error-correccion');
-  el.textContent = msg;
-  el.style.display = 'block';
+  el.textContent = msg; el.style.display = 'block';
 }
 
 function mostrarErrorManual(msg) {
   const el = document.getElementById('error-manual');
-  el.textContent = msg;
-  el.style.display = 'block';
+  el.textContent = msg; el.style.display = 'block';
   document.getElementById('ok-manual').style.display = 'none';
 }
 
@@ -783,9 +689,7 @@ function formatFechaHora(iso) {
          d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 }
 
-function fechaHoy() {
-  return new Date().toISOString().split('T')[0];
-}
+function fechaHoy() { return new Date().toISOString().split('T')[0]; }
 
 function horaAhora() {
   const d = new Date();
