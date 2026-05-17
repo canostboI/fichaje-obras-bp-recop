@@ -31,10 +31,7 @@
   .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
   .contenido { padding: 0 28px 28px; }
   .barra-filtros { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
-  .barra-filtros input, .barra-filtros select {
-    background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px;
-    color: var(--texto); font-size: 14px; padding: 9px 14px; font-family: inherit;
-  }
+  .barra-filtros input, .barra-filtros select { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 14px; font-family: inherit; }
   .barra-filtros input[type="date"]  { width: 160px; color-scheme: dark; }
   .barra-filtros input[type="month"] { width: 160px; color-scheme: dark; }
   .barra-filtros select { width: 230px; }
@@ -86,23 +83,17 @@
 </div>
 
 <div class="main">
-  <div class="topbar">
-    <h1>Fichajes</h1>
-  </div>
-
+  <div class="topbar"><h1>Fichajes</h1></div>
   <div class="contenido">
     <div class="barra-filtros">
       <input type="date" id="filtro-fecha">
-      <select id="filtro-obra">
-        <option value="">Todas las obras</option>
-      </select>
+      <select id="filtro-obra"><option value="">Todas las obras</option></select>
       <button class="btn-secundario" id="btn-buscar">Buscar</button>
       <button class="btn-secundario" id="btn-hoy">Hoy</button>
       <input type="month" id="filtro-mes">
       <button class="btn-exportar" id="btn-exportar">Exportar Excel</button>
       <span class="msg-export" id="msg-export"></span>
     </div>
-
     <div class="seccion">
       <div class="seccion-cab">
         <h2>Historial de fichajes</h2>
@@ -124,21 +115,16 @@ AutoLogout.init(sb);
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '../'; return; }
 
-  const { data: u } = await sb.from('usuarios_app')
-    .select('rol').eq('auth_user_id', session.user.id).single();
+  const { data: u } = await sb.from('usuarios_app').select('rol').eq('auth_user_id', session.user.id).single();
   if (!u || u.rol !== 'admin') { window.location.href = '../'; return; }
 
   document.getElementById('filtro-fecha').value = fechaHoy();
   document.getElementById('filtro-mes').value   = mesActual();
-
   await cargarObras();
   await buscar();
 })();
 
-document.getElementById('btn-salir').onclick = async () => {
-  await sb.auth.signOut();
-  window.location.href = '../';
-};
+document.getElementById('btn-salir').onclick = async () => { await sb.auth.signOut(); window.location.href = '../'; };
 
 async function cargarObras() {
   const { data } = await sb.from('obras').select('id, nombre').eq('activa', true).order('nombre');
@@ -151,23 +137,17 @@ async function cargarObras() {
 }
 
 document.getElementById('btn-buscar').onclick = buscar;
-document.getElementById('btn-hoy').onclick = () => {
-  document.getElementById('filtro-fecha').value = fechaHoy();
-  buscar();
-};
+document.getElementById('btn-hoy').onclick = () => { document.getElementById('filtro-fecha').value = fechaHoy(); buscar(); };
 document.getElementById('btn-exportar').onclick = exportarExcelMensual;
 
 async function buscar() {
   document.getElementById('tabla-fichajes').innerHTML = '<div class="cargando">Cargando…</div>';
-
   const fecha  = document.getElementById('filtro-fecha').value;
   const obraId = document.getElementById('filtro-obra').value;
 
-  let query = sb
-    .from('fichajes')
+  let query = sb.from('fichajes')
     .select('id, tipo, hora, cierre_automatico, es_tarde, fuera_de_zona, es_manual, origen, corregido_por, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)')
-    .order('hora', { ascending: false })
-    .limit(200);
+    .order('hora', { ascending: false }).limit(200);
 
   if (fecha) {
     const [y, m, d] = fecha.split('-').map(Number);
@@ -188,11 +168,7 @@ async function buscar() {
   document.getElementById('badge-total').textContent = data.length + ' registros';
   document.getElementById('tabla-fichajes').innerHTML = `
     <table>
-      <thead>
-        <tr>
-          <th>Trabajador</th><th>DNI</th><th>Obra</th><th>Tipo</th><th>Hora</th><th>Avisos</th>
-        </tr>
-      </thead>
+      <thead><tr><th>Trabajador</th><th>DNI</th><th>Obra</th><th>Tipo</th><th>Hora</th><th>Avisos</th></tr></thead>
       <tbody>
         ${data.map(f => {
           const avisos = [];
@@ -220,9 +196,7 @@ async function buscar() {
 async function exportarExcelMensual() {
   const msg = document.getElementById('msg-export');
   const btn = document.getElementById('btn-exportar');
-
-  msg.className = 'msg-export';
-  msg.textContent = '';
+  msg.className = 'msg-export'; msg.textContent = '';
 
   const obraId = document.getElementById('filtro-obra').value;
   const mes    = document.getElementById('filtro-mes').value;
@@ -232,22 +206,18 @@ async function exportarExcelMensual() {
   if (!window.ExcelJS)       { msg.className = 'msg-export err'; msg.textContent = 'No se ha cargado ExcelJS. Recarga la página.'; return; }
   if (!window.ExcelProforma) { msg.className = 'msg-export err'; msg.textContent = 'No se ha cargado js/excel-proforma.js. Recarga la página.'; return; }
 
-  btn.disabled = true;
-  btn.textContent = 'Exportando…';
-  msg.textContent = 'Preparando Excel…';
+  btn.disabled = true; btn.textContent = 'Exportando…'; msg.textContent = 'Preparando Excel…';
 
   try {
     const obra     = await obtenerObra(obraId);
     const fichajes = await obtenerFichajesMes(obraId, mes);
 
     if (!fichajes || fichajes.length === 0) {
-      msg.className = 'msg-export err';
-      msg.textContent = 'No hay fichajes en ese mes para esa obra.';
-      btn.disabled = false; btn.textContent = 'Exportar Excel';
-      return;
+      msg.className = 'msg-export err'; msg.textContent = 'No hay fichajes en ese mes para esa obra.';
+      btn.disabled = false; btn.textContent = 'Exportar Excel'; return;
     }
 
-    // Cargar logo PNG según la marca de la obra
+    // Cargar logo PNG via canvas (evita restricciones CORS de fetch en GitHub Pages)
     let logoBase64 = null;
     try {
       const marca = (obra?.empresa_marca || '').toLowerCase().trim();
@@ -257,15 +227,18 @@ async function exportarExcelMensual() {
       };
       const logoUrl = logoRutas[marca];
       if (logoUrl) {
-        const resp = await fetch(logoUrl);
-        if (resp.ok) {
-          const blob = await resp.blob();
-          logoBase64 = await new Promise(res => {
-            const reader = new FileReader();
-            reader.onload = e => res(e.target.result);
-            reader.readAsDataURL(blob);
-          });
-        }
+        logoBase64 = await new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width  = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            canvas.getContext('2d').drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png'));
+          };
+          img.onerror = () => resolve(null);
+          img.src = logoUrl;
+        });
       }
     } catch (e) { logoBase64 = null; }
 
@@ -280,8 +253,7 @@ async function exportarExcelMensual() {
       );
       if (!seguir) {
         msg.className = 'msg-export aviso'; msg.textContent = 'Exportación cancelada.';
-        btn.disabled = false; btn.textContent = 'Exportar Excel';
-        return;
+        btn.disabled = false; btn.textContent = 'Exportar Excel'; return;
       }
     }
 
@@ -295,19 +267,14 @@ async function exportarExcelMensual() {
 
   } catch (err) {
     console.error(err);
-    msg.className = 'msg-export err';
-    msg.textContent = 'Error al exportar: ' + (err.message || err);
+    msg.className = 'msg-export err'; msg.textContent = 'Error al exportar: ' + (err.message || err);
   }
 
-  btn.disabled = false;
-  btn.textContent = 'Exportar Excel';
+  btn.disabled = false; btn.textContent = 'Exportar Excel';
 }
 
 async function obtenerObra(obraId) {
-  const { data, error } = await sb
-    .from('obras')
-    .select('id, nombre, numero_obra, empresa_marca')
-    .eq('id', obraId).single();
+  const { data, error } = await sb.from('obras').select('id, nombre, numero_obra, empresa_marca').eq('id', obraId).single();
   if (error) throw error;
   return data;
 }
@@ -317,33 +284,22 @@ async function obtenerFichajesMes(obraId, mes) {
   const desde = new Date(year, month - 1, 1, 0, 0, 0, 0);
   const hasta = new Date(year, month, 1, 0, 0, 0, 0);
 
-  let { data, error } = await sb
-    .from('fichajes')
+  let { data, error } = await sb.from('fichajes')
     .select(`id, tipo, hora, cierre_automatico, trabajador_id,
       trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado, empresa:empresa_id(nombre))`)
-    .eq('obra_id', obraId)
-    .gte('hora', desde.toISOString())
-    .lt('hora', hasta.toISOString())
+    .eq('obra_id', obraId).gte('hora', desde.toISOString()).lt('hora', hasta.toISOString())
     .order('hora', { ascending: true });
-
   if (!error) return data || [];
 
-  const fallback = await sb
-    .from('fichajes')
+  const fallback = await sb.from('fichajes')
     .select(`id, tipo, hora, cierre_automatico, trabajador_id,
       trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado)`)
-    .eq('obra_id', obraId)
-    .gte('hora', desde.toISOString())
-    .lt('hora', hasta.toISOString())
+    .eq('obra_id', obraId).gte('hora', desde.toISOString()).lt('hora', hasta.toISOString())
     .order('hora', { ascending: true });
-
   if (fallback.error) throw fallback.error;
   return fallback.data || [];
 }
 
-// =====================================================================
-// Helpers
-// =====================================================================
 function descargarBuffer(buffer, filename) {
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url = window.URL.createObjectURL(blob);
@@ -358,17 +314,9 @@ function limpiarNombreArchivo(txt) {
 }
 
 function fechaHoy()  { return new Date().toISOString().split('T')[0]; }
+function mesActual() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
 
-function mesActual() {
-  const d = new Date();
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-}
-
-function esc(txt) {
-  const d = document.createElement('div');
-  d.textContent = String(txt || '');
-  return d.innerHTML;
-}
+function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
 
 function formatFechaHora(iso) {
   if (!iso) return '—';
