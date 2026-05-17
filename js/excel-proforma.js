@@ -11,9 +11,9 @@
  *   2) Llamar al generador:
  *        const { buffer, autocierres } = await window.ExcelProforma.generar({
  *          obra: { id, nombre, numero_obra, empresa_marca },
- *          mes: '2026-04',           // 'YYYY-MM'
- *          fichajes: [...],          // ya filtrados (permisos, RLS, etc.)
- *          logoBase64: '...'         // opcional: PNG en base64 para la cabecera
+ *          mes: '2026-04',
+ *          fichajes: [...],
+ *          logoBase64: '...'   // opcional: PNG en base64 para la cabecera
  *        });
  *
  *      Cada fichaje debe traer al menos:
@@ -22,51 +22,58 @@
  *                        precio_hora_personalizado,
  *                        empresa: { nombre } } }
  *
- *   3) El módulo NO descarga el archivo. Devuelve { buffer, autocierres }.
+ *   3) Devuelve { buffer, autocierres }. No descarga el archivo.
  *
- * El módulo NO conoce Supabase ni permisos: solo dibuja el Excel.
+ * El módulo NO conoce Supabase ni permisos.
  */
 
 (function () {
   'use strict';
 
   // ===== Paletas por marca =====
+  // Colores extraídos de las webs corporativas y ajustados a los Excel generados.
+  //
+  // Bosch Pascual: azul marino corporativo + azul medio para subtotales + azul claro para acento
+  // Rècop:        verde oscuro corporativo + verde medio para subtotales + verde claro para acento
   const PALETAS = {
     bosch_pascual: {
-      oscuro: '1B3A6B',   // azul oscuro BP
-      acento: 'BDD7EE',   // azul claro BP — subtotales
-      medio:  '2E5F9E',   // azul medio — labels info
+      oscuro:    '1C3557',   // azul marino BP — cabeceras, título, firmas
+      medio:     '2E5F9A',   // azul medio — labels de info
+      acento:    'C5D9F1',   // azul claro BP — subtotales
+      textoSub:  '1C3557',   // texto de la fila subtotal
     },
     recop: {
-      oscuro: '2D6A4F',   // verde oscuro Rècop
-      acento: 'B7E4C7',   // verde claro Rècop
-      medio:  '40916C',   // verde medio
+      oscuro:    '1E5631',   // verde oscuro Rècop — cabeceras, título, firmas
+      medio:     '2D7A47',   // verde medio — labels de info
+      acento:    'C6EFCE',   // verde claro Rècop — subtotales
+      textoSub:  '1E5631',   // texto de la fila subtotal
     },
     _default: {
-      oscuro: '404040',
-      acento: 'F0F0F0',
-      medio:  '808080',
+      oscuro:    '404040',   // gris neutro (fallback sin marca)
+      medio:     '808080',
+      acento:    'F0F0F0',
+      textoSub:  '404040',
     }
   };
 
   // Colores fijos independientes de la marca
   const FUENTE_EXCEL = 'Arial';
-  const COLOR_FINDE  = 'D0D0D0';
-  const COLOR_BAND   = 'F7F7F7';
-  const COLOR_TOTAL  = 'FFF2CC';
-  const COLOR_FOOTER = 'FFE699';
-  const COLOR_ALERTA = 'FFE0B2';
+  const COLOR_FINDE  = 'D0D0D0';   // sábados y domingos
+  const COLOR_BAND   = 'F7F7F7';   // banding filas pares
+  const COLOR_TOTAL  = 'FFF2CC';   // columnas HORAS/PRECIO/€ por trabajador
+  const COLOR_FOOTER = 'FFE699';   // fila TOTALES
+  const COLOR_ALERTA = 'FFE0B2';   // naranja: días con autocierre
   const COLOR_BLANCO = 'FFFFFF';
   const COLOR_BORDE  = 'BFBFBF';
 
-  // Colores de categoría
+  // Colores de categoría (independientes de la marca)
   const CATEGORIA_COLORES = {
     'peon':    'E8E8E8',
     'peón':    'E8E8E8',
-    'oficial': 'BDD7EE',
-    'capataz': 'C6EFCE',
-    'tecnico': 'FCE4D6',
-    'técnico': 'FCE4D6',
+    'oficial': 'D6E4F7',   // azul pastel
+    'capataz': 'D5F5E3',   // verde pastel
+    'tecnico': 'FDEBD0',   // salmón pastel
+    'técnico': 'FDEBD0',
   };
 
   // ===== Función pública =====
@@ -203,9 +210,9 @@
       }
     });
 
-    // Columnas: NOMBRE | DNI | CATEGORÍA | días... | HORAS MES | PRECIO HORA | €
+    // Estructura de columnas: NOMBRE | DNI | CATEGORÍA | días... | HORAS MES | PRECIO HORA | €
     const COL_DIAS_INI = 4;
-    const colHoras  = 3 + diasMes + 1;   // = 4 + diasMes
+    const colHoras  = 3 + diasMes + 1;
     const colPrecio = 3 + diasMes + 2;
     const colTotal  = 3 + diasMes + 3;
     const totalCols = colTotal;
@@ -221,11 +228,10 @@
     title.fill = fillSolid(paleta.oscuro);
     ws.getRow(1).height = 40;
 
-    // Logo PNG en esquina derecha de la fila 1
+    // Logo PNG en esquina derecha de la fila 1 (solo PNG/JPEG, ExcelJS no soporta SVG)
     if (logoBase64) {
       try {
-        const esSvg = logoBase64.includes('data:image/svg') ||
-                      (logoBase64.length > 10 && atob(logoBase64.slice(0, 20)).includes('<svg'));
+        const esSvg = logoBase64.includes('data:image/svg') || logoBase64.includes('<svg');
         if (!esSvg) {
           const ext = logoBase64.startsWith('data:image/png') ? 'png' : 'jpeg';
           const base64Data = logoBase64.includes(',') ? logoBase64.split(',')[1] : logoBase64;
@@ -242,12 +248,12 @@
     }
 
     // ===== Fila 3: INFO CABECERA =====
-    // Simplificada: Nº OBRA | val | DENOMINACIÓN | val... | MES | val
     pintarLabel(ws.getCell(3, 1), 'Nº OBRA', paleta.medio);
     pintarValor(ws.getCell(3, 2), obra?.numero_obra || '');
     pintarLabel(ws.getCell(3, 3), 'DENOMINACIÓN', paleta.medio);
 
-    const colDenomFin = Math.max(4, Math.min(totalCols - 4, colHoras - 3));
+    // Celda DENOMINACIÓN: ocupa desde col 4 hasta ~colHoras-4
+    const colDenomFin = Math.max(4, Math.min(colHoras - 4, 14));
     if (colDenomFin > 3) ws.mergeCells(3, 4, 3, colDenomFin);
     pintarValor(ws.getCell(3, 4), obra?.nombre || '');
     for (let c = 4; c <= colDenomFin; c++) {
@@ -255,9 +261,11 @@
       ws.getCell(3, c).fill = fillSolid(COLOR_BLANCO);
     }
 
-    pintarLabel(ws.getCell(3, colDenomFin + 1), 'EMPRESA', paleta.medio);
-    const colEmpresaVal = colDenomFin + 2;
-    const colEmpresaFin = Math.min(totalCols - 2, colEmpresaVal + 3);
+    // EMPRESA
+    const colEmpresaLabel = colDenomFin + 1;
+    const colEmpresaVal   = colDenomFin + 2;
+    const colEmpresaFin   = Math.min(totalCols - 2, colEmpresaVal + 3);
+    pintarLabel(ws.getCell(3, colEmpresaLabel), 'EMPRESA', paleta.medio);
     if (colEmpresaFin > colEmpresaVal) ws.mergeCells(3, colEmpresaVal, 3, colEmpresaFin);
     pintarValor(ws.getCell(3, colEmpresaVal), nombreEmpresa);
     for (let c = colEmpresaVal; c <= colEmpresaFin; c++) {
@@ -265,6 +273,7 @@
       ws.getCell(3, c).fill = fillSolid(COLOR_BLANCO);
     }
 
+    // MES
     pintarLabel(ws.getCell(3, totalCols - 1), 'MES', paleta.medio);
     pintarValor(ws.getCell(3, totalCols), nombreMes(mes));
     ws.getRow(3).height = 22;
@@ -402,19 +411,18 @@
 
     // ===== FILA SUBTOTAL empresa =====
     if (trabajadores.length > 0) {
-      const colorSub = paleta.acento;
       ws.getRow(rowIndex).height = 22;
 
       ws.mergeCells(rowIndex, 1, rowIndex, 3);
       const cSL = ws.getCell(rowIndex, 1);
       cSL.value = `SUBTOTAL — ${nombreEmpresa}`;
-      cSL.font = { name: FUENTE_EXCEL, bold: true, size: 10, color: { argb: paleta.oscuro } };
-      cSL.fill = fillSolid(colorSub);
+      cSL.font = { name: FUENTE_EXCEL, bold: true, size: 10, color: { argb: paleta.textoSub } };
+      cSL.fill = fillSolid(paleta.acento);
       cSL.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
       cSL.border = borderThinGris();
       for (let c = 1; c <= 3; c++) {
         ws.getCell(rowIndex, c).border = borderThinGris();
-        ws.getCell(rowIndex, c).fill = fillSolid(colorSub);
+        ws.getCell(rowIndex, c).fill = fillSolid(paleta.acento);
       }
 
       for (let d = 1; d <= diasMes; d++) {
@@ -423,8 +431,8 @@
         const cell = ws.getCell(rowIndex, col);
         cell.value = { formula: `SUM(${colL}${filaInicio}:${colL}${filaFin})` };
         cell.numFmt = '0.00;-0.00;';
-        cell.font = { name: FUENTE_EXCEL, size: 8, color: { argb: paleta.oscuro } };
-        cell.fill = fillSolid(colorSub);
+        cell.font = { name: FUENTE_EXCEL, size: 8, color: { argb: paleta.textoSub } };
+        cell.fill = fillSolid(paleta.acento);
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
         cell.border = borderThinGris();
       }
@@ -432,19 +440,19 @@
       const cSH = ws.getCell(rowIndex, colHoras);
       cSH.value = { formula: `SUM(${letraExcel(colHoras)}${filaInicio}:${letraExcel(colHoras)}${filaFin})` };
       cSH.numFmt = '0.00';
-      cSH.font = { name: FUENTE_EXCEL, bold: true, size: 10 };
-      cSH.fill = fillSolid(colorSub);
+      cSH.font = { name: FUENTE_EXCEL, bold: true, size: 10, color: { argb: paleta.textoSub } };
+      cSH.fill = fillSolid(paleta.acento);
       cSH.alignment = { horizontal: 'center', vertical: 'middle' };
       cSH.border = borderThinGris();
 
-      ws.getCell(rowIndex, colPrecio).fill = fillSolid(colorSub);
+      ws.getCell(rowIndex, colPrecio).fill = fillSolid(paleta.acento);
       ws.getCell(rowIndex, colPrecio).border = borderThinGris();
 
       const cST = ws.getCell(rowIndex, colTotal);
       cST.value = { formula: `SUM(${letraExcel(colTotal)}${filaInicio}:${letraExcel(colTotal)}${filaFin})` };
       cST.numFmt = '#,##0.00 €';
-      cST.font = { name: FUENTE_EXCEL, bold: true, size: 10 };
-      cST.fill = fillSolid(colorSub);
+      cST.font = { name: FUENTE_EXCEL, bold: true, size: 10, color: { argb: paleta.textoSub } };
+      cST.fill = fillSolid(paleta.acento);
       cST.alignment = { horizontal: 'center', vertical: 'middle' };
       cST.border = borderThinGris();
 
@@ -572,7 +580,7 @@
     nota.font = { name: FUENTE_EXCEL, size: 8, italic: true, color: { argb: '808080' } };
     nota.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true, indent: 1 };
 
-    // Congelar: 3 col fijas + 6 filas de cabecera
+    // Congelar: 3 columnas fijas + 6 filas de cabecera
     ws.views = [{ state: 'frozen', xSplit: 3, ySplit: 6 }];
   }
 
