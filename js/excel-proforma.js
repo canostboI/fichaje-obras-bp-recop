@@ -13,7 +13,7 @@
  *          obra: { id, nombre, numero_obra, empresa_marca },
  *          mes: '2026-04',
  *          fichajes: [...],
- *          logoBase64: '...'   // opcional: PNG en base64 para la cabecera
+ *          logoBase64: '...'   // opcional: PNG en base64 (lo carga la página)
  *        });
  *
  *      Cada fichaje debe traer al menos:
@@ -31,48 +31,47 @@
   'use strict';
 
   // ===== Paletas por marca =====
-  // Colores extraídos de las webs corporativas y ajustados a los Excel generados.
   //
-  // Bosch Pascual: azul marino corporativo + azul medio para subtotales + azul claro para acento
-  // Rècop:        verde oscuro corporativo + verde medio para subtotales + verde claro para acento
+  // Bosch Pascual: teal corporativo (extraído del logo PNG)
+  // Rècop:        terracota/ladrillo corporativo (extraído del footer web)
   const PALETAS = {
     bosch_pascual: {
-      oscuro:    '1C3557',   // azul marino BP — cabeceras, título, firmas
-      medio:     '2E5F9A',   // azul medio — labels de info
-      acento:    'C5D9F1',   // azul claro BP — subtotales
-      textoSub:  '1C3557',   // texto de la fila subtotal
+      oscuro:   '1A7A8A',   // teal BP — cabeceras, título, firmas
+      medio:    '1D6B79',   // teal oscuro — labels de info
+      acento:   'D6EEF2',   // azul-teal muy claro — subtotales
+      textoSub: '1A7A8A',
     },
     recop: {
-      oscuro:    '1E5631',   // verde oscuro Rècop — cabeceras, título, firmas
-      medio:     '2D7A47',   // verde medio — labels de info
-      acento:    'C6EFCE',   // verde claro Rècop — subtotales
-      textoSub:  '1E5631',   // texto de la fila subtotal
+      oscuro:   'A0392B',   // terracota Rècop — cabeceras, título, firmas
+      medio:    '8B3124',   // terracota oscuro — labels de info
+      acento:   'F5D5D1',   // terracota muy claro — subtotales
+      textoSub: 'A0392B',
     },
     _default: {
-      oscuro:    '404040',   // gris neutro (fallback sin marca)
-      medio:     '808080',
-      acento:    'F0F0F0',
-      textoSub:  '404040',
+      oscuro:   '404040',
+      medio:    '808080',
+      acento:   'F0F0F0',
+      textoSub: '404040',
     }
   };
 
   // Colores fijos independientes de la marca
   const FUENTE_EXCEL = 'Arial';
-  const COLOR_FINDE  = 'D0D0D0';   // sábados y domingos
-  const COLOR_BAND   = 'F7F7F7';   // banding filas pares
-  const COLOR_TOTAL  = 'FFF2CC';   // columnas HORAS/PRECIO/€ por trabajador
-  const COLOR_FOOTER = 'FFE699';   // fila TOTALES
-  const COLOR_ALERTA = 'FFE0B2';   // naranja: días con autocierre
+  const COLOR_FINDE  = 'D0D0D0';
+  const COLOR_BAND   = 'F7F7F7';
+  const COLOR_TOTAL  = 'FFF2CC';
+  const COLOR_FOOTER = 'FFE699';
+  const COLOR_ALERTA = 'FFE0B2';
   const COLOR_BLANCO = 'FFFFFF';
   const COLOR_BORDE  = 'BFBFBF';
 
-  // Colores de categoría (independientes de la marca)
+  // Colores de categoría
   const CATEGORIA_COLORES = {
     'peon':    'E8E8E8',
     'peón':    'E8E8E8',
-    'oficial': 'D6E4F7',   // azul pastel
-    'capataz': 'D5F5E3',   // verde pastel
-    'tecnico': 'FDEBD0',   // salmón pastel
+    'oficial': 'D6E4F7',
+    'capataz': 'D5F5E3',
+    'tecnico': 'FDEBD0',
     'técnico': 'FDEBD0',
   };
 
@@ -210,7 +209,7 @@
       }
     });
 
-    // Estructura de columnas: NOMBRE | DNI | CATEGORÍA | días... | HORAS MES | PRECIO HORA | €
+    // Columnas: NOMBRE | DNI | CATEGORÍA | días... | HORAS MES | PRECIO HORA | €
     const COL_DIAS_INI = 4;
     const colHoras  = 3 + diasMes + 1;
     const colPrecio = 3 + diasMes + 2;
@@ -228,20 +227,17 @@
     title.fill = fillSolid(paleta.oscuro);
     ws.getRow(1).height = 40;
 
-    // Logo PNG en esquina derecha de la fila 1 (solo PNG/JPEG, ExcelJS no soporta SVG)
+    // Logo PNG en esquina derecha de la fila 1
     if (logoBase64) {
       try {
-        const esSvg = logoBase64.includes('data:image/svg') || logoBase64.includes('<svg');
-        if (!esSvg) {
-          const ext = logoBase64.startsWith('data:image/png') ? 'png' : 'jpeg';
-          const base64Data = logoBase64.includes(',') ? logoBase64.split(',')[1] : logoBase64;
-          const imageId = workbook.addImage({ base64: base64Data, extension: ext });
-          ws.addImage(imageId, {
-            tl: { col: totalCols - 2, row: 0 },
-            br: { col: totalCols,     row: 1 },
-            editAs: 'oneCell'
-          });
-        }
+        const ext = logoBase64.startsWith('data:image/png') ? 'png' : 'jpeg';
+        const base64Data = logoBase64.includes(',') ? logoBase64.split(',')[1] : logoBase64;
+        const imageId = workbook.addImage({ base64: base64Data, extension: ext });
+        ws.addImage(imageId, {
+          tl: { col: totalCols - 2.5, row: 0.1 },
+          br: { col: totalCols - 0.1, row: 0.9 },
+          editAs: 'oneCell'
+        });
       } catch (e) {
         console.warn('ExcelProforma: logo no insertado:', e.message);
       }
@@ -252,7 +248,6 @@
     pintarValor(ws.getCell(3, 2), obra?.numero_obra || '');
     pintarLabel(ws.getCell(3, 3), 'DENOMINACIÓN', paleta.medio);
 
-    // Celda DENOMINACIÓN: ocupa desde col 4 hasta ~colHoras-4
     const colDenomFin = Math.max(4, Math.min(colHoras - 4, 14));
     if (colDenomFin > 3) ws.mergeCells(3, 4, 3, colDenomFin);
     pintarValor(ws.getCell(3, 4), obra?.nombre || '');
@@ -261,7 +256,6 @@
       ws.getCell(3, c).fill = fillSolid(COLOR_BLANCO);
     }
 
-    // EMPRESA
     const colEmpresaLabel = colDenomFin + 1;
     const colEmpresaVal   = colDenomFin + 2;
     const colEmpresaFin   = Math.min(totalCols - 2, colEmpresaVal + 3);
@@ -273,7 +267,6 @@
       ws.getCell(3, c).fill = fillSolid(COLOR_BLANCO);
     }
 
-    // MES
     pintarLabel(ws.getCell(3, totalCols - 1), 'MES', paleta.medio);
     pintarValor(ws.getCell(3, totalCols), nombreMes(mes));
     ws.getRow(3).height = 22;
@@ -427,9 +420,8 @@
 
       for (let d = 1; d <= diasMes; d++) {
         const col = COL_DIAS_INI - 1 + d;
-        const colL = letraExcel(col);
         const cell = ws.getCell(rowIndex, col);
-        cell.value = { formula: `SUM(${colL}${filaInicio}:${colL}${filaFin})` };
+        cell.value = { formula: `SUM(${letraExcel(col)}${filaInicio}:${letraExcel(col)}${filaFin})` };
         cell.numFmt = '0.00;-0.00;';
         cell.font = { name: FUENTE_EXCEL, size: 8, color: { argb: paleta.textoSub } };
         cell.fill = fillSolid(paleta.acento);
@@ -477,9 +469,8 @@
 
       for (let d = 1; d <= diasMes; d++) {
         const col = COL_DIAS_INI - 1 + d;
-        const colL = letraExcel(col);
         const cell = ws.getCell(rowIndex, col);
-        cell.value = { formula: `SUM(${colL}${filaInicio}:${colL}${filaFin})` };
+        cell.value = { formula: `SUM(${letraExcel(col)}${filaInicio}:${letraExcel(col)}${filaFin})` };
         cell.numFmt = '0.00;-0.00;';
         cell.font = { name: FUENTE_EXCEL, bold: true, size: 8 };
         cell.fill = fillSolid(COLOR_FOOTER);
