@@ -559,7 +559,6 @@ function peorEstado(a, b) {
 // ── CARGAR DNIs EN OBRA (para detectar desaparecidos) ────────────────────────
 async function cargarDnisEnObra(obraId) {
   dnisEnObra = {};
-  // Hacemos JOIN entre validaciones_obra y trabajadores para obtener el DNI
   const { data, error } = await sb
     .from('validaciones_obra')
     .select('trabajador_id, estado, trabajadores(id, dni, nombre, apellidos)')
@@ -682,8 +681,17 @@ async function procesarExcel() {
     let estadoFinal = 'verde';
     const motivos = [];
 
+    // ── Subsunción: Formación 60h implica Formación 20h ──────────────────────
+    // Si el trabajador tiene cualquier documento "Formación 60 horas..." validado,
+    // se considera que el requisito de "Formación 20 horas..." también está cubierto.
+    const tiene60hValidada = info.docs.some(d =>
+      d.doc.startsWith('Formación 60 horas') && d.estado === 'Validado'
+    );
+
     for (const { doc, estado } of info.docs) {
       if (estado === 'Validado') continue;
+      // Si tiene 60h validada, ignorar cualquier problema con 20h
+      if (tiene60hValidada && doc.startsWith('Formación 20 horas')) continue;
       const regla = aplicarRegla(doc, estado, 'trabajador');
       if (regla) { estadoFinal = peorEstado(estadoFinal, regla.resultado); motivos.push(`${doc} (${estado}) → ${regla.resultado}`); }
       else { sinRegla.add(`${doc}||${estado}`); }
@@ -779,7 +787,6 @@ function renderAlertaSinRegla() {
 }
 
 function renderDesaparecidos() {
-  // DNIs que están en la obra en BD pero NO aparecen en el Excel
   const dnisEnExcel = new Set(resultadoFinal.map(r => r.dni.toUpperCase()));
   const desaparecidos = Object.entries(dnisEnObra).filter(([dni]) => !dnisEnExcel.has(dni));
 
@@ -852,7 +859,7 @@ async function confirmarImportacion() {
   const fallos = [];
 
   // ── Paso 1: Crear/actualizar trabajadores y recoger sus IDs ──────────────
-  const resultadosConId = []; // { ...r, trabajadorId (real) }
+  const resultadosConId = [];
 
   for (const r of resultadoFinal) {
     try {
@@ -942,7 +949,6 @@ async function confirmarImportacion() {
   const creados = creadosLista.length;
   const actualizados = actualizadosLista.length;
 
-  // Aviso de forzados saltados
   const avisoForzados = saltadosPorForzado > 0
     ? `<div class="alert alert-warning" style="margin-top:10px;">
         ⚠️ <strong>${saltadosPorForzado} trabajador${saltadosPorForzado > 1 ? 'es' : ''} con estado forzado</strong> no se ha${saltadosPorForzado > 1 ? 'n' : ''} modificado.
