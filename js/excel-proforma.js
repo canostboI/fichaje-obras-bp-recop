@@ -13,7 +13,7 @@
  *          obra: { id, nombre, numero_obra, empresa_marca },
  *          mes: '2026-04',
  *          fichajes: [...],
- *          logoBase64: '...'   // opcional: PNG en base64 (lo carga la página)
+ *          logoBase64: '...'   // opcional: PNG en base64
  *        });
  *
  *      Cada fichaje debe traer al menos:
@@ -23,28 +23,23 @@
  *                        empresa: { nombre } } }
  *
  *   3) Devuelve { buffer, autocierres }. No descarga el archivo.
- *
- * El módulo NO conoce Supabase ni permisos.
  */
 
 (function () {
   'use strict';
 
   // ===== Paletas por marca =====
-  //
-  // Bosch Pascual: teal corporativo (extraído del logo PNG)
-  // Rècop:        terracota/ladrillo corporativo (extraído del footer web)
   const PALETAS = {
     bosch_pascual: {
-      oscuro:   '1A7A8A',   // teal BP — cabeceras, título, firmas
-      medio:    '1D6B79',   // teal oscuro — labels de info
-      acento:   'D6EEF2',   // azul-teal muy claro — subtotales
+      oscuro:   '1A7A8A',
+      medio:    '1D6B79',
+      acento:   'D6EEF2',
       textoSub: '1A7A8A',
     },
     recop: {
-      oscuro:   'A0392B',   // terracota Rècop — cabeceras, título, firmas
-      medio:    '8B3124',   // terracota oscuro — labels de info
-      acento:   'F5D5D1',   // terracota muy claro — subtotales
+      oscuro:   'A0392B',
+      medio:    '8B3124',
+      acento:   'F5D5D1',
       textoSub: 'A0392B',
     },
     _default: {
@@ -55,7 +50,6 @@
     }
   };
 
-  // Colores fijos independientes de la marca
   const FUENTE_EXCEL = 'Arial';
   const COLOR_FINDE  = 'D0D0D0';
   const COLOR_BAND   = 'F7F7F7';
@@ -65,7 +59,6 @@
   const COLOR_BLANCO = 'FFFFFF';
   const COLOR_BORDE  = 'BFBFBF';
 
-  // Colores de categoría
   const CATEGORIA_COLORES = {
     'peon':    'E8E8E8',
     'peón':    'E8E8E8',
@@ -74,6 +67,21 @@
     'tecnico': 'FDEBD0',
     'técnico': 'FDEBD0',
   };
+
+  // ===== Helper para obtener dimensiones reales del PNG =====
+  // Decodifica la cabecera del PNG para leer width/height sin Image()
+  function dimensionesPng(base64Data) {
+    try {
+      const binStr = atob(base64Data.slice(0, 50));
+      const bytes = new Uint8Array(binStr.length);
+      for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
+      // En un PNG, width está en bytes 16-19 y height en 20-23 (big-endian)
+      const w = (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19];
+      const h = (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
+      if (w > 0 && h > 0 && w < 10000 && h < 10000) return { w, h };
+    } catch (e) {}
+    return null;
+  }
 
   // ===== Función pública =====
 
@@ -209,7 +217,6 @@
       }
     });
 
-    // Columnas: NOMBRE | DNI | CATEGORÍA | días... | HORAS MES | PRECIO HORA | €
     const COL_DIAS_INI = 4;
     const colHoras  = 3 + diasMes + 1;
     const colPrecio = 3 + diasMes + 2;
@@ -227,15 +234,27 @@
     title.fill = fillSolid(paleta.oscuro);
     ws.getRow(1).height = 40;
 
-    // Logo PNG en esquina derecha de la fila 1
+    // Logo PNG: tamaño fijo respetando aspect ratio
     if (logoBase64) {
       try {
         const ext = logoBase64.startsWith('data:image/png') ? 'png' : 'jpeg';
         const base64Data = logoBase64.includes(',') ? logoBase64.split(',')[1] : logoBase64;
         const imageId = workbook.addImage({ base64: base64Data, extension: ext });
+
+        // Calcular tamaño en píxeles manteniendo aspect ratio.
+        // Altura objetivo: ~46px (encaja en una fila de 40 con un poco de margen).
+        const ALTURA_PX = 46;
+        const dims = dimensionesPng(base64Data);
+        let widthPx = 130; // valor por defecto si no se pudo leer la cabecera
+        if (dims && dims.h > 0) {
+          widthPx = Math.round((dims.w / dims.h) * ALTURA_PX);
+        }
+
+        // Anclar la esquina inferior-derecha del logo al final del título
+        // y dejar que ExcelJS calcule la esquina superior según el tamaño.
         ws.addImage(imageId, {
-          tl: { col: totalCols - 2.5, row: 0.1 },
-          br: { col: totalCols - 0.1, row: 0.9 },
+          tl: { col: totalCols - 0.05, row: 0.95, nativeColOff: -widthPx * 9525, nativeRowOff: -ALTURA_PX * 9525 },
+          ext: { width: widthPx, height: ALTURA_PX },
           editAs: 'oneCell'
         });
       } catch (e) {
@@ -291,7 +310,6 @@
     pintarHeader(ws.getCell(5, colTotal),  '€',           paleta.oscuro);
     ws.getRow(5).height = 32;
 
-    // Fila 6: número de día
     for (let d = 1; d <= diasMes; d++) {
       const cell = ws.getCell(6, COL_DIAS_INI - 1 + d);
       cell.value = d;
@@ -317,7 +335,6 @@
         const row = ws.getRow(rowIndex);
         row.height = 22;
 
-        // NOMBRE
         const cN = row.getCell(1);
         cN.value = t.nombre;
         cN.font = { name: FUENTE_EXCEL, size: 10 };
@@ -325,7 +342,6 @@
         cN.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true, indent: 1 };
         cN.border = borderThinGris();
 
-        // DNI
         const cD = row.getCell(2);
         cD.value = t.dni;
         cD.font = { name: FUENTE_EXCEL, size: 10 };
@@ -333,7 +349,6 @@
         cD.alignment = { horizontal: 'center', vertical: 'middle' };
         cD.border = borderThinGris();
 
-        // CATEGORÍA con color
         const cC = row.getCell(3);
         const catKey = (t.categoria || '').toLowerCase().trim();
         const catColor = CATEGORIA_COLORES[catKey] || bandColor;
@@ -343,7 +358,6 @@
         cC.alignment = { horizontal: 'left', vertical: 'middle' };
         cC.border = borderThinGris();
 
-        // Días
         for (let d = 1; d <= diasMes; d++) {
           const col = COL_DIAS_INI - 1 + d;
           const v = t.dias[d];
@@ -366,7 +380,6 @@
           }
         }
 
-        // HORAS MES
         const dIni = letraExcel(COL_DIAS_INI);
         const dFin = letraExcel(COL_DIAS_INI - 1 + diasMes);
         const cH = row.getCell(colHoras);
@@ -377,7 +390,6 @@
         cH.alignment = { horizontal: 'center', vertical: 'middle' };
         cH.border = borderThinGris();
 
-        // PRECIO HORA
         const cP = row.getCell(colPrecio);
         const precio = t.precio_hora != null ? Number(t.precio_hora) : 0;
         cP.value = precio || null;
@@ -387,7 +399,6 @@
         cP.alignment = { horizontal: 'center', vertical: 'middle' };
         cP.border = borderThinGris();
 
-        // TOTAL €
         const cT = row.getCell(colTotal);
         cT.value = { formula: `${letraExcel(colHoras)}${rowIndex}*${letraExcel(colPrecio)}${rowIndex}` };
         cT.numFmt = '#,##0.00 €;-#,##0.00 €;-';
@@ -571,7 +582,6 @@
     nota.font = { name: FUENTE_EXCEL, size: 8, italic: true, color: { argb: '808080' } };
     nota.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true, indent: 1 };
 
-    // Congelar: 3 columnas fijas + 6 filas de cabecera
     ws.views = [{ state: 'frozen', xSplit: 3, ySplit: 6 }];
   }
 
@@ -631,14 +641,14 @@
 
   function construirColumnas(diasMes) {
     const cols = [
-      { width: 30 }, // NOMBRE
-      { width: 13 }, // DNI
-      { width: 14 }, // CATEGORÍA
+      { width: 30 },
+      { width: 13 },
+      { width: 14 },
     ];
     for (let d = 1; d <= diasMes; d++) cols.push({ width: 4 });
-    cols.push({ width: 13 }); // HORAS MES
-    cols.push({ width: 14 }); // PRECIO HORA
-    cols.push({ width: 14 }); // €
+    cols.push({ width: 13 });
+    cols.push({ width: 14 });
+    cols.push({ width: 14 });
     return cols;
   }
 
