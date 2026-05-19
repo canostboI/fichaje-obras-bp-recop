@@ -652,6 +652,7 @@ async function procesarExcel() {
   });
 
   // Problemas por empresa
+  // FIX 6.1: documentos de empresa sin regla definida se tratan como naranja
   const problemasPorEmpresa = {};
   for (const fila of filasEmpresa) {
     const empresaRaw = String(fila['Empresa'] || '').trim();
@@ -662,7 +663,12 @@ async function procesarExcel() {
     if (regla) {
       if (!problemasPorEmpresa[empresaRaw]) problemasPorEmpresa[empresaRaw] = [];
       problemasPorEmpresa[empresaRaw].push({ doc: nombreDoc, estado, resultado: regla.resultado });
-    } else { sinRegla.add(`${nombreDoc}||${estado}`); }
+    } else {
+      // Sin regla definida: registrar para el aviso Y forzar naranja por seguridad
+      sinRegla.add(`${nombreDoc}||${estado}`);
+      if (!problemasPorEmpresa[empresaRaw]) problemasPorEmpresa[empresaRaw] = [];
+      problemasPorEmpresa[empresaRaw].push({ doc: nombreDoc, estado, resultado: 'naranja' });
+    }
   }
 
   // Agrupar por trabajador
@@ -693,8 +699,15 @@ async function procesarExcel() {
       // Si tiene 60h validada, ignorar cualquier problema con 20h
       if (tiene60hValidada && doc.startsWith('Formación 20 horas')) continue;
       const regla = aplicarRegla(doc, estado, 'trabajador');
-      if (regla) { estadoFinal = peorEstado(estadoFinal, regla.resultado); motivos.push(`${doc} (${estado}) → ${regla.resultado}`); }
-      else { sinRegla.add(`${doc}||${estado}`); }
+      if (regla) {
+        estadoFinal = peorEstado(estadoFinal, regla.resultado);
+        motivos.push(`${doc} (${estado}) → ${regla.resultado}`);
+      } else {
+        // FIX 6.1: sin regla definida → naranja por seguridad (antes se ignoraba)
+        sinRegla.add(`${doc}||${estado}`);
+        estadoFinal = peorEstado(estadoFinal, 'naranja');
+        motivos.push(`${doc} (${estado}) → naranja [sin regla definida, revisar Admin → Reglas]`);
+      }
     }
 
     const empProblemas = problemasPorEmpresa[info.empresaRaw] || [];
@@ -780,8 +793,8 @@ function renderAlertaSinRegla() {
   }).join('');
   document.getElementById('alertas').innerHTML += `
     <div class="alert alert-warning" style="margin-top:10px;">
-      <strong>⚠️ Documentos sin regla definida (${sinRegla.size})</strong>
-      <p style="margin:6px 0 8px;">Estos documentos no tienen regla y se han <strong>ignorado</strong> al calcular el semáforo. Añade la regla en <a href="../admin/reglas.html" style="color:var(--naranja)">Admin → Reglas documentales</a>.</p>
+      <strong>⚠️ Documentos sin regla definida (${sinRegla.size}) — tratados como NARANJA</strong>
+      <p style="margin:6px 0 8px;">Estos documentos no tienen regla y se han marcado como <strong>naranja</strong> por seguridad. Añade la regla en <a href="../admin/reglas.html" style="color:var(--naranja)">Admin → Reglas documentales</a> para que el cálculo sea exacto.</p>
       <ul style="margin-left:18px;">${filas}</ul>
     </div>`;
 }
