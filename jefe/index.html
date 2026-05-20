@@ -171,6 +171,8 @@
   .acceso-contador { white-space: nowrap; color: var(--rojo); font-weight: 800; font-size: 14px; }
   .acceso-contador.naranja { color: var(--naranja); }
   .acceso-detalle { margin-top: 9px; color: var(--texto2); font-size: 13px; line-height: 1.45; }
+  .acceso-motivos { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .acceso-motivo-item { background: rgba(244,67,54,0.07); border: 1px solid rgba(244,67,54,0.2); border-radius: 6px; padding: 6px 10px; font-size: 13px; color: var(--texto); line-height: 1.4; }
 
   /* Banner de conexión (I3) */
   .conexion-banner {
@@ -798,6 +800,7 @@ async function marcarVistoRojo(incidenciaId, btn) {
   await cargarBloqueos();
 }
 
+// ── MODIFICADO: abrirModalAccesosDenegados ahora incluye motivos de validaciones_obra ──
 async function abrirModalAccesosDenegados() {
   const overlay = document.getElementById('modal-accesos-overlay');
   const contenido = document.getElementById('modal-accesos-contenido');
@@ -831,10 +834,30 @@ async function abrirModalAccesosDenegados() {
     contenido.innerHTML = `<div class="modal-motivos-vacio">No se pudo cargar el detalle: ${esc(error.message)}</div>`;
     return;
   }
-  pintarDetalleAccesos(data || {});
-}
 
-function pintarDetalleAccesos(incidencias) {
+  // Obtener los IDs de trabajadores con bloqueo hoy para buscar sus motivos
+  const incidencias = data || [];
+  const idsConBloqueo = [...new Set(
+    incidencias.map(inc => inc.trabajador_id).filter(Boolean)
+  )];
+
+  let motivosPorTrabajador = {};
+  if (idsConBloqueo.length > 0) {
+    const { data: vals } = await sb
+      .from('validaciones_obra')
+      .select('trabajador_id, motivos')
+      .eq('obra_id', obraActual)
+      .in('trabajador_id', idsConBloqueo);
+    (vals || []).forEach(v => {
+      motivosPorTrabajador[v.trabajador_id] = v.motivos || [];
+    });
+  }
+
+  pintarDetalleAccesos(incidencias, motivosPorTrabajador);
+}
+// ────────────────────────────────────────────────────────────────────────────
+
+function pintarDetalleAccesos(incidencias, motivosPorTrabajador) {
   const contenido = document.getElementById('modal-accesos-contenido');
   const resumen = document.getElementById('modal-accesos-resumen');
 
@@ -849,13 +872,12 @@ function pintarDetalleAccesos(incidencias) {
     const t = inc.trabajador || null;
     const key = t?.id || inc.trabajador_id || ('sin_trabajador_' + (inc.detalle || ''));
     if (!porTrabajador[key]) {
-      porTrabajador[key] = { trabajador: t, intentos: 0, pendientes: 0, revisados: 0, ultimo: inc.created_at, detalles: new Set() };
+      porTrabajador[key] = { trabajador: t, trabajador_id: inc.trabajador_id, intentos: 0, pendientes: 0, revisados: 0, ultimo: inc.created_at };
     }
     const g = porTrabajador[key];
     g.intentos++;
     if ((inc.estado || 'nueva') === 'nueva') g.pendientes++; else g.revisados++;
     if (inc.created_at && new Date(inc.created_at) > new Date(g.ultimo)) g.ultimo = inc.created_at;
-    if (inc.detalle) g.detalles.add(inc.detalle);
   });
 
   const grupos = Object.values(porTrabajador).sort((a, b) => new Date(b.ultimo) - new Date(a.ultimo));
@@ -873,7 +895,15 @@ function pintarDetalleAccesos(incidencias) {
     const estadoTxt = g.pendientes > 0
       ? `${g.pendientes} pendiente${g.pendientes === 1 ? '' : 's'}${g.revisados ? ` · ${g.revisados} revisado${g.revisados === 1 ? '' : 's'}` : ''}`
       : `Todo revisado (${g.revisados})`;
-    const detalles = Array.from(g.detalles).slice(0, 3).map(d => esc(d)).join('<br>');
+
+    // Motivos del estado rojo desde validaciones_obra
+    const motivos = motivosPorTrabajador[g.trabajador_id] || [];
+    const motivosHtml = motivos.length > 0
+      ? '<div class="acceso-motivos">' +
+          motivos.map(m => `<div class="acceso-motivo-item">${esc(limpiarMotivo(m))}</div>`).join('') +
+        '</div>'
+      : '';
+
     return `
       <div class="acceso-item">
         <div class="acceso-top">
@@ -883,7 +913,8 @@ function pintarDetalleAccesos(incidencias) {
           </div>
           <div class="acceso-contador">${g.intentos} ${g.intentos === 1 ? 'intento' : 'intentos'}</div>
         </div>
-        <div class="acceso-detalle">${esc(estadoTxt)}${detalles ? '<br>' + detalles : ''}</div>
+        <div class="acceso-detalle">${esc(estadoTxt)}</div>
+        ${motivosHtml}
       </div>`;
   }).join('');
 }
