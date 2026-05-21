@@ -16,7 +16,7 @@
     --color-acento: #ff9800;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; background-size: cover; background-position: center; background-attachment: fixed; }
   .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
   .sidebar-brand { padding: 18px 16px 14px; border-bottom: 1px solid var(--borde); }
   .sidebar-brand img { max-width: 100%; max-height: 42px; display: none; object-fit: contain; }
@@ -101,7 +101,7 @@
   .btn-visto:hover { background: var(--bg3); }
   .btn-visto:disabled { opacity: 0.5; cursor: default; }
 
-  /* ── Banner confirmación encargado ── */
+  /* Banner confirmación encargado */
   .banner-ronda {
     border-radius: 10px;
     padding: 13px 18px;
@@ -122,21 +122,6 @@
     color: var(--texto2);
   }
   .banner-ronda.oculto { display: none; }
-
-  /* ── Fondo foto obra ── */
-  body.con-foto-fondo::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: var(--foto-fondo);
-    background-size: cover;
-    background-position: center;
-    background-attachment: scroll;
-   filter: brightness(0.25);
-    z-index: 0;
-    pointer-events: none;
-  }
-  .sidebar, .main { position: relative; z-index: 1; }
 
   /* Modal QR */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
@@ -394,11 +379,9 @@ if (cardRojos) {
 // ── Fondo foto obra ──
 function aplicarFotoFondo(fotoUrl) {
   if (fotoUrl) {
-    document.body.style.setProperty('--foto-fondo', `url('${fotoUrl}')`);
-    document.body.classList.add('con-foto-fondo');
+    document.body.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.82), rgba(0,0,0,0.82)), url('${fotoUrl}')`;
   } else {
-    document.body.style.removeProperty('--foto-fondo');
-    document.body.classList.remove('con-foto-fondo');
+    document.body.style.backgroundImage = '';
   }
 }
 
