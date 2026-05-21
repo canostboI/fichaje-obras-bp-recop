@@ -31,6 +31,9 @@
     color: var(--texto);
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
   }
 
   .contenedor {
@@ -240,7 +243,6 @@
   }
   .motivos li { margin: 4px 0; }
 
-  /* Aviso autocierre */
   .aviso-autocierre {
     background: #fff4e6;
     border: 2px solid var(--naranja);
@@ -384,7 +386,6 @@
   .selector-idioma button.activo { border-color: var(--color-principal); }
   .selector-idioma button:hover  { border-color: var(--gris-borde); }
 
-  /* RTL para árabe */
   html[dir="rtl"] .motivos ul,
   html[dir="rtl"] .aviso-gps ol {
     padding-left: 0;
@@ -427,7 +428,6 @@
     </div>
   </div>
 
-  <!-- PASO 1: introducir DNI -->
   <div class="tarjeta" id="paso-dni">
     <label for="dni" id="label-dni">DNI o NIE</label>
     <input type="text" id="dni" placeholder="00000000X" autocomplete="off" maxlength="15">
@@ -451,7 +451,6 @@
     <div class="aviso-gps oculto" id="aviso-gps"></div>
   </div>
 
-  <!-- PASO 2: cargando -->
   <div class="tarjeta oculto" id="paso-cargando">
     <div class="cargando">
       <div class="spinner"></div>
@@ -459,7 +458,6 @@
     </div>
   </div>
 
-  <!-- PASO 3: resultado validación -->
   <div class="tarjeta oculto" id="paso-resultado">
     <div class="estado-box" id="estado-box"></div>
     <div class="aviso-autocierre oculto" id="aviso-autocierre-box"></div>
@@ -472,7 +470,6 @@
     <button type="button" class="secundario" id="btn-volver" style="margin-top:10px;">Volver</button>
   </div>
 
-  <!-- PASO 4: confirmación final -->
   <div class="tarjeta oculto" id="paso-final">
     <div class="confirmacion-final">
       <div class="tick" id="final-tick">✓</div>
@@ -488,9 +485,6 @@
 </div>
 
 <script>
-// =====================================================================
-// SUPABASE
-// =====================================================================
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
 const { createClient } = supabase;
@@ -766,9 +760,6 @@ const TEXTOS = {
   }
 };
 
-// =====================================================================
-// DICCIONARIO DE MOTIVOS
-// =====================================================================
 const MOTIVOS_DOCS = {
   docs: {
     'Apto médico':
@@ -846,9 +837,6 @@ function traducirMotivo(texto, lang) {
   return prefijo + resto;
 }
 
-// =====================================================================
-// MULTI-IDIOMA
-// =====================================================================
 let idiomaActual = 'es';
 
 function aplicarIdioma(lang) {
@@ -903,9 +891,15 @@ document.getElementById('lang-es').addEventListener('click', () => aplicarIdioma
 document.getElementById('lang-ar').addEventListener('click', () => aplicarIdioma('ar'));
 document.getElementById('lang-ro').addEventListener('click', () => aplicarIdioma('ro'));
 
-// =====================================================================
-// INICIALIZACIÓN
-// =====================================================================
+// ── Fondo foto obra ──
+function aplicarFotoFondo(fotoUrl) {
+  if (fotoUrl) {
+    document.body.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)), url('${fotoUrl}')`;
+  } else {
+    document.body.style.backgroundImage = '';
+  }
+}
+
 (async function init() {
   const langGuardado = localStorage.getItem('idioma_fichaje') || 'es';
   aplicarIdioma(langGuardado);
@@ -931,6 +925,9 @@ document.getElementById('lang-ro').addEventListener('click', () => aplicarIdioma
     el.logoMarca.classList.remove('oculto');
     el.pieMarca.textContent = branding.nombre + ' · ' + T('pie');
     el.pieMarca.dataset.brandingAplicado = '1';
+
+    // Aplicar foto de fondo si existe
+    aplicarFotoFondo(data.foto_url || '');
   } catch (e) {
     el.obraNombre.textContent = 'Obra #' + estado.obraId.substring(0, 8);
   }
@@ -944,9 +941,6 @@ document.getElementById('lang-ro').addEventListener('click', () => aplicarIdioma
   el.inputDni.focus();
 })();
 
-// =====================================================================
-// UTILIDADES
-// =====================================================================
 function normalizarDni(dni) {
   return (dni || '').trim().toUpperCase().replace(/\s+/g, '');
 }
@@ -966,9 +960,6 @@ function ocultarDniRecordado() {
   el.ultimoDniBox.classList.add('oculto');
 }
 
-// =====================================================================
-// G3 — NIVEL 1
-// =====================================================================
 function gestionarRecordatorioDni(dni, validacion) {
   if (!el.chkRecordarDni.checked) {
     localStorage.removeItem('ultimo_dni');
@@ -988,9 +979,6 @@ function gestionarRecordatorioDni(dni, validacion) {
   }
 }
 
-// =====================================================================
-// G3 — NIVEL 2
-// =====================================================================
 const G3_VENTANA_MS  = 2 * 60 * 60 * 1000;
 const G3_UMBRAL_DNIS = 3;
 const G3_CLAVE_LOCAL = 'movil_historial';
@@ -1081,7 +1069,6 @@ function pintarMotivos(contenedor, motivos, criticos) {
   contenedor.classList.remove('oculto');
 }
 
-// Pinta el aviso de autocierre del día anterior
 function pintarAvisoAutocierre(aviso) {
   if (!aviso || !aviso.hora) {
     el.avisoAutocierreBox.classList.add('oculto');
@@ -1116,9 +1103,6 @@ function interpretarError(err) {
   return { mensajeUsuario: msg ? 'Error: ' + msg : T('error_generico'), etiquetaLog: 'otro' };
 }
 
-// =====================================================================
-// GPS — FALLBACK GRADUADO (G2)
-// =====================================================================
 function obtenerUbicacion() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) return reject({ codigo: null, mensaje: 'GPS no soportado.' });
@@ -1141,9 +1125,6 @@ function obtenerUbicacion() {
   });
 }
 
-// =====================================================================
-// EVENTOS
-// =====================================================================
 el.btnUltimoDni.addEventListener('click', () => {
   el.inputDni.value = el.btnUltimoDni.dataset.dni;
   el.ultimoDniBox.classList.add('oculto');
@@ -1175,9 +1156,6 @@ el.btnNuevo.addEventListener('click', () => {
 el.btnEntrada.addEventListener('click', () => ejecutarFichaje('entrada'));
 el.btnSalida.addEventListener('click',  () => ejecutarFichaje('salida'));
 
-// =====================================================================
-// FLUJO PRINCIPAL
-// =====================================================================
 async function continuarDesdeDni() {
   ocultarErrorDni(); ocultarAvisoGps();
   const dni = normalizarDni(el.inputDni.value);
@@ -1308,7 +1286,6 @@ function mostrarResultadoValidacion(v) {
       el.estadoBox.classList.add('estado-rojo');
       el.estadoBox.textContent = T('acceso_denegado');
       pintarMotivos(el.motivosBox, v.motivos, true);
-      // En rojo bloqueado no mostramos el aviso de autocierre (no van a poder fichar)
       el.avisoAutocierreBox.classList.add('oculto');
       el.botonesFichaje.classList.add('oculto');
       el.btnEntrada.disabled = true;
