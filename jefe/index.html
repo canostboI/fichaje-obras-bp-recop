@@ -40,9 +40,6 @@
   .selector-obra:focus { outline: none; border-color: var(--color-acento); }
   .btn-qr { background: var(--bg2); border: 1px solid var(--borde); color: var(--texto); font-size: 13px; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; transition: background 0.15s; }
   .btn-qr:hover { background: var(--bg3); }
-  .btn-foto { background: var(--bg2); border: 1px solid var(--borde); color: var(--texto); font-size: 13px; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; transition: background 0.15s; }
-  .btn-foto:hover { background: var(--bg3); }
-  .btn-foto.oculto { display: none; }
   .contenido { padding: 24px 28px; }
   .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
   .stat { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 20px 22px; }
@@ -186,31 +183,30 @@
   .conexion-banner.oculto { transform: translateY(-100%); }
   .conexion-banner.online { background: var(--verde); }
 
-  /* Modal foto obra */
+  /* Modal Foto de obra */
   .modal-foto {
     background: var(--bg2); color: var(--texto); border: 1px solid var(--borde);
-    border-radius: 14px; padding: 24px; max-width: 480px; width: 92%;
+    border-radius: 14px; padding: 24px; max-width: 460px; width: 92%;
     box-shadow: 0 10px 40px rgba(0,0,0,0.5);
   }
-  .modal-foto-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  .modal-foto-cab { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
   .modal-foto-cab h3 { font-size: 17px; font-weight: 700; }
-  .btn-cerrar-foto { background: var(--bg3); color: var(--texto); border: 1px solid var(--borde); width: 34px; height: 34px; border-radius: 8px; cursor: pointer; font-size: 20px; line-height: 1; }
+  .modal-foto-preview { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; border: 1px solid var(--borde); margin-bottom: 16px; display: none; background: var(--bg3); }
+  .modal-foto-preview.visible { display: block; }
+  .modal-foto-sin-foto { width: 100%; height: 100px; border-radius: 8px; border: 1px dashed var(--borde); display: flex; align-items: center; justify-content: center; color: var(--texto2); font-size: 13px; margin-bottom: 16px; }
+  .modal-foto-sin-foto.oculto { display: none; }
+  .modal-foto-label { display: block; font-size: 13px; color: var(--texto2); margin-bottom: 8px; }
+  .modal-foto-input { width: 100%; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 12px; font-family: inherit; cursor: pointer; }
+  .modal-foto-input:focus { outline: none; border-color: var(--color-acento); }
+  .modal-foto-estado { margin-top: 10px; font-size: 13px; min-height: 20px; }
+  .modal-foto-estado.error { color: var(--rojo); }
+  .modal-foto-estado.ok { color: var(--verde); }
+  .modal-foto-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+  .btn-subir-foto { background: var(--color-acento); color: #111; border: none; padding: 9px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 700; font-family: inherit; }
+  .btn-subir-foto:hover { opacity: 0.88; }
+  .btn-subir-foto:disabled { opacity: 0.45; cursor: default; }
+  .btn-cerrar-foto { background: var(--bg3); color: var(--texto); border: 1px solid var(--borde); padding: 9px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; font-family: inherit; }
   .btn-cerrar-foto:hover { background: var(--borde); }
-  .foto-preview { width: 100%; height: 180px; border-radius: 10px; object-fit: cover; border: 1px solid var(--borde); margin-bottom: 16px; display: block; background: var(--bg3); }
-  .foto-preview.oculto { display: none; }
-  .foto-sin-imagen { width: 100%; height: 180px; border-radius: 10px; border: 1px dashed var(--borde); margin-bottom: 16px; display: flex; align-items: center; justify-content: center; color: var(--texto2); font-size: 14px; background: var(--bg3); }
-  .foto-sin-imagen.oculto { display: none; }
-  .foto-input-label { display: block; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 10px 14px; font-size: 14px; color: var(--texto); cursor: pointer; text-align: center; margin-bottom: 12px; transition: background 0.15s; }
-  .foto-input-label:hover { background: var(--borde); }
-  #foto-input { display: none; }
-  .foto-nombre-archivo { font-size: 13px; color: var(--texto2); margin-bottom: 14px; min-height: 18px; text-align: center; }
-  .foto-btns { display: flex; gap: 10px; justify-content: flex-end; }
-  .btn-subir-foto { background: var(--color-acento); color: #111; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 700; font-family: inherit; transition: opacity 0.15s; }
-  .btn-subir-foto:disabled { opacity: 0.5; cursor: default; }
-  .btn-eliminar-foto { background: transparent; color: var(--rojo); border: 1px solid rgba(244,67,54,0.4); padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; font-family: inherit; transition: background 0.15s; }
-  .btn-eliminar-foto:hover { background: rgba(244,67,54,0.1); }
-  .btn-eliminar-foto.oculto { display: none; }
-  .foto-error { color: var(--rojo); font-size: 13px; margin-bottom: 10px; display: none; }
 </style>
 </head>
 <body>
@@ -243,7 +239,7 @@
       <div class="topbar-fecha" id="fecha-hoy"></div>
     </div>
     <div class="topbar-right">
-      <button class="btn-foto oculto" id="btn-foto">📷 Foto de obra</button>
+      <button class="btn-qr" id="btn-foto" style="display:none" onclick="abrirModalFoto()">📷 Foto de obra</button>
       <button class="btn-qr" id="btn-ver-qr">📱 Ver QR</button>
       <select class="selector-obra" id="selector-obra">
         <option value="">Cargando obras…</option>
@@ -347,17 +343,16 @@
   <div class="modal-foto">
     <div class="modal-foto-cab">
       <h3>📷 Foto de obra</h3>
-      <button class="btn-cerrar-foto" onclick="cerrarModalFoto()" aria-label="Cerrar">×</button>
+      <button class="btn-cerrar-accesos" onclick="cerrarModalFoto()" aria-label="Cerrar">×</button>
     </div>
-    <img id="foto-preview" class="foto-preview oculto" alt="Foto actual de la obra" />
-    <div id="foto-sin-imagen" class="foto-sin-imagen">Sin foto asignada</div>
-    <label class="foto-input-label" for="foto-input">📁 Seleccionar imagen…</label>
-    <input type="file" id="foto-input" accept="image/jpeg,image/png,image/webp" />
-    <div class="foto-nombre-archivo" id="foto-nombre-archivo"></div>
-    <div class="foto-error" id="foto-error"></div>
-    <div class="foto-btns">
-      <button class="btn-eliminar-foto oculto" id="btn-eliminar-foto" onclick="eliminarFotoObra()">🗑 Eliminar foto</button>
-      <button class="btn-subir-foto" id="btn-subir-foto" onclick="subirFotoObra()" disabled>Subir foto</button>
+    <img id="foto-preview" class="modal-foto-preview" alt="Foto actual de la obra" />
+    <div id="foto-sin-foto" class="modal-foto-sin-foto">Sin foto de fondo asignada</div>
+    <label class="modal-foto-label" for="foto-input">Selecciona una imagen (JPG o PNG, máx. 3 MB):</label>
+    <input type="file" id="foto-input" class="modal-foto-input" accept="image/jpeg,image/png" />
+    <div id="foto-estado" class="modal-foto-estado"></div>
+    <div class="modal-foto-btns">
+      <button class="btn-cerrar-foto" onclick="cerrarModalFoto()">Cancelar</button>
+      <button class="btn-subir-foto" id="btn-subir-foto" onclick="subirFotoObra()">Subir foto</button>
     </div>
   </div>
 </div>
@@ -372,10 +367,9 @@ AutoLogout.init(sb);
 const CLAVE_OBRA_ACTIVA_JEFE = 'jefe_obra_activa_id';
 
 let obraActual = null;
-let fotoUrlActual = null;
-let archivoSeleccionado = null;
 let brandingActual = null;
 let intervalPresencia = null;
+let fotoUrlActual = '';
 
 let validacionesCache = {};
 let naranjasActualesCache = [];
@@ -438,58 +432,22 @@ function aplicarFotoFondo(fotoUrl) {
 }
 
 // ── Modal foto ──
-document.getElementById('btn-foto').addEventListener('click', () => {
-  abrirModalFoto();
-});
-
-document.getElementById('foto-input').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  // Validar tamaño (máx 5 MB)
-  if (file.size > 5 * 1024 * 1024) {
-    mostrarErrorFoto('La imagen no puede superar 5 MB.');
-    e.target.value = '';
-    return;
-  }
-
-  archivoSeleccionado = file;
-  document.getElementById('foto-nombre-archivo').textContent = file.name;
-  document.getElementById('btn-subir-foto').disabled = false;
-  ocultarErrorFoto();
-
-  // Preview local
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const preview = document.getElementById('foto-preview');
-    preview.src = ev.target.result;
-    preview.classList.remove('oculto');
-    document.getElementById('foto-sin-imagen').classList.add('oculto');
-  };
-  reader.readAsDataURL(file);
-});
-
 function abrirModalFoto() {
-  archivoSeleccionado = null;
-  document.getElementById('foto-input').value = '';
-  document.getElementById('foto-nombre-archivo').textContent = '';
-  document.getElementById('btn-subir-foto').disabled = true;
-  ocultarErrorFoto();
-
   const preview = document.getElementById('foto-preview');
-  const sinImagen = document.getElementById('foto-sin-imagen');
-  const btnEliminar = document.getElementById('btn-eliminar-foto');
+  const sinFoto = document.getElementById('foto-sin-foto');
+  document.getElementById('foto-input').value = '';
+  document.getElementById('foto-estado').textContent = '';
+  document.getElementById('foto-estado').className = 'modal-foto-estado';
+  document.getElementById('btn-subir-foto').disabled = false;
 
   if (fotoUrlActual) {
     preview.src = fotoUrlActual;
-    preview.classList.remove('oculto');
-    sinImagen.classList.add('oculto');
-    btnEliminar.classList.remove('oculto');
+    preview.classList.add('visible');
+    sinFoto.classList.add('oculto');
   } else {
     preview.src = '';
-    preview.classList.add('oculto');
-    sinImagen.classList.remove('oculto');
-    btnEliminar.classList.add('oculto');
+    preview.classList.remove('visible');
+    sinFoto.classList.remove('oculto');
   }
 
   document.getElementById('modal-foto-overlay').classList.add('visible');
@@ -499,99 +457,84 @@ function cerrarModalFoto() {
   document.getElementById('modal-foto-overlay').classList.remove('visible');
 }
 
-document.getElementById('modal-foto-overlay').addEventListener('click', e => {
-  if (e.target === document.getElementById('modal-foto-overlay')) cerrarModalFoto();
-});
-
-function mostrarErrorFoto(msg) {
-  const el = document.getElementById('foto-error');
-  el.textContent = msg;
-  el.style.display = 'block';
-}
-
-function ocultarErrorFoto() {
-  const el = document.getElementById('foto-error');
-  el.textContent = '';
-  el.style.display = 'none';
-}
-
 async function subirFotoObra() {
-  if (!archivoSeleccionado || !obraActual) return;
-
+  const input = document.getElementById('foto-input');
+  const estado = document.getElementById('foto-estado');
   const btn = document.getElementById('btn-subir-foto');
-  btn.disabled = true;
-  btn.textContent = 'Subiendo…';
-  ocultarErrorFoto();
 
-  try {
-    // Nombre de archivo: obras/{obraId}/{timestamp}.ext
-    const ext = archivoSeleccionado.name.split('.').pop().toLowerCase();
-    const ruta = `${obraActual}/${Date.now()}.${ext}`;
-
-    const { error: uploadError } = await sb.storage
-      .from('obras-fotos')
-      .upload(ruta, archivoSeleccionado, { upsert: true, contentType: archivoSeleccionado.type });
-
-    if (uploadError) throw uploadError;
-
-    // URL pública
-    const { data: urlData } = sb.storage.from('obras-fotos').getPublicUrl(ruta);
-    const publicUrl = urlData.publicUrl;
-
-    // Guardar en BD
-    const { error: updateError } = await sb
-      .from('obras')
-      .update({ foto_url: publicUrl })
-      .eq('id', obraActual);
-
-    if (updateError) throw updateError;
-
-    // Actualizar estado local
-    fotoUrlActual = publicUrl;
-    aplicarFotoFondo(publicUrl);
-
-    // Actualizar dataset del option del selector para que persista al cambiar
-    const selector = document.getElementById('selector-obra');
-    const opt = selector.options[selector.selectedIndex];
-    if (opt) opt.dataset.fotoUrl = publicUrl;
-
-    cerrarModalFoto();
-  } catch (err) {
-    mostrarErrorFoto('Error al subir la imagen: ' + (err.message || 'inténtalo de nuevo'));
-    btn.disabled = false;
-  } finally {
-    btn.textContent = 'Subir foto';
-    btn.disabled = false;
+  const archivo = input.files[0];
+  if (!archivo) {
+    estado.textContent = 'Selecciona una imagen primero.';
+    estado.className = 'modal-foto-estado error';
+    return;
   }
-}
-
-async function eliminarFotoObra() {
-  if (!obraActual) return;
-  if (!confirm('¿Eliminar la foto de fondo de esta obra?')) return;
-
-  const btnEliminar = document.getElementById('btn-eliminar-foto');
-  btnEliminar.disabled = true;
-
-  const { error } = await sb
-    .from('obras')
-    .update({ foto_url: null })
-    .eq('id', obraActual);
-
-  if (error) {
-    alert('Error al eliminar la foto: ' + error.message);
-    btnEliminar.disabled = false;
+  if (archivo.size > 3 * 1024 * 1024) {
+    estado.textContent = 'La imagen supera el límite de 3 MB.';
+    estado.className = 'modal-foto-estado error';
     return;
   }
 
-  fotoUrlActual = null;
-  aplicarFotoFondo(null);
+  btn.disabled = true;
+  estado.textContent = 'Subiendo…';
+  estado.className = 'modal-foto-estado';
 
+  // Nombre de archivo único por obra
+  const ext = archivo.name.split('.').pop().toLowerCase();
+  const rutaArchivo = `${obraActual}.${ext}`;
+
+  // Subir a Storage (upsert para sobreescribir si ya existe)
+  const { error: errorUpload } = await sb.storage
+    .from('obras-fotos')
+    .upload(rutaArchivo, archivo, { upsert: true, contentType: archivo.type });
+
+  if (errorUpload) {
+    estado.textContent = 'Error al subir: ' + errorUpload.message;
+    estado.className = 'modal-foto-estado error';
+    btn.disabled = false;
+    return;
+  }
+
+  // Obtener URL pública
+  const { data: urlData } = sb.storage
+    .from('obras-fotos')
+    .getPublicUrl(rutaArchivo);
+
+  const nuevaUrl = urlData.publicUrl;
+
+  // Guardar en obras.foto_url via RPC
+  const { data: rpcData, error: errorUpdate } = await sb
+    .rpc('actualizar_foto_obra', { p_obra_id: obraActual, p_foto_url: nuevaUrl });
+
+  if (errorUpdate || rpcData?.error) {
+    estado.textContent = 'Error al guardar en BD: ' + (errorUpdate?.message || rpcData?.error);
+    estado.className = 'modal-foto-estado error';
+    btn.disabled = false;
+    return;
+  }
+
+  // Actualizar estado local y aplicar fondo
+  fotoUrlActual = nuevaUrl;
+  aplicarFotoFondo(nuevaUrl);
+
+  // Actualizar el dataset del option en el selector para que persista al cambiar de obra y volver
   const selector = document.getElementById('selector-obra');
-  const opt = selector.options[selector.selectedIndex];
-  if (opt) opt.dataset.fotoUrl = '';
+  const optActual = selector.options[selector.selectedIndex];
+  if (optActual) optActual.dataset.fotoUrl = nuevaUrl;
 
-  cerrarModalFoto();
+  // Mostrar preview actualizado
+  const preview = document.getElementById('foto-preview');
+  preview.src = nuevaUrl;
+  preview.classList.add('visible');
+  document.getElementById('foto-sin-foto').classList.add('oculto');
+
+  estado.textContent = '✓ Foto aplicada correctamente.';
+  estado.className = 'modal-foto-estado ok';
+  btn.disabled = false;
 }
+
+document.getElementById('modal-foto-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-foto-overlay')) cerrarModalFoto();
+});
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -630,12 +573,12 @@ async function eliminarFotoObra() {
   const obraGuardada = localStorage.getItem(CLAVE_OBRA_ACTIVA_JEFE);
   const obraInicial = misObras.find(uo => uo.obra.id === obraGuardada) || misObras[0];
   obraActual = obraInicial.obra.id;
-  fotoUrlActual = obraInicial.obra.foto_url || null;
+  fotoUrlActual = obraInicial.obra.foto_url || '';
   selector.value = obraActual;
   localStorage.setItem(CLAVE_OBRA_ACTIVA_JEFE, obraActual);
   aplicarBrandingObra(obraInicial.obra.empresa_marca);
   aplicarFotoFondo(fotoUrlActual);
-  document.getElementById('btn-foto').classList.remove('oculto');
+  document.getElementById('btn-foto').style.display = 'flex';
 
   await cargarPresencia();
   await cargarBloqueos();
@@ -647,10 +590,10 @@ async function eliminarFotoObra() {
     obraActual = selector.value;
     localStorage.setItem(CLAVE_OBRA_ACTIVA_JEFE, obraActual);
     const opt = selector.options[selector.selectedIndex];
-    fotoUrlActual = opt.dataset.fotoUrl || null;
+    fotoUrlActual = opt.dataset.fotoUrl || '';
     aplicarBrandingObra(opt.dataset.marca);
     aplicarFotoFondo(fotoUrlActual);
-    document.getElementById('btn-foto').classList.remove('oculto');
+    document.getElementById('btn-foto').style.display = obraActual ? 'flex' : 'none';
     await cargarPresencia();
     await cargarBloqueos();
     await cargarAvisosAutocierre();
@@ -888,10 +831,7 @@ document.getElementById('modal-motivos-overlay').addEventListener('click', e => 
 });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    cerrarMotivos(); cerrarQR(); cerrarModalNaranjas();
-    cerrarModalAccesos(); cerrarModalFoto();
-  }
+  if (e.key === 'Escape') { cerrarMotivos(); cerrarQR(); cerrarModalNaranjas(); cerrarModalFoto(); }
 });
 
 function abrirModalNaranjas() {
@@ -1251,6 +1191,10 @@ document.getElementById('modal-qr').addEventListener('click', e => {
 
 document.getElementById('modal-accesos-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-accesos-overlay')) cerrarModalAccesos();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { cerrarModalAccesos(); cerrarModalNaranjas(); }
 });
 
 function esc(txt) {
