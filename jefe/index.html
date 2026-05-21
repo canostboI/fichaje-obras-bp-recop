@@ -101,7 +101,7 @@
   .btn-visto:hover { background: var(--bg3); }
   .btn-visto:disabled { opacity: 0.5; cursor: default; }
 
-  /* ── Banner confirmación encargado (Paso 3.2 Parte B) ── */
+  /* ── Banner confirmación encargado ── */
   .banner-ronda {
     border-radius: 10px;
     padding: 13px 18px;
@@ -122,7 +122,21 @@
     color: var(--texto2);
   }
   .banner-ronda.oculto { display: none; }
-  /* ───────────────────────────────────────────────────── */
+
+  /* ── Fondo foto obra ── */
+  body.con-foto-fondo::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: var(--foto-fondo);
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    filter: brightness(0.35);
+    z-index: 0;
+    pointer-events: none;
+  }
+  .sidebar, .main { position: relative; z-index: 1; }
 
   /* Modal QR */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
@@ -135,7 +149,7 @@
   .btn-imprimir { background: #111318; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; }
   .btn-cerrar-modal { background: #f1f5f9; color: #333; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; }
 
-  /* Modal Motivos (PJ3) */
+  /* Modal Motivos */
   .modal-motivos {
     background: var(--bg2); color: var(--texto); border: 1px solid var(--borde);
     border-radius: 14px; padding: 24px; max-width: 480px; width: 90%;
@@ -174,7 +188,7 @@
   .acceso-motivos { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
   .acceso-motivo-item { background: rgba(244,67,54,0.07); border: 1px solid rgba(244,67,54,0.2); border-radius: 6px; padding: 6px 10px; font-size: 13px; color: var(--texto); line-height: 1.4; }
 
-  /* Banner de conexión (I3) */
+  /* Banner de conexión */
   .conexion-banner {
     position: fixed; top: 0; left: 0; right: 0; z-index: 200;
     padding: 10px 20px; text-align: center; font-size: 14px; font-weight: 600;
@@ -187,7 +201,7 @@
 </head>
 <body>
 
-<!-- Banner de conexión (I3) -->
+<!-- Banner de conexión -->
 <div id="conexion-banner" class="conexion-banner oculto">
   <span id="conexion-banner-texto">⚠ Sin conexión — Los datos pueden estar desactualizados</span>
 </div>
@@ -242,9 +256,8 @@
       <div id="avisos-lista"></div>
     </div>
 
-    <!-- ── Banner confirmación encargado (Paso 3.2 Parte B) ── -->
+    <!-- Banner confirmación encargado -->
     <div class="banner-ronda oculto" id="banner-ronda"></div>
-    <!-- ───────────────────────────────────────────────────── -->
 
     <div class="seccion">
       <div class="seccion-cab">
@@ -269,7 +282,7 @@
   </div>
 </div>
 
-<!-- Modal Motivos (PJ3) -->
+<!-- Modal Motivos -->
 <div class="modal-overlay" id="modal-motivos-overlay">
   <div class="modal-motivos">
     <div class="modal-motivos-cab">
@@ -378,6 +391,17 @@ if (cardRojos) {
   });
 }
 
+// ── Fondo foto obra ──
+function aplicarFotoFondo(fotoUrl) {
+  if (fotoUrl) {
+    document.body.style.setProperty('--foto-fondo', `url('${fotoUrl}')`);
+    document.body.classList.add('con-foto-fondo');
+  } else {
+    document.body.style.removeProperty('--foto-fondo');
+    document.body.classList.remove('con-foto-fondo');
+  }
+}
+
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '../'; return; }
@@ -395,7 +419,7 @@ if (cardRojos) {
 
   const { data: misObras, error } = await sb
     .from('usuarios_obra')
-    .select('obra_id, rol_en_obra, obra:obra_id(id, nombre, empresa_marca)')
+    .select('obra_id, rol_en_obra, obra:obra_id(id, nombre, empresa_marca, foto_url)')
     .eq('usuario_app_id', miUsuario.id)
     .eq('rol_en_obra', 'jefe_obra');
 
@@ -408,6 +432,7 @@ if (cardRojos) {
     opt.value = uo.obra.id;
     opt.textContent = uo.obra.nombre;
     opt.dataset.marca = uo.obra.empresa_marca || 'bosch_pascual';
+    opt.dataset.fotoUrl = uo.obra.foto_url || '';
     selector.appendChild(opt);
   });
 
@@ -417,6 +442,7 @@ if (cardRojos) {
   selector.value = obraActual;
   localStorage.setItem(CLAVE_OBRA_ACTIVA_JEFE, obraActual);
   aplicarBrandingObra(obraInicial.obra.empresa_marca);
+  aplicarFotoFondo(obraInicial.obra.foto_url || '');
   await cargarPresencia();
   await cargarBloqueos();
   await cargarAvisosAutocierre();
@@ -426,8 +452,9 @@ if (cardRojos) {
   selector.addEventListener('change', async () => {
     obraActual = selector.value;
     localStorage.setItem(CLAVE_OBRA_ACTIVA_JEFE, obraActual);
-    const marca = selector.options[selector.selectedIndex].dataset.marca;
-    aplicarBrandingObra(marca);
+    const opt = selector.options[selector.selectedIndex];
+    aplicarBrandingObra(opt.dataset.marca);
+    aplicarFotoFondo(opt.dataset.fotoUrl || '');
     await cargarPresencia();
     await cargarBloqueos();
     await cargarAvisosAutocierre();
@@ -486,7 +513,6 @@ function actualizarFechaHoy() {
   el.textContent = txt.charAt(0).toUpperCase() + txt.slice(1);
 }
 
-// ── Banner confirmación encargado (Paso 3.2 Parte B) ─────────────────────────
 async function cargarRondaEncargado() {
   const banner = document.getElementById('banner-ronda');
   if (!obraActual) { banner.className = 'banner-ronda oculto'; return; }
@@ -514,7 +540,6 @@ async function cargarRondaEncargado() {
   banner.className = 'banner-ronda confirmado';
   banner.textContent = `✅ El encargado${nombre} ha confirmado presencia hoy a las ${hora}${personas}`;
 }
-// ─────────────────────────────────────────────────────────────────────────────
 
 async function cargarPresencia() {
   actualizarFechaHoy();
@@ -800,7 +825,6 @@ async function marcarVistoRojo(incidenciaId, btn) {
   await cargarBloqueos();
 }
 
-// ── MODIFICADO: abrirModalAccesosDenegados ahora incluye motivos de validaciones_obra ──
 async function abrirModalAccesosDenegados() {
   const overlay = document.getElementById('modal-accesos-overlay');
   const contenido = document.getElementById('modal-accesos-contenido');
@@ -835,7 +859,6 @@ async function abrirModalAccesosDenegados() {
     return;
   }
 
-  // Obtener los IDs de trabajadores con bloqueo hoy para buscar sus motivos
   const incidencias = data || [];
   const idsConBloqueo = [...new Set(
     incidencias.map(inc => inc.trabajador_id).filter(Boolean)
@@ -855,7 +878,6 @@ async function abrirModalAccesosDenegados() {
 
   pintarDetalleAccesos(incidencias, motivosPorTrabajador);
 }
-// ────────────────────────────────────────────────────────────────────────────
 
 function pintarDetalleAccesos(incidencias, motivosPorTrabajador) {
   const contenido = document.getElementById('modal-accesos-contenido');
@@ -896,7 +918,6 @@ function pintarDetalleAccesos(incidencias, motivosPorTrabajador) {
       ? `${g.pendientes} pendiente${g.pendientes === 1 ? '' : 's'}${g.revisados ? ` · ${g.revisados} revisado${g.revisados === 1 ? '' : 's'}` : ''}`
       : `Todo revisado (${g.revisados})`;
 
-    // Motivos del estado rojo desde validaciones_obra
     const motivos = motivosPorTrabajador[g.trabajador_id] || [];
     const motivosHtml = motivos.length > 0
       ? '<div class="acceso-motivos">' +
