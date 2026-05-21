@@ -54,6 +54,11 @@
   .btn-resumen { background: rgba(255,152,0,0.12); color: var(--naranja); border: 1px solid rgba(255,152,0,0.45); border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; }
   .btn-resumen:hover { background: rgba(255,152,0,0.2); }
 
+  .btn-rp { background: rgba(33,150,243,0.12); color: var(--azul); border: 1px solid rgba(33,150,243,0.45); border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; }
+  .btn-rp:hover { background: rgba(33,150,243,0.2); }
+  .btn-rp:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-rp:disabled:hover { background: rgba(33,150,243,0.12); }
+
   .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: auto; }
   .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; }
   .seccion-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -178,6 +183,28 @@
   .resumen-copiado { color: var(--verde); font-size: 12px; min-height: 18px; margin-top: 6px; }
   @media (max-width: 700px) { .resumen-filtros { grid-template-columns: 1fr; } }
 
+  /* Modal Recursos Preventivos */
+  .modal-rp { width: 620px; max-width: 96vw; }
+  .rp-intro { background: rgba(33,150,243,0.08); border: 1px solid rgba(33,150,243,0.35); border-radius: 8px; padding: 12px 14px; color: var(--texto); font-size: 13px; line-height: 1.45; }
+  .rp-bloque { display: flex; flex-direction: column; gap: 10px; }
+  .rp-bloque-titulo { font-size: 11px; font-weight: 800; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; }
+  .rp-lista { display: flex; flex-direction: column; gap: 8px; }
+  .rp-fila { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; }
+  .rp-fila-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+  .rp-fila-nombre { font-size: 14px; font-weight: 700; color: var(--texto); }
+  .rp-fila-empresa { font-size: 12px; color: var(--texto2); }
+  .btn-rp-quitar { background: transparent; border: 1px solid var(--rojo); color: var(--rojo); border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; font-family: inherit; }
+  .btn-rp-quitar:hover { background: rgba(244,67,54,0.1); }
+  .btn-rp-quitar:disabled { opacity: 0.5; cursor: not-allowed; }
+  .rp-vacio { padding: 16px; text-align: center; color: var(--texto2); font-size: 13px; background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.3); border-radius: 8px; }
+  .rp-añadir { display: flex; gap: 8px; align-items: stretch; }
+  .rp-añadir select { flex: 1; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 12px; font-family: inherit; }
+  .rp-añadir select:focus { outline: none; border-color: var(--azul); }
+  .btn-rp-designar { background: var(--azul); color: #fff; border: none; border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap; }
+  .btn-rp-designar:hover { opacity: 0.9; }
+  .btn-rp-designar:disabled { opacity: 0.5; cursor: not-allowed; }
+  .rp-añadir-vacio { padding: 10px 14px; color: var(--texto2); font-size: 13px; font-style: italic; }
+
   .dni-hint { font-size: 12px; color: var(--texto2); margin-top: 2px; }
 </style>
 </head>
@@ -217,6 +244,7 @@
         <input class="buscador" id="buscador" type="text" placeholder="Buscar por nombre o DNI…">
       </div>
       <div class="barra-botones">
+        <button class="btn-rp" id="btn-recursos-preventivos" title="Designar Recursos Preventivos de la obra">🛡️ Recursos Preventivos</button>
         <button class="btn-resumen" id="btn-resumen-naranja">📨 Resumen doc.</button>
         <button class="btn-nuevo" id="btn-nuevo">＋ Nuevo trabajador</button>
       </div>
@@ -342,6 +370,40 @@
   </div>
 </div>
 
+<!-- Modal Recursos Preventivos -->
+<div class="modal-overlay" id="modal-rp-overlay">
+  <div class="modal modal-rp">
+    <h3>🛡️ Recursos Preventivos</h3>
+    <div class="rp-intro">
+      Designa qué trabajadores propios (Bosch Pascual o Rècop) actúan como Recurso Preventivo en <strong id="rp-obra-nombre"></strong>.
+      Solo se pueden designar trabajadores de empresas propias.
+    </div>
+
+    <div class="rp-bloque">
+      <div class="rp-bloque-titulo">Designados actualmente</div>
+      <div id="rp-lista-actuales"><div class="cargando">Cargando…</div></div>
+    </div>
+
+    <div class="rp-bloque">
+      <div class="rp-bloque-titulo">Añadir nuevo Recurso Preventivo</div>
+      <div id="rp-añadir-zona">
+        <div class="rp-añadir">
+          <select id="rp-select-trabajador">
+            <option value="">— Selecciona un trabajador propio —</option>
+          </select>
+          <button type="button" class="btn-rp-designar" id="btn-rp-designar">Designar</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="rp-msg"></div>
+
+    <div class="modal-acciones">
+      <button type="button" class="btn-cancelar" id="btn-cerrar-rp">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
@@ -362,6 +424,11 @@ let miUsuarioId = null;
 
 let forzarCtx = null;
 let estadoSeleccionado = null;
+
+// Cache de Recursos Preventivos por obra: { obra_id: [ { trabajador_id, trabajador, ... } ] }
+let rpsPorObra = {};
+// Cache de trabajadores propios (BP y Rècop) disponibles para designar
+let trabajadoresPropios = [];
 
 // Recordar qué grupos están abiertos/cerrados (por nombre de empresa).
 // Por defecto todos abiertos; al colapsar se añade la clave con false.
@@ -396,7 +463,9 @@ const gruposAbiertos = {};
   const marca = obtenerObraFiltro()?.empresa_marca || misObras[0]?.empresa_marca || 'bosch_pascual';
   aplicarBrandingObra(marca);
 
+  await cargarTrabajadoresPropios();
   await cargarTrabajadores();
+  actualizarBotonRP();
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') cargarTrabajadores();
@@ -432,6 +501,7 @@ document.getElementById('filtro-obra-trabajadores').addEventListener('change', e
   }
   const obra = obtenerObraFiltro();
   aplicarBrandingObra(obra?.empresa_marca || misObras[0]?.empresa_marca || 'bosch_pascual');
+  actualizarBotonRP();
   aplicarFiltrosTabla();
 });
 
@@ -442,10 +512,242 @@ document.getElementById('modal-resumen-overlay').addEventListener('click', e => 
   if (e.target === document.getElementById('modal-resumen-overlay')) cerrarResumenDocumental();
 });
 
+// === Recursos Preventivos ===
+document.getElementById('btn-recursos-preventivos').addEventListener('click', abrirModalRP);
+document.getElementById('btn-cerrar-rp').addEventListener('click', cerrarModalRP);
+document.getElementById('btn-rp-designar').addEventListener('click', designarRP);
+document.getElementById('modal-rp-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-rp-overlay')) cerrarModalRP();
+});
+
+function actualizarBotonRP() {
+  const btn = document.getElementById('btn-recursos-preventivos');
+  if (!btn) return;
+  if (!obraFiltroTrabajadores) {
+    btn.disabled = true;
+    btn.title = 'Selecciona primero una obra concreta en el filtro de arriba.';
+  } else {
+    btn.disabled = false;
+    btn.title = 'Designar Recursos Preventivos de la obra seleccionada';
+  }
+}
+
+async function cargarTrabajadoresPropios() {
+  // Trabajadores activos de empresas propias (es_empresa_propia = true)
+  const { data, error } = await sb
+    .from('trabajadores')
+    .select('id, nombre, apellidos, dni, empresa:empresa_id(id, nombre, es_empresa_propia)')
+    .eq('activo', true);
+
+  if (error) {
+    console.error('Error cargando trabajadores propios:', error);
+    trabajadoresPropios = [];
+    return;
+  }
+
+  trabajadoresPropios = (data || [])
+    .filter(t => t.empresa?.es_empresa_propia === true)
+    .sort((a, b) => nombreCompleto(a).localeCompare(nombreCompleto(b), 'es'));
+}
+
+async function cargarRPsDeObra(obraId) {
+  const { data, error } = await sb
+    .from('recursos_preventivos_obra')
+    .select(`
+      id,
+      trabajador_id,
+      obra_id,
+      nombrado_en,
+      activo,
+      trabajador:trabajador_id(id, nombre, apellidos, dni, empresa:empresa_id(nombre))
+    `)
+    .eq('obra_id', obraId)
+    .eq('activo', true);
+
+  if (error) {
+    console.error('Error cargando RPs:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+async function cargarRPsDeTodasMisObras() {
+  const obraIds = misObras.map(o => o.id);
+  if (obraIds.length === 0) { rpsPorObra = {}; return; }
+
+  const { data, error } = await sb
+    .from('recursos_preventivos_obra')
+    .select('trabajador_id, obra_id, activo')
+    .in('obra_id', obraIds)
+    .eq('activo', true);
+
+  rpsPorObra = {};
+  if (error) {
+    console.error('Error cargando RPs globales:', error);
+    return;
+  }
+
+  (data || []).forEach(rp => {
+    if (!rpsPorObra[rp.obra_id]) rpsPorObra[rp.obra_id] = [];
+    rpsPorObra[rp.obra_id].push(rp.trabajador_id);
+  });
+}
+
+function esRP(trabajadorId, obraId) {
+  return (rpsPorObra[obraId] || []).includes(trabajadorId);
+}
+
+async function abrirModalRP() {
+  if (!obraFiltroTrabajadores) return;
+
+  const obra = obtenerObraFiltro();
+  if (!obra) return;
+
+  document.getElementById('rp-obra-nombre').textContent = obra.nombre || 'esta obra';
+  document.getElementById('rp-msg').textContent = '';
+  document.getElementById('rp-msg').className = '';
+  document.getElementById('rp-lista-actuales').innerHTML = '<div class="cargando">Cargando…</div>';
+
+  document.getElementById('modal-rp-overlay').classList.add('abierto');
+
+  await pintarModalRP();
+}
+
+async function pintarModalRP() {
+  const obraId = obraFiltroTrabajadores;
+  if (!obraId) return;
+
+  const rps = await cargarRPsDeObra(obraId);
+
+  // Pintar lista de actuales
+  const contLista = document.getElementById('rp-lista-actuales');
+  if (rps.length === 0) {
+    contLista.innerHTML = '<div class="rp-vacio">⚠ Esta obra no tiene ningún Recurso Preventivo designado.</div>';
+  } else {
+    contLista.innerHTML = `<div class="rp-lista">${rps.map(rp => `
+      <div class="rp-fila">
+        <div class="rp-fila-info">
+          <div class="rp-fila-nombre">${esc(nombreCompleto(rp.trabajador))}</div>
+          <div class="rp-fila-empresa">${esc(rp.trabajador?.empresa?.nombre || 'Sin empresa')} · DNI ${esc(rp.trabajador?.dni || '—')}</div>
+        </div>
+        <button class="btn-rp-quitar" onclick="quitarRP('${esc(rp.trabajador_id)}')">Quitar</button>
+      </div>
+    `).join('')}</div>`;
+  }
+
+  // Pintar select de disponibles (propios que aún no son RP de esta obra)
+  const idsActuales = rps.map(rp => rp.trabajador_id);
+  const disponibles = trabajadoresPropios.filter(t => !idsActuales.includes(t.id));
+
+  const select = document.getElementById('rp-select-trabajador');
+  const zona = document.getElementById('rp-añadir-zona');
+
+  if (disponibles.length === 0) {
+    zona.innerHTML = '<div class="rp-añadir-vacio">Todos los trabajadores propios disponibles ya están designados en esta obra.</div>';
+  } else {
+    zona.innerHTML = `
+      <div class="rp-añadir">
+        <select id="rp-select-trabajador">
+          <option value="">— Selecciona un trabajador propio —</option>
+          ${disponibles.map(t => `
+            <option value="${esc(t.id)}">${esc(nombreCompleto(t))} — ${esc(t.empresa?.nombre || '')}</option>
+          `).join('')}
+        </select>
+        <button type="button" class="btn-rp-designar" id="btn-rp-designar">Designar</button>
+      </div>
+    `;
+    document.getElementById('btn-rp-designar').addEventListener('click', designarRP);
+  }
+}
+
+async function designarRP() {
+  const select = document.getElementById('rp-select-trabajador');
+  const trabajadorId = select ? select.value : '';
+  const msg = document.getElementById('rp-msg');
+  const btn = document.getElementById('btn-rp-designar');
+
+  if (!trabajadorId) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Selecciona un trabajador antes de designar.';
+    return;
+  }
+
+  if (btn) btn.disabled = true;
+  msg.className = '';
+  msg.textContent = 'Designando…';
+
+  const { data, error } = await sb.rpc('designar_recurso_preventivo', {
+    p_trabajador_id: trabajadorId,
+    p_obra_id: obraFiltroTrabajadores
+  });
+
+  if (error) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Error: ' + error.message;
+    if (btn) btn.disabled = false;
+    return;
+  }
+
+  if (data && data.ok === false) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Error: ' + (data.error || 'No se pudo designar');
+    if (btn) btn.disabled = false;
+    return;
+  }
+
+  msg.className = 'msg-ok';
+  msg.textContent = '¡Recurso Preventivo designado!';
+
+  // Refrescar caché global y modal
+  await cargarRPsDeTodasMisObras();
+  await pintarModalRP();
+  aplicarFiltrosTabla();
+}
+
+async function quitarRP(trabajadorId) {
+  if (!confirm('¿Quitar a este trabajador como Recurso Preventivo de la obra?')) return;
+
+  const msg = document.getElementById('rp-msg');
+  msg.className = '';
+  msg.textContent = 'Quitando…';
+
+  const { data, error } = await sb.rpc('quitar_recurso_preventivo', {
+    p_trabajador_id: trabajadorId,
+    p_obra_id: obraFiltroTrabajadores
+  });
+
+  if (error) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Error: ' + error.message;
+    return;
+  }
+
+  if (data && data.ok === false) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Error: ' + (data.error || 'No se pudo quitar');
+    return;
+  }
+
+  msg.className = 'msg-ok';
+  msg.textContent = '¡Recurso Preventivo quitado!';
+
+  await cargarRPsDeTodasMisObras();
+  await pintarModalRP();
+  aplicarFiltrosTabla();
+}
+
+function cerrarModalRP() {
+  document.getElementById('modal-rp-overlay').classList.remove('abierto');
+}
+
 async function cargarTrabajadores() {
   document.getElementById('tabla-trabajadores').innerHTML = '<div class="cargando">Cargando…</div>';
 
   const obraIds = misObras.map(o => o.id);
+
+  // Cargar RPs en paralelo a las validaciones (no bloquea)
+  const rpsPromise = cargarRPsDeTodasMisObras();
 
   let { data: validaciones, error: errorValidaciones } = await sb
     .from('validaciones_obra')
@@ -491,6 +793,9 @@ async function cargarTrabajadores() {
     excepcionesPorKey[`${ex.trabajador_id}|${ex.obra_id}`] = ex;
   });
 
+  // Esperar a que terminen los RPs (ya casi seguro están)
+  await rpsPromise;
+
   const porTrabajador = {};
 
   (validaciones || []).forEach(v => {
@@ -523,7 +828,8 @@ async function cargarTrabajadores() {
         motivo_forzado: v.motivo_forzado || null,
         motivos: v.motivos,
         forzado_en: v.forzado_en,
-        excepcion_hoy: excepcion
+        excepcion_hoy: excepcion,
+        es_rp: esRP(v.trabajador_id, v.obra_id)
       });
     }
   });
@@ -722,16 +1028,26 @@ function pillObra(trabajador, obra) {
   let marca = '';
   if (obra.estado_forzado) marca += ' ⚑';
   if (obra.excepcion_hoy) marca += ' 🗝️';
+  if (obra.es_rp) marca += ' 🛡️';
 
-  let tooltip;
+  // Construir tooltip combinando información
+  const partesTooltip = [];
 
   if (obra.excepcion_hoy) {
-    tooltip = `Autorizado solo hoy. Motivo: ${obra.excepcion_hoy.motivo_autorizacion || '(sin motivo)'}. Clic para ver.`;
+    partesTooltip.push(`Autorizado solo hoy. Motivo: ${obra.excepcion_hoy.motivo_autorizacion || '(sin motivo)'}`);
   } else if (obra.estado_forzado) {
-    tooltip = `Estado forzado a ${obra.estado}. Motivo: ${obra.motivo_forzado || '(sin motivo)'}. Clic para cambiar.`;
+    partesTooltip.push(`Estado forzado a ${obra.estado}. Motivo: ${obra.motivo_forzado || '(sin motivo)'}`);
   } else {
-    tooltip = `Estado: ${obra.estado}. Clic para forzar.`;
+    partesTooltip.push(`Estado: ${obra.estado}`);
   }
+
+  if (obra.es_rp) {
+    partesTooltip.push('Recurso Preventivo designado');
+  }
+
+  partesTooltip.push('Clic para cambiar.');
+
+  const tooltip = partesTooltip.join(' · ');
 
   return `
     <div class="obra-fila">
