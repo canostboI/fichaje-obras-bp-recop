@@ -478,11 +478,9 @@ async function subirFotoObra() {
   estado.textContent = 'Subiendo…';
   estado.className = 'modal-foto-estado';
 
-  // Nombre de archivo único por obra
   const ext = archivo.name.split('.').pop().toLowerCase();
   const rutaArchivo = `${obraActual}.${ext}`;
 
-  // Subir a Storage (upsert para sobreescribir si ya existe)
   const { error: errorUpload } = await sb.storage
     .from('obras-fotos')
     .upload(rutaArchivo, archivo, { upsert: true, contentType: archivo.type });
@@ -494,14 +492,12 @@ async function subirFotoObra() {
     return;
   }
 
-  // Obtener URL pública
   const { data: urlData } = sb.storage
     .from('obras-fotos')
     .getPublicUrl(rutaArchivo);
 
   const nuevaUrl = urlData.publicUrl;
 
-  // Guardar en obras.foto_url via RPC
   const { data: rpcData, error: errorUpdate } = await sb
     .rpc('actualizar_foto_obra', { p_obra_id: obraActual, p_foto_url: nuevaUrl });
 
@@ -512,16 +508,13 @@ async function subirFotoObra() {
     return;
   }
 
-  // Actualizar estado local y aplicar fondo
   fotoUrlActual = nuevaUrl;
   aplicarFotoFondo(nuevaUrl);
 
-  // Actualizar el dataset del option en el selector para que persista al cambiar de obra y volver
   const selector = document.getElementById('selector-obra');
   const optActual = selector.options[selector.selectedIndex];
   if (optActual) optActual.dataset.fotoUrl = nuevaUrl;
 
-  // Mostrar preview actualizado
   const preview = document.getElementById('foto-preview');
   preview.src = nuevaUrl;
   preview.classList.add('visible');
@@ -775,6 +768,17 @@ async function cargarPresencia() {
     return;
   }
 
+  // ── RP-3: cargar IDs de Recursos Preventivos de esta obra ──
+  let idsRP = new Set();
+  try {
+    const { data: rps } = await sb
+      .from('recursos_preventivos_obra')
+      .select('trabajador_id')
+      .eq('obra_id', obraActual)
+      .eq('activo', true);
+    idsRP = new Set((rps || []).map(r => r.trabajador_id));
+  } catch (_) {}
+
   document.getElementById('tabla-presencia').innerHTML = `
     <table>
       <thead><tr>
@@ -788,8 +792,9 @@ async function cargarPresencia() {
           const pillHtml = esClicable
             ? `<span class="pill ${estado} clicable" onclick="abrirMotivos('${t.trabajador.id}')" title="Ver motivos">${estado}</span>`
             : `<span class="pill ${estado}">${estado}</span>`;
+          const marcaRP = idsRP.has(t.trabajador.id) ? ' <span title="Recurso Preventivo designado">🛡️</span>' : '';
           return `<tr>
-            <td><strong>${esc(t.trabajador.nombre)} ${esc(t.trabajador.apellidos)}</strong></td>
+            <td><strong>${esc(t.trabajador.nombre)} ${esc(t.trabajador.apellidos)}</strong>${marcaRP}</td>
             <td>${esc(t.trabajador.dni)}</td>
             <td>${formatHora(ultimaEntrada.hora)}</td>
             <td>${pillHtml}</td>
