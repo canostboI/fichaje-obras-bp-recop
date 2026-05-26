@@ -207,6 +207,22 @@
   .btn-subir-foto:disabled { opacity: 0.45; cursor: default; }
   .btn-cerrar-foto { background: var(--bg3); color: var(--texto); border: 1px solid var(--borde); padding: 9px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; font-family: inherit; }
   .btn-cerrar-foto:hover { background: var(--borde); }
+
+  /* Banner sin Recurso Preventivo (RP-4) */
+  .banner-sin-rp {
+    background: rgba(255,193,7,0.1);
+    border: 1px solid rgba(255,193,7,0.45);
+    border-radius: 10px;
+    padding: 13px 18px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    color: #ffc107;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .banner-sin-rp.oculto { display: none; }
+  .banner-sin-rp a { color: #ffc107; text-decoration: underline; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -248,7 +264,13 @@
     </div>
   </div>
   <div class="contenido">
-    <div class="stats">
+    <!-- Banner sin Recurso Preventivo (RP-4) -->
+    <div class="banner-sin-rp oculto" id="banner-sin-rp">
+      ⚠ Esta obra no tiene ningún Recurso Preventivo designado.
+      <a onclick="irATrabaladoresRP()">Designar desde Trabajadores →</a>
+    </div>
+
+        <div class="stats">
       <div class="stat"><div class="numero verde" id="stat-dentro">—</div><div class="etiqueta">En obra ahora</div></div>
       <div class="stat stat-clickable naranja-hover" id="card-naranjas" role="button" tabindex="0" title="Ver trabajadores presentes con documentación naranja"><div class="numero naranja" id="stat-naranja">—</div><div class="etiqueta">Documentación naranja</div></div>
       <div class="stat stat-clickable rojo-hover" id="card-rojos" role="button" tabindex="0" title="Ver detalle de accesos denegados"><div class="numero rojo" id="stat-rojo">—</div><div class="etiqueta">Accesos denegados hoy</div></div>
@@ -577,6 +599,7 @@ document.getElementById('modal-foto-overlay').addEventListener('click', e => {
   await cargarBloqueos();
   await cargarAvisosAutocierre();
   await cargarRondaEncargado();
+  await comprobarRP();
   iniciarRefrescoPresencia();
 
   selector.addEventListener('change', async () => {
@@ -591,9 +614,39 @@ document.getElementById('modal-foto-overlay').addEventListener('click', e => {
     await cargarBloqueos();
     await cargarAvisosAutocierre();
     await cargarRondaEncargado();
+    await comprobarRP();
     iniciarRefrescoPresencia();
   });
 })();
+
+
+// ── RP-4: Aviso si la obra no tiene Recurso Preventivo designado ──
+async function comprobarRP() {
+  const banner = document.getElementById('banner-sin-rp');
+  if (!obraActual) { banner.classList.add('oculto'); return; }
+
+  try {
+    const { count, error } = await sb
+      .from('recursos_preventivos_obra')
+      .select('id', { count: 'exact', head: true })
+      .eq('obra_id', obraActual)
+      .eq('activo', true);
+
+    if (error) { banner.classList.add('oculto'); return; }
+    if (count === 0) {
+      banner.classList.remove('oculto');
+    } else {
+      banner.classList.add('oculto');
+    }
+  } catch (_) {
+    banner.classList.add('oculto');
+  }
+}
+
+function irATrabaladoresRP() {
+  localStorage.setItem('jefe_obra_activa_id', obraActual);
+  window.location.href = 'trabajadores.html';
+}
 
 function iniciarRefrescoPresencia() {
   if (intervalPresencia) { clearInterval(intervalPresencia); intervalPresencia = null; }
