@@ -223,6 +223,31 @@
   }
   .banner-sin-rp.oculto { display: none; }
   .banner-sin-rp a { color: #ffc107; text-decoration: underline; cursor: pointer; }
+
+  /* Banner RP con formación 60h problemática (RP-5) */
+  .banner-rp-formacion {
+    border-radius: 10px;
+    padding: 13px 18px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    flex-direction: column;
+  }
+  .banner-rp-formacion.amarillo {
+    background: rgba(255,193,7,0.1);
+    border: 1px solid rgba(255,193,7,0.45);
+    color: #ffc107;
+  }
+  .banner-rp-formacion.rojo {
+    background: rgba(244,67,54,0.08);
+    border: 1px solid rgba(244,67,54,0.4);
+    color: var(--rojo);
+  }
+  .banner-rp-formacion.oculto { display: none; }
+  .banner-rp-formacion ul { margin: 4px 0 0 18px; font-size: 13px; }
+  .banner-rp-formacion li { margin-bottom: 2px; }
 </style>
 </head>
 <body>
@@ -269,6 +294,9 @@
       ⚠ Esta obra no tiene ningún Recurso Preventivo designado.
       <a onclick="irATrabaladoresRP()">Designar desde Trabajadores →</a>
     </div>
+
+        <!-- Banner RP con formación 60h problemática (RP-5) -->
+    <div class="banner-rp-formacion oculto" id="banner-rp-formacion"></div>
 
         <div class="stats">
       <div class="stat"><div class="numero verde" id="stat-dentro">—</div><div class="etiqueta">En obra ahora</div></div>
@@ -622,24 +650,72 @@ document.getElementById('modal-foto-overlay').addEventListener('click', e => {
 
 // ── RP-4: Aviso si la obra no tiene Recurso Preventivo designado ──
 async function comprobarRP() {
-  const banner = document.getElementById('banner-sin-rp');
-  if (!obraActual) { banner.classList.add('oculto'); return; }
+  const bannerSinRP = document.getElementById('banner-sin-rp');
+  const bannerFormacion = document.getElementById('banner-rp-formacion');
+
+  // Ocultar ambos por defecto
+  bannerSinRP.classList.add('oculto');
+  bannerFormacion.classList.add('oculto');
+  bannerFormacion.className = 'banner-rp-formacion oculto';
+
+  if (!obraActual) return;
 
   try {
-    const { count, error } = await sb
+    // Cargar RPs activos de la obra
+    const { data: rps, error } = await sb
       .from('recursos_preventivos_obra')
-      .select('id', { count: 'exact', head: true })
+      .select('trabajador_id, trabajador:trabajador_id(id, nombre, apellidos)')
       .eq('obra_id', obraActual)
       .eq('activo', true);
 
-    if (error) { banner.classList.add('oculto'); return; }
-    if (count === 0) {
-      banner.classList.remove('oculto');
-    } else {
-      banner.classList.add('oculto');
+    if (error) return;
+
+    // RP-4: sin ningún RP designado
+    if (!rps || rps.length === 0) {
+      bannerSinRP.classList.remove('oculto');
+      return;
     }
+
+    // RP-5: comprobar formación 60h de cada RP
+    const idsRP = rps.map(r => r.trabajador_id);
+    const { data: vals } = await sb
+      .from('validaciones_obra')
+      .select('trabajador_id, motivos')
+      .eq('obra_id', obraActual)
+      .in('trabajador_id', idsRP);
+
+    const motivosPorRP = {};
+    (vals || []).forEach(v => { motivosPorRP[v.trabajador_id] = v.motivos || []; });
+
+    // Un RP tiene problema si entre sus motivos aparece "Formación 60 horas"
+    // con algo que no sea "Validado" (el motivo ya viene filtrado: solo aparece si hay problema)
+    const rpsConProblema = rps.filter(r => {
+      const motivos = motivosPorRP[r.trabajador_id] || [];
+      return motivos.some(m => m.toLowerCase().includes('formación 60 horas') ||
+                               m.toLowerCase().includes('formacion 60 horas'));
+    });
+
+    if (rpsConProblema.length === 0) return; // Todos los RPs en orden
+
+    const todosConProblema = rpsConProblema.length === rps.length;
+    const nombres = rpsConProblema.map(r => {
+      const t = r.trabajador || {};
+      return [t.nombre, t.apellidos].filter(Boolean).join(' ') || '(sin nombre)';
+    });
+
+    bannerFormacion.classList.remove('oculto');
+    if (todosConProblema) {
+      bannerFormacion.classList.add('rojo');
+      bannerFormacion.innerHTML = '🚫 Ningún Recurso Preventivo designado tiene la Formación 60h en regla:<ul>' +
+        nombres.map(n => `<li>${esc(n)}</li>`).join('') + '</ul>';
+    } else {
+      bannerFormacion.classList.add('amarillo');
+      bannerFormacion.innerHTML = '⚠ Recurso Preventivo con Formación 60h pendiente o caducada:<ul>' +
+        nombres.map(n => `<li>${esc(n)}</li>`).join('') + '</ul>';
+    }
+
   } catch (_) {
-    banner.classList.add('oculto');
+    // Silencioso: si falla no rompemos nada
   }
 }
 
