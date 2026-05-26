@@ -75,10 +75,24 @@
   .btn-peligro { background: transparent; color: var(--rojo); border: 1px solid rgba(244,67,54,0.3); padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; }
   .btn-peligro:hover { background: rgba(244,67,54,0.1); }
 
-  /* Sección crear usuario nuevo */
   .crear-usuario { margin-top: 4px; }
   .crear-usuario h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--texto2); margin-bottom: 14px; }
   .aviso-crear { background: rgba(33,150,243,0.08); border: 1px solid rgba(33,150,243,0.2); border-radius: 8px; padding: 10px 12px; font-size: 12px; color: var(--texto2); margin-bottom: 14px; line-height: 1.5; }
+
+  /* Modal foto */
+  .foto-actual { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; padding: 14px; background: var(--bg3); border-radius: 10px; }
+  .foto-actual img { width: 80px; height: 56px; object-fit: cover; border-radius: 6px; border: 1px solid var(--borde); }
+  .foto-actual-info { font-size: 13px; color: var(--texto2); }
+  .foto-actual-info strong { display: block; color: var(--texto); margin-bottom: 2px; }
+  .foto-sin-imagen { width: 80px; height: 56px; background: var(--bg); border-radius: 6px; border: 1px dashed var(--borde); display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  .drop-zone { border: 2px dashed var(--borde); border-radius: 10px; padding: 30px 20px; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: var(--azul); background: rgba(33,150,243,0.04); }
+  .drop-zone p { font-size: 13px; color: var(--texto2); margin-top: 8px; }
+  .drop-zone .icono { font-size: 28px; }
+  .drop-zone input[type=file] { display: none; }
+  .nombre-archivo { margin-top: 10px; font-size: 12px; color: var(--azul); }
+  .btn-quitar-foto { background: transparent; color: var(--rojo); border: 1px solid rgba(244,67,54,0.3); padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; margin-top: 12px; }
+  .btn-quitar-foto:hover { background: rgba(244,67,54,0.08); }
 </style>
   <script src="../js/auto-logout.js"></script>
 </head>
@@ -94,7 +108,6 @@
   <div class="sidebar-section">Gestión</div>
   <a href="obras.html" class="activo"><span class="ico">🏗</span> Obras</a>
   <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
-
   <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
   <a href="incidencias.html"><span class="ico">⚠️</span> Incidencias</a>
   <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
@@ -125,17 +138,14 @@
       <label>Nº de obra</label>
       <input type="text" id="f-numero" placeholder="Ej: 32510" autocomplete="off">
     </div>
-
     <div class="campo">
       <label>Nombre de la obra</label>
       <input type="text" id="f-nombre" placeholder="Ej: Edificio Torres 3">
     </div>
-
     <div class="campo">
       <label>Dirección</label>
       <input type="text" id="f-direccion" placeholder="Calle, ciudad">
     </div>
-
     <div class="campo-fila">
       <div class="campo">
         <label>Latitud</label>
@@ -146,12 +156,10 @@
         <input type="number" id="f-longitud" placeholder="2.1234" step="0.0001">
       </div>
     </div>
-
     <div class="campo">
       <label>Radio GPS (metros)</label>
       <input type="number" id="f-radio" placeholder="100" min="10" max="1000">
     </div>
-
     <div class="campo-fila">
       <div class="campo">
         <label>Hora entrada</label>
@@ -162,7 +170,6 @@
         <input type="time" id="f-salida">
       </div>
     </div>
-
     <div class="campo">
       <label>Empresa / Marca</label>
       <select id="f-empresa">
@@ -170,7 +177,6 @@
         <option value="recop">RECOP</option>
       </select>
     </div>
-
     <div class="campo">
       <label>Estado</label>
       <select id="f-activa">
@@ -207,14 +213,12 @@
     <div class="error-modal" id="error-equipo"></div>
     <div class="ok-modal" id="ok-equipo"></div>
 
-    <!-- Miembros actuales -->
     <div class="equipo-lista" id="equipo-lista">
       <div class="cargando">Cargando…</div>
     </div>
 
     <hr class="separador">
 
-    <!-- Asignar usuario existente -->
     <div class="equipo-anadir">
       <h3>Añadir usuario existente</h3>
       <div class="campo">
@@ -237,7 +241,6 @@
 
     <hr class="separador">
 
-    <!-- Crear usuario nuevo -->
     <div class="crear-usuario">
       <h3>Crear usuario nuevo</h3>
       <div class="aviso-crear">
@@ -273,19 +276,47 @@
   </div>
 </div>
 
+<!-- Modal foto -->
+<div class="modal-overlay" id="modal-foto">
+  <div class="modal">
+    <h2 id="foto-titulo">📷 Foto de fondo</h2>
+    <div class="error-modal" id="error-foto"></div>
+    <div class="ok-modal" id="ok-foto"></div>
+
+    <div class="foto-actual" id="foto-actual-contenedor">
+      <!-- Se rellena dinámicamente -->
+    </div>
+
+    <div class="drop-zone" id="drop-zone">
+      <div class="icono">🖼️</div>
+      <p>Haz clic para elegir una imagen o arrástrala aquí</p>
+      <p style="font-size:11px; margin-top:4px;">JPG o PNG · máx. 3 MB</p>
+      <input type="file" id="foto-input" accept="image/jpeg,image/png">
+      <div class="nombre-archivo" id="nombre-archivo"></div>
+    </div>
+
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cerrar-foto">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar-foto" disabled>Subir foto</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
 
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  AutoLogout.init(sb);
+AutoLogout.init(sb);
 
 let obraEditandoId = null;
-let obraEquipoId = null;
-let todosUsuarios = [];
-let todasObras = [];
-let qrActual = null;
+let obraEquipoId   = null;
+let obraFotoId     = null;
+let fotoArchivo    = null;
+let todosUsuarios  = [];
+let todasObras     = [];
+let qrActual       = null;
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -308,10 +339,12 @@ document.getElementById('btn-salir').onclick = async () => {
   window.location.href = '../';
 };
 
+// ── Cargar obras ──────────────────────────────────────────────────────────
+
 async function cargarObras() {
   const { data, error } = await sb
     .from('obras')
-    .select('id, numero_obra, nombre, direccion, latitud, longitud, empresa_marca, radio_gps, hora_entrada_default, hora_salida_default, activa')
+    .select('id, numero_obra, nombre, direccion, latitud, longitud, empresa_marca, radio_gps, hora_entrada_default, hora_salida_default, activa, foto_url')
     .order('nombre');
 
   if (error) {
@@ -354,6 +387,7 @@ async function cargarObras() {
               <div class="acciones">
                 <button class="btn-secundario" onclick="abrirEquipoPorId('${o.id}')">👥 Equipo</button>
                 <button class="btn-secundario" onclick="abrirQRPorId('${o.id}')">QR</button>
+                <button class="btn-secundario" onclick="abrirFotoPorId('${o.id}')" title="${o.foto_url ? 'Cambiar foto' : 'Añadir foto'}">📷${o.foto_url ? ' ✓' : ''}</button>
                 <button class="btn-secundario" onclick="abrirEditarPorId('${o.id}')">Editar</button>
               </div>
             </td>
@@ -373,7 +407,7 @@ async function cargarUsuarios() {
   todosUsuarios = data || [];
 }
 
-// ── Modal obra ──────────────────────────────────────────────────────────
+// ── Modal obra ────────────────────────────────────────────────────────────
 
 document.getElementById('btn-nueva').onclick = () => {
   obraEditandoId = null;
@@ -417,25 +451,25 @@ document.getElementById('btn-cancelar').onclick = () => {
 };
 
 document.getElementById('btn-guardar').onclick = async () => {
-  const numeroRaw  = document.getElementById('f-numero').value.trim();
-  const nombre     = document.getElementById('f-nombre').value.trim();
-  const direccion  = document.getElementById('f-direccion').value.trim();
-  const latitudRaw = document.getElementById('f-latitud').value;
-  const longitudRaw= document.getElementById('f-longitud').value;
-  const radioRaw   = document.getElementById('f-radio').value;
-  const entradaRaw = document.getElementById('f-entrada').value;
-  const salidaRaw  = document.getElementById('f-salida').value;
+  const numeroRaw   = document.getElementById('f-numero').value.trim();
+  const nombre      = document.getElementById('f-nombre').value.trim();
+  const direccion   = document.getElementById('f-direccion').value.trim();
+  const latitudRaw  = document.getElementById('f-latitud').value;
+  const longitudRaw = document.getElementById('f-longitud').value;
+  const radioRaw    = document.getElementById('f-radio').value;
+  const entradaRaw  = document.getElementById('f-entrada').value;
+  const salidaRaw   = document.getElementById('f-salida').value;
   const empresa_marca = document.getElementById('f-empresa').value;
-  const activa     = document.getElementById('f-activa').value === 'true';
+  const activa      = document.getElementById('f-activa').value === 'true';
 
   const latitud  = parseFloat(latitudRaw);
   const longitud = parseFloat(longitudRaw);
-  const radio_gps= parseInt(radioRaw, 10);
+  const radio_gps = parseInt(radioRaw, 10);
 
-  if (!nombre)                        { mostrarError('El nombre es obligatorio.'); return; }
+  if (!nombre)                           { mostrarError('El nombre es obligatorio.'); return; }
   if (isNaN(latitud) || isNaN(longitud)) { mostrarError('Las coordenadas son obligatorias.'); return; }
-  if (isNaN(radio_gps))               { mostrarError('El radio GPS es obligatorio.'); return; }
-  if (!entradaRaw || !salidaRaw)      { mostrarError('El horario es obligatorio.'); return; }
+  if (isNaN(radio_gps))                  { mostrarError('El radio GPS es obligatorio.'); return; }
+  if (!entradaRaw || !salidaRaw)         { mostrarError('El horario es obligatorio.'); return; }
 
   const payload = {
     numero_obra: numeroRaw === '' ? null : numeroRaw,
@@ -461,7 +495,7 @@ document.getElementById('btn-guardar').onclick = async () => {
   await cargarObras();
 };
 
-// ── Modal QR ─────────────────────────────────────────────────────────────
+// ── Modal QR ──────────────────────────────────────────────────────────────
 
 function abrirQRPorId(id) {
   const o = todasObras.find(x => x.id === id);
@@ -597,10 +631,7 @@ document.getElementById('btn-anadir-equipo').onclick = async () => {
   const rol = document.getElementById('eq-rol').value;
   ocultarMensajesEquipo();
 
-  if (!usuarioAppId) {
-    mostrarErrorEquipo('Selecciona un usuario.');
-    return;
-  }
+  if (!usuarioAppId) { mostrarErrorEquipo('Selecciona un usuario.'); return; }
 
   const { error } = await sb.from('usuarios_obra').insert({
     usuario_app_id: usuarioAppId,
@@ -632,7 +663,6 @@ document.getElementById('btn-crear-usuario').onclick = async () => {
     return;
   }
 
-  // 1. Crear fila en usuarios_app
   const { data: nuevoUsuario, error: errorInsert } = await sb
     .from('usuarios_app')
     .insert({ nombre, email, rol, activo: true })
@@ -646,7 +676,6 @@ document.getElementById('btn-crear-usuario').onclick = async () => {
     return;
   }
 
-  // 2. Asignar a la obra
   const { error: errorAsignar } = await sb.from('usuarios_obra').insert({
     usuario_app_id: nuevoUsuario.id,
     obra_id: obraEquipoId,
@@ -658,7 +687,6 @@ document.getElementById('btn-crear-usuario').onclick = async () => {
     return;
   }
 
-  // 3. Actualizar lista local y refrescar
   todosUsuarios.push({ id: nuevoUsuario.id, nombre, email, rol });
   rellenarSelectUsuarios();
   limpiarFormularioNuevoUsuario();
@@ -671,10 +699,7 @@ async function quitarDelEquipo(usuariosObraId) {
 
   const { error } = await sb.from('usuarios_obra').delete().eq('id', usuariosObraId);
 
-  if (error) {
-    mostrarErrorEquipo('Error al quitar: ' + error.message);
-    return;
-  }
+  if (error) { mostrarErrorEquipo('Error al quitar: ' + error.message); return; }
 
   await cargarEquipo();
 }
@@ -691,44 +716,204 @@ function limpiarFormularioNuevoUsuario() {
 
 function mostrarErrorEquipo(msg) {
   const el = document.getElementById('error-equipo');
-  el.textContent = msg;
-  el.style.display = 'block';
+  el.textContent = msg; el.style.display = 'block';
 }
-
 function mostrarOkEquipo(msg) {
   const el = document.getElementById('ok-equipo');
-  el.textContent = msg;
-  el.style.display = 'block';
+  el.textContent = msg; el.style.display = 'block';
 }
-
 function ocultarMensajesEquipo() {
   document.getElementById('error-equipo').style.display = 'none';
   document.getElementById('ok-equipo').style.display = 'none';
 }
 
+// ── Modal foto ────────────────────────────────────────────────────────────
+
+function abrirFotoPorId(id) {
+  const o = todasObras.find(x => x.id === id);
+  if (!o) { alert('No se ha encontrado la obra.'); return; }
+
+  obraFotoId  = o.id;
+  fotoArchivo = null;
+
+  document.getElementById('foto-titulo').textContent = '📷 Foto de fondo — ' + esc(o.nombre);
+  document.getElementById('nombre-archivo').textContent = '';
+  document.getElementById('btn-guardar-foto').disabled = true;
+  document.getElementById('error-foto').style.display = 'none';
+  document.getElementById('ok-foto').style.display = 'none';
+  document.getElementById('foto-input').value = '';
+
+  // Mostrar foto actual
+  const contenedor = document.getElementById('foto-actual-contenedor');
+  if (o.foto_url) {
+    contenedor.innerHTML = `
+      <img src="${esc(o.foto_url)}" alt="Foto actual">
+      <div class="foto-actual-info">
+        <strong>Foto actual</strong>
+        Puedes subir una nueva para reemplazarla.
+        <br><button class="btn-quitar-foto" id="btn-quitar-foto-actual">Quitar foto</button>
+      </div>`;
+    document.getElementById('btn-quitar-foto-actual').onclick = quitarFotoActual;
+  } else {
+    contenedor.innerHTML = `
+      <div class="foto-sin-imagen">🏗️</div>
+      <div class="foto-actual-info">
+        <strong>Sin foto</strong>
+        Sube una imagen para mostrarla de fondo en la pantalla de fichaje.
+      </div>`;
+  }
+
+  document.getElementById('modal-foto').classList.add('visible');
+}
+
+// Clic en drop zone → abrir selector de archivo
+document.getElementById('drop-zone').onclick = (e) => {
+  if (e.target.id === 'btn-quitar-foto-actual') return;
+  document.getElementById('foto-input').click();
+};
+
+// Arrastrar y soltar
+const dropZone = document.getElementById('drop-zone');
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) procesarArchivo(file);
+});
+
+document.getElementById('foto-input').onchange = (e) => {
+  const file = e.target.files[0];
+  if (file) procesarArchivo(file);
+};
+
+function procesarArchivo(file) {
+  const errEl = document.getElementById('error-foto');
+  errEl.style.display = 'none';
+
+  if (!['image/jpeg', 'image/png'].includes(file.type)) {
+    errEl.textContent = 'Solo se aceptan imágenes JPG o PNG.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (file.size > 3 * 1024 * 1024) {
+    errEl.textContent = 'La imagen no puede superar los 3 MB.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  fotoArchivo = file;
+  document.getElementById('nombre-archivo').textContent = '✓ ' + file.name;
+  document.getElementById('btn-guardar-foto').disabled = false;
+}
+
+document.getElementById('btn-guardar-foto').onclick = async () => {
+  if (!fotoArchivo || !obraFotoId) return;
+
+  const btnGuardar = document.getElementById('btn-guardar-foto');
+  btnGuardar.disabled = true;
+  btnGuardar.textContent = 'Subiendo…';
+
+  const errEl = document.getElementById('error-foto');
+  const okEl  = document.getElementById('ok-foto');
+  errEl.style.display = 'none';
+  okEl.style.display  = 'none';
+
+  try {
+    // 1. Subir al bucket obras-fotos
+    const ext      = fotoArchivo.type === 'image/png' ? 'png' : 'jpg';
+    const rutaBlob = `obras/${obraFotoId}/fondo.${ext}`;
+
+    const { error: errorStorage } = await sb.storage
+      .from('obras-fotos')
+      .upload(rutaBlob, fotoArchivo, { upsert: true, contentType: fotoArchivo.type });
+
+    if (errorStorage) throw new Error('Error al subir la imagen: ' + errorStorage.message);
+
+    // 2. Obtener URL pública
+    const { data: urlData } = sb.storage.from('obras-fotos').getPublicUrl(rutaBlob);
+    const fotoUrl = urlData.publicUrl;
+
+    // 3. Guardar URL en BD via RPC
+    const { error: errorRPC } = await sb.rpc('actualizar_foto_obra', {
+      p_obra_id: obraFotoId,
+      p_foto_url: fotoUrl
+    });
+
+    if (errorRPC) throw new Error('Error al guardar en BD: ' + errorRPC.message);
+
+    // 4. Actualizar local y cerrar
+    const obra = todasObras.find(x => x.id === obraFotoId);
+    if (obra) obra.foto_url = fotoUrl;
+
+    okEl.textContent = '✓ Foto guardada correctamente.';
+    okEl.style.display = 'block';
+
+    // Refrescar tabla para actualizar el ✓ en el botón
+    await cargarObras();
+
+    setTimeout(() => {
+      document.getElementById('modal-foto').classList.remove('visible');
+    }, 1200);
+
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+    btnGuardar.disabled = false;
+    btnGuardar.textContent = 'Subir foto';
+  }
+};
+
+async function quitarFotoActual() {
+  if (!confirm('¿Quitar la foto de fondo de esta obra?')) return;
+
+  const errEl = document.getElementById('error-foto');
+  const okEl  = document.getElementById('ok-foto');
+  errEl.style.display = 'none';
+  okEl.style.display  = 'none';
+
+  const { error } = await sb.rpc('actualizar_foto_obra', {
+    p_obra_id: obraFotoId,
+    p_foto_url: null
+  });
+
+  if (error) {
+    errEl.textContent = 'Error al quitar la foto: ' + error.message;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const obra = todasObras.find(x => x.id === obraFotoId);
+  if (obra) obra.foto_url = null;
+
+  await cargarObras();
+
+  document.getElementById('modal-foto').classList.remove('visible');
+}
+
+document.getElementById('btn-cerrar-foto').onclick = () => {
+  document.getElementById('modal-foto').classList.remove('visible');
+};
+
 // ── Utilidades generales ──────────────────────────────────────────────────
 
 function mostrarError(msg) {
   const el = document.getElementById('error-modal');
-  el.textContent = msg;
-  el.style.display = 'block';
+  el.textContent = msg; el.style.display = 'block';
 }
-
 function ocultarError() {
   document.getElementById('error-modal').style.display = 'none';
 }
-
 function esc(txt) {
   const d = document.createElement('div');
   d.textContent = String(txt || '');
   return d.innerHTML;
 }
-
 function hora(t) {
   if (!t) return '—';
   return String(t).substring(0, 5);
 }
-
 function limpiarNombreArchivo(txt) {
   return String(txt || 'obra')
     .toLowerCase()
