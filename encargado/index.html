@@ -179,6 +179,13 @@
     .tarjeta-hora-grande { font-size: 1.05rem; font-weight: 700; color: #2e7d32; line-height: 1.1; }
     .tarjeta-hora-rel { font-size: 0.78rem; color: #888; margin-top: 2px; }
 
+    /* Icono RP en tarjeta */
+    .tarjeta-rp {
+      font-size: 1.1rem;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+
     .lista-vacia { text-align: center; padding: 1.5rem; color: #888; font-style: italic; }
 
     .badge { font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 12px; font-weight: bold; }
@@ -513,6 +520,7 @@
 
   let presentesCache = [];
   let naranjasActualesCache = [];
+  let idsRPCache = new Set(); // RP-3: cache de IDs de Recursos Preventivos
   let intervalRelativo = null;
   let intervalPresencia = null;
 
@@ -1124,6 +1132,17 @@
       naranjasActualesCache = presentes.filter(t => t.estado === 'naranja');
     }
 
+    // ── RP-3: cargar IDs de Recursos Preventivos de esta obra ──
+    idsRPCache = new Set();
+    try {
+      const { data: rps } = await sb
+        .from('recursos_preventivos_obra')
+        .select('trabajador_id')
+        .eq('obra_id', obraId)
+        .eq('activo', true);
+      idsRPCache = new Set((rps || []).map(r => r.trabajador_id));
+    } catch (_) {}
+
     const statNaranjas = document.getElementById('stat-naranjas');
     if (statNaranjas) statNaranjas.textContent = naranjasActualesCache.length;
 
@@ -1171,13 +1190,14 @@
     }
     lista.innerHTML = '';
     presentes.forEach(t => {
+      const esRP = idsRPCache.has(t.id);
       const card = document.createElement('div');
       card.className = 'tarjeta-trab';
       card.dataset.horaIso = t.horaISO;
       card.innerHTML = `
         <div class="tarjeta-iniciales">${esc(iniciales(t.nombre))}</div>
         <div class="tarjeta-info">
-          <div class="tarjeta-nombre">${esc(t.nombre)}</div>
+          <div class="tarjeta-nombre">${esc(t.nombre)}${esRP ? ' <span title="Recurso Preventivo designado">🛡️</span>' : ''}</div>
           <div class="tarjeta-empresa">${esc(t.empresa || '—')}</div>
         </div>
         <div class="tarjeta-hora">
