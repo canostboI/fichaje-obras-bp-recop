@@ -167,6 +167,7 @@
   .acceso-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
   .acceso-nombre { font-size: 15px; font-weight: 800; }
   .acceso-meta { color: var(--texto2); font-size: 13px; margin-top: 3px; line-height: 1.45; }
+  .acceso-meta strong { color: var(--texto); }
   .acceso-contador { white-space: nowrap; color: var(--rojo); font-weight: 800; font-size: 14px; }
   .acceso-contador.naranja { color: var(--naranja); }
   .acceso-detalle { margin-top: 9px; color: var(--texto2); font-size: 13px; line-height: 1.45; }
@@ -688,7 +689,6 @@ async function comprobarRP() {
     (vals || []).forEach(v => { motivosPorRP[v.trabajador_id] = v.motivos || []; });
 
     // Un RP tiene problema si entre sus motivos aparece "Formación 60 horas"
-    // con algo que no sea "Validado" (el motivo ya viene filtrado: solo aparece si hay problema)
     const rpsConProblema = rps.filter(r => {
       const motivos = motivosPorRP[r.trabajador_id] || [];
       return motivos.some(m => m.toLowerCase().includes('formación 60 horas') ||
@@ -811,7 +811,8 @@ async function cargarPresencia() {
   try {
     const resp = await sb
       .from('fichajes')
-      .select('id, tipo, hora, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni)')
+      // CAMBIO: añadida empresa:empresa_id(nombre) al select del trabajador
+      .select('id, tipo, hora, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni, empresa:empresa_id(nombre))')
       .eq('obra_id', obraActual)
       .gte('hora', desdeISO)
       .lte('hora', hastaISO)
@@ -880,6 +881,8 @@ async function cargarPresencia() {
         id: t.trabajador.id,
         nombre: [t.trabajador.nombre, t.trabajador.apellidos].filter(Boolean).join(' ') || '(sin nombre)',
         dni: t.trabajador.dni || '',
+        // CAMBIO: guardamos el nombre de la empresa
+        empresa: t.trabajador.empresa?.nombre || '',
         horaEntrada: ultimaEntrada?.hora || null,
         motivos: v.motivos || []
       };
@@ -990,12 +993,14 @@ function abrirModalNaranjas() {
     const motivos = (t.motivos || []).map(m => esc(limpiarMotivo(m))).join('<br>') || 'Sin motivos registrados';
     const dni = t.dni ? `DNI: ${t.dni}` : 'DNI no disponible';
     const entrada = t.horaEntrada ? `Entrada: ${formatHora(t.horaEntrada)}` : 'Entrada no disponible';
+    // CAMBIO: mostramos la empresa en negrita si está disponible
+    const empresaMeta = t.empresa ? ` · <strong>${esc(t.empresa)}</strong>` : '';
     return `
       <div class="acceso-item">
         <div class="acceso-top">
           <div>
             <div class="acceso-nombre">${esc(t.nombre)}</div>
-            <div class="acceso-meta">${esc(dni)} · ${esc(entrada)}</div>
+            <div class="acceso-meta">${esc(dni)} · ${esc(entrada)}${empresaMeta}</div>
           </div>
           <div class="acceso-contador naranja">Naranja</div>
         </div>
