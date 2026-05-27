@@ -1,834 +1,460 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Habilitaciones — Admin</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../js/branding.js"></script>
-  <script src="../js/auto-logout.js"></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Habilitaciones — Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3; --amarillo: #ffc107;
+    --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
+    --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
+  .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+  .sidebar-brand { padding: 18px 16px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: center; gap: 14px; }
+  .sidebar-brand img { height: 22px; width: auto; opacity: 0.9; }
+  .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
+  .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
+  .sidebar a:hover { background: var(--bg3); color: var(--texto); }
+  .sidebar a.activo { background: var(--bg3); color: var(--texto); font-weight: 600; }
+  .sidebar a .ico { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid var(--borde); }
+  .btn-salir { width: 100%; background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 8px; transition: background 0.15s, color 0.15s; }
+  .btn-salir:hover { background: var(--bg3); color: var(--texto); }
 
-    :root {
-      --color-principal: #1a1a1a;
-      --color-acento: #c8102e;
-      --color-texto: #ffffff;
-      --bg: #f4f4f4;
-      --card-bg: #ffffff;
-      --border: #e0e0e0;
-      --text-main: #1a1a1a;
-      --text-muted: #666;
-      --verde: #2e7d32;
-      --naranja: #e65100;
-      --rojo: #c62828;
-      --amarillo: #f57f17;
-      --radius: 8px;
-      --shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
+  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+  .topbar { padding: 20px 28px 8px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+  .subtitulo { padding: 0 28px 18px; color: var(--texto2); font-size: 14px; }
+  .contenido { padding: 0 28px 28px; }
 
-    body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: var(--bg);
-      color: var(--text-main);
-      min-height: 100vh;
-    }
+  .dos-columnas { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
 
-    /* NAV */
-    nav {
-      background: var(--color-principal);
-      color: var(--color-texto);
-      padding: 0 1.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 56px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-    nav .nav-left { display: flex; align-items: center; gap: 1rem; }
-    nav .logo { height: 28px; }
-    nav .nav-title { font-size: 1rem; font-weight: 600; opacity: 0.9; }
-    nav .nav-links { display: flex; gap: 0.25rem; }
-    nav .nav-links a {
-      color: rgba(255,255,255,0.75);
-      text-decoration: none;
-      padding: 0.35rem 0.75rem;
-      border-radius: 4px;
-      font-size: 0.85rem;
-      transition: background 0.15s, color 0.15s;
-    }
-    nav .nav-links a:hover { background: rgba(255,255,255,0.1); color: #fff; }
-    nav .nav-links a.active { background: var(--color-acento); color: #fff; }
-    nav .nav-right { display: flex; align-items: center; gap: 1rem; }
-    nav .nav-user { font-size: 0.8rem; opacity: 0.7; }
-    nav .btn-logout {
-      background: transparent;
-      border: 1px solid rgba(255,255,255,0.3);
-      color: rgba(255,255,255,0.8);
-      padding: 0.3rem 0.75rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.8rem;
-      transition: all 0.15s;
-    }
-    nav .btn-logout:hover { background: rgba(255,255,255,0.1); color: #fff; }
+  .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; margin-bottom: 20px; }
+  .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; }
+  .seccion-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .seccion-body { padding: 16px 20px; }
 
-    /* MAIN */
-    main {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 2rem 1.5rem;
-    }
+  /* BUSCADOR */
+  .buscador-wrap { display: flex; gap: 10px; margin-bottom: 14px; }
+  .buscador-wrap input { flex: 1; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 13px; font-family: inherit; }
+  .buscador-wrap input:focus { outline: none; border-color: var(--azul); }
+  .buscador-wrap input::placeholder { color: var(--texto2); }
 
-    h1 {
-      font-size: 1.5rem;
-      font-weight: 700;
-      margin-bottom: 1.5rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
+  /* LISTA TRABAJADORES */
+  .tw-lista { display: flex; flex-direction: column; gap: 4px; max-height: 420px; overflow-y: auto; }
+  .tw-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 13px; border: 1px solid var(--borde); border-radius: 8px; cursor: pointer; transition: background 0.12s, border-color 0.12s; }
+  .tw-item:hover { background: var(--bg3); }
+  .tw-item.seleccionado { background: var(--bg3); border-color: var(--azul); }
+  .tw-nombre { font-size: 14px; font-weight: 600; }
+  .tw-sub { font-size: 12px; color: var(--texto2); margin-top: 2px; }
+  .tw-habs-count { font-size: 12px; color: var(--texto2); white-space: nowrap; }
 
-    /* SECCIONES */
-    .seccion {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      margin-bottom: 1.5rem;
-      overflow: hidden;
-    }
-    .seccion-header {
-      background: var(--color-principal);
-      color: #fff;
-      padding: 0.75rem 1.25rem;
-      font-weight: 600;
-      font-size: 0.95rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.5rem;
-    }
-    .seccion-body { padding: 1.25rem; }
+  /* PANEL TRABAJADOR */
+  #panel-trabajador { display: none; }
+  .tw-encabezado { margin-bottom: 16px; }
+  .tw-encabezado .nombre { font-size: 16px; font-weight: 800; }
+  .tw-encabezado .sub { font-size: 13px; color: var(--texto2); margin-top: 3px; }
 
-    /* BUSCADOR */
-    .buscador-row {
-      display: flex;
-      gap: 0.75rem;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    .buscador-row input {
-      flex: 1;
-      min-width: 200px;
-      padding: 0.6rem 0.9rem;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      font-size: 0.95rem;
-      background: #fafafa;
-      transition: border-color 0.15s;
-    }
-    .buscador-row input:focus {
-      outline: none;
-      border-color: var(--color-acento);
-      background: #fff;
-    }
+  /* HABILITACIONES */
+  .hab-lista { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  .hab-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 13px; border: 1px solid var(--borde); border-radius: 8px; background: var(--bg3); gap: 10px; flex-wrap: wrap; }
+  .hab-item.vigente   { border-left: 3px solid var(--verde); }
+  .hab-item.proxima   { border-left: 3px solid var(--amarillo); }
+  .hab-item.caducada  { border-left: 3px solid var(--rojo); }
+  .hab-item.sin_caducidad { border-left: 3px solid var(--texto2); }
+  .hab-nombre { font-size: 14px; font-weight: 600; flex: 1; }
+  .hab-caducidad { font-size: 12px; color: var(--texto2); }
+  .hab-acciones { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 
-    /* LISTA DE TRABAJADORES (resultados búsqueda) */
-    #lista-trabajadores {
-      margin-top: 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-    }
-    .trabajador-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.65rem 1rem;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      cursor: pointer;
-      transition: background 0.12s, border-color 0.12s;
-      background: #fafafa;
-    }
-    .trabajador-item:hover { background: #f0f0f0; border-color: #ccc; }
-    .trabajador-item.seleccionado {
-      background: #fff3f3;
-      border-color: var(--color-acento);
-    }
-    .trabajador-item .tw-nombre { font-weight: 600; font-size: 0.95rem; }
-    .trabajador-item .tw-info { font-size: 0.8rem; color: var(--text-muted); }
-    .trabajador-item .tw-badges { display: flex; gap: 0.4rem; align-items: center; }
+  .badge { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 20px; }
+  .badge.vigente        { background: rgba(76,175,80,0.15);   color: var(--verde); }
+  .badge.proxima        { background: rgba(255,193,7,0.15);   color: var(--amarillo); }
+  .badge.caducada       { background: rgba(244,67,54,0.15);   color: var(--rojo); }
+  .badge.sin_caducidad  { background: rgba(139,144,158,0.15); color: var(--texto2); }
 
-    /* PANEL TRABAJADOR SELECCIONADO */
-    #panel-trabajador { display: none; }
-    .trabajador-encabezado {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 1rem;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-    .trabajador-encabezado .tw-nombre-grande {
-      font-size: 1.1rem;
-      font-weight: 700;
-    }
-    .trabajador-encabezado .tw-dni {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }
+  /* FORM AÑADIR */
+  .form-anadir { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .form-anadir label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--texto2); display: block; margin-bottom: 4px; }
+  .form-anadir select, .form-anadir input[type="date"] { width: 100%; background: var(--bg2); border: 1px solid var(--borde); border-radius: 6px; color: var(--texto); font-size: 13px; padding: 8px 10px; font-family: inherit; }
+  .form-anadir select:focus, .form-anadir input[type="date"]:focus { outline: none; border-color: var(--azul); }
 
-    /* HABILITACIONES */
-    #lista-habilitaciones {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      margin-bottom: 1.25rem;
-    }
-    .hab-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.65rem 1rem;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      background: #fafafa;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-    }
-    .hab-item .hab-nombre {
-      font-weight: 600;
-      font-size: 0.92rem;
-      flex: 1;
-    }
-    .hab-item .hab-caducidad {
-      font-size: 0.82rem;
-      color: var(--text-muted);
-    }
-    .hab-item.vigente { border-left: 4px solid var(--verde); }
-    .hab-item.proxima { border-left: 4px solid var(--amarillo); }
-    .hab-item.caducada { border-left: 4px solid var(--rojo); background: #fff5f5; }
-    .hab-item.sin_caducidad { border-left: 4px solid #90a4ae; }
+  /* CATÁLOGO */
+  .tipo-lista { display: flex; flex-direction: column; gap: 4px; }
+  .tipo-item { display: flex; align-items: center; justify-content: space-between; padding: 9px 13px; border: 1px solid var(--borde); border-radius: 8px; }
+  .tipo-item.inactivo { opacity: 0.45; }
+  .tipo-nombre { font-size: 13px; font-weight: 500; }
+  .form-nuevo-tipo { display: flex; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--borde); }
+  .form-nuevo-tipo input { flex: 1; background: var(--bg3); border: 1px solid var(--borde); border-radius: 6px; color: var(--texto); font-size: 13px; padding: 8px 10px; font-family: inherit; }
+  .form-nuevo-tipo input:focus { outline: none; border-color: var(--azul); }
+  .form-nuevo-tipo input::placeholder { color: var(--texto2); }
 
-    .badge-estado {
-      font-size: 0.72rem;
-      font-weight: 700;
-      padding: 0.2rem 0.55rem;
-      border-radius: 99px;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      white-space: nowrap;
-    }
-    .badge-vigente { background: #e8f5e9; color: var(--verde); }
-    .badge-proxima { background: #fff8e1; color: var(--amarillo); }
-    .badge-caducada { background: #ffebee; color: var(--rojo); }
-    .badge-sin_caducidad { background: #eceff1; color: #546e7a; }
+  /* BOTONES */
+  .btn { border: none; border-radius: 6px; cursor: pointer; font-family: inherit; font-weight: 600; transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primario  { background: var(--azul);   color: #fff; padding: 9px 16px; font-size: 13px; }
+  .btn-exito     { background: var(--verde);  color: #fff; padding: 9px 16px; font-size: 13px; }
+  .btn-secundario { background: transparent; color: var(--texto2); border: 1px solid var(--borde); padding: 6px 11px; font-size: 12px; }
+  .btn-secundario:hover { background: var(--bg3); color: var(--texto); }
+  .btn-peligro   { background: transparent; color: var(--rojo); border: 1px solid rgba(244,67,54,0.35); padding: 5px 10px; font-size: 12px; }
+  .btn-peligro:hover { background: rgba(244,67,54,0.1); }
 
-    /* FORMULARIO AÑADIR */
-    .form-anadir {
-      display: flex;
-      gap: 0.75rem;
-      align-items: flex-end;
-      flex-wrap: wrap;
-      padding: 1rem;
-      background: #f9f9f9;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-    }
-    .form-anadir .form-group { display: flex; flex-direction: column; gap: 0.3rem; }
-    .form-anadir label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
-    .form-anadir select,
-    .form-anadir input[type="date"] {
-      padding: 0.55rem 0.8rem;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      font-size: 0.9rem;
-      background: #fff;
-      min-width: 200px;
-    }
-    .form-anadir select:focus,
-    .form-anadir input[type="date"]:focus {
-      outline: none;
-      border-color: var(--color-acento);
-    }
+  /* MENSAJES */
+  .mensaje { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; display: none; }
+  .mensaje.ok  { background: rgba(76,175,80,0.12);  color: var(--verde); border: 1px solid rgba(76,175,80,0.3); }
+  .mensaje.err { background: rgba(244,67,54,0.12);  color: var(--rojo);  border: 1px solid rgba(244,67,54,0.3); }
 
-    /* BOTONES */
-    .btn {
-      padding: 0.55rem 1.1rem;
-      border-radius: var(--radius);
-      border: none;
-      cursor: pointer;
-      font-size: 0.88rem;
-      font-weight: 600;
-      transition: opacity 0.15s, transform 0.1s;
-      white-space: nowrap;
-    }
-    .btn:hover { opacity: 0.88; }
-    .btn:active { transform: scale(0.97); }
-    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-    .btn-primary { background: var(--color-acento); color: #fff; }
-    .btn-secondary { background: var(--color-principal); color: #fff; }
-    .btn-outline {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text-main);
-    }
-    .btn-danger { background: var(--rojo); color: #fff; }
-    .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.8rem; }
-
-    /* CATÁLOGO DE TIPOS */
-    #lista-tipos {
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-    }
-    .tipo-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.6rem 1rem;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      background: #fafafa;
-    }
-    .tipo-item.inactivo { opacity: 0.5; }
-    .tipo-item .tipo-nombre { font-weight: 500; font-size: 0.92rem; }
-    .tipo-item .tipo-acciones { display: flex; gap: 0.5rem; align-items: center; }
-
-    /* FORM NUEVO TIPO */
-    .form-nuevo-tipo {
-      display: flex;
-      gap: 0.75rem;
-      align-items: flex-end;
-      flex-wrap: wrap;
-      margin-top: 1rem;
-      padding-top: 1rem;
-      border-top: 1px solid var(--border);
-    }
-    .form-nuevo-tipo input {
-      flex: 1;
-      min-width: 200px;
-      padding: 0.55rem 0.8rem;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      font-size: 0.9rem;
-    }
-    .form-nuevo-tipo input:focus {
-      outline: none;
-      border-color: var(--color-acento);
-    }
-
-    /* MENSAJES */
-    .msg {
-      padding: 0.6rem 1rem;
-      border-radius: var(--radius);
-      font-size: 0.88rem;
-      font-weight: 500;
-      margin-top: 0.75rem;
-    }
-    .msg-ok { background: #e8f5e9; color: var(--verde); border: 1px solid #a5d6a7; }
-    .msg-err { background: #ffebee; color: var(--rojo); border: 1px solid #ef9a9a; }
-
-    /* EMPTY STATE */
-    .empty {
-      text-align: center;
-      color: var(--text-muted);
-      padding: 1.5rem;
-      font-size: 0.9rem;
-    }
-
-    /* SPINNER */
-    .spinner {
-      display: inline-block;
-      width: 16px; height: 16px;
-      border: 2px solid rgba(0,0,0,0.15);
-      border-top-color: var(--color-acento);
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
-      vertical-align: middle;
-      margin-right: 0.4rem;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* AUTO-LOGOUT BANNER */
-    #auto-logout-banner {
-      display: none;
-      position: fixed;
-      bottom: 1rem; right: 1rem;
-      background: #1a1a1a;
-      color: #fff;
-      padding: 0.75rem 1.25rem;
-      border-radius: var(--radius);
-      font-size: 0.88rem;
-      z-index: 9999;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-    }
-  </style>
+  .vacio    { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+  .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+</style>
+<script src="../js/auto-logout.js"></script>
 </head>
 <body>
 
-<nav id="nav">
-  <div class="nav-left">
-    <img id="nav-logo" class="logo" src="" alt="Logo" />
-    <span class="nav-title">Panel Admin</span>
-    <div class="nav-links">
-      <a href="index.html">Dashboard</a>
-      <a href="obras.html">Obras</a>
-      <a href="trabajadores.html">Trabajadores</a>
-      <a href="fichajes.html">Fichajes</a>
-      <a href="incidencias.html">Incidencias</a>
-      <a href="reglas.html">Reglas</a>
-      <a href="habilitaciones.html" class="active">🏗️ Habilitaciones</a>
-    </div>
+<div class="sidebar">
+  <div class="sidebar-brand">
+    <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
+    <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
   </div>
-  <div class="nav-right">
-    <span class="nav-user" id="nav-user"></span>
-    <button class="btn-logout" id="btn-logout">Cerrar sesión</button>
+  <div class="sidebar-section">Principal</div>
+  <a href="index.html"><span class="ico">📊</span> Dashboard</a>
+  <div class="sidebar-section">Gestión</div>
+  <a href="obras.html"><span class="ico">🏗</span> Obras</a>
+  <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
+  <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
+  <a href="incidencias.html"><span class="ico">⚠️</span> Incidencias</a>
+  <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
+  <a href="habilitaciones.html" class="activo"><span class="ico">🏗️</span> Habilitaciones</a>
+  <div class="sidebar-bottom">
+    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
   </div>
-</nav>
+</div>
 
-<div id="auto-logout-banner"></div>
-
-<main>
-  <h1>🏗️ Habilitaciones de trabajadores</h1>
-
-  <!-- BUSCAR TRABAJADOR -->
-  <div class="seccion">
-    <div class="seccion-header">
-      🔍 Buscar trabajador
-    </div>
-    <div class="seccion-body">
-      <div class="buscador-row">
-        <input
-          type="text"
-          id="input-buscar"
-          placeholder="Nombre, apellidos o DNI..."
-          autocomplete="off"
-        />
-      </div>
-      <div id="lista-trabajadores"></div>
-    </div>
+<div class="main">
+  <div class="topbar">
+    <h1>🏗️ Habilitaciones</h1>
   </div>
+  <div class="subtitulo">Gestiona las habilitaciones de maquinaria y trabajos especiales de cada trabajador.</div>
 
-  <!-- PANEL TRABAJADOR SELECCIONADO -->
-  <div class="seccion" id="panel-trabajador">
-    <div class="seccion-header">
-      <span id="panel-titulo">Habilitaciones del trabajador</span>
-      <button class="btn btn-outline btn-sm" id="btn-deseleccionar" style="color:#fff;border-color:rgba(255,255,255,0.4);">
-        ✕ Cerrar
-      </button>
-    </div>
-    <div class="seccion-body">
-      <div class="trabajador-encabezado">
-        <div>
-          <div class="tw-nombre-grande" id="tw-nombre-grande"></div>
-          <div class="tw-dni" id="tw-info-extra"></div>
+  <div class="contenido">
+    <div class="dos-columnas">
+
+      <!-- COLUMNA IZQUIERDA: buscar + habilitaciones -->
+      <div>
+        <!-- Buscar trabajador -->
+        <div class="seccion">
+          <div class="seccion-cab"><h2>🔍 Buscar trabajador</h2></div>
+          <div class="seccion-body">
+            <div class="buscador-wrap">
+              <input type="text" id="input-buscar" placeholder="Nombre, apellidos o DNI…" autocomplete="off" />
+            </div>
+            <div class="tw-lista" id="lista-trabajadores">
+              <div class="vacio" style="padding:12px">Escribe al menos 2 caracteres para buscar.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel trabajador seleccionado -->
+        <div class="seccion" id="panel-trabajador">
+          <div class="seccion-cab">
+            <h2 id="panel-titulo">Habilitaciones</h2>
+            <button class="btn-secundario" id="btn-cerrar-panel">✕ Cerrar</button>
+          </div>
+          <div class="seccion-body">
+            <div class="tw-encabezado">
+              <div class="nombre" id="tw-nombre"></div>
+              <div class="sub" id="tw-sub"></div>
+            </div>
+
+            <div id="msg-hab" class="mensaje"></div>
+            <div class="hab-lista" id="lista-habilitaciones">
+              <div class="cargando">Cargando…</div>
+            </div>
+
+            <!-- Formulario añadir -->
+            <div class="form-anadir">
+              <div>
+                <label>Tipo de habilitación</label>
+                <select id="sel-tipo">
+                  <option value="">Selecciona un tipo…</option>
+                </select>
+              </div>
+              <div>
+                <label>Fecha de caducidad (opcional)</label>
+                <input type="date" id="input-caducidad" />
+              </div>
+              <button class="btn btn-primario" id="btn-anadir">+ Añadir habilitación</button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div id="lista-habilitaciones"></div>
-      <div id="msg-habilitaciones"></div>
-
-      <!-- FORMULARIO AÑADIR -->
-      <div class="form-anadir">
-        <div class="form-group">
-          <label>Tipo de habilitación</label>
-          <select id="sel-tipo">
-            <option value="">Selecciona un tipo...</option>
-          </select>
+      <!-- COLUMNA DERECHA: catálogo de tipos -->
+      <div>
+        <div class="seccion">
+          <div class="seccion-cab"><h2>📋 Tipos de habilitación</h2></div>
+          <div class="seccion-body">
+            <div id="msg-tipos" class="mensaje"></div>
+            <div class="tipo-lista" id="lista-tipos">
+              <div class="cargando">Cargando…</div>
+            </div>
+            <div class="form-nuevo-tipo">
+              <input type="text" id="input-nuevo-tipo" placeholder="Nombre del nuevo tipo…" maxlength="100" />
+              <button class="btn btn-exito" id="btn-crear-tipo">+ Crear</button>
+            </div>
+          </div>
         </div>
-        <div class="form-group">
-          <label>Fecha de caducidad (opcional)</label>
-          <input type="date" id="input-caducidad" />
-        </div>
-        <button class="btn btn-primary" id="btn-anadir">+ Añadir</button>
       </div>
+
     </div>
   </div>
-
-  <!-- CATÁLOGO DE TIPOS -->
-  <div class="seccion">
-    <div class="seccion-header">
-      📋 Catálogo de tipos de habilitación
-    </div>
-    <div class="seccion-body">
-      <div id="lista-tipos"></div>
-      <div id="msg-tipos"></div>
-
-      <div class="form-nuevo-tipo">
-        <input type="text" id="input-nuevo-tipo" placeholder="Nombre del nuevo tipo..." maxlength="100" />
-        <button class="btn btn-secondary" id="btn-crear-tipo">+ Crear tipo</button>
-      </div>
-    </div>
-  </div>
-</main>
+</div>
 
 <script>
-  const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
-  const { createClient } = supabase;
-  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+AutoLogout.init(sb);
 
-  let usuarioActual = null;
-  let trabajadorSeleccionado = null;
-  let tiposCache = [];
-  let buscarTimeout = null;
+let tiposCache = [];
+let trabajadorActual = null;
+let buscarTimeout = null;
 
-  // ── INIT ────────────────────────────────────────────────
-  async function init() {
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) { window.location.href = '../index.html'; return; }
+// ── INIT ─────────────────────────────────────────────────────────
+(async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { location.href = '../index.html'; return; }
+  const { data: ua } = await sb.from('usuarios_app').select('rol').eq('auth_user_id', session.user.id).single();
+  if (!ua || ua.rol !== 'admin') { location.href = '../index.html'; return; }
 
-    const { data: ua } = await sb.from('usuarios_app')
-      .select('nombre, email, rol')
-      .eq('auth_user_id', session.user.id)
-      .single();
+  document.getElementById('btn-salir').addEventListener('click', async () => {
+    await sb.auth.signOut(); location.href = '../index.html';
+  });
+  document.getElementById('btn-cerrar-panel').addEventListener('click', cerrarPanel);
+  document.getElementById('btn-anadir').addEventListener('click', anadirHabilitacion);
+  document.getElementById('btn-crear-tipo').addEventListener('click', crearTipo);
+  document.getElementById('input-buscar').addEventListener('input', () => {
+    clearTimeout(buscarTimeout);
+    buscarTimeout = setTimeout(buscarTrabajadores, 300);
+  });
 
-    if (!ua || ua.rol !== 'admin') { window.location.href = '../index.html'; return; }
+  await cargarTipos();
+})();
 
-    usuarioActual = ua;
-    document.getElementById('nav-user').textContent = ua.nombre || ua.email;
+// ── TIPOS ────────────────────────────────────────────────────────
+async function cargarTipos() {
+  const { data, error } = await sb.from('tipos_habilitacion').select('*').order('nombre');
+  if (error) { msgTipos('Error al cargar tipos: ' + error.message, 'err'); return; }
+  tiposCache = data || [];
+  renderTipos();
+  renderSelectTipos();
+}
 
-    aplicarBranding('bosch_pascual');
+function renderTipos() {
+  const el = document.getElementById('lista-tipos');
+  if (!tiposCache.length) { el.innerHTML = '<div class="vacio">No hay tipos todavía.</div>'; return; }
+  el.innerHTML = tiposCache.map(t => `
+    <div class="tipo-item ${t.activo ? '' : 'inactivo'}">
+      <span class="tipo-nombre">${t.activo ? '' : '🚫 '}${esc(t.nombre)}</span>
+      <button class="btn btn-secundario" onclick="toggleTipo('${t.id}', ${t.activo})">
+        ${t.activo ? 'Desactivar' : 'Reactivar'}
+      </button>
+    </div>
+  `).join('');
+}
 
-    AutoLogout.init(sb);
+function renderSelectTipos() {
+  const sel = document.getElementById('sel-tipo');
+  const actual = sel.value;
+  const activos = tiposCache.filter(t => t.activo);
+  sel.innerHTML = '<option value="">Selecciona un tipo…</option>' +
+    activos.map(t => `<option value="${t.id}">${esc(t.nombre)}</option>`).join('');
+  if (actual) sel.value = actual;
+}
 
-    document.getElementById('btn-logout').addEventListener('click', async () => {
-      await sb.auth.signOut();
-      window.location.href = '../index.html';
-    });
+async function toggleTipo(id, estadoActual) {
+  const { error } = await sb.from('tipos_habilitacion').update({ activo: !estadoActual }).eq('id', id);
+  if (error) { msgTipos('Error: ' + error.message, 'err'); return; }
+  await cargarTipos();
+  msgTipos(estadoActual ? 'Tipo desactivado.' : 'Tipo reactivado.', 'ok');
+}
 
-    document.getElementById('btn-deseleccionar').addEventListener('click', deseleccionarTrabajador);
-    document.getElementById('btn-anadir').addEventListener('click', anadirHabilitacion);
-    document.getElementById('btn-crear-tipo').addEventListener('click', crearTipo);
-    document.getElementById('input-buscar').addEventListener('input', () => {
-      clearTimeout(buscarTimeout);
-      buscarTimeout = setTimeout(buscarTrabajadores, 300);
-    });
-
-    await cargarTipos();
+async function crearTipo() {
+  const input = document.getElementById('input-nuevo-tipo');
+  const nombre = input.value.trim();
+  if (!nombre) { msgTipos('Escribe un nombre.', 'err'); return; }
+  if (tiposCache.some(t => t.nombre.toLowerCase() === nombre.toLowerCase())) {
+    msgTipos('Ya existe un tipo con ese nombre.', 'err'); return;
   }
+  const btn = document.getElementById('btn-crear-tipo');
+  btn.disabled = true;
+  const { error } = await sb.from('tipos_habilitacion').insert({ nombre });
+  btn.disabled = false;
+  if (error) { msgTipos('Error: ' + error.message, 'err'); return; }
+  input.value = '';
+  await cargarTipos();
+  msgTipos('Tipo "' + nombre + '" creado.', 'ok');
+}
 
-  // ── BRANDING ────────────────────────────────────────────
-  function aplicarBranding(marca) {
-    if (typeof window.aplicarBranding === 'function') {
-      window.aplicarBranding(marca);
-    }
-    const b = typeof window.obtenerBranding === 'function'
-      ? window.obtenerBranding(marca)
-      : null;
-    if (b) {
-      document.documentElement.style.setProperty('--color-principal', b.color_principal);
-      document.documentElement.style.setProperty('--color-acento', b.color_acento);
-      const logo = document.getElementById('nav-logo');
-      if (logo && b.logo_blanco) logo.src = '../' + b.logo_blanco;
-    }
+// ── BÚSQUEDA ─────────────────────────────────────────────────────
+async function buscarTrabajadores() {
+  const q = document.getElementById('input-buscar').value.trim();
+  const el = document.getElementById('lista-trabajadores');
+  if (q.length < 2) {
+    el.innerHTML = '<div class="vacio" style="padding:12px">Escribe al menos 2 caracteres para buscar.</div>';
+    return;
   }
+  el.innerHTML = '<div class="cargando">Buscando…</div>';
+  const { data, error } = await sb.from('trabajadores')
+    .select('id, nombre, apellidos, dni, empresa:empresa_id(nombre)')
+    .or(`nombre.ilike.%${q}%,apellidos.ilike.%${q}%,dni.ilike.%${q}%`)
+    .eq('activo', true)
+    .order('apellidos')
+    .limit(30);
+  if (error) { el.innerHTML = `<div class="vacio">Error: ${esc(error.message)}</div>`; return; }
+  if (!data || !data.length) { el.innerHTML = '<div class="vacio">Sin resultados.</div>'; return; }
+  el.innerHTML = data.map(t => `
+    <div class="tw-item ${trabajadorActual?.id === t.id ? 'seleccionado' : ''}"
+         onclick="seleccionar('${t.id}','${escAttr(t.nombre + ' ' + t.apellidos)}','${escAttr(t.dni)}','${escAttr(t.empresa?.nombre || '')}')">
+      <div>
+        <div class="tw-nombre">${esc(t.nombre)} ${esc(t.apellidos)}</div>
+        <div class="tw-sub">${esc(t.dni)} · ${esc(t.empresa?.nombre || 'Sin empresa')}</div>
+      </div>
+      ${trabajadorActual?.id === t.id ? '<span style="color:var(--azul);font-size:11px;font-weight:700;">● Activo</span>' : ''}
+    </div>
+  `).join('');
+}
 
-  // ── TIPOS ────────────────────────────────────────────────
-  async function cargarTipos() {
-    const { data, error } = await sb
-      .from('tipos_habilitacion')
-      .select('*')
-      .order('nombre');
+// ── PANEL TRABAJADOR ─────────────────────────────────────────────
+async function seleccionar(id, nombre, dni, empresa) {
+  trabajadorActual = { id, nombre, dni, empresa };
+  document.getElementById('panel-trabajador').style.display = 'block';
+  document.getElementById('panel-titulo').textContent = nombre;
+  document.getElementById('tw-nombre').textContent = nombre;
+  document.getElementById('tw-sub').textContent = 'DNI: ' + dni + ' · ' + empresa;
+  document.getElementById('msg-hab').style.display = 'none';
+  // marcar seleccionado en lista
+  document.querySelectorAll('.tw-item').forEach(el => el.classList.remove('seleccionado'));
+  event.currentTarget.classList.add('seleccionado');
+  await cargarHabilitaciones(id);
+  document.getElementById('panel-trabajador').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
-    if (error) { mostrarMsgTipos('Error al cargar tipos: ' + error.message, 'err'); return; }
+function cerrarPanel() {
+  trabajadorActual = null;
+  document.getElementById('panel-trabajador').style.display = 'none';
+  document.querySelectorAll('.tw-item').forEach(el => el.classList.remove('seleccionado'));
+}
 
-    tiposCache = data || [];
-    renderTipos();
-    actualizarSelectTipos();
-  }
-
-  function renderTipos() {
-    const el = document.getElementById('lista-tipos');
-    if (!tiposCache.length) {
-      el.innerHTML = '<div class="empty">No hay tipos definidos todavía.</div>';
-      return;
-    }
-    el.innerHTML = tiposCache.map(t => `
-      <div class="tipo-item ${t.activo ? '' : 'inactivo'}">
-        <span class="tipo-nombre">${t.activo ? '' : '🚫 '} ${escHtml(t.nombre)}</span>
-        <div class="tipo-acciones">
-          <button class="btn btn-outline btn-sm"
-            onclick="toggleTipo('${t.id}', ${t.activo})">
-            ${t.activo ? 'Desactivar' : 'Reactivar'}
+async function cargarHabilitaciones(id) {
+  const el = document.getElementById('lista-habilitaciones');
+  el.innerHTML = '<div class="cargando">Cargando…</div>';
+  const { data, error } = await sb.rpc('get_habilitaciones_trabajador', { p_trabajador_id: id });
+  if (error) { el.innerHTML = `<div class="vacio">Error: ${esc(error.message)}</div>`; return; }
+  const habs = Array.isArray(data) ? data : [];
+  if (!habs.length) { el.innerHTML = '<div class="vacio" style="padding:10px 0">Sin habilitaciones registradas.</div>'; return; }
+  el.innerHTML = habs.map(h => {
+    const estado = h.estado_caducidad;
+    const labels = { vigente: 'Vigente', proxima_caducidad: 'Caduca pronto', caducada: 'Caducada', sin_caducidad: 'Sin caducidad' };
+    const claseEstado = estado === 'proxima_caducidad' ? 'proxima' : estado;
+    const cadTxt = h.fecha_caducidad ? 'Caduca: ' + formatFecha(h.fecha_caducidad) : 'Sin fecha de caducidad';
+    return `
+      <div class="hab-item ${claseEstado}">
+        <div style="flex:1">
+          <div class="hab-nombre">🏗️ ${esc(h.tipo_nombre)}</div>
+          <div class="hab-caducidad">${cadTxt}</div>
+        </div>
+        <div class="hab-acciones">
+          <span class="badge ${claseEstado}">${labels[estado] || estado}</span>
+          <button class="btn btn-secundario"
+            onclick="editarFecha('${h.tipo_habilitacion_id}','${h.fecha_caducidad || ''}','${escAttr(h.tipo_nombre)}')">
+            ✏️ Fecha
+          </button>
+          <button class="btn btn-peligro"
+            onclick="quitarHabilitacion('${h.tipo_habilitacion_id}','${escAttr(h.tipo_nombre)}')">
+            Quitar
           </button>
         </div>
-      </div>
-    `).join('');
-  }
+      </div>`;
+  }).join('');
+}
 
-  function actualizarSelectTipos() {
-    const sel = document.getElementById('sel-tipo');
-    const activos = tiposCache.filter(t => t.activo);
-    // Preservar selección actual si sigue siendo válida
-    const valorActual = sel.value;
-    sel.innerHTML = '<option value="">Selecciona un tipo...</option>' +
-      activos.map(t => `<option value="${t.id}">${escHtml(t.nombre)}</option>`).join('');
-    if (valorActual) sel.value = valorActual;
-  }
+async function anadirHabilitacion() {
+  if (!trabajadorActual) return;
+  const tipoId = document.getElementById('sel-tipo').value;
+  const caducidad = document.getElementById('input-caducidad').value || null;
+  if (!tipoId) { msgHab('Selecciona un tipo.', 'err'); return; }
+  const btn = document.getElementById('btn-anadir');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  const { data, error } = await sb.rpc('añadir_habilitacion', {
+    p_trabajador_id: trabajadorActual.id,
+    p_tipo_habilitacion_id: tipoId,
+    p_fecha_caducidad: caducidad
+  });
+  btn.disabled = false; btn.textContent = '+ Añadir habilitación';
+  if (error) { msgHab('Error: ' + error.message, 'err'); return; }
+  const res = typeof data === 'string' ? JSON.parse(data) : data;
+  if (res.error) { msgHab('Error: ' + res.error, 'err'); return; }
+  document.getElementById('sel-tipo').value = '';
+  document.getElementById('input-caducidad').value = '';
+  const msgs = { creada: 'Habilitación añadida.', reactivada: 'Habilitación reactivada.', actualizada: 'Fecha actualizada.' };
+  msgHab(msgs[res.accion] || 'Guardado.', 'ok');
+  await cargarHabilitaciones(trabajadorActual.id);
+}
 
-  async function toggleTipo(id, estadoActual) {
-    const { error } = await sb
-      .from('tipos_habilitacion')
-      .update({ activo: !estadoActual })
-      .eq('id', id);
+async function quitarHabilitacion(tipoId, tipoNombre) {
+  if (!trabajadorActual) return;
+  if (!confirm('¿Quitar la habilitación "' + tipoNombre + '" de ' + trabajadorActual.nombre + '?')) return;
+  const { data, error } = await sb.rpc('quitar_habilitacion', {
+    p_trabajador_id: trabajadorActual.id,
+    p_tipo_habilitacion_id: tipoId
+  });
+  if (error) { msgHab('Error: ' + error.message, 'err'); return; }
+  const res = typeof data === 'string' ? JSON.parse(data) : data;
+  if (res.error) { msgHab('Error: ' + res.error, 'err'); return; }
+  msgHab('Habilitación eliminada.', 'ok');
+  await cargarHabilitaciones(trabajadorActual.id);
+}
 
-    if (error) { mostrarMsgTipos('Error: ' + error.message, 'err'); return; }
-    await cargarTipos();
-    // Si hay trabajador seleccionado, recargar sus habilitaciones por si cambia algo
-    if (trabajadorSeleccionado) await cargarHabilitaciones(trabajadorSeleccionado.id);
-    mostrarMsgTipos(estadoActual ? 'Tipo desactivado.' : 'Tipo reactivado.', 'ok');
-  }
+async function editarFecha(tipoId, fechaActual, tipoNombre) {
+  const nueva = prompt('Nueva fecha de caducidad para "' + tipoNombre + '"\n(deja en blanco para quitar la fecha)\nFormato: AAAA-MM-DD', fechaActual);
+  if (nueva === null) return;
+  const { data, error } = await sb.rpc('añadir_habilitacion', {
+    p_trabajador_id: trabajadorActual.id,
+    p_tipo_habilitacion_id: tipoId,
+    p_fecha_caducidad: nueva.trim() || null
+  });
+  if (error) { msgHab('Error: ' + error.message, 'err'); return; }
+  const res = typeof data === 'string' ? JSON.parse(data) : data;
+  if (res.error) { msgHab('Error: ' + res.error, 'err'); return; }
+  msgHab('Fecha actualizada.', 'ok');
+  await cargarHabilitaciones(trabajadorActual.id);
+}
 
-  async function crearTipo() {
-    const input = document.getElementById('input-nuevo-tipo');
-    const nombre = input.value.trim();
-    if (!nombre) { mostrarMsgTipos('Escribe un nombre para el tipo.', 'err'); return; }
+// ── UTILIDADES ───────────────────────────────────────────────────
+function formatFecha(iso) {
+  if (!iso) return '—';
+  const [y, m, d] = iso.split('-');
+  return d + '/' + m + '/' + y;
+}
+function esc(s) { const d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; }
+function escAttr(s) { return String(s || '').replace(/'/g, "\\'"); }
 
-    const existe = tiposCache.some(t => t.nombre.toLowerCase() === nombre.toLowerCase());
-    if (existe) { mostrarMsgTipos('Ya existe un tipo con ese nombre.', 'err'); return; }
-
-    const btn = document.getElementById('btn-crear-tipo');
-    btn.disabled = true;
-
-    const { error } = await sb
-      .from('tipos_habilitacion')
-      .insert({ nombre });
-
-    btn.disabled = false;
-
-    if (error) { mostrarMsgTipos('Error: ' + error.message, 'err'); return; }
-
-    input.value = '';
-    await cargarTipos();
-    mostrarMsgTipos(`Tipo "${nombre}" creado correctamente.`, 'ok');
-  }
-
-  // ── BÚSQUEDA TRABAJADORES ────────────────────────────────
-  async function buscarTrabajadores() {
-    const q = document.getElementById('input-buscar').value.trim();
-    const el = document.getElementById('lista-trabajadores');
-
-    if (q.length < 2) { el.innerHTML = ''; return; }
-
-    el.innerHTML = '<div class="empty"><span class="spinner"></span> Buscando...</div>';
-
-    const { data, error } = await sb
-      .from('trabajadores')
-      .select('id, nombre, apellidos, dni, empresa:empresa_id(nombre), activo')
-      .or(`nombre.ilike.%${q}%,apellidos.ilike.%${q}%,dni.ilike.%${q}%`)
-      .eq('activo', true)
-      .order('apellidos')
-      .limit(30);
-
-    if (error) { el.innerHTML = `<div class="empty">Error: ${error.message}</div>`; return; }
-    if (!data || !data.length) { el.innerHTML = '<div class="empty">Sin resultados.</div>'; return; }
-
-    el.innerHTML = data.map(t => `
-      <div class="trabajador-item ${trabajadorSeleccionado?.id === t.id ? 'seleccionado' : ''}"
-           onclick="seleccionarTrabajador('${t.id}', '${escAttr(t.nombre + ' ' + t.apellidos)}', '${escAttr(t.dni)}', '${escAttr(t.empresa?.nombre || '')}')">
-        <div>
-          <div class="tw-nombre">${escHtml(t.nombre)} ${escHtml(t.apellidos)}</div>
-          <div class="tw-info">${escHtml(t.dni)} · ${escHtml(t.empresa?.nombre || 'Sin empresa')}</div>
-        </div>
-        <div class="tw-badges">
-          ${trabajadorSeleccionado?.id === t.id ? '<span style="color:var(--color-acento);font-size:0.8rem;font-weight:700;">● Seleccionado</span>' : ''}
-        </div>
-      </div>
-    `).join('');
-  }
-
-  // ── SELECCIÓN TRABAJADOR ─────────────────────────────────
-  async function seleccionarTrabajador(id, nombre, dni, empresa) {
-    trabajadorSeleccionado = { id, nombre, dni, empresa };
-
-    document.getElementById('panel-trabajador').style.display = 'block';
-    document.getElementById('panel-titulo').textContent = `Habilitaciones — ${nombre}`;
-    document.getElementById('tw-nombre-grande').textContent = nombre;
-    document.getElementById('tw-info-extra').textContent = `DNI: ${dni} · ${empresa}`;
-    document.getElementById('msg-habilitaciones').innerHTML = '';
-
-    // Actualizar estilo seleccionado en lista
-    document.querySelectorAll('.trabajador-item').forEach(el => {
-      el.classList.remove('seleccionado');
-      if (el.onclick?.toString().includes(id)) el.classList.add('seleccionado');
-    });
-
-    await cargarHabilitaciones(id);
-    document.getElementById('panel-trabajador').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  function deseleccionarTrabajador() {
-    trabajadorSeleccionado = null;
-    document.getElementById('panel-trabajador').style.display = 'none';
-    document.querySelectorAll('.trabajador-item').forEach(el => el.classList.remove('seleccionado'));
-  }
-
-  // ── HABILITACIONES DEL TRABAJADOR ───────────────────────
-  async function cargarHabilitaciones(trabajadorId) {
-    const el = document.getElementById('lista-habilitaciones');
-    el.innerHTML = '<div class="empty"><span class="spinner"></span> Cargando...</div>';
-
-    const { data, error } = await sb.rpc('get_habilitaciones_trabajador', {
-      p_trabajador_id: trabajadorId
-    });
-
-    if (error) { el.innerHTML = `<div class="empty">Error: ${error.message}</div>`; return; }
-
-    const habs = Array.isArray(data) ? data : (data ? JSON.parse(data) : []);
-
-    if (!habs.length) {
-      el.innerHTML = '<div class="empty">Este trabajador no tiene habilitaciones registradas.</div>';
-      return;
-    }
-
-    el.innerHTML = habs.map(h => {
-      const estado = h.estado_caducidad;
-      const labelEstado = {
-        vigente: 'Vigente',
-        proxima_caducidad: 'Caduca pronto',
-        caducada: 'Caducada',
-        sin_caducidad: 'Sin caducidad'
-      }[estado] || estado;
-
-      const caducidadTxt = h.fecha_caducidad
-        ? `Caduca: ${formatFecha(h.fecha_caducidad)}`
-        : 'Sin fecha de caducidad';
-
-      return `
-        <div class="hab-item ${estado === 'proxima_caducidad' ? 'proxima' : estado}">
-          <div>
-            <div class="hab-nombre">🏗️ ${escHtml(h.tipo_nombre)}</div>
-            <div class="hab-caducidad">${caducidadTxt}</div>
-          </div>
-          <div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;">
-            <span class="badge-estado badge-${estado === 'proxima_caducidad' ? 'proxima' : estado}">${labelEstado}</span>
-            <button class="btn btn-outline btn-sm"
-              onclick="editarCaducidad('${h.tipo_habilitacion_id}', '${h.fecha_caducidad || ''}', '${escAttr(h.tipo_nombre)}')">
-              ✏️ Fecha
-            </button>
-            <button class="btn btn-sm" style="background:#fff;border:1px solid var(--rojo);color:var(--rojo);"
-              onclick="quitarHabilitacion('${h.tipo_habilitacion_id}', '${escAttr(h.tipo_nombre)}')">
-              Quitar
-            </button>
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-
-  async function anadirHabilitacion() {
-    if (!trabajadorSeleccionado) return;
-    const tipoId = document.getElementById('sel-tipo').value;
-    const caducidad = document.getElementById('input-caducidad').value || null;
-
-    if (!tipoId) { mostrarMsgHab('Selecciona un tipo de habilitación.', 'err'); return; }
-
-    const btn = document.getElementById('btn-anadir');
-    btn.disabled = true;
-    btn.textContent = 'Guardando...';
-
-    const { data, error } = await sb.rpc('añadir_habilitacion', {
-      p_trabajador_id: trabajadorSeleccionado.id,
-      p_tipo_habilitacion_id: tipoId,
-      p_fecha_caducidad: caducidad
-    });
-
-    btn.disabled = false;
-    btn.textContent = '+ Añadir';
-
-    if (error) { mostrarMsgHab('Error: ' + error.message, 'err'); return; }
-
-    const res = typeof data === 'string' ? JSON.parse(data) : data;
-    if (res.error) { mostrarMsgHab('Error: ' + res.error, 'err'); return; }
-
-    document.getElementById('sel-tipo').value = '';
-    document.getElementById('input-caducidad').value = '';
-
-    const acciones = { creada: 'Habilitación añadida.', reactivada: 'Habilitación reactivada.', actualizada: 'Fecha actualizada.' };
-    mostrarMsgHab(acciones[res.accion] || 'Guardado.', 'ok');
-    await cargarHabilitaciones(trabajadorSeleccionado.id);
-  }
-
-  async function quitarHabilitacion(tipoId, tipoNombre) {
-    if (!trabajadorSeleccionado) return;
-    if (!confirm(`¿Quitar la habilitación "${tipoNombre}" de ${trabajadorSeleccionado.nombre}?`)) return;
-
-    const { data, error } = await sb.rpc('quitar_habilitacion', {
-      p_trabajador_id: trabajadorSeleccionado.id,
-      p_tipo_habilitacion_id: tipoId
-    });
-
-    if (error) { mostrarMsgHab('Error: ' + error.message, 'err'); return; }
-
-    const res = typeof data === 'string' ? JSON.parse(data) : data;
-    if (res.error) { mostrarMsgHab('Error: ' + res.error, 'err'); return; }
-
-    mostrarMsgHab('Habilitación eliminada.', 'ok');
-    await cargarHabilitaciones(trabajadorSeleccionado.id);
-  }
-
-  async function editarCaducidad(tipoId, fechaActual, tipoNombre) {
-    const nuevaFecha = prompt(
-      `Nueva fecha de caducidad para "${tipoNombre}"\n(deja en blanco para quitar la fecha)`,
-      fechaActual
-    );
-    if (nuevaFecha === null) return; // canceló
-
-    const { data, error } = await sb.rpc('añadir_habilitacion', {
-      p_trabajador_id: trabajadorSeleccionado.id,
-      p_tipo_habilitacion_id: tipoId,
-      p_fecha_caducidad: nuevaFecha.trim() || null
-    });
-
-    if (error) { mostrarMsgHab('Error: ' + error.message, 'err'); return; }
-
-    const res = typeof data === 'string' ? JSON.parse(data) : data;
-    if (res.error) { mostrarMsgHab('Error: ' + res.error, 'err'); return; }
-
-    mostrarMsgHab('Fecha actualizada.', 'ok');
-    await cargarHabilitaciones(trabajadorSeleccionado.id);
-  }
-
-  // ── UTILIDADES ───────────────────────────────────────────
-  function formatFecha(iso) {
-    if (!iso) return '—';
-    const [y, m, d] = iso.split('-');
-    return `${d}/${m}/${y}`;
-  }
-
-  function escHtml(s) {
-    if (!s) return '';
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
-  function escAttr(s) {
-    if (!s) return '';
-    return String(s).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-  }
-
-  function mostrarMsgHab(texto, tipo) {
-    const el = document.getElementById('msg-habilitaciones');
-    el.innerHTML = `<div class="msg msg-${tipo === 'ok' ? 'ok' : 'err'}">${texto}</div>`;
-    setTimeout(() => { el.innerHTML = ''; }, 4000);
-  }
-
-  function mostrarMsgTipos(texto, tipo) {
-    const el = document.getElementById('msg-tipos');
-    el.innerHTML = `<div class="msg msg-${tipo === 'ok' ? 'ok' : 'err'}">${texto}</div>`;
-    setTimeout(() => { el.innerHTML = ''; }, 4000);
-  }
-
-  init();
+function msgHab(txt, tipo) {
+  const el = document.getElementById('msg-hab');
+  el.textContent = txt; el.className = 'mensaje ' + (tipo === 'ok' ? 'ok' : 'err'); el.style.display = 'block';
+  if (tipo === 'ok') setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+function msgTipos(txt, tipo) {
+  const el = document.getElementById('msg-tipos');
+  el.textContent = txt; el.className = 'mensaje ' + (tipo === 'ok' ? 'ok' : 'err'); el.style.display = 'block';
+  if (tipo === 'ok') setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
 </script>
 </body>
 </html>
