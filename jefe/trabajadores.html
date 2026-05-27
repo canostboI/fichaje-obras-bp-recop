@@ -68,7 +68,6 @@
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: var(--bg3); }
 
-  /* Encabezado de grupo empresa */
   tr.grupo-empresa-cab { cursor: pointer; user-select: none; }
   tr.grupo-empresa-cab td { background: var(--bg3); border-bottom: 1px solid var(--borde); border-top: 2px solid var(--borde); padding: 10px 20px; }
   tr.grupo-empresa-cab:first-child td { border-top: none; }
@@ -119,8 +118,8 @@
   .modal h3 { font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
   .campo { display: flex; flex-direction: column; gap: 6px; }
   .campo label { font-size: 12px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; }
-  .campo input[type="text"], .campo input[type="number"], .campo textarea { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 13px; font-family: inherit; width: 100%; }
-  .campo input:focus, .campo textarea:focus { outline: none; border-color: var(--color-acento); }
+  .campo input[type="text"], .campo input[type="number"], .campo textarea, .campo select { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 13px; font-family: inherit; width: 100%; }
+  .campo input:focus, .campo textarea:focus, .campo select:focus { outline: none; border-color: var(--color-acento); }
   .campo input::placeholder, .campo textarea::placeholder { color: var(--texto2); }
   .campo textarea { min-height: 70px; resize: vertical; }
   .campo-fila { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -163,7 +162,6 @@
   .msg-error { color: var(--rojo); font-size: 13px; }
   .msg-ok { color: var(--verde); font-size: 13px; }
 
-  /* Modal resumen documental por empresa */
   .modal-resumen { width: 820px; max-width: 96vw; }
   .resumen-intro { background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.35); border-radius: 8px; padding: 12px 14px; color: var(--texto); font-size: 13px; line-height: 1.45; }
   .resumen-filtros { display: grid; grid-template-columns: minmax(220px, 320px) 1fr; gap: 12px; align-items: end; margin-top: 12px; }
@@ -173,9 +171,8 @@
   .resumen-filtro-campo select:focus { outline: none; border-color: var(--naranja); }
   .resumen-filtro-ayuda { color: var(--texto2); font-size: 12px; line-height: 1.4; padding-bottom: 2px; }
 
-  /* Toggle "solo presentes" */
   .resumen-toggle-presencia {
-    display: none; /* se muestra con JS cuando hay obra concreta */
+    display: none;
     align-items: center;
     gap: 10px;
     margin-top: 10px;
@@ -206,7 +203,6 @@
   .resumen-copiado { color: var(--verde); font-size: 12px; min-height: 18px; margin-top: 6px; }
   @media (max-width: 700px) { .resumen-filtros { grid-template-columns: 1fr; } }
 
-  /* Modal Recursos Preventivos */
   .modal-rp { width: 620px; max-width: 96vw; }
   .rp-intro { background: rgba(33,150,243,0.08); border: 1px solid rgba(33,150,243,0.35); border-radius: 8px; padding: 12px 14px; color: var(--texto); font-size: 13px; line-height: 1.45; }
   .rp-bloque { display: flex; flex-direction: column; gap: 10px; }
@@ -220,13 +216,13 @@
   .btn-rp-quitar:hover { background: rgba(244,67,54,0.1); }
   .btn-rp-quitar:disabled { opacity: 0.5; cursor: not-allowed; }
   .rp-vacio { padding: 16px; text-align: center; color: var(--texto2); font-size: 13px; background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.3); border-radius: 8px; }
-  .rp-añadir { display: flex; gap: 8px; align-items: stretch; }
-  .rp-añadir select { flex: 1; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 12px; font-family: inherit; }
-  .rp-añadir select:focus { outline: none; border-color: var(--azul); }
+  .rp-aniadir { display: flex; gap: 8px; align-items: stretch; }
+  .rp-aniadir select { flex: 1; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 12px; font-family: inherit; }
+  .rp-aniadir select:focus { outline: none; border-color: var(--azul); }
   .btn-rp-designar { background: var(--azul); color: #fff; border: none; border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap; }
   .btn-rp-designar:hover { opacity: 0.9; }
   .btn-rp-designar:disabled { opacity: 0.5; cursor: not-allowed; }
-  .rp-añadir-vacio { padding: 10px 14px; color: var(--texto2); font-size: 13px; font-style: italic; }
+  .rp-aniadir-vacio { padding: 10px 14px; color: var(--texto2); font-size: 13px; font-style: italic; }
 
   .dni-hint { font-size: 12px; color: var(--texto2); margin-top: 2px; }
 </style>
@@ -302,6 +298,14 @@
       <label>DNI / NIE</label>
       <input type="text" id="modal-dni" placeholder="12345678A" style="text-transform:uppercase">
       <span class="dni-hint">Sin espacios ni guiones. Ejemplo: 12345678A</span>
+    </div>
+
+    <!-- NUEVO: selector de empresa -->
+    <div class="campo">
+      <label>Empresa</label>
+      <select id="modal-empresa">
+        <option value="">— Sin asignar —</option>
+      </select>
     </div>
 
     <div class="campo-fila">
@@ -386,7 +390,6 @@
         Puedes sacar un resumen conjunto de todas tus obras o limitarlo a una obra concreta antes de copiar el mensaje.
       </div>
     </div>
-    <!-- Toggle "solo presentes ahora" — solo visible cuando hay obra concreta -->
     <label class="resumen-toggle-presencia" id="resumen-toggle-presencia" for="resumen-chk-presencia">
       <input type="checkbox" id="resumen-chk-presencia">
       <div>
@@ -418,8 +421,8 @@
 
     <div class="rp-bloque">
       <div class="rp-bloque-titulo">Añadir nuevo Recurso Preventivo</div>
-      <div id="rp-añadir-zona">
-        <div class="rp-añadir">
+      <div id="rp-aniadir-zona">
+        <div class="rp-aniadir">
           <select id="rp-select-trabajador">
             <option value="">— Selecciona un trabajador propio —</option>
           </select>
@@ -445,11 +448,11 @@ AutoLogout.init(sb);
 
 const CLAVE_OBRA_ACTIVA_JEFE = 'jefe_obra_activa_id';
 const CLAVE_OBRA_FILTRO_TRABAJADORES = 'jefe_trabajadores_obra_filtro';
-
-const EMPRESAS_PRIORITARIAS = ['Bosch Pascual', 'Rècop'];
+const EMPRESAS_PRIORITARIAS = ['Bosch Pascual', 'Recop', 'BOSCH PASCUAL', 'RECOP'];
 
 let misObras = [];
 let todosTrabajadores = [];
+let todasEmpresas = [];
 let obraFiltroTrabajadores = '';
 let miUsuarioId = null;
 
@@ -460,9 +463,7 @@ let rpsPorObra = {};
 let trabajadoresPropios = [];
 
 const gruposAbiertos = {};
-
-// Cache de IDs de trabajadores presentes ahora (para el filtro del resumen)
-let presentesAhoraCache = null; // null = no cargado, Set = cargado
+let presentesAhoraCache = null;
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -493,6 +494,7 @@ let presentesAhoraCache = null; // null = no cargado, Set = cargado
   const marca = obtenerObraFiltro()?.empresa_marca || misObras[0]?.empresa_marca || 'bosch_pascual';
   aplicarBrandingObra(marca);
 
+  await cargarEmpresas();
   await cargarTrabajadoresPropios();
   await cargarTrabajadores();
   actualizarBotonRP();
@@ -501,6 +503,44 @@ let presentesAhoraCache = null; // null = no cargado, Set = cargado
     if (document.visibilityState === 'visible') cargarTrabajadores();
   });
 })();
+
+// Cargar todas las empresas para el selector del formulario
+async function cargarEmpresas() {
+  const { data, error } = await sb
+    .from('empresas')
+    .select('id, nombre, es_empresa_propia')
+    .order('nombre');
+  if (error) { todasEmpresas = []; return; }
+  todasEmpresas = data || [];
+}
+
+function poblarSelectorEmpresas(empresaIdSeleccionada) {
+  const select = document.getElementById('modal-empresa');
+  if (!select) return;
+
+  const propias = todasEmpresas.filter(e => e.es_empresa_propia);
+  const subcontratas = todasEmpresas.filter(e => !e.es_empresa_propia);
+
+  let html = '<option value="">— Sin asignar —</option>';
+
+  if (propias.length > 0) {
+    html += '<optgroup label="Empresas propias">';
+    propias.forEach(e => {
+      html += `<option value="${esc(e.id)}"${e.id === empresaIdSeleccionada ? ' selected' : ''}>${esc(e.nombre)}</option>`;
+    });
+    html += '</optgroup>';
+  }
+
+  if (subcontratas.length > 0) {
+    html += '<optgroup label="Subcontratas">';
+    subcontratas.forEach(e => {
+      html += `<option value="${esc(e.id)}"${e.id === empresaIdSeleccionada ? ' selected' : ''}>${esc(e.nombre)}</option>`;
+    });
+    html += '</optgroup>';
+  }
+
+  select.innerHTML = html;
+}
 
 function aplicarBrandingObra(marca) {
   const branding = aplicarBranding(marca);
@@ -538,7 +578,6 @@ document.getElementById('filtro-obra-trabajadores').addEventListener('change', e
 document.getElementById('btn-resumen-naranja').addEventListener('click', abrirResumenDocumental);
 document.getElementById('btn-cerrar-resumen').addEventListener('click', cerrarResumenDocumental);
 document.getElementById('resumen-filtro-obra').addEventListener('change', () => {
-  // Al cambiar obra en el resumen, resetear el toggle de presencia
   presentesAhoraCache = null;
   const chk = document.getElementById('resumen-chk-presencia');
   if (chk) chk.checked = false;
@@ -549,11 +588,9 @@ document.getElementById('modal-resumen-overlay').addEventListener('click', e => 
   if (e.target === document.getElementById('modal-resumen-overlay')) cerrarResumenDocumental();
 });
 
-// Toggle "solo presentes ahora"
 document.getElementById('resumen-chk-presencia').addEventListener('change', async (e) => {
   const toggle = document.getElementById('resumen-toggle-presencia');
   toggle.classList.toggle('activo', e.target.checked);
-
   if (e.target.checked) {
     await cargarPresentesAhora();
   } else {
@@ -566,12 +603,10 @@ function actualizarVisibilidadTogglePresencia() {
   const toggle = document.getElementById('resumen-toggle-presencia');
   const selectObra = document.getElementById('resumen-filtro-obra');
   const obraId = selectObra ? selectObra.value : '';
-
   if (obraId) {
     toggle.style.display = 'flex';
   } else {
     toggle.style.display = 'none';
-    // Si se oculta, también resetear
     const chk = document.getElementById('resumen-chk-presencia');
     if (chk) chk.checked = false;
     toggle.classList.remove('activo');
@@ -599,7 +634,6 @@ async function cargarPresentesAhora() {
     .lte('hora', hastaISO)
     .order('hora', { ascending: true });
 
-  // Calcular quién tiene entrada abierta (entradas > salidas)
   const contadores = {};
   (fichajes || []).forEach(f => {
     if (!contadores[f.trabajador_id]) contadores[f.trabajador_id] = 0;
@@ -607,9 +641,7 @@ async function cargarPresentesAhora() {
   });
 
   presentesAhoraCache = new Set(
-    Object.entries(contadores)
-      .filter(([, v]) => v > 0)
-      .map(([id]) => id)
+    Object.entries(contadores).filter(([, v]) => v > 0).map(([id]) => id)
   );
 
   if (cargando) cargando.style.display = 'none';
@@ -641,11 +673,7 @@ async function cargarTrabajadoresPropios() {
     .select('id, nombre, apellidos, dni, empresa:empresa_id(id, nombre, es_empresa_propia)')
     .eq('activo', true);
 
-  if (error) {
-    console.error('Error cargando trabajadores propios:', error);
-    trabajadoresPropios = [];
-    return;
-  }
+  if (error) { trabajadoresPropios = []; return; }
 
   trabajadoresPropios = (data || [])
     .filter(t => t.empresa?.es_empresa_propia === true)
@@ -655,22 +683,11 @@ async function cargarTrabajadoresPropios() {
 async function cargarRPsDeObra(obraId) {
   const { data, error } = await sb
     .from('recursos_preventivos_obra')
-    .select(`
-      id,
-      trabajador_id,
-      obra_id,
-      nombrado_en,
-      activo,
-      trabajador:trabajador_id(id, nombre, apellidos, dni, empresa:empresa_id(nombre))
-    `)
+    .select('id, trabajador_id, obra_id, nombrado_en, activo, trabajador:trabajador_id(id, nombre, apellidos, dni, empresa:empresa_id(nombre))')
     .eq('obra_id', obraId)
     .eq('activo', true);
 
-  if (error) {
-    console.error('Error cargando RPs:', error);
-    return [];
-  }
-
+  if (error) { return []; }
   return data || [];
 }
 
@@ -685,10 +702,7 @@ async function cargarRPsDeTodasMisObras() {
     .eq('activo', true);
 
   rpsPorObra = {};
-  if (error) {
-    console.error('Error cargando RPs globales:', error);
-    return;
-  }
+  if (error) { return; }
 
   (data || []).forEach(rp => {
     if (!rpsPorObra[rp.obra_id]) rpsPorObra[rp.obra_id] = [];
@@ -702,7 +716,6 @@ function esRP(trabajadorId, obraId) {
 
 async function abrirModalRP() {
   if (!obraFiltroTrabajadores) return;
-
   const obra = obtenerObraFiltro();
   if (!obra) return;
 
@@ -710,9 +723,7 @@ async function abrirModalRP() {
   document.getElementById('rp-msg').textContent = '';
   document.getElementById('rp-msg').className = '';
   document.getElementById('rp-lista-actuales').innerHTML = '<div class="cargando">Cargando…</div>';
-
   document.getElementById('modal-rp-overlay').classList.add('abierto');
-
   await pintarModalRP();
 }
 
@@ -721,10 +732,10 @@ async function pintarModalRP() {
   if (!obraId) return;
 
   const rps = await cargarRPsDeObra(obraId);
-
   const contLista = document.getElementById('rp-lista-actuales');
+
   if (rps.length === 0) {
-    contLista.innerHTML = '<div class="rp-vacio">⚠ Esta obra no tiene ningún Recurso Preventivo designado.</div>';
+    contLista.innerHTML = '<div class="rp-vacio">Esta obra no tiene ningún Recurso Preventivo designado.</div>';
   } else {
     contLista.innerHTML = `<div class="rp-lista">${rps.map(rp => `
       <div class="rp-fila">
@@ -739,19 +750,16 @@ async function pintarModalRP() {
 
   const idsActuales = rps.map(rp => rp.trabajador_id);
   const disponibles = trabajadoresPropios.filter(t => !idsActuales.includes(t.id));
-
-  const zona = document.getElementById('rp-añadir-zona');
+  const zona = document.getElementById('rp-aniadir-zona');
 
   if (disponibles.length === 0) {
-    zona.innerHTML = '<div class="rp-añadir-vacio">Todos los trabajadores propios disponibles ya están designados en esta obra.</div>';
+    zona.innerHTML = '<div class="rp-aniadir-vacio">Todos los trabajadores propios disponibles ya están designados en esta obra.</div>';
   } else {
     zona.innerHTML = `
-      <div class="rp-añadir">
+      <div class="rp-aniadir">
         <select id="rp-select-trabajador">
           <option value="">— Selecciona un trabajador propio —</option>
-          ${disponibles.map(t => `
-            <option value="${esc(t.id)}">${esc(nombreCompleto(t))} — ${esc(t.empresa?.nombre || '')}</option>
-          `).join('')}
+          ${disponibles.map(t => `<option value="${esc(t.id)}">${esc(nombreCompleto(t))} — ${esc(t.empresa?.nombre || '')}</option>`).join('')}
         </select>
         <button type="button" class="btn-rp-designar" id="btn-rp-designar">Designar</button>
       </div>
@@ -796,8 +804,7 @@ async function designarRP() {
   }
 
   msg.className = 'msg-ok';
-  msg.textContent = '¡Recurso Preventivo designado!';
-
+  msg.textContent = 'Recurso Preventivo designado.';
   await cargarRPsDeTodasMisObras();
   await pintarModalRP();
   aplicarFiltrosTabla();
@@ -828,8 +835,7 @@ async function quitarRP(trabajadorId) {
   }
 
   msg.className = 'msg-ok';
-  msg.textContent = '¡Recurso Preventivo quitado!';
-
+  msg.textContent = 'Recurso Preventivo quitado.';
   await cargarRPsDeTodasMisObras();
   await pintarModalRP();
   aplicarFiltrosTabla();
@@ -843,27 +849,15 @@ async function cargarTrabajadores() {
   document.getElementById('tabla-trabajadores').innerHTML = '<div class="cargando">Cargando…</div>';
 
   const obraIds = misObras.map(o => o.id);
-
   const rpsPromise = cargarRPsDeTodasMisObras();
 
   let { data: validaciones, error: errorValidaciones } = await sb
     .from('validaciones_obra')
     .select(`
-      trabajador_id,
-      obra_id,
-      estado,
-      estado_forzado,
-      motivo_forzado,
-      motivos,
-      forzado_en,
+      trabajador_id, obra_id, estado, estado_forzado, motivo_forzado, motivos, forzado_en,
       trabajador:trabajador_id(
-        id,
-        nombre,
-        apellidos,
-        dni,
-        categoria,
-        precio_hora_personalizado,
-        empresa:empresa_id(nombre)
+        id, nombre, apellidos, dni, categoria, precio_hora_personalizado,
+        empresa:empresa_id(id, nombre)
       )
     `)
     .in('obra_id', obraIds);
@@ -877,7 +871,6 @@ async function cargarTrabajadores() {
   }
 
   const hoy = new Date().toISOString().slice(0, 10);
-
   const { data: excepciones } = await sb
     .from('excepciones_acceso')
     .select('id, trabajador_id, obra_id, motivo_autorizacion, created_at, autorizado_por:autorizado_por_user_id(nombre)')
@@ -893,7 +886,6 @@ async function cargarTrabajadores() {
   await rpsPromise;
 
   const porTrabajador = {};
-
   (validaciones || []).forEach(v => {
     if (!v.trabajador) return;
 
@@ -911,11 +903,8 @@ async function cargarTrabajadores() {
     }
 
     const obra = misObras.find(o => o.id === v.obra_id);
-
     if (obra) {
       const key = `${v.trabajador_id}|${v.obra_id}`;
-      const excepcion = excepcionesPorKey[key] || null;
-
       porTrabajador[v.trabajador_id].obras.push({
         obra_id: v.obra_id,
         nombre: obra.nombre,
@@ -924,7 +913,7 @@ async function cargarTrabajadores() {
         motivo_forzado: v.motivo_forzado || null,
         motivos: v.motivos,
         forzado_en: v.forzado_en,
-        excepcion_hoy: excepcion,
+        excepcion_hoy: excepcionesPorKey[key] || null,
         es_rp: esRP(v.trabajador_id, v.obra_id)
       });
     }
@@ -938,9 +927,9 @@ function prepararFiltroTrabajadores() {
   const select = document.getElementById('filtro-obra-trabajadores');
   if (!select) return;
 
-  select.innerHTML = '<option value="">Todas mis obras</option>' + misObras.map(o => `
-    <option value="${esc(o.id)}">${esc(o.nombre || 'Obra sin nombre')}</option>
-  `).join('');
+  select.innerHTML = '<option value="">Todas mis obras</option>' + misObras.map(o =>
+    `<option value="${esc(o.id)}">${esc(o.nombre || 'Obra sin nombre')}</option>`
+  ).join('');
 
   const guardada = localStorage.getItem(CLAVE_OBRA_ACTIVA_JEFE) || localStorage.getItem(CLAVE_OBRA_FILTRO_TRABAJADORES) || '';
   select.value = misObras.some(o => o.id === guardada) ? guardada : '';
@@ -968,13 +957,8 @@ function aplicarFiltrosTabla() {
 
   if (q) {
     lista = lista.filter(t => {
-      const texto = [
-        nombreCompleto(t),
-        t.dni || '',
-        t.categoria || '',
-        t.empresa?.nombre || '',
-        ...(t.obras || []).map(o => o.nombre || '')
-      ].join(' ').toLowerCase();
+      const texto = [nombreCompleto(t), t.dni || '', t.categoria || '', t.empresa?.nombre || '',
+        ...(t.obras || []).map(o => o.nombre || '')].join(' ').toLowerCase();
       return texto.includes(q);
     });
   }
@@ -1007,8 +991,8 @@ function renderTabla(lista) {
 
   if (lista.length === 0) {
     contenedor.innerHTML = obraFiltrada
-      ? '<div class="vacio">No hay trabajadores asignados a esta obra todavía. Pulsa "Nuevo trabajador" para crear o asignar trabajadores a esta obra.</div>'
-      : '<div class="vacio">No hay trabajadores. Pulsa "Nuevo trabajador" para añadir el primero.</div>';
+      ? '<div class="vacio">No hay trabajadores asignados a esta obra todavía.</div>'
+      : '<div class="vacio">No hay trabajadores.</div>';
     return;
   }
 
@@ -1022,31 +1006,19 @@ function renderTabla(lista) {
   const empresasOrdenadas = ordenarEmpresas(Object.keys(porEmpresa));
 
   const filasCabecera = `
-    <thead>
-      <tr>
-        <th>Nombre</th>
-        <th>DNI</th>
-        <th>Categoría</th>
-        <th>Precio hora</th>
-        <th>Obras asignadas</th>
-        <th>Acciones</th>
-      </tr>
-    </thead>
-  `;
+    <thead><tr>
+      <th>Nombre</th><th>DNI</th><th>Categoría</th><th>Precio hora</th><th>Obras asignadas</th><th>Acciones</th>
+    </tr></thead>`;
 
   let filasBody = '';
 
   empresasOrdenadas.forEach(empresa => {
     const trabajadores = porEmpresa[empresa];
-
-    let rojos = 0;
-    let naranjas = 0;
-    trabajadores.forEach(t => {
-      t.obras.forEach(o => {
-        if (o.estado === 'rojo') rojos++;
-        else if (o.estado === 'naranja') naranjas++;
-      });
-    });
+    let rojos = 0, naranjas = 0;
+    trabajadores.forEach(t => t.obras.forEach(o => {
+      if (o.estado === 'rojo') rojos++;
+      else if (o.estado === 'naranja') naranjas++;
+    }));
 
     const grupoAbierto = gruposAbiertos[empresa] !== false;
     const chevronClase = grupoAbierto ? 'grupo-empresa-chevron abierto' : 'grupo-empresa-chevron';
@@ -1067,8 +1039,7 @@ function renderTabla(lista) {
             <div class="grupo-empresa-badges">${badgesHtml}</div>
           </div>
         </td>
-      </tr>
-    `;
+      </tr>`;
 
     trabajadores.forEach(t => {
       filasBody += `
@@ -1078,13 +1049,8 @@ function renderTabla(lista) {
           <td>${esc(t.categoria || '—')}</td>
           <td>${formatearPrecio(t.precio_hora_personalizado)}</td>
           <td>${t.obras.map(o => pillObra(t, o)).join('')}</td>
-          <td>
-            <div class="acciones">
-              <button class="btn-accion primario" onclick="abrirEdicion('${t.id}')">Editar</button>
-            </div>
-          </td>
-        </tr>
-      `;
+          <td><div class="acciones"><button class="btn-accion primario" onclick="abrirEdicion('${t.id}')">Editar</button></div></td>
+        </tr>`;
     });
   });
 
@@ -1094,10 +1060,8 @@ function renderTabla(lista) {
 function toggleGrupo(empresa) {
   const abierto = gruposAbiertos[empresa] !== false;
   gruposAbiertos[empresa] = !abierto;
-
   const chevron = document.getElementById(`chevron-${empresa}`);
   if (chevron) chevron.classList.toggle('abierto', !abierto);
-
   document.querySelectorAll(`tr.grupo-fila[data-grupo="${empresa}"]`).forEach(fila => {
     fila.classList.toggle('oculto', abierto);
   });
@@ -1105,14 +1069,13 @@ function toggleGrupo(empresa) {
 
 function pillObra(trabajador, obra) {
   const etiquetas = {
-    verde:   { texto: '✓ Válido',      icono: '✓' },
-    naranja: { texto: '⚠ Con avisos',  icono: '⚠' },
-    rojo:    { texto: '✗ Sin acceso',  icono: '✗' }
+    verde:   { texto: '✓ Válido' },
+    naranja: { texto: '⚠ Con avisos' },
+    rojo:    { texto: '✗ Sin acceso' }
   };
 
   const et = etiquetas[obra.estado] || etiquetas.verde;
   const clases = ['pill-estado', obra.estado];
-
   if (obra.estado_forzado) clases.push('forzado');
 
   let marca = '';
@@ -1121,7 +1084,6 @@ function pillObra(trabajador, obra) {
   if (obra.es_rp) marca += ' 🛡️';
 
   const partesTooltip = [];
-
   if (obra.excepcion_hoy) {
     partesTooltip.push(`Autorizado solo hoy. Motivo: ${obra.excepcion_hoy.motivo_autorizacion || '(sin motivo)'}`);
   } else if (obra.estado_forzado) {
@@ -1129,29 +1091,20 @@ function pillObra(trabajador, obra) {
   } else {
     partesTooltip.push(`Estado: ${obra.estado}`);
   }
-
-  if (obra.es_rp) {
-    partesTooltip.push('Recurso Preventivo designado');
-  }
-
+  if (obra.es_rp) partesTooltip.push('Recurso Preventivo designado');
   partesTooltip.push('Clic para cambiar.');
-
-  const tooltip = partesTooltip.join(' · ');
 
   return `
     <div class="obra-fila">
       <span class="obra-nombre">${esc(obra.nombre)}</span>
-      <span class="${clases.join(' ')}" title="${esc(tooltip)}"
+      <span class="${clases.join(' ')}" title="${esc(partesTooltip.join(' · '))}"
             onclick="abrirModalForzar('${trabajador.id}', '${obra.obra_id}')">
         ${et.texto}${marca}
       </span>
-    </div>
-  `;
+    </div>`;
 }
 
-document.getElementById('buscador').addEventListener('input', () => {
-  aplicarFiltrosTabla();
-});
+document.getElementById('buscador').addEventListener('input', () => aplicarFiltrosTabla());
 
 let modoEdicion = null;
 
@@ -1166,8 +1119,7 @@ function renderCheckObras(obrasSeleccionadas = []) {
 }
 
 function toggleMarcado(checkbox) {
-  const label = checkbox.closest('.check-obra');
-  label.classList.toggle('marcado', checkbox.checked);
+  checkbox.closest('.check-obra').classList.toggle('marcado', checkbox.checked);
 }
 
 document.getElementById('btn-nuevo').addEventListener('click', () => {
@@ -1180,6 +1132,7 @@ document.getElementById('btn-nuevo').addEventListener('click', () => {
   document.getElementById('modal-precio-hora').value = '';
   document.getElementById('modal-msg').textContent = '';
   document.getElementById('btn-guardar').disabled = false;
+  poblarSelectorEmpresas('');
   renderCheckObras(obraFiltroTrabajadores ? [obraFiltroTrabajadores] : (misObras.length === 1 ? [misObras[0].id] : []));
   document.getElementById('modal-overlay').classList.add('abierto');
   document.getElementById('modal-nombre').focus();
@@ -1192,24 +1145,22 @@ async function abrirEdicion(trabajadorId) {
   document.getElementById('btn-guardar').disabled = false;
 
   const t = todosTrabajadores.find(x => x.id === trabajadorId);
-
   document.getElementById('modal-nombre').value = t.nombre || '';
   document.getElementById('modal-apellidos').value = t.apellidos || '';
   document.getElementById('modal-dni').value = t.dni || '';
   document.getElementById('modal-categoria').value = t.categoria || '';
   document.getElementById('modal-precio-hora').value = t.precio_hora_personalizado ?? '';
 
-  const obraIds = misObras.map(o => o.id);
+  // Poblar selector con la empresa actual del trabajador
+  poblarSelectorEmpresas(t.empresa?.id || '');
 
   const { data: vals } = await sb
     .from('validaciones_obra')
     .select('obra_id')
     .eq('trabajador_id', trabajadorId)
-    .in('obra_id', obraIds);
+    .in('obra_id', misObras.map(o => o.id));
 
-  const asignadas = (vals || []).map(v => v.obra_id);
-
-  renderCheckObras(asignadas);
+  renderCheckObras((vals || []).map(v => v.obra_id));
   document.getElementById('modal-overlay').classList.add('abierto');
 }
 
@@ -1218,7 +1169,6 @@ function cerrarModal() {
 }
 
 document.getElementById('btn-cancelar').addEventListener('click', cerrarModal);
-
 document.getElementById('modal-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-overlay')) cerrarModal();
 });
@@ -1236,6 +1186,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   const dni = document.getElementById('modal-dni').value.trim().toUpperCase();
   const categoria = document.getElementById('modal-categoria').value.trim();
   const precioHoraRaw = document.getElementById('modal-precio-hora').value.trim().replace(',', '.');
+  const empresaId = document.getElementById('modal-empresa').value || null;
 
   if (!nombre || !apellidos || !dni) {
     msg.className = 'msg-error';
@@ -1245,10 +1196,8 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   }
 
   let precio_hora_personalizado = null;
-
   if (precioHoraRaw !== '') {
     precio_hora_personalizado = Number(precioHoraRaw);
-
     if (isNaN(precio_hora_personalizado) || precio_hora_personalizado < 0) {
       msg.className = 'msg-error';
       msg.textContent = 'El precio hora debe ser un número válido.';
@@ -1273,7 +1222,8 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     p_dni: dni,
     p_categoria: categoria || null,
     p_precio_hora: precio_hora_personalizado,
-    p_obra_ids: obrasSeleccionadas.map(id => id.trim())
+    p_obra_ids: obrasSeleccionadas.map(id => id.trim()),
+    p_empresa_id: empresaId
   });
 
   if (rpcError) {
@@ -1302,57 +1252,41 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     const aQuitar = yaAsignadas.filter(id => !obrasSeleccionadas.includes(id));
 
     if (aQuitar.length > 0) {
-      await sb
-        .from('validaciones_obra')
-        .delete()
+      await sb.from('validaciones_obra').delete()
         .eq('trabajador_id', trabajadorId)
         .in('obra_id', aQuitar);
     }
   }
 
   msg.className = 'msg-ok';
-  msg.textContent = '¡Guardado correctamente!';
+  msg.textContent = 'Guardado correctamente.';
 
-  setTimeout(() => {
-    cerrarModal();
-    cargarTrabajadores();
-  }, 800);
+  setTimeout(() => { cerrarModal(); cargarTrabajadores(); }, 800);
 });
 
 function abrirModalForzar(trabajadorId, obraId) {
   const t = todosTrabajadores.find(x => x.id === trabajadorId);
   if (!t) return;
-
   const o = t.obras.find(x => x.obra_id === obraId);
   if (!o) return;
 
   forzarCtx = {
-    trabajador_id: trabajadorId,
-    obra_id: obraId,
-    trabajador_nombre: nombreCompleto(t),
-    obra_nombre: o.nombre,
-    estado_actual: o.estado,
-    estado_forzado: o.estado_forzado,
-    motivo_forzado: o.motivo_forzado,
-    motivos: o.motivos,
-    forzado_en: o.forzado_en,
-    excepcion_hoy: o.excepcion_hoy
+    trabajador_id: trabajadorId, obra_id: obraId,
+    trabajador_nombre: nombreCompleto(t), obra_nombre: o.nombre,
+    estado_actual: o.estado, estado_forzado: o.estado_forzado,
+    motivo_forzado: o.motivo_forzado, motivos: o.motivos,
+    forzado_en: o.forzado_en, excepcion_hoy: o.excepcion_hoy
   };
 
   const info = document.getElementById('forzar-info');
   info.classList.remove('excepcion');
 
-  let html = `
-    <strong>${esc(forzarCtx.trabajador_nombre)}</strong> en <strong>${esc(forzarCtx.obra_nombre)}</strong><br>
-    Estado actual: <span class="pill ${forzarCtx.estado_actual}">${forzarCtx.estado_actual}</span>
-  `;
+  let html = `<strong>${esc(forzarCtx.trabajador_nombre)}</strong> en <strong>${esc(forzarCtx.obra_nombre)}</strong><br>
+    Estado actual: <span class="pill ${forzarCtx.estado_actual}">${forzarCtx.estado_actual}</span>`;
 
   const listaMotivos = extraerListaMotivos(forzarCtx.motivos);
-
   if (listaMotivos.length > 0) {
-    html += `<br><br><strong>Motivos:</strong><ul class="motivos-list">`
-         + listaMotivos.map(m => `<li>${esc(m)}</li>`).join('')
-         + `</ul>`;
+    html += `<br><br><strong>Motivos:</strong><ul class="motivos-list">${listaMotivos.map(m => `<li>${esc(m)}</li>`).join('')}</ul>`;
   }
 
   if (forzarCtx.estado_forzado) {
@@ -1369,27 +1303,17 @@ function abrirModalForzar(trabajadorId, obraId) {
   }
 
   info.innerHTML = html;
-
   estadoSeleccionado = null;
-
-  document.querySelectorAll('.btn-estado').forEach(b => {
-    b.className = 'btn-estado';
-  });
-
+  document.querySelectorAll('.btn-estado').forEach(b => { b.className = 'btn-estado'; });
   document.getElementById('forzar-motivo').value = '';
   document.getElementById('forzar-msg').textContent = '';
   document.getElementById('forzar-msg').className = '';
   document.getElementById('btn-aplicar-forzar').disabled = false;
-
-  document.getElementById('btn-quitar-forzado').style.display =
-    forzarCtx.estado_forzado ? 'inline-block' : 'none';
+  document.getElementById('btn-quitar-forzado').style.display = forzarCtx.estado_forzado ? 'inline-block' : 'none';
 
   const bloque = document.getElementById('bloque-alt');
   const btnAutorizar = document.getElementById('btn-autorizar-hoy');
   const btnQuitarAut = document.getElementById('btn-quitar-autorizacion');
-  const titulo = document.getElementById('bloque-alt-titulo');
-  const sub = document.getElementById('bloque-alt-sub');
-
   btnAutorizar.style.display = 'none';
   btnQuitarAut.style.display = 'none';
   btnAutorizar.disabled = false;
@@ -1397,13 +1321,13 @@ function abrirModalForzar(trabajadorId, obraId) {
 
   if (forzarCtx.excepcion_hoy) {
     bloque.style.display = 'flex';
-    titulo.textContent = 'Autorización puntual';
-    sub.textContent = 'Esta autorización caduca automáticamente al final del día. Puedes quitarla si te has equivocado.';
+    document.getElementById('bloque-alt-titulo').textContent = 'Autorización puntual';
+    document.getElementById('bloque-alt-sub').textContent = 'Esta autorización caduca automáticamente al final del día.';
     btnQuitarAut.style.display = 'inline-block';
   } else if (forzarCtx.estado_actual === 'rojo' && !forzarCtx.estado_forzado) {
     bloque.style.display = 'flex';
-    titulo.textContent = 'O autorizar solo hoy';
-    sub.textContent = 'Alternativa: dejarle pasar puntualmente hoy sin cambiar su estado documental. Mañana vuelve a estar bloqueado. Se usa el motivo de arriba.';
+    document.getElementById('bloque-alt-titulo').textContent = 'O autorizar solo hoy';
+    document.getElementById('bloque-alt-sub').textContent = 'Alternativa: dejarle pasar puntualmente hoy sin cambiar su estado documental. Mañana vuelve a estar bloqueado.';
     btnAutorizar.style.display = 'inline-block';
   } else {
     bloque.style.display = 'none';
@@ -1414,13 +1338,8 @@ function abrirModalForzar(trabajadorId, obraId) {
 
 function seleccionarEstado(estado) {
   estadoSeleccionado = estado;
-
   document.querySelectorAll('.btn-estado').forEach(b => {
-    if (b.dataset.estado === estado) {
-      b.className = `btn-estado seleccionado ${estado}`;
-    } else {
-      b.className = 'btn-estado';
-    }
+    b.className = b.dataset.estado === estado ? `btn-estado seleccionado ${estado}` : 'btn-estado';
   });
 }
 
@@ -1431,7 +1350,6 @@ function cerrarModalForzar() {
 }
 
 document.getElementById('btn-cancelar-forzar').addEventListener('click', cerrarModalForzar);
-
 document.getElementById('modal-forzar-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-forzar-overlay')) cerrarModalForzar();
 });
@@ -1447,7 +1365,6 @@ document.getElementById('btn-aplicar-forzar').addEventListener('click', async ()
   }
 
   const motivo = document.getElementById('forzar-motivo').value.trim();
-
   if (!motivo) {
     msg.className = 'msg-error';
     msg.textContent = 'El motivo es obligatorio.';
@@ -1473,20 +1390,15 @@ document.getElementById('btn-aplicar-forzar').addEventListener('click', async ()
   }
 
   msg.className = 'msg-ok';
-  msg.textContent = '¡Estado forzado correctamente!';
-
-  setTimeout(() => {
-    cerrarModalForzar();
-    cargarTrabajadores();
-  }, 800);
+  msg.textContent = 'Estado forzado correctamente.';
+  setTimeout(() => { cerrarModalForzar(); cargarTrabajadores(); }, 800);
 });
 
 document.getElementById('btn-quitar-forzado').addEventListener('click', async () => {
-  if (!confirm('¿Quitar el forzado? El estado volverá al que tenía antes del forzado.')) return;
+  if (!confirm('¿Quitar el forzado? El estado volverá al que tenía antes.')) return;
 
   const btn = document.getElementById('btn-quitar-forzado');
   const msg = document.getElementById('forzar-msg');
-
   btn.disabled = true;
   msg.className = '';
   msg.textContent = 'Quitando forzado…';
@@ -1504,23 +1416,18 @@ document.getElementById('btn-quitar-forzado').addEventListener('click', async ()
   }
 
   msg.className = 'msg-ok';
-  msg.textContent = '¡Forzado quitado!';
-
-  setTimeout(() => {
-    cerrarModalForzar();
-    cargarTrabajadores();
-  }, 800);
+  msg.textContent = 'Forzado quitado.';
+  setTimeout(() => { cerrarModalForzar(); cargarTrabajadores(); }, 800);
 });
 
 document.getElementById('btn-autorizar-hoy').addEventListener('click', async () => {
   const btn = document.getElementById('btn-autorizar-hoy');
   const msg = document.getElementById('forzar-msg');
-
   const motivo = document.getElementById('forzar-motivo').value.trim();
 
   if (!motivo) {
     msg.className = 'msg-error';
-    msg.textContent = 'El motivo es obligatorio (se usa como motivo de la autorización).';
+    msg.textContent = 'El motivo es obligatorio.';
     return;
   }
 
@@ -1534,27 +1441,16 @@ document.getElementById('btn-autorizar-hoy').addEventListener('click', async () 
     p_motivo_autorizacion: motivo
   });
 
-  if (error) {
+  if (error || (data && data.ok === false)) {
     msg.className = 'msg-error';
-    msg.textContent = 'Error: ' + error.message;
-    btn.disabled = false;
-    return;
-  }
-
-  if (data && data.ok === false) {
-    msg.className = 'msg-error';
-    msg.textContent = 'Error: ' + (data.error || 'No se pudo autorizar');
+    msg.textContent = 'Error: ' + (error?.message || data?.error || 'No se pudo autorizar');
     btn.disabled = false;
     return;
   }
 
   msg.className = 'msg-ok';
-  msg.textContent = '¡Autorizado para hoy!';
-
-  setTimeout(() => {
-    cerrarModalForzar();
-    cargarTrabajadores();
-  }, 800);
+  msg.textContent = 'Autorizado para hoy.';
+  setTimeout(() => { cerrarModalForzar(); cargarTrabajadores(); }, 800);
 });
 
 document.getElementById('btn-quitar-autorizacion').addEventListener('click', async () => {
@@ -1562,7 +1458,6 @@ document.getElementById('btn-quitar-autorizacion').addEventListener('click', asy
 
   const btn = document.getElementById('btn-quitar-autorizacion');
   const msg = document.getElementById('forzar-msg');
-
   btn.disabled = true;
   msg.className = '';
   msg.textContent = 'Quitando autorización…';
@@ -1571,31 +1466,19 @@ document.getElementById('btn-quitar-autorizacion').addEventListener('click', asy
     p_excepcion_id: forzarCtx.excepcion_hoy.id
   });
 
-  if (error) {
+  if (error || (data && data.ok === false)) {
     msg.className = 'msg-error';
-    msg.textContent = 'Error: ' + error.message;
-    btn.disabled = false;
-    return;
-  }
-
-  if (data && data.ok === false) {
-    msg.className = 'msg-error';
-    msg.textContent = 'Error: ' + (data.error || 'No se pudo quitar');
+    msg.textContent = 'Error: ' + (error?.message || data?.error || 'No se pudo quitar');
     btn.disabled = false;
     return;
   }
 
   msg.className = 'msg-ok';
-  msg.textContent = '¡Autorización quitada!';
-
-  setTimeout(() => {
-    cerrarModalForzar();
-    cargarTrabajadores();
-  }, 800);
+  msg.textContent = 'Autorización quitada.';
+  setTimeout(() => { cerrarModalForzar(); cargarTrabajadores(); }, 800);
 });
 
 function abrirResumenDocumental() {
-  // Resetear estado del toggle al abrir
   presentesAhoraCache = null;
   const chk = document.getElementById('resumen-chk-presencia');
   if (chk) chk.checked = false;
@@ -1613,13 +1496,11 @@ function prepararFiltroResumenObras() {
   if (!select) return;
 
   const valorPrevio = select.value || obraFiltroTrabajadores || '';
-  select.innerHTML = '<option value="">Todas mis obras</option>' + misObras.map(o => `
-    <option value="${esc(o.id)}">${esc(o.nombre || 'Obra sin nombre')}</option>
-  `).join('');
+  select.innerHTML = '<option value="">Todas mis obras</option>' + misObras.map(o =>
+    `<option value="${esc(o.id)}">${esc(o.nombre || 'Obra sin nombre')}</option>`
+  ).join('');
 
-  if ([...select.options].some(opt => opt.value === valorPrevio)) {
-    select.value = valorPrevio;
-  }
+  if ([...select.options].some(opt => opt.value === valorPrevio)) select.value = valorPrevio;
 }
 
 function pintarResumenDocumental() {
@@ -1631,13 +1512,11 @@ function pintarResumenDocumental() {
     : '';
 
   const soloPresentes = document.getElementById('resumen-chk-presencia')?.checked && presentesAhoraCache !== null;
-
   const grupos = construirResumenDocumentalPorEmpresa(obraFiltroId, soloPresentes ? presentesAhoraCache : null);
 
   if (grupos.length === 0) {
     const ambito = obraFiltroNombre ? ` en ${obraFiltroNombre}` : ' en tus obras asignadas';
-    const filtroPresencia = soloPresentes ? ' entre los presentes ahora' : '';
-    cont.innerHTML = `<div class="vacio">No hay trabajadores en naranja ni rojo${esc(ambito)}${esc(filtroPresencia)}.</div>`;
+    cont.innerHTML = `<div class="vacio">No hay trabajadores en naranja ni rojo${esc(ambito)}.</div>`;
     return;
   }
 
@@ -1647,22 +1526,18 @@ function pintarResumenDocumental() {
     const resumenEstados = [
       totalRojos ? `${totalRojos} en rojo` : '',
       totalNaranjas ? `${totalNaranjas} en naranja` : '',
-      obraFiltroNombre ? obraFiltroNombre : 'todas mis obras'
+      obraFiltroNombre || 'todas mis obras'
     ].filter(Boolean).join(' · ');
 
     return `
       <div class="resumen-empresa">
         <div class="resumen-empresa-cab">
-          <div>
-            <h4>${esc(g.empresa)}</h4>
-            <small>${resumenEstados || 'Sin incidencias documentales'}</small>
-          </div>
+          <div><h4>${esc(g.empresa)}</h4><small>${resumenEstados}</small></div>
           <button type="button" class="btn-copiar" onclick="copiarResumenEmpresa(${idx})">Copiar texto</button>
         </div>
         <textarea class="resumen-textarea" id="resumen-texto-${idx}" readonly>${esc(g.texto)}</textarea>
         <div class="resumen-copiado" id="resumen-copiado-${idx}"></div>
-      </div>
-    `;
+      </div>`;
   }).join('');
 }
 
@@ -1670,90 +1545,63 @@ function cerrarResumenDocumental() {
   document.getElementById('modal-resumen-overlay').classList.remove('abierto');
 }
 
-function abrirResumenNaranja() { abrirResumenDocumental(); }
-function cerrarResumenNaranja() { cerrarResumenDocumental(); }
-
-// presentesIds: null = sin filtro, Set = filtrar por estos IDs
 function construirResumenDocumentalPorEmpresa(obraFiltroId = '', presentesIds = null) {
   const grupos = {};
 
   todosTrabajadores.forEach(t => {
-    // Si hay filtro de presencia, excluir trabajadores no presentes
     if (presentesIds !== null && !presentesIds.has(t.id)) return;
-
     const empresa = t.empresa?.nombre || 'Sin empresa asignada';
-
     (t.obras || []).forEach(o => {
       if (obraFiltroId && o.obra_id !== obraFiltroId) return;
       if (o.estado !== 'naranja' && o.estado !== 'rojo') return;
-
       if (!grupos[empresa]) grupos[empresa] = [];
       grupos[empresa].push({ trabajador: t, obra: o, estado: o.estado });
     });
   });
 
-  const obraFiltroNombre = obraFiltroId
-    ? (misObras.find(o => o.id === obraFiltroId)?.nombre || '')
-    : '';
+  const obraFiltroNombre = obraFiltroId ? (misObras.find(o => o.id === obraFiltroId)?.nombre || '') : '';
 
-  return Object.keys(grupos)
-    .sort((a, b) => a.localeCompare(b, 'es'))
-    .map(empresa => {
-      const items = grupos[empresa].sort((a, b) => {
-        const prioridadA = a.estado === 'rojo' ? 0 : 1;
-        const prioridadB = b.estado === 'rojo' ? 0 : 1;
-        if (prioridadA !== prioridadB) return prioridadA - prioridadB;
-        const obraA = String(a.obra.nombre || '');
-        const obraB = String(b.obra.nombre || '');
-        const cmpObra = obraA.localeCompare(obraB, 'es');
-        if (cmpObra !== 0) return cmpObra;
-        return nombreCompleto(a.trabajador).localeCompare(nombreCompleto(b.trabajador), 'es');
-      });
-      return { empresa, items, texto: generarTextoResumenEmpresa(empresa, items, obraFiltroNombre) };
+  return Object.keys(grupos).sort((a, b) => a.localeCompare(b, 'es')).map(empresa => {
+    const items = grupos[empresa].sort((a, b) => {
+      const pA = a.estado === 'rojo' ? 0 : 1, pB = b.estado === 'rojo' ? 0 : 1;
+      if (pA !== pB) return pA - pB;
+      const cmpObra = String(a.obra.nombre || '').localeCompare(String(b.obra.nombre || ''), 'es');
+      if (cmpObra !== 0) return cmpObra;
+      return nombreCompleto(a.trabajador).localeCompare(nombreCompleto(b.trabajador), 'es');
     });
+    return { empresa, items, texto: generarTextoResumenEmpresa(empresa, items, obraFiltroNombre) };
+  });
 }
 
 function generarTextoResumenEmpresa(empresa, items, obraFiltroNombre = '') {
-  const fecha = new Date().toLocaleDateString('es-ES', {
-    day: '2-digit', month: '2-digit', year: 'numeric'
-  });
-
+  const fecha = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const rojos = items.filter(item => item.estado === 'rojo');
   const naranjas = items.filter(item => item.estado === 'naranja');
-
-  const lineas = [];
-  lineas.push('Buenos días,');
-  lineas.push('');
-  lineas.push(`Os paso el resumen de documentación pendiente en e-Coordina a fecha ${fecha}${obraFiltroNombre ? ` para la obra ${obraFiltroNombre}` : ''}.`);
-  lineas.push('');
+  const lineas = ['Buenos días,', '',
+    `Os paso el resumen de documentación pendiente en e-Coordina a fecha ${fecha}${obraFiltroNombre ? ` para la obra ${obraFiltroNombre}` : ''}.`, ''];
 
   if (rojos.length > 0) {
     lineas.push('TRABAJADORES EN ROJO — ACCESO DENEGADO');
     lineas.push('Estos trabajadores no pueden acceder a obra mientras no se regularice la documentación, salvo autorización expresa y puntual del jefe de obra.');
     lineas.push('');
-    rojos.forEach((item, index) => añadirTrabajadorResumen(lineas, item, index, !obraFiltroNombre));
+    rojos.forEach((item, index) => aniadirTrabajadorResumen(lineas, item, index, !obraFiltroNombre));
   }
 
   if (naranjas.length > 0) {
     lineas.push('TRABAJADORES EN NARANJA — DOCUMENTACIÓN CON AVISOS');
     lineas.push('Estos trabajadores constan con documentación pendiente o con avisos. Os pedimos que lo reviséis y regularicéis cuanto antes para evitar incidencias de acceso en obra.');
     lineas.push('');
-    naranjas.forEach((item, index) => añadirTrabajadorResumen(lineas, item, index, !obraFiltroNombre));
+    naranjas.forEach((item, index) => aniadirTrabajadorResumen(lineas, item, index, !obraFiltroNombre));
   }
 
-  lineas.push('Por favor, cuando lo tengáis corregido, avisadnos para volver a revisarlo.');
-  lineas.push('');
-  lineas.push('Gracias.');
-
+  lineas.push('Por favor, cuando lo tengáis corregido, avisadnos para volver a revisarlo.', '', 'Gracias.');
   return lineas.join('\n');
 }
 
-function añadirTrabajadorResumen(lineas, item, index, mostrarObra = true) {
-  const t = item.trabajador;
-  const o = item.obra;
+function aniadirTrabajadorResumen(lineas, item, index, mostrarObra = true) {
+  const t = item.trabajador, o = item.obra;
   const obraTxt = mostrarObra ? ` — Obra: ${o.nombre || 'sin obra'}` : '';
   lineas.push(`${index + 1}. ${nombreCompleto(t)} — DNI: ${t.dni || 'sin DNI'}${obraTxt}`);
-
   const motivos = extraerListaMotivos(o.motivos).map(limpiarMotivo).filter(Boolean);
   if (motivos.length > 0) {
     motivos.forEach(m => lineas.push(`   - ${m}`));
@@ -1769,12 +1617,9 @@ async function copiarResumenEmpresa(idx) {
   const textarea = document.getElementById(`resumen-texto-${idx}`);
   const aviso = document.getElementById(`resumen-copiado-${idx}`);
   if (!textarea) return;
-
-  const texto = textarea.value;
-
   try {
     if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(texto);
+      await navigator.clipboard.writeText(textarea.value);
     } else {
       textarea.removeAttribute('readonly');
       textarea.select();
@@ -1782,26 +1627,18 @@ async function copiarResumenEmpresa(idx) {
       textarea.setAttribute('readonly', 'readonly');
       window.getSelection()?.removeAllRanges();
     }
-    if (aviso) {
-      aviso.textContent = 'Texto copiado al portapapeles.';
-      setTimeout(() => { aviso.textContent = ''; }, 2500);
-    }
+    if (aviso) { aviso.textContent = 'Texto copiado al portapapeles.'; setTimeout(() => { aviso.textContent = ''; }, 2500); }
   } catch (err) {
-    if (aviso) aviso.textContent = 'No se ha podido copiar automáticamente. Selecciona el texto y cópialo manualmente.';
+    if (aviso) aviso.textContent = 'No se ha podido copiar. Selecciona el texto y cópialo manualmente.';
   }
 }
 
 function limpiarMotivo(motivo) {
-  return String(motivo || '')
-    .replace(/\s*→\s*(verde|naranja|rojo)\s*$/i, '')
-    .trim();
+  return String(motivo || '').replace(/\s*→\s*(verde|naranja|rojo)\s*$/i, '').trim();
 }
 
 function nombreCompleto(t) {
-  const partes = [t.nombre, t.apellidos]
-    .filter(x => x && String(x).trim())
-    .map(x => String(x).trim());
-
+  const partes = [t.nombre, t.apellidos].filter(x => x && String(x).trim()).map(x => String(x).trim());
   return partes.length > 0 ? partes.join(' ') : '(sin nombre)';
 }
 
@@ -1814,8 +1651,7 @@ function extraerListaMotivos(motivos) {
 
 function formatFechaLocal(iso) {
   if (!iso) return '';
-  const d = new Date(iso);
-  return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 function formatearPrecio(valor) {
