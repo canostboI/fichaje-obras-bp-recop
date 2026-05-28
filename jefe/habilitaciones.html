@@ -14,7 +14,6 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
 
-  /* SIDEBAR */
   .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
   .sidebar-brand { padding: 18px 16px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: center; gap: 14px; }
   .sidebar-brand img { height: 22px; width: auto; opacity: 0.9; }
@@ -27,41 +26,44 @@
   .btn-salir { width: 100%; background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 8px; transition: background 0.15s, color 0.15s; }
   .btn-salir:hover { background: var(--bg3); color: var(--texto); }
 
-  /* MAIN */
   .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
-  .topbar { padding: 20px 28px 8px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar { padding: 20px 28px 8px; }
   .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
   .subtitulo { padding: 0 28px 18px; color: var(--texto2); font-size: 14px; }
   .contenido { padding: 0 28px 28px; }
 
-  /* SELECTOR OBRA */
   .filtro-obra { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
   .filtro-obra label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--texto2); white-space: nowrap; }
   .filtro-obra select { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 8px 12px; font-family: inherit; min-width: 260px; }
   .filtro-obra select:focus { outline: none; border-color: var(--azul); }
 
-  /* LAYOUT DOS COLUMNAS */
   .dos-columnas { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
 
-  /* SECCIONES */
   .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; margin-bottom: 20px; }
   .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; }
   .seccion-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
   .seccion-body { padding: 16px 20px; }
 
-  /* BUSCADOR */
-  .buscador-wrap { display: flex; gap: 10px; margin-bottom: 14px; }
-  .buscador-wrap input { flex: 1; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 13px; font-family: inherit; }
-  .buscador-wrap input:focus { outline: none; border-color: var(--azul); }
-  .buscador-wrap input::placeholder { color: var(--texto2); }
-
-  /* LISTA TRABAJADORES */
-  .tw-lista { display: flex; flex-direction: column; gap: 4px; max-height: 420px; overflow-y: auto; }
+  /* LISTA CON HABILITACIONES */
+  .tw-lista { display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow-y: auto; }
   .tw-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 13px; border: 1px solid var(--borde); border-radius: 8px; cursor: pointer; transition: background 0.12s, border-color 0.12s; }
   .tw-item:hover { background: var(--bg3); }
   .tw-item.seleccionado { background: var(--bg3); border-color: var(--azul); }
   .tw-nombre { font-size: 14px; font-weight: 600; }
   .tw-sub { font-size: 12px; color: var(--texto2); margin-top: 2px; }
+  .tw-habs-badges { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tw-hab-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; white-space: nowrap; }
+  .tw-hab-badge.caducada      { background: rgba(244,67,54,0.15);   color: var(--rojo); }
+  .tw-hab-badge.proxima       { background: rgba(255,193,7,0.15);   color: var(--amarillo); }
+  .tw-hab-badge.vigente       { background: rgba(76,175,80,0.15);   color: var(--verde); }
+  .tw-hab-badge.sin_caducidad { background: rgba(139,144,158,0.15); color: var(--texto2); }
+
+  /* BUSCADOR */
+  .buscador-wrap { display: flex; gap: 10px; margin-bottom: 10px; }
+  .buscador-wrap input { flex: 1; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 13px; font-family: inherit; }
+  .buscador-wrap input:focus { outline: none; border-color: var(--azul); }
+  .buscador-wrap input::placeholder { color: var(--texto2); }
+  .buscar-hint { font-size: 12px; color: var(--texto2); margin-bottom: 10px; }
 
   /* PANEL TRABAJADOR */
   #panel-trabajador { display: none; }
@@ -69,7 +71,6 @@
   .tw-encabezado .nombre { font-size: 16px; font-weight: 800; }
   .tw-encabezado .sub { font-size: 13px; color: var(--texto2); margin-top: 3px; }
 
-  /* HABILITACIONES */
   .hab-lista { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
   .hab-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 13px; border: 1px solid var(--borde); border-radius: 8px; background: var(--bg3); gap: 10px; flex-wrap: wrap; }
   .hab-item.vigente       { border-left: 3px solid var(--verde); }
@@ -86,18 +87,15 @@
   .badge.caducada       { background: rgba(244,67,54,0.15);   color: var(--rojo); }
   .badge.sin_caducidad  { background: rgba(139,144,158,0.15); color: var(--texto2); }
 
-  /* FORM AÑADIR */
   .form-anadir { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
   .form-anadir label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--texto2); display: block; margin-bottom: 4px; }
   .form-anadir select, .form-anadir input[type="date"] { width: 100%; background: var(--bg2); border: 1px solid var(--borde); border-radius: 6px; color: var(--texto); font-size: 13px; padding: 8px 10px; font-family: inherit; }
   .form-anadir select:focus, .form-anadir input[type="date"]:focus { outline: none; border-color: var(--azul); }
 
-  /* CATÁLOGO (solo lectura) */
   .tipo-lista { display: flex; flex-direction: column; gap: 4px; }
   .tipo-item { display: flex; align-items: center; padding: 9px 13px; border: 1px solid var(--borde); border-radius: 8px; }
   .tipo-nombre { font-size: 13px; font-weight: 500; }
 
-  /* BOTONES */
   .btn { border: none; border-radius: 6px; cursor: pointer; font-family: inherit; font-weight: 600; transition: opacity 0.15s; }
   .btn:hover { opacity: 0.85; }
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -107,13 +105,14 @@
   .btn-peligro    { background: transparent; color: var(--rojo); border: 1px solid rgba(244,67,54,0.35); padding: 5px 10px; font-size: 12px; }
   .btn-peligro:hover { background: rgba(244,67,54,0.1); }
 
-  /* MENSAJES */
   .mensaje { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; display: none; }
   .mensaje.ok  { background: rgba(76,175,80,0.12);  color: var(--verde); border: 1px solid rgba(76,175,80,0.3); }
   .mensaje.err { background: rgba(244,67,54,0.12);  color: var(--rojo);  border: 1px solid rgba(244,67,54,0.3); }
 
-  .vacio    { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
-  .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+  .vacio    { padding: 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+  .cargando { padding: 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+
+  .separador { border: none; border-top: 1px solid var(--borde); margin: 14px 0; }
 </style>
 <script src="../js/auto-logout.js"></script>
 </head>
@@ -144,7 +143,6 @@
 
   <div class="contenido">
 
-    <!-- SELECTOR DE OBRA -->
     <div class="filtro-obra">
       <label>Obra</label>
       <select id="sel-obra">
@@ -154,18 +152,25 @@
 
     <div class="dos-columnas">
 
-      <!-- COLUMNA IZQUIERDA: buscar + habilitaciones -->
+      <!-- COLUMNA IZQUIERDA -->
       <div>
-        <!-- Buscar trabajador -->
+
+        <!-- Trabajadores con habilitaciones -->
         <div class="seccion">
-          <div class="seccion-cab"><h2>🔍 Buscar trabajador</h2></div>
+          <div class="seccion-cab">
+            <h2>🏗️ Con habilitaciones</h2>
+            <span id="count-habilitados" style="font-size:12px;color:var(--texto2);"></span>
+          </div>
           <div class="seccion-body">
-            <div class="buscador-wrap">
-              <input type="text" id="input-buscar" placeholder="Nombre, apellidos o DNI…" autocomplete="off" />
+            <div class="tw-lista" id="lista-habilitados">
+              <div class="vacio">Selecciona una obra.</div>
             </div>
-            <div class="tw-lista" id="lista-trabajadores">
-              <div class="vacio" style="padding:12px">Selecciona una obra para buscar trabajadores.</div>
+            <hr class="separador">
+            <div class="buscador-wrap" style="margin-bottom:6px;">
+              <input type="text" id="input-buscar" placeholder="Buscar cualquier trabajador de la obra…" autocomplete="off" />
             </div>
+            <div class="buscar-hint">Escribe al menos 2 caracteres para buscar.</div>
+            <div class="tw-lista" id="lista-trabajadores"></div>
           </div>
         </div>
 
@@ -180,13 +185,10 @@
               <div class="nombre" id="tw-nombre"></div>
               <div class="sub" id="tw-sub"></div>
             </div>
-
             <div id="msg-hab" class="mensaje"></div>
             <div class="hab-lista" id="lista-habilitaciones">
               <div class="cargando">Cargando…</div>
             </div>
-
-            <!-- Formulario añadir -->
             <div class="form-anadir">
               <div>
                 <label>Tipo de habilitación</label>
@@ -204,7 +206,7 @@
         </div>
       </div>
 
-      <!-- COLUMNA DERECHA: catálogo de tipos (solo consulta) -->
+      <!-- COLUMNA DERECHA: catálogo solo lectura -->
       <div>
         <div class="seccion">
           <div class="seccion-cab"><h2>📋 Tipos de habilitación</h2></div>
@@ -230,11 +232,11 @@ AutoLogout.init(sb);
 let tiposCache = [];
 let trabajadorActual = null;
 let obraActualId = null;
-let trabajadoresObraIds = new Set(); // IDs de trabajadores en la obra seleccionada
+let trabajadoresObraIds = new Set();
 let buscarTimeout = null;
 let usuarioAppId = null;
 
-// ── INIT ─────────────────────────────────────────────────────────
+// ── INIT ──────────────────────────────────────────────────────────
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { location.href = '../index.html'; return; }
@@ -276,7 +278,6 @@ async function cargarObras() {
   sel.innerHTML = '<option value="">— Selecciona una obra —</option>' +
     obras.map(o => `<option value="${o.id}">${esc(o.nombre)}</option>`).join('');
 
-  // Restaurar obra activa desde localStorage si existe
   const guardada = localStorage.getItem('jefe_obra_activa_id');
   if (guardada && obras.some(o => o.id === guardada)) {
     sel.value = guardada;
@@ -285,56 +286,97 @@ async function cargarObras() {
 }
 
 async function onCambioObra() {
-  const sel = document.getElementById('sel-obra');
-  obraActualId = sel.value || null;
+  obraActualId = document.getElementById('sel-obra').value || null;
   cerrarPanel();
-  limpiarBusqueda();
+  document.getElementById('input-buscar').value = '';
+  document.getElementById('lista-trabajadores').innerHTML = '';
 
   if (!obraActualId) {
-    document.getElementById('lista-trabajadores').innerHTML =
-      '<div class="vacio" style="padding:12px">Selecciona una obra para buscar trabajadores.</div>';
+    document.getElementById('lista-habilitados').innerHTML = '<div class="vacio">Selecciona una obra.</div>';
+    document.getElementById('count-habilitados').textContent = '';
     trabajadoresObraIds = new Set();
     return;
   }
 
-  // Guardar en localStorage para sincronizar con otras páginas del jefe
   localStorage.setItem('jefe_obra_activa_id', obraActualId);
 
-  // Cargar IDs de trabajadores de esta obra (via validaciones_obra)
-  const { data } = await sb
+  // Cargar IDs de trabajadores de la obra
+  const { data: valData } = await sb
     .from('validaciones_obra')
     .select('trabajador_id')
     .eq('obra_id', obraActualId);
-  trabajadoresObraIds = new Set((data || []).map(r => r.trabajador_id));
+  trabajadoresObraIds = new Set((valData || []).map(r => r.trabajador_id));
 
-  document.getElementById('lista-trabajadores').innerHTML =
-    '<div class="vacio" style="padding:12px">Escribe al menos 2 caracteres para buscar.</div>';
+  await cargarHabilitados();
 }
 
-// ── TIPOS ─────────────────────────────────────────────────────────
-async function cargarTipos() {
-  const { data, error } = await sb.from('tipos_habilitacion')
-    .select('*').eq('activo', true).order('nombre');
-  if (error) return;
-  tiposCache = data || [];
-  renderTipos();
-  renderSelectTipos();
+// ── TRABAJADORES CON HABILITACIONES ──────────────────────────────
+async function cargarHabilitados() {
+  const el = document.getElementById('lista-habilitados');
+  el.innerHTML = '<div class="cargando">Cargando…</div>';
+
+  if (!trabajadoresObraIds.size) {
+    el.innerHTML = '<div class="vacio">Sin trabajadores en esta obra.</div>';
+    document.getElementById('count-habilitados').textContent = '';
+    return;
+  }
+
+  // Obtener habilitaciones activas de todos los trabajadores de la obra
+  const { data, error } = await sb
+    .from('habilitaciones_trabajador')
+    .select('trabajador_id, tipo:tipo_habilitacion_id(nombre), fecha_caducidad, activo')
+    .in('trabajador_id', [...trabajadoresObraIds])
+    .eq('activo', true);
+
+  if (error) { el.innerHTML = `<div class="vacio">Error: ${esc(error.message)}</div>`; return; }
+
+  // Agrupar por trabajador
+  const porTrabajador = {};
+  (data || []).forEach(h => {
+    if (!porTrabajador[h.trabajador_id]) porTrabajador[h.trabajador_id] = [];
+    const estado = calcularEstado(h.fecha_caducidad);
+    porTrabajador[h.trabajador_id].push({ nombre: h.tipo?.nombre || '?', estado });
+  });
+
+  const ids = Object.keys(porTrabajador);
+  if (!ids.length) {
+    el.innerHTML = '<div class="vacio">Ningún trabajador tiene habilitaciones todavía.</div>';
+    document.getElementById('count-habilitados').textContent = '';
+    return;
+  }
+
+  // Obtener nombres de esos trabajadores
+  const { data: twData } = await sb
+    .from('trabajadores')
+    .select('id, nombre, apellidos, dni, empresa:empresa_id(nombre)')
+    .in('id', ids)
+    .order('apellidos');
+
+  document.getElementById('count-habilitados').textContent = (twData || []).length + ' trabajadores';
+
+  el.innerHTML = (twData || []).map(t => {
+    const habs = porTrabajador[t.id] || [];
+    const badges = habs.map(h => `<span class="tw-hab-badge ${h.estado}">${esc(h.nombre)}</span>`).join('');
+    return `
+      <div class="tw-item ${trabajadorActual?.id === t.id ? 'seleccionado' : ''}"
+           onclick="seleccionar('${t.id}','${escAttr(t.nombre + ' ' + t.apellidos)}','${escAttr(t.dni)}','${escAttr(t.empresa?.nombre || '')}', event)">
+        <div style="flex:1;min-width:0;">
+          <div class="tw-nombre">🏗️ ${esc(t.nombre)} ${esc(t.apellidos)}</div>
+          <div class="tw-sub">${esc(t.dni)} · ${esc(t.empresa?.nombre || 'Sin empresa')}</div>
+          <div class="tw-habs-badges" style="margin-top:5px;">${badges}</div>
+        </div>
+      </div>`;
+  }).join('');
 }
 
-function renderTipos() {
-  const el = document.getElementById('lista-tipos');
-  if (!tiposCache.length) { el.innerHTML = '<div class="vacio">No hay tipos configurados.</div>'; return; }
-  el.innerHTML = tiposCache.map(t => `
-    <div class="tipo-item">
-      <span class="tipo-nombre">🏗️ ${esc(t.nombre)}</span>
-    </div>
-  `).join('');
-}
-
-function renderSelectTipos() {
-  const sel = document.getElementById('sel-tipo');
-  sel.innerHTML = '<option value="">Selecciona un tipo…</option>' +
-    tiposCache.map(t => `<option value="${t.id}">${esc(t.nombre)}</option>`).join('');
+function calcularEstado(fecha_caducidad) {
+  if (!fecha_caducidad) return 'sin_caducidad';
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const cad = new Date(fecha_caducidad + 'T00:00:00');
+  if (cad < hoy) return 'caducada';
+  const pronto = new Date(hoy); pronto.setDate(pronto.getDate() + 30);
+  if (cad <= pronto) return 'proxima';
+  return 'vigente';
 }
 
 // ── BÚSQUEDA ──────────────────────────────────────────────────────
@@ -342,18 +384,11 @@ async function buscarTrabajadores() {
   const q = document.getElementById('input-buscar').value.trim();
   const el = document.getElementById('lista-trabajadores');
 
-  if (!obraActualId) {
-    el.innerHTML = '<div class="vacio" style="padding:12px">Selecciona una obra primero.</div>';
-    return;
-  }
-  if (q.length < 2) {
-    el.innerHTML = '<div class="vacio" style="padding:12px">Escribe al menos 2 caracteres para buscar.</div>';
-    return;
-  }
+  if (!obraActualId) { el.innerHTML = ''; return; }
+  if (q.length < 2) { el.innerHTML = ''; return; }
 
   el.innerHTML = '<div class="cargando">Buscando…</div>';
 
-  // Buscar por nombre/apellidos/DNI filtrando solo trabajadores de esta obra
   const { data, error } = await sb.from('trabajadores')
     .select('id, nombre, apellidos, dni, empresa:empresa_id(nombre)')
     .or(`nombre.ilike.%${q}%,apellidos.ilike.%${q}%,dni.ilike.%${q}%`)
@@ -363,9 +398,7 @@ async function buscarTrabajadores() {
 
   if (error) { el.innerHTML = `<div class="vacio">Error: ${esc(error.message)}</div>`; return; }
 
-  // Filtrar solo los que pertenecen a esta obra
   const filtrados = (data || []).filter(t => trabajadoresObraIds.has(t.id));
-
   if (!filtrados.length) { el.innerHTML = '<div class="vacio">Sin resultados en esta obra.</div>'; return; }
 
   el.innerHTML = filtrados.map(t => `
@@ -375,15 +408,8 @@ async function buscarTrabajadores() {
         <div class="tw-nombre">${esc(t.nombre)} ${esc(t.apellidos)}</div>
         <div class="tw-sub">${esc(t.dni)} · ${esc(t.empresa?.nombre || 'Sin empresa')}</div>
       </div>
-      ${trabajadorActual?.id === t.id ? '<span style="color:var(--azul);font-size:11px;font-weight:700;">● Activo</span>' : ''}
     </div>
   `).join('');
-}
-
-function limpiarBusqueda() {
-  document.getElementById('input-buscar').value = '';
-  document.getElementById('lista-trabajadores').innerHTML =
-    '<div class="vacio" style="padding:12px">Escribe al menos 2 caracteres para buscar.</div>';
 }
 
 // ── PANEL TRABAJADOR ──────────────────────────────────────────────
@@ -463,6 +489,7 @@ async function anadirHabilitacion() {
   const msgs = { creada: 'Habilitación añadida.', reactivada: 'Habilitación reactivada.', actualizada: 'Fecha actualizada.' };
   msgHab(msgs[res.accion] || 'Guardado.', 'ok');
   await cargarHabilitaciones(trabajadorActual.id);
+  await cargarHabilitados(); // refrescar lista superior
 }
 
 async function quitarHabilitacion(tipoId, tipoNombre) {
@@ -477,6 +504,7 @@ async function quitarHabilitacion(tipoId, tipoNombre) {
   if (res.error) { msgHab('Error: ' + res.error, 'err'); return; }
   msgHab('Habilitación eliminada.', 'ok');
   await cargarHabilitaciones(trabajadorActual.id);
+  await cargarHabilitados(); // refrescar lista superior
 }
 
 async function editarFecha(tipoId, fechaActual, tipoNombre) {
@@ -495,6 +523,22 @@ async function editarFecha(tipoId, fechaActual, tipoNombre) {
   if (res.error) { msgHab('Error: ' + res.error, 'err'); return; }
   msgHab('Fecha actualizada.', 'ok');
   await cargarHabilitaciones(trabajadorActual.id);
+  await cargarHabilitados();
+}
+
+// ── TIPOS ─────────────────────────────────────────────────────────
+async function cargarTipos() {
+  const { data } = await sb.from('tipos_habilitacion')
+    .select('*').eq('activo', true).order('nombre');
+  tiposCache = data || [];
+  const el = document.getElementById('lista-tipos');
+  if (!tiposCache.length) { el.innerHTML = '<div class="vacio">No hay tipos configurados.</div>'; return; }
+  el.innerHTML = tiposCache.map(t => `
+    <div class="tipo-item"><span class="tipo-nombre">🏗️ ${esc(t.nombre)}</span></div>
+  `).join('');
+  const sel = document.getElementById('sel-tipo');
+  sel.innerHTML = '<option value="">Selecciona un tipo…</option>' +
+    tiposCache.map(t => `<option value="${t.id}">${esc(t.nombre)}</option>`).join('');
 }
 
 // ── UTILIDADES ────────────────────────────────────────────────────
@@ -505,7 +549,6 @@ function formatFecha(iso) {
 }
 function esc(s) { const d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; }
 function escAttr(s) { return String(s || '').replace(/'/g, "\\'"); }
-
 function msgHab(txt, tipo) {
   const el = document.getElementById('msg-hab');
   el.textContent = txt;
