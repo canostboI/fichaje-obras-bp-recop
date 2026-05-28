@@ -73,7 +73,6 @@
   .vacio { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
 
-  /* Panel avisos bloqueos rojos */
   .panel-bloqueos { background: rgba(244,67,54,0.08); border: 1px solid rgba(244,67,54,0.4); border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; }
   .panel-bloqueos.oculto { display: none; }
   .panel-bloqueos h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--rojo); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
@@ -87,7 +86,6 @@
   .btn-visto-rojo:hover { background: var(--bg3); }
   .btn-visto-rojo:disabled { opacity: 0.5; cursor: default; }
 
-  /* Panel avisos autocierre */
   .panel-avisos { background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.4); border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; }
   .panel-avisos.oculto { display: none; }
   .panel-avisos h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--naranja); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
@@ -101,29 +99,11 @@
   .btn-visto:hover { background: var(--bg3); }
   .btn-visto:disabled { opacity: 0.5; cursor: default; }
 
-  /* Banner confirmación encargado */
-  .banner-ronda {
-    border-radius: 10px;
-    padding: 13px 18px;
-    margin-bottom: 20px;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .banner-ronda.confirmado {
-    background: rgba(76,175,80,0.1);
-    border: 1px solid rgba(76,175,80,0.35);
-    color: var(--verde);
-  }
-  .banner-ronda.pendiente {
-    background: rgba(139,144,158,0.08);
-    border: 1px solid var(--borde);
-    color: var(--texto2);
-  }
+  .banner-ronda { border-radius: 10px; padding: 13px 18px; margin-bottom: 20px; font-size: 14px; display: flex; align-items: center; gap: 10px; }
+  .banner-ronda.confirmado { background: rgba(76,175,80,0.1); border: 1px solid rgba(76,175,80,0.35); color: var(--verde); }
+  .banner-ronda.pendiente { background: rgba(139,144,158,0.08); border: 1px solid var(--borde); color: var(--texto2); }
   .banner-ronda.oculto { display: none; }
 
-  /* Modal QR */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
   .modal-overlay.visible { display: flex; }
   .modal-qr { background: white; color: #111; border-radius: 14px; padding: 32px; max-width: 380px; width: 90%; text-align: center; }
@@ -134,12 +114,7 @@
   .btn-imprimir { background: #111318; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; }
   .btn-cerrar-modal { background: #f1f5f9; color: #333; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; }
 
-  /* Modal Motivos */
-  .modal-motivos {
-    background: var(--bg2); color: var(--texto); border: 1px solid var(--borde);
-    border-radius: 14px; padding: 24px; max-width: 480px; width: 90%;
-    max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-  }
+  .modal-motivos { background: var(--bg2); color: var(--texto); border: 1px solid var(--borde); border-radius: 14px; padding: 24px; max-width: 480px; width: 90%; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
   .modal-motivos-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
   .modal-motivos-cab h3 { font-size: 17px; font-weight: 700; line-height: 1.3; }
   .modal-motivos-sub { font-size: 13px; color: var(--texto2); margin-bottom: 18px; }
@@ -150,12 +125,7 @@
   .btn-cerrar-motivos { background: var(--bg3); color: var(--texto); border: 1px solid var(--borde); padding: 9px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; font-family: inherit; }
   .btn-cerrar-motivos:hover { background: var(--borde); }
 
-  /* Modal accesos denegados */
-  .modal-accesos {
-    background: var(--bg2); color: var(--texto); border: 1px solid var(--borde);
-    border-radius: 14px; padding: 24px; max-width: 720px; width: 92%;
-    max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-  }
+  .modal-accesos { background: var(--bg2); color: var(--texto); border: 1px solid var(--borde); border-radius: 14px; padding: 24px; max-width: 720px; width: 92%; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
   .modal-accesos-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 6px; }
   .modal-accesos-cab h3 { font-size: 18px; font-weight: 800; line-height: 1.25; }
   .modal-accesos-sub { color: var(--texto2); font-size: 13px; margin-bottom: 16px; }
@@ -174,22 +144,11 @@
   .acceso-motivos { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
   .acceso-motivo-item { background: rgba(244,67,54,0.07); border: 1px solid rgba(244,67,54,0.2); border-radius: 6px; padding: 6px 10px; font-size: 13px; color: var(--texto); line-height: 1.4; }
 
-  /* Banner de conexión */
-  .conexion-banner {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
-    padding: 10px 20px; text-align: center; font-size: 14px; font-weight: 600;
-    color: white; background: var(--rojo); box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-    transform: translateY(0); transition: transform 0.3s ease, background 0.3s ease;
-  }
+  .conexion-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 200; padding: 10px 20px; text-align: center; font-size: 14px; font-weight: 600; color: white; background: var(--rojo); box-shadow: 0 2px 10px rgba(0,0,0,0.3); transform: translateY(0); transition: transform 0.3s ease, background 0.3s ease; }
   .conexion-banner.oculto { transform: translateY(-100%); }
   .conexion-banner.online { background: var(--verde); }
 
-  /* Modal Foto de obra */
-  .modal-foto {
-    background: var(--bg2); color: var(--texto); border: 1px solid var(--borde);
-    border-radius: 14px; padding: 24px; max-width: 460px; width: 92%;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-  }
+  .modal-foto { background: var(--bg2); color: var(--texto); border: 1px solid var(--borde); border-radius: 14px; padding: 24px; max-width: 460px; width: 92%; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
   .modal-foto-cab { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
   .modal-foto-cab h3 { font-size: 17px; font-weight: 700; }
   .modal-foto-preview { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; border: 1px solid var(--borde); margin-bottom: 16px; display: none; background: var(--bg3); }
@@ -209,43 +168,13 @@
   .btn-cerrar-foto { background: var(--bg3); color: var(--texto); border: 1px solid var(--borde); padding: 9px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; font-family: inherit; }
   .btn-cerrar-foto:hover { background: var(--borde); }
 
-  /* Banner sin Recurso Preventivo (RP-4) */
-  .banner-sin-rp {
-    background: rgba(255,193,7,0.1);
-    border: 1px solid rgba(255,193,7,0.45);
-    border-radius: 10px;
-    padding: 13px 18px;
-    margin-bottom: 20px;
-    font-size: 14px;
-    color: #ffc107;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
+  .banner-sin-rp { background: rgba(255,193,7,0.1); border: 1px solid rgba(255,193,7,0.45); border-radius: 10px; padding: 13px 18px; margin-bottom: 20px; font-size: 14px; color: #ffc107; display: flex; align-items: center; gap: 10px; }
   .banner-sin-rp.oculto { display: none; }
   .banner-sin-rp a { color: #ffc107; text-decoration: underline; cursor: pointer; }
 
-  /* Banner RP con formación 60h problemática (RP-5) */
-  .banner-rp-formacion {
-    border-radius: 10px;
-    padding: 13px 18px;
-    margin-bottom: 20px;
-    font-size: 14px;
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    flex-direction: column;
-  }
-  .banner-rp-formacion.amarillo {
-    background: rgba(255,193,7,0.1);
-    border: 1px solid rgba(255,193,7,0.45);
-    color: #ffc107;
-  }
-  .banner-rp-formacion.rojo {
-    background: rgba(244,67,54,0.08);
-    border: 1px solid rgba(244,67,54,0.4);
-    color: var(--rojo);
-  }
+  .banner-rp-formacion { border-radius: 10px; padding: 13px 18px; margin-bottom: 20px; font-size: 14px; display: flex; align-items: flex-start; gap: 10px; flex-direction: column; }
+  .banner-rp-formacion.amarillo { background: rgba(255,193,7,0.1); border: 1px solid rgba(255,193,7,0.45); color: #ffc107; }
+  .banner-rp-formacion.rojo { background: rgba(244,67,54,0.08); border: 1px solid rgba(244,67,54,0.4); color: var(--rojo); }
   .banner-rp-formacion.oculto { display: none; }
   .banner-rp-formacion ul { margin: 4px 0 0 18px; font-size: 13px; }
   .banner-rp-formacion li { margin-bottom: 2px; }
@@ -253,7 +182,6 @@
 </head>
 <body>
 
-<!-- Banner de conexión -->
 <div id="conexion-banner" class="conexion-banner oculto">
   <span id="conexion-banner-texto">⚠ Sin conexión — Los datos pueden estar desactualizados</span>
 </div>
@@ -268,6 +196,7 @@
   <div class="sidebar-section">Gestión</div>
   <a href="fichajes.html"><span class="ico">🕐</span> Fichajes</a>
   <a href="trabajadores.html"><span class="ico">👥</span> Trabajadores</a>
+  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
   <a href="documentos-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
   <div class="sidebar-bottom">
     <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
@@ -290,37 +219,26 @@
     </div>
   </div>
   <div class="contenido">
-    <!-- Banner sin Recurso Preventivo (RP-4) -->
     <div class="banner-sin-rp oculto" id="banner-sin-rp">
       ⚠ Esta obra no tiene ningún Recurso Preventivo designado.
       <a onclick="irATrabaladoresRP()">Designar desde Trabajadores →</a>
     </div>
-
-        <!-- Banner RP con formación 60h problemática (RP-5) -->
     <div class="banner-rp-formacion oculto" id="banner-rp-formacion"></div>
-
-        <div class="stats">
+    <div class="stats">
       <div class="stat"><div class="numero verde" id="stat-dentro">—</div><div class="etiqueta">En obra ahora</div></div>
       <div class="stat stat-clickable naranja-hover" id="card-naranjas" role="button" tabindex="0" title="Ver trabajadores presentes con documentación naranja"><div class="numero naranja" id="stat-naranja">—</div><div class="etiqueta">Documentación naranja</div></div>
       <div class="stat stat-clickable rojo-hover" id="card-rojos" role="button" tabindex="0" title="Ver detalle de accesos denegados"><div class="numero rojo" id="stat-rojo">—</div><div class="etiqueta">Accesos denegados hoy</div></div>
     </div>
     <div style="height:20px"></div>
-
-    <!-- Panel bloqueos rojos -->
     <div class="panel-bloqueos oculto" id="panel-bloqueos">
       <h3>🚫 <span id="bloqueos-titulo">Accesos denegados hoy</span></h3>
       <div id="bloqueos-lista"></div>
     </div>
-
-    <!-- Panel de avisos de autocierre -->
     <div class="panel-avisos oculto" id="panel-avisos">
       <h3>⚠️ <span id="avisos-titulo">Jornadas cerradas automáticamente</span></h3>
       <div id="avisos-lista"></div>
     </div>
-
-    <!-- Banner confirmación encargado -->
     <div class="banner-ronda oculto" id="banner-ronda"></div>
-
     <div class="seccion">
       <div class="seccion-cab">
         <h2>Trabajadores en obra ahora</h2>
@@ -428,6 +346,28 @@ let naranjasActualesCache = [];
 let estaOffline = false;
 let timeoutBannerOnline = null;
 
+// ── H-6: Diccionario de iconos de habilitación (global) ──
+const ICONOS_HAB = [
+  { clave: 'movimiento de tierras', icono: '🚜' },
+  { clave: 'dumper',                icono: '🚛' },
+  { clave: 'grúa torre',            icono: '🏗️' },
+  { clave: 'grua torre',            icono: '🏗️' },
+  { clave: 'plataforma elevadora',  icono: '🛗' },
+  { clave: 'carretilla elevadora',  icono: '🛺' },
+  { clave: 'toro',                  icono: '🛺' },
+  { clave: 'andamio',               icono: '🪜' },
+  { clave: 'altura con arnés',      icono: '🧗' },
+  { clave: 'arnes',                 icono: '🧗' },
+  { clave: 'eléctrico',             icono: '⚡' },
+  { clave: 'electrico',             icono: '⚡' },
+  { clave: 'eléctrica',             icono: '⚡' },
+];
+function iconoHab(nombre) {
+  const n = (nombre || '').toLowerCase();
+  for (const { clave, icono } of ICONOS_HAB) { if (n.includes(clave)) return icono; }
+  return '🔧';
+}
+
 function marcarOffline() {
   if (estaOffline) return;
   estaOffline = true;
@@ -473,7 +413,6 @@ if (cardRojos) {
   });
 }
 
-// ── Fondo foto obra ──
 function aplicarFotoFondo(fotoUrl) {
   if (fotoUrl) {
     document.body.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.82), rgba(0,0,0,0.82)), url('${fotoUrl}')`;
@@ -482,7 +421,6 @@ function aplicarFotoFondo(fotoUrl) {
   }
 }
 
-// ── Modal foto ──
 function abrirModalFoto() {
   const preview = document.getElementById('foto-preview');
   const sinFoto = document.getElementById('foto-sin-foto');
@@ -490,7 +428,6 @@ function abrirModalFoto() {
   document.getElementById('foto-estado').textContent = '';
   document.getElementById('foto-estado').className = 'modal-foto-estado';
   document.getElementById('btn-subir-foto').disabled = false;
-
   if (fotoUrlActual) {
     preview.src = fotoUrlActual;
     preview.classList.add('visible');
@@ -500,7 +437,6 @@ function abrirModalFoto() {
     preview.classList.remove('visible');
     sinFoto.classList.remove('oculto');
   }
-
   document.getElementById('modal-foto-overlay').classList.add('visible');
 }
 
@@ -512,65 +448,29 @@ async function subirFotoObra() {
   const input = document.getElementById('foto-input');
   const estado = document.getElementById('foto-estado');
   const btn = document.getElementById('btn-subir-foto');
-
   const archivo = input.files[0];
-  if (!archivo) {
-    estado.textContent = 'Selecciona una imagen primero.';
-    estado.className = 'modal-foto-estado error';
-    return;
-  }
-  if (archivo.size > 3 * 1024 * 1024) {
-    estado.textContent = 'La imagen supera el límite de 3 MB.';
-    estado.className = 'modal-foto-estado error';
-    return;
-  }
-
+  if (!archivo) { estado.textContent = 'Selecciona una imagen primero.'; estado.className = 'modal-foto-estado error'; return; }
+  if (archivo.size > 3 * 1024 * 1024) { estado.textContent = 'La imagen supera el límite de 3 MB.'; estado.className = 'modal-foto-estado error'; return; }
   btn.disabled = true;
   estado.textContent = 'Subiendo…';
   estado.className = 'modal-foto-estado';
-
   const ext = archivo.name.split('.').pop().toLowerCase();
   const rutaArchivo = `${obraActual}.${ext}`;
-
-  const { error: errorUpload } = await sb.storage
-    .from('obras-fotos')
-    .upload(rutaArchivo, archivo, { upsert: true, contentType: archivo.type });
-
-  if (errorUpload) {
-    estado.textContent = 'Error al subir: ' + errorUpload.message;
-    estado.className = 'modal-foto-estado error';
-    btn.disabled = false;
-    return;
-  }
-
-  const { data: urlData } = sb.storage
-    .from('obras-fotos')
-    .getPublicUrl(rutaArchivo);
-
+  const { error: errorUpload } = await sb.storage.from('obras-fotos').upload(rutaArchivo, archivo, { upsert: true, contentType: archivo.type });
+  if (errorUpload) { estado.textContent = 'Error al subir: ' + errorUpload.message; estado.className = 'modal-foto-estado error'; btn.disabled = false; return; }
+  const { data: urlData } = sb.storage.from('obras-fotos').getPublicUrl(rutaArchivo);
   const nuevaUrl = urlData.publicUrl;
-
-  const { data: rpcData, error: errorUpdate } = await sb
-    .rpc('actualizar_foto_obra', { p_obra_id: obraActual, p_foto_url: nuevaUrl });
-
-  if (errorUpdate || rpcData?.error) {
-    estado.textContent = 'Error al guardar en BD: ' + (errorUpdate?.message || rpcData?.error);
-    estado.className = 'modal-foto-estado error';
-    btn.disabled = false;
-    return;
-  }
-
+  const { data: rpcData, error: errorUpdate } = await sb.rpc('actualizar_foto_obra', { p_obra_id: obraActual, p_foto_url: nuevaUrl });
+  if (errorUpdate || rpcData?.error) { estado.textContent = 'Error al guardar en BD: ' + (errorUpdate?.message || rpcData?.error); estado.className = 'modal-foto-estado error'; btn.disabled = false; return; }
   fotoUrlActual = nuevaUrl;
   aplicarFotoFondo(nuevaUrl);
-
   const selector = document.getElementById('selector-obra');
   const optActual = selector.options[selector.selectedIndex];
   if (optActual) optActual.dataset.fotoUrl = nuevaUrl;
-
   const preview = document.getElementById('foto-preview');
   preview.src = nuevaUrl;
   preview.classList.add('visible');
   document.getElementById('foto-sin-foto').classList.add('oculto');
-
   estado.textContent = '✓ Foto aplicada correctamente.';
   estado.className = 'modal-foto-estado ok';
   btn.disabled = false;
@@ -648,75 +548,48 @@ document.getElementById('modal-foto-overlay').addEventListener('click', e => {
   });
 })();
 
-
-// ── RP-4: Aviso si la obra no tiene Recurso Preventivo designado ──
 async function comprobarRP() {
   const bannerSinRP = document.getElementById('banner-sin-rp');
   const bannerFormacion = document.getElementById('banner-rp-formacion');
-
-  // Ocultar ambos por defecto
   bannerSinRP.classList.add('oculto');
   bannerFormacion.classList.add('oculto');
   bannerFormacion.className = 'banner-rp-formacion oculto';
-
   if (!obraActual) return;
-
   try {
-    // Cargar RPs activos de la obra
     const { data: rps, error } = await sb
       .from('recursos_preventivos_obra')
       .select('trabajador_id, trabajador:trabajador_id(id, nombre, apellidos)')
       .eq('obra_id', obraActual)
       .eq('activo', true);
-
     if (error) return;
-
-    // RP-4: sin ningún RP designado
-    if (!rps || rps.length === 0) {
-      bannerSinRP.classList.remove('oculto');
-      return;
-    }
-
-    // RP-5: comprobar formación 60h de cada RP
+    if (!rps || rps.length === 0) { bannerSinRP.classList.remove('oculto'); return; }
     const idsRP = rps.map(r => r.trabajador_id);
     const { data: vals } = await sb
       .from('validaciones_obra')
       .select('trabajador_id, motivos')
       .eq('obra_id', obraActual)
       .in('trabajador_id', idsRP);
-
     const motivosPorRP = {};
     (vals || []).forEach(v => { motivosPorRP[v.trabajador_id] = v.motivos || []; });
-
-    // Un RP tiene problema si entre sus motivos aparece "Formación 60 horas"
     const rpsConProblema = rps.filter(r => {
       const motivos = motivosPorRP[r.trabajador_id] || [];
-      return motivos.some(m => m.toLowerCase().includes('formación 60 horas') ||
-                               m.toLowerCase().includes('formacion 60 horas'));
+      return motivos.some(m => m.toLowerCase().includes('formación 60 horas') || m.toLowerCase().includes('formacion 60 horas'));
     });
-
-    if (rpsConProblema.length === 0) return; // Todos los RPs en orden
-
+    if (rpsConProblema.length === 0) return;
     const todosConProblema = rpsConProblema.length === rps.length;
     const nombres = rpsConProblema.map(r => {
       const t = r.trabajador || {};
       return [t.nombre, t.apellidos].filter(Boolean).join(' ') || '(sin nombre)';
     });
-
     bannerFormacion.classList.remove('oculto');
     if (todosConProblema) {
       bannerFormacion.classList.add('rojo');
-      bannerFormacion.innerHTML = '🚫 Ningún Recurso Preventivo designado tiene la Formación 60h en regla:<ul>' +
-        nombres.map(n => `<li>${esc(n)}</li>`).join('') + '</ul>';
+      bannerFormacion.innerHTML = '🚫 Ningún Recurso Preventivo designado tiene la Formación 60h en regla:<ul>' + nombres.map(n => `<li>${esc(n)}</li>`).join('') + '</ul>';
     } else {
       bannerFormacion.classList.add('amarillo');
-      bannerFormacion.innerHTML = '⚠ Recurso Preventivo con Formación 60h pendiente o caducada:<ul>' +
-        nombres.map(n => `<li>${esc(n)}</li>`).join('') + '</ul>';
+      bannerFormacion.innerHTML = '⚠ Recurso Preventivo con Formación 60h pendiente o caducada:<ul>' + nombres.map(n => `<li>${esc(n)}</li>`).join('') + '</ul>';
     }
-
-  } catch (_) {
-    // Silencioso: si falla no rompemos nada
-  }
+  } catch (_) {}
 }
 
 function irATrabaladoresRP() {
@@ -735,10 +608,7 @@ function iniciarRefrescoPresencia() {
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && obraActual) {
-    cargarPresencia();
-    cargarRondaEncargado();
-  }
+  if (!document.hidden && obraActual) { cargarPresencia(); cargarRondaEncargado(); }
 });
 
 function aplicarBrandingObra(empresaMarca) {
@@ -777,7 +647,6 @@ function actualizarFechaHoy() {
 async function cargarRondaEncargado() {
   const banner = document.getElementById('banner-ronda');
   if (!obraActual) { banner.className = 'banner-ronda oculto'; return; }
-
   const { desdeISO, hastaISO } = rangoHoyLocal();
   const { data, error } = await sb
     .from('rondas_encargado')
@@ -787,13 +656,11 @@ async function cargarRondaEncargado() {
     .lte('momento', hastaISO)
     .order('momento', { ascending: false })
     .limit(1);
-
   if (error || !data || data.length === 0) {
     banner.className = 'banner-ronda pendiente';
     banner.textContent = '⏳ Pendiente confirmación de presencia del encargado hoy';
     return;
   }
-
   const r = data[0];
   const hora = formatHora(r.momento);
   const personas = r.personas_en_obra !== null ? ` · ${r.personas_en_obra} personas confirmadas` : '';
@@ -811,20 +678,17 @@ async function cargarPresencia() {
   try {
     const resp = await sb
       .from('fichajes')
-      // CAMBIO: añadida empresa:empresa_id(nombre) al select del trabajador
       .select('id, tipo, hora, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni, empresa:empresa_id(nombre))')
       .eq('obra_id', obraActual)
       .gte('hora', desdeISO)
       .lte('hora', hastaISO)
       .order('hora', { ascending: true });
-
     if (resp.error) throw resp.error;
     fichajes = resp.data;
     marcarOnline();
   } catch (err) {
     marcarOffline();
-    document.getElementById('tabla-presencia').innerHTML =
-      '<div class="vacio">No se pudo cargar la presencia. Reintentando automáticamente…</div>';
+    document.getElementById('tabla-presencia').innerHTML = '<div class="vacio">No se pudo cargar la presencia. Reintentando automáticamente…</div>';
     return;
   }
 
@@ -847,8 +711,8 @@ async function cargarPresencia() {
   });
 
   const dentro = Object.values(porTrabajador).filter(t => t.entradas.length > t.salidas.length);
-
   const ids = dentro.map(t => t.trabajador.id);
+
   let validaciones = {};
   if (ids.length > 0) {
     const { data: vals } = await sb
@@ -856,9 +720,7 @@ async function cargarPresencia() {
       .select('trabajador_id, estado, motivos')
       .eq('obra_id', obraActual)
       .in('trabajador_id', ids);
-    (vals || []).forEach(v => {
-      validaciones[v.trabajador_id] = { estado: v.estado, motivos: v.motivos || [] };
-    });
+    (vals || []).forEach(v => { validaciones[v.trabajador_id] = { estado: v.estado, motivos: v.motivos || [] }; });
   }
 
   validacionesCache = {};
@@ -881,7 +743,6 @@ async function cargarPresencia() {
         id: t.trabajador.id,
         nombre: [t.trabajador.nombre, t.trabajador.apellidos].filter(Boolean).join(' ') || '(sin nombre)',
         dni: t.trabajador.dni || '',
-        // CAMBIO: guardamos el nombre de la empresa
         empresa: t.trabajador.empresa?.nombre || '',
         horaEntrada: ultimaEntrada?.hora || null,
         motivos: v.motivos || []
@@ -890,7 +751,6 @@ async function cargarPresencia() {
 
   const nDentro = dentro.length;
   const nNaranja = naranjasActualesCache.length;
-
   document.getElementById('stat-dentro').textContent = nDentro;
   document.getElementById('stat-naranja').textContent = nNaranja;
   document.getElementById('badge-presencia').textContent = nDentro + ' dentro';
@@ -900,7 +760,7 @@ async function cargarPresencia() {
     return;
   }
 
-  // ── RP-3: cargar IDs de Recursos Preventivos de esta obra ──
+  // ── RP-3: IDs de Recursos Preventivos ──
   let idsRP = new Set();
   try {
     const { data: rps } = await sb
@@ -909,6 +769,22 @@ async function cargarPresencia() {
       .eq('obra_id', obraActual)
       .eq('activo', true);
     idsRP = new Set((rps || []).map(r => r.trabajador_id));
+  } catch (_) {}
+
+  // ── H-6: iconos de habilitación ──
+  let habIconosPorTrabajador = {};
+  try {
+    const { data: habs } = await sb
+      .from('habilitaciones_trabajador')
+      .select('trabajador_id, tipo:tipo_habilitacion_id(nombre)')
+      .in('trabajador_id', ids)
+      .eq('activo', true);
+    (habs || []).forEach(h => {
+      const icono = iconoHab(h.tipo?.nombre || '');
+      if (!habIconosPorTrabajador[h.trabajador_id]) habIconosPorTrabajador[h.trabajador_id] = [];
+      if (!habIconosPorTrabajador[h.trabajador_id].includes(icono))
+        habIconosPorTrabajador[h.trabajador_id].push(icono);
+    });
   } catch (_) {}
 
   document.getElementById('tabla-presencia').innerHTML = `
@@ -925,8 +801,10 @@ async function cargarPresencia() {
             ? `<span class="pill ${estado} clicable" onclick="abrirMotivos('${t.trabajador.id}')" title="Ver motivos">${estado}</span>`
             : `<span class="pill ${estado}">${estado}</span>`;
           const marcaRP = idsRP.has(t.trabajador.id) ? ' <span title="Recurso Preventivo designado">🛡️</span>' : '';
+          const iconosHab = (habIconosPorTrabajador[t.trabajador.id] || []).join(' ');
+          const iconosHabHtml = iconosHab ? ` <span title="Habilitaciones">${iconosHab}</span>` : '';
           return `<tr>
-            <td><strong>${esc(t.trabajador.nombre)} ${esc(t.trabajador.apellidos)}</strong>${marcaRP}</td>
+            <td><strong>${esc(t.trabajador.nombre)} ${esc(t.trabajador.apellidos)}</strong>${marcaRP}${iconosHabHtml}</td>
             <td>${esc(t.trabajador.dni)}</td>
             <td>${formatHora(ultimaEntrada.hora)}</td>
             <td>${pillHtml}</td>
@@ -952,9 +830,7 @@ function abrirMotivos(trabajadorId) {
   if (!v.motivos || v.motivos.length === 0) {
     cont.innerHTML = '<div class="modal-motivos-vacio">Sin motivos registrados</div>';
   } else {
-    cont.innerHTML = '<ul class="modal-motivos-lista">' +
-      v.motivos.map(m => `<li>${esc(limpiarMotivo(m))}</li>`).join('') +
-      '</ul>';
+    cont.innerHTML = '<ul class="modal-motivos-lista">' + v.motivos.map(m => `<li>${esc(limpiarMotivo(m))}</li>`).join('') + '</ul>';
   }
   document.getElementById('modal-motivos-overlay').classList.add('visible');
 }
@@ -975,25 +851,20 @@ function abrirModalNaranjas() {
   const overlay = document.getElementById('modal-naranjas-overlay');
   const contenido = document.getElementById('modal-naranjas-contenido');
   const resumen = document.getElementById('modal-naranjas-resumen');
-
   overlay.classList.add('visible');
   resumen.style.display = 'none';
   resumen.textContent = '';
-
   const lista = naranjasActualesCache || [];
   if (lista.length === 0) {
     contenido.innerHTML = '<div class="vacio">Ahora mismo no hay trabajadores presentes con documentación naranja.</div>';
     return;
   }
-
   resumen.style.display = 'block';
   resumen.textContent = `${lista.length} ${lista.length === 1 ? 'trabajador presente' : 'trabajadores presentes'} con documentación naranja`;
-
   contenido.innerHTML = lista.map(t => {
     const motivos = (t.motivos || []).map(m => esc(limpiarMotivo(m))).join('<br>') || 'Sin motivos registrados';
     const dni = t.dni ? `DNI: ${t.dni}` : 'DNI no disponible';
     const entrada = t.horaEntrada ? `Entrada: ${formatHora(t.horaEntrada)}` : 'Entrada no disponible';
-    // CAMBIO: mostramos la empresa en negrita si está disponible
     const empresaMeta = t.empresa ? ` · <strong>${esc(t.empresa)}</strong>` : '';
     return `
       <div class="acceso-item">
@@ -1021,15 +892,11 @@ async function cargarBloqueos() {
   const panel = document.getElementById('panel-bloqueos');
   const lista = document.getElementById('bloqueos-lista');
   const titulo = document.getElementById('bloqueos-titulo');
-
   panel.classList.add('oculto');
   lista.innerHTML = '';
   document.getElementById('stat-rojo').textContent = '0';
-
   if (!obraActual) return;
-
   const { desdeISO, hastaISO } = rangoHoyLocal();
-
   const { count: totalHistorico } = await sb
     .from('incidencias')
     .select('*', { count: 'exact', head: true })
@@ -1037,9 +904,7 @@ async function cargarBloqueos() {
     .eq('tipo', 'bloqueo_rojo')
     .gte('created_at', desdeISO)
     .lte('created_at', hastaISO);
-
   document.getElementById('stat-rojo').textContent = totalHistorico ?? 0;
-
   const { data: incidencias, error } = await sb
     .from('incidencias')
     .select('id, detalle, created_at, trabajador:trabajador_id(id, nombre, apellidos, dni)')
@@ -1049,9 +914,7 @@ async function cargarBloqueos() {
     .gte('created_at', desdeISO)
     .lte('created_at', hastaISO)
     .order('created_at', { ascending: false });
-
   if (error || !incidencias || incidencias.length === 0) return;
-
   const porTrabajador = {};
   incidencias.forEach(inc => {
     const tid = inc.trabajador?.id || 'desconocido';
@@ -1062,15 +925,12 @@ async function cargarBloqueos() {
       if (inc.created_at < porTrabajador[tid].primer_intento) porTrabajador[tid].primer_intento = inc.created_at;
     }
   });
-
   const grupos = Object.values(porTrabajador);
   const totalPersonas = grupos.length;
   const totalPendientes = grupos.reduce((s, g) => s + g.intentos, 0);
-
   titulo.textContent = totalPersonas === 1
     ? `1 persona · ${totalPendientes} ${totalPendientes === 1 ? 'intento pendiente' : 'intentos pendientes'}`
     : `${totalPersonas} personas · ${totalPendientes} ${totalPendientes === 1 ? 'intento pendiente' : 'intentos pendientes'}`;
-
   lista.innerHTML = grupos.map(g => {
     const t = g.trabajador || {};
     const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || '(sin nombre)';
@@ -1086,7 +946,6 @@ async function cargarBloqueos() {
         <button class="btn-visto-rojo" onclick="marcarVistoRojo('${g.incidencia_id}', this)">✓ Visto</button>
       </div>`;
   }).join('');
-
   panel.classList.remove('oculto');
 }
 
@@ -1094,12 +953,7 @@ async function marcarVistoRojo(incidenciaId, btn) {
   btn.disabled = true;
   btn.textContent = 'Marcando…';
   const { data, error } = await sb.rpc('marcar_incidencia_vista', { p_incidencia_id: incidenciaId });
-  if (error || !data?.success) {
-    btn.disabled = false;
-    btn.textContent = '✓ Visto';
-    alert('Error: ' + (error?.message || data?.error || 'No se pudo marcar'));
-    return;
-  }
+  if (error || !data?.success) { btn.disabled = false; btn.textContent = '✓ Visto'; alert('Error: ' + (error?.message || data?.error || 'No se pudo marcar')); return; }
   await cargarBloqueos();
 }
 
@@ -1108,20 +962,13 @@ async function abrirModalAccesosDenegados() {
   const contenido = document.getElementById('modal-accesos-contenido');
   const resumen = document.getElementById('modal-accesos-resumen');
   const sub = document.getElementById('modal-accesos-sub');
-
   overlay.classList.add('visible');
   contenido.innerHTML = '<div class="cargando">Cargando…</div>';
   resumen.style.display = 'none';
   resumen.textContent = '';
-
-  if (!obraActual) {
-    contenido.innerHTML = '<div class="modal-motivos-vacio">Selecciona una obra para ver el detalle.</div>';
-    return;
-  }
-
+  if (!obraActual) { contenido.innerHTML = '<div class="modal-motivos-vacio">Selecciona una obra para ver el detalle.</div>'; return; }
   const obraNombre = document.getElementById('selector-obra').options[document.getElementById('selector-obra').selectedIndex]?.text || 'obra seleccionada';
   sub.textContent = `Detalle de intentos bloqueados hoy en ${obraNombre}`;
-
   const { desdeISO, hastaISO } = rangoHoyLocal();
   const { data, error } = await sb
     .from('incidencias')
@@ -1131,17 +978,9 @@ async function abrirModalAccesosDenegados() {
     .gte('created_at', desdeISO)
     .lte('created_at', hastaISO)
     .order('created_at', { ascending: false });
-
-  if (error) {
-    contenido.innerHTML = `<div class="modal-motivos-vacio">No se pudo cargar el detalle: ${esc(error.message)}</div>`;
-    return;
-  }
-
+  if (error) { contenido.innerHTML = `<div class="modal-motivos-vacio">No se pudo cargar el detalle: ${esc(error.message)}</div>`; return; }
   const incidencias = data || [];
-  const idsConBloqueo = [...new Set(
-    incidencias.map(inc => inc.trabajador_id).filter(Boolean)
-  )];
-
+  const idsConBloqueo = [...new Set(incidencias.map(inc => inc.trabajador_id).filter(Boolean))];
   let motivosPorTrabajador = {};
   if (idsConBloqueo.length > 0) {
     const { data: vals } = await sb
@@ -1149,24 +988,19 @@ async function abrirModalAccesosDenegados() {
       .select('trabajador_id, motivos')
       .eq('obra_id', obraActual)
       .in('trabajador_id', idsConBloqueo);
-    (vals || []).forEach(v => {
-      motivosPorTrabajador[v.trabajador_id] = v.motivos || [];
-    });
+    (vals || []).forEach(v => { motivosPorTrabajador[v.trabajador_id] = v.motivos || []; });
   }
-
   pintarDetalleAccesos(incidencias, motivosPorTrabajador);
 }
 
 function pintarDetalleAccesos(incidencias, motivosPorTrabajador) {
   const contenido = document.getElementById('modal-accesos-contenido');
   const resumen = document.getElementById('modal-accesos-resumen');
-
   if (!incidencias || incidencias.length === 0) {
     resumen.style.display = 'none';
     contenido.innerHTML = '<div class="modal-motivos-vacio">Hoy no hay accesos denegados en esta obra.</div>';
     return;
   }
-
   const porTrabajador = {};
   incidencias.forEach(inc => {
     const t = inc.trabajador || null;
@@ -1179,15 +1013,12 @@ function pintarDetalleAccesos(incidencias, motivosPorTrabajador) {
     if ((inc.estado || 'nueva') === 'nueva') g.pendientes++; else g.revisados++;
     if (inc.created_at && new Date(inc.created_at) > new Date(g.ultimo)) g.ultimo = inc.created_at;
   });
-
   const grupos = Object.values(porTrabajador).sort((a, b) => new Date(b.ultimo) - new Date(a.ultimo));
   const totalIntentos = incidencias.length;
   const totalPersonas = grupos.length;
   const totalPendientes = grupos.reduce((s, g) => s + g.pendientes, 0);
-
   resumen.style.display = 'block';
   resumen.textContent = `${totalPersonas} ${totalPersonas === 1 ? 'persona' : 'personas'} · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'} hoy · ${totalPendientes} pendiente${totalPendientes === 1 ? '' : 's'} de revisar`;
-
   contenido.innerHTML = grupos.map(g => {
     const t = g.trabajador || {};
     const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || 'Trabajador no identificado';
@@ -1195,14 +1026,10 @@ function pintarDetalleAccesos(incidencias, motivosPorTrabajador) {
     const estadoTxt = g.pendientes > 0
       ? `${g.pendientes} pendiente${g.pendientes === 1 ? '' : 's'}${g.revisados ? ` · ${g.revisados} revisado${g.revisados === 1 ? '' : 's'}` : ''}`
       : `Todo revisado (${g.revisados})`;
-
     const motivos = motivosPorTrabajador[g.trabajador_id] || [];
     const motivosHtml = motivos.length > 0
-      ? '<div class="acceso-motivos">' +
-          motivos.map(m => `<div class="acceso-motivo-item">${esc(limpiarMotivo(m))}</div>`).join('') +
-        '</div>'
+      ? '<div class="acceso-motivos">' + motivos.map(m => `<div class="acceso-motivo-item">${esc(limpiarMotivo(m))}</div>`).join('') + '</div>'
       : '';
-
     return `
       <div class="acceso-item">
         <div class="acceso-top">
@@ -1226,12 +1053,9 @@ async function cargarAvisosAutocierre() {
   const panel = document.getElementById('panel-avisos');
   const lista = document.getElementById('avisos-lista');
   const titulo = document.getElementById('avisos-titulo');
-
   panel.classList.add('oculto');
   lista.innerHTML = '';
-
   if (!obraActual) return;
-
   const { data: incidencias, error } = await sb
     .from('incidencias')
     .select('id, detalle, created_at, trabajador:trabajador_id(id, nombre, apellidos, dni)')
@@ -1239,13 +1063,10 @@ async function cargarAvisosAutocierre() {
     .eq('tipo', 'autocierre')
     .eq('estado', 'nueva')
     .order('created_at', { ascending: false });
-
   if (error || !incidencias || incidencias.length === 0) return;
-
   titulo.textContent = incidencias.length === 1
     ? '1 jornada cerrada automáticamente sin atender'
     : `${incidencias.length} jornadas cerradas automáticamente sin atender`;
-
   lista.innerHTML = incidencias.map(inc => {
     const t = inc.trabajador || {};
     const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || '(sin nombre)';
@@ -1258,7 +1079,6 @@ async function cargarAvisosAutocierre() {
         <button class="btn-visto" onclick="marcarVisto('${inc.id}', this)">✓ Visto</button>
       </div>`;
   }).join('');
-
   panel.classList.remove('oculto');
 }
 
@@ -1266,12 +1086,7 @@ async function marcarVisto(incidenciaId, btn) {
   btn.disabled = true;
   btn.textContent = 'Marcando…';
   const { data, error } = await sb.rpc('marcar_incidencia_vista', { p_incidencia_id: incidenciaId });
-  if (error || !data?.success) {
-    btn.disabled = false;
-    btn.textContent = '✓ Visto';
-    alert('Error: ' + (error?.message || data?.error || 'No se pudo marcar como vista'));
-    return;
-  }
+  if (error || !data?.success) { btn.disabled = false; btn.textContent = '✓ Visto'; alert('Error: ' + (error?.message || data?.error || 'No se pudo marcar como vista')); return; }
   await cargarAvisosAutocierre();
 }
 
@@ -1291,9 +1106,7 @@ function imprimirQR() {
   const obraNombre = document.getElementById('qr-obra-nombre').textContent;
   const canvas = document.getElementById('qr-canvas');
   const dataUrl = canvas ? canvas.toDataURL('image/png') : '';
-  const logoUrl = brandingActual
-    ? window.location.origin + window.location.pathname.replace(/jefe\/.*$/, '') + brandingActual.logo
-    : '';
+  const logoUrl = brandingActual ? window.location.origin + window.location.pathname.replace(/jefe\/.*$/, '') + brandingActual.logo : '';
   const marcaNombre = brandingActual ? brandingActual.nombre : '';
   const win = window.open('', '_blank');
   win.document.write(`
