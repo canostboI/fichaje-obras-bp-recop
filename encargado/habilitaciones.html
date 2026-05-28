@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Habilitaciones — Panel Encargado</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/branding.js"></script>
+  <script src="../js/auto-logout.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: sans-serif; background: #f4f4f4; color: #222;
+      background-size: cover; background-position: center; background-attachment: fixed;
+    }
+    :root { --color-principal: #1a1a2e; }
+
+    header {
+      background: var(--color-principal); color: white;
+      padding: 1rem 1.5rem;
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    }
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .header-logo { max-height: 32px; max-width: 120px; display: none; }
+    header h1 { font-size: 1.1rem; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    header button {
+      background: transparent; border: 1px solid #fff;
+      color: white; padding: 0.3rem 0.8rem;
+      border-radius: 6px; cursor: pointer; font-size: 0.85rem;
+    }
+    header a.btn-volver {
+      background: transparent; border: 1px solid rgba(255,255,255,0.5);
+      color: white; padding: 0.3rem 0.8rem;
+      border-radius: 6px; font-size: 0.85rem; text-decoration: none;
+    }
+    header a.btn-volver:hover { background: rgba(255,255,255,0.1); }
+
+    main { max-width: 700px; margin: 2rem auto; padding: 0 1rem; }
+
+    .card {
+      background: white; border-radius: 10px;
+      padding: 1.5rem; margin-bottom: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #333; }
+
+    select {
+      width: 100%; padding: 0.6rem;
+      border: 1px solid #ccc; border-radius: 6px;
+      font-size: 1rem; margin-top: 0.3rem;
+    }
+
+    .loading { color: #888; font-style: italic; padding: 1rem 0; }
+    .lista-vacia { text-align: center; padding: 2rem; color: #888; font-style: italic; }
+
+    /* Tarjeta de trabajador con habilitaciones */
+    .trab-card {
+      border: 1px solid #e2e6ea;
+      border-radius: 10px;
+      background: #fafbfc;
+      padding: 1rem 1.1rem;
+      margin-bottom: 0.8rem;
+    }
+    .trab-header {
+      display: flex; align-items: center; gap: 0.9rem; margin-bottom: 0.75rem;
+    }
+    .trab-iniciales {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: var(--color-principal); color: white;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 1rem; flex-shrink: 0;
+    }
+    .trab-info { flex: 1; min-width: 0; }
+    .trab-nombre { font-weight: 700; font-size: 0.98rem; color: #222; }
+    .trab-empresa { font-size: 0.82rem; color: #777; margin-top: 2px; }
+
+    .hab-lista { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .hab-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 0.35rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.85rem; font-weight: 600;
+      border: 1px solid;
+    }
+    .hab-pill.vigente        { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
+    .hab-pill.sin_caducidad  { background: #e3f2fd; color: #1565c0; border-color: #90caf9; }
+    .hab-pill.proxima        { background: #fff3e0; color: #e65100; border-color: #ffcc80; }
+    .hab-pill.caducada       { background: #fce4ec; color: #b71c1c; border-color: #ef9a9a; }
+    .hab-pill .icono         { font-size: 1rem; }
+    .hab-pill .caducidad     { font-size: 0.78rem; font-weight: 400; opacity: 0.85; }
+
+    .resumen-banner {
+      background: #e3f2fd; border: 1px solid #90caf9;
+      border-left: 4px solid #1565c0;
+      border-radius: 10px; padding: 0.9rem 1.1rem;
+      margin-bottom: 1.5rem; font-size: 0.92rem; color: #1565c0;
+    }
+
+    @media (max-width: 600px) {
+      header { flex-direction: column; align-items: flex-start; }
+      .header-right { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <img id="header-logo" class="header-logo" alt="">
+    <h1>🏗️ Habilitaciones</h1>
+  </div>
+  <div class="header-right">
+    <a href="index.html" class="btn-volver">← Volver</a>
+    <button id="btn-logout">Cerrar sesión</button>
+  </div>
+</header>
+
+<main>
+
+  <div class="card" id="card-selector" style="display:none">
+    <h2>Selecciona una obra</h2>
+    <select id="select-obra">
+      <option value="">-- Elige obra --</option>
+    </select>
+  </div>
+
+  <div id="panel-obra" style="display:none">
+    <div id="resumen-banner" class="resumen-banner" style="display:none"></div>
+
+    <div class="card">
+      <h2 id="titulo-obra">Trabajadores habilitados</h2>
+      <p style="color:#666; font-size:0.88rem; margin-bottom:1rem;">
+        Solo aparecen los trabajadores que tienen al menos una habilitación activa en esta obra.
+        Para consultas completas o cambios, contacta con el jefe de obra.
+      </p>
+      <div id="lista-habilitaciones"><p class="loading">Cargando...</p></div>
+    </div>
+  </div>
+
+  <p id="msg-error" style="color:red; display:none"></p>
+</main>
+
+<script>
+  const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  AutoLogout.init(sb);
+
+  let obraActualId = null;
+
+  // ── Diccionario de iconos (idéntico al de jefe/habilitaciones.html) ──
+  const ICONOS_HAB = [
+    { clave: 'movimiento de tierras', icono: '🚜' },
+    { clave: 'dumper',                icono: '🚛' },
+    { clave: 'grúa torre',            icono: '🏗️' },
+    { clave: 'grua torre',            icono: '🏗️' },
+    { clave: 'plataforma elevadora',  icono: '🛗' },
+    { clave: 'carretilla elevadora',  icono: '🛺' },
+    { clave: 'toro',                  icono: '🛺' },
+    { clave: 'andamio',               icono: '🪜' },
+    { clave: 'altura con arnés',      icono: '🧗' },
+    { clave: 'arnes',                 icono: '🧗' },
+    { clave: 'eléctrico',             icono: '⚡' },
+    { clave: 'electrico',             icono: '⚡' },
+    { clave: 'eléctrica',             icono: '⚡' },
+  ];
+
+  function iconoHab(nombre) {
+    const n = (nombre || '').toLowerCase();
+    for (const { clave, icono } of ICONOS_HAB) {
+      if (n.includes(clave)) return icono;
+    }
+    return '🔧';
+  }
+
+  function esc(txt) {
+    const d = document.createElement('div');
+    d.textContent = String(txt || '');
+    return d.innerHTML;
+  }
+
+  function iniciales(nombreCompleto) {
+    if (!nombreCompleto) return '?';
+    const partes = nombreCompleto.trim().split(/\s+/);
+    if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+    return (partes[0][0] + partes[1][0]).toUpperCase();
+  }
+
+  function textoFechaCaducidad(estado, fecha) {
+    if (!fecha) return '';
+    const d = new Date(fecha + 'T00:00:00');
+    const txt = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    if (estado === 'caducada')        return `Caducó: ${txt}`;
+    if (estado === 'proxima_caducidad') return `Caduca: ${txt}`;
+    return `Hasta: ${txt}`;
+  }
+
+  function clasePill(estado) {
+    if (estado === 'caducada')          return 'caducada';
+    if (estado === 'proxima_caducidad') return 'proxima';
+    if (estado === 'vigente')           return 'vigente';
+    return 'sin_caducidad';
+  }
+
+  async function init() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = '../index.html'; return; }
+
+    const { data: usuario, error } = await sb
+      .from('usuarios_app')
+      .select('id, rol')
+      .eq('auth_user_id', session.user.id)
+      .single();
+
+    if (error || !usuario || usuario.rol !== 'encargado') {
+      mostrarError('Acceso denegado. No tienes rol de encargado.');
+      return;
+    }
+
+    const { data: asignaciones } = await sb
+      .from('usuarios_obra')
+      .select('obra_id, obras(id, nombre, empresa_marca, imagen_fondo_url)')
+      .eq('usuario_app_id', usuario.id)
+      .eq('rol_en_obra', 'encargado');
+
+    if (!asignaciones || asignaciones.length === 0) {
+      mostrarError('No tienes ninguna obra asignada.');
+      return;
+    }
+
+    if (asignaciones.length === 1) {
+      const obra = asignaciones[0].obras;
+      await cargarObra(obra.id, obra.nombre, obra.empresa_marca, obra.imagen_fondo_url);
+    } else {
+      const select = document.getElementById('select-obra');
+      asignaciones.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.obras.id;
+        opt.textContent = a.obras.nombre;
+        opt.dataset.marca = a.obras.empresa_marca || 'bosch_pascual';
+        opt.dataset.fotoUrl = a.obras.imagen_fondo_url || '';
+        select.appendChild(opt);
+      });
+      document.getElementById('card-selector').style.display = 'block';
+
+      select.addEventListener('change', async () => {
+        const opt = select.options[select.selectedIndex];
+        if (!opt.value) return;
+        await cargarObra(opt.value, opt.text, opt.dataset.marca, opt.dataset.fotoUrl);
+      });
+    }
+  }
+
+  async function cargarObra(obraId, obraNombre, empresaMarca, fotoUrl) {
+    obraActualId = obraId;
+
+    // Guardar en localStorage para consistencia con otras páginas del encargado
+    localStorage.setItem('encargado_obra_activa_id', obraId);
+
+    const marca = empresaMarca || 'bosch_pascual';
+    const branding = aplicarBranding(marca);
+    const logoImg = document.getElementById('header-logo');
+    logoImg.src = '../' + branding.logo_blanco;
+    logoImg.alt = branding.nombre;
+    logoImg.style.display = 'block';
+
+    if (fotoUrl) {
+      document.body.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.72), rgba(0,0,0,0.72)), url('${fotoUrl}')`;
+    }
+
+    document.getElementById('titulo-obra').textContent = `🏗️ Habilitaciones en ${obraNombre}`;
+    document.getElementById('panel-obra').style.display = 'block';
+
+    await cargarHabilitaciones(obraId);
+  }
+
+  async function cargarHabilitaciones(obraId) {
+    const lista = document.getElementById('lista-habilitaciones');
+    const banner = document.getElementById('resumen-banner');
+    lista.innerHTML = '<p class="loading">Cargando...</p>';
+    banner.style.display = 'none';
+
+    // 1. Obtener trabajadores de la obra
+    const { data: validaciones, error: errV } = await sb
+      .from('validaciones_obra')
+      .select('trabajador_id, trabajadores(id, nombre, apellidos, empresas(nombre))')
+      .eq('obra_id', obraId);
+
+    if (errV) {
+      lista.innerHTML = `<p class="loading">Error al cargar trabajadores: ${esc(errV.message)}</p>`;
+      return;
+    }
+
+    const trabajadoresMapa = {};
+    (validaciones || []).forEach(v => {
+      const t = v.trabajadores;
+      if (!t) return;
+      trabajadoresMapa[t.id] = {
+        id: t.id,
+        nombre: `${t.nombre || ''} ${t.apellidos || ''}`.trim(),
+        empresa: t.empresas?.nombre || ''
+      };
+    });
+
+    const twIds = Object.keys(trabajadoresMapa);
+    if (twIds.length === 0) {
+      lista.innerHTML = '<p class="lista-vacia">No hay trabajadores asociados a esta obra.</p>';
+      return;
+    }
+
+    // 2. Obtener habilitaciones activas de esos trabajadores
+    const { data: habs, error: errH } = await sb
+      .from('habilitaciones_trabajador')
+      .select('trabajador_id, fecha_caducidad, tipo:tipo_habilitacion_id(nombre)')
+      .in('trabajador_id', twIds)
+      .eq('activo', true);
+
+    if (errH) {
+      lista.innerHTML = `<p class="loading">Error al cargar habilitaciones: ${esc(errH.message)}</p>`;
+      return;
+    }
+
+    // Calcular estado de caducidad en frontend (igual que jefe)
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    const habsPorTrabajador = {};
+    (habs || []).forEach(h => {
+      const tid = h.trabajador_id;
+      if (!habsPorTrabajador[tid]) habsPorTrabajador[tid] = [];
+
+      let estado = 'sin_caducidad';
+      if (h.fecha_caducidad) {
+        const fc = new Date(h.fecha_caducidad + 'T00:00:00');
+        const diffDias = Math.floor((fc - hoy) / 86400000);
+        if (diffDias < 0)       estado = 'caducada';
+        else if (diffDias <= 30) estado = 'proxima_caducidad';
+        else                     estado = 'vigente';
+      }
+
+      habsPorTrabajador[tid].push({
+        nombre: h.tipo?.nombre || 'Sin nombre',
+        fecha_caducidad: h.fecha_caducidad,
+        estado
+      });
+    });
+
+    // 3. Solo trabajadores con al menos una habilitación activa
+    const conHabs = Object.keys(habsPorTrabajador)
+      .filter(tid => trabajadoresMapa[tid])
+      .map(tid => ({ ...trabajadoresMapa[tid], habs: habsPorTrabajador[tid] }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+
+    if (conHabs.length === 0) {
+      lista.innerHTML = '<p class="lista-vacia">Ningún trabajador de esta obra tiene habilitaciones registradas.</p>';
+      return;
+    }
+
+    // Banner resumen
+    banner.textContent = `${conHabs.length} ${conHabs.length === 1 ? 'trabajador habilitado' : 'trabajadores habilitados'} en esta obra`;
+    banner.style.display = 'block';
+
+    // Pintar lista
+    lista.innerHTML = '';
+    conHabs.forEach(t => {
+      const div = document.createElement('div');
+      div.className = 'trab-card';
+
+      const pillsHtml = t.habs.map(h => {
+        const icono = iconoHab(h.nombre);
+        const clase = clasePill(h.estado);
+        const caducTexto = textoFechaCaducidad(h.estado, h.fecha_caducidad);
+        return `<span class="hab-pill ${clase}">
+          <span class="icono">${icono}</span>
+          <span>${esc(h.nombre)}</span>
+          ${caducTexto ? `<span class="caducidad">(${esc(caducTexto)})</span>` : ''}
+        </span>`;
+      }).join('');
+
+      div.innerHTML = `
+        <div class="trab-header">
+          <div class="trab-iniciales">${esc(iniciales(t.nombre))}</div>
+          <div class="trab-info">
+            <div class="trab-nombre">${esc(t.nombre)}</div>
+            <div class="trab-empresa">${esc(t.empresa || '—')}</div>
+          </div>
+        </div>
+        <div class="hab-lista">${pillsHtml}</div>`;
+      lista.appendChild(div);
+    });
+  }
+
+  document.getElementById('btn-logout').addEventListener('click', async () => {
+    await sb.auth.signOut();
+    window.location.href = '../index.html';
+  });
+
+  function mostrarError(texto) {
+    const el = document.getElementById('msg-error');
+    el.textContent = texto;
+    el.style.display = 'block';
+  }
+
+  init();
+</script>
+</body>
+</html>
