@@ -178,6 +178,13 @@
   .banner-rp-formacion.oculto { display: none; }
   .banner-rp-formacion ul { margin: 4px 0 0 18px; font-size: 13px; }
   .banner-rp-formacion li { margin-bottom: 2px; }
+
+  .banner-hab-caducidad { border-radius: 10px; padding: 13px 18px; margin-bottom: 20px; font-size: 14px; display: flex; align-items: flex-start; gap: 10px; flex-direction: column; }
+  .banner-hab-caducidad.amarillo { background: rgba(255,152,0,0.1); border: 1px solid rgba(255,152,0,0.45); color: var(--naranja); }
+  .banner-hab-caducidad.rojo { background: rgba(244,67,54,0.08); border: 1px solid rgba(244,67,54,0.4); color: var(--rojo); }
+  .banner-hab-caducidad.oculto { display: none; }
+  .banner-hab-caducidad ul { margin: 4px 0 0 18px; font-size: 13px; }
+  .banner-hab-caducidad li { margin-bottom: 2px; }
 </style>
 </head>
 <body>
@@ -224,6 +231,7 @@
       <a onclick="irATrabaladoresRP()">Designar desde Trabajadores →</a>
     </div>
     <div class="banner-rp-formacion oculto" id="banner-rp-formacion"></div>
+    <div class="banner-hab-caducidad oculto" id="banner-hab-caducidad"></div>
     <div class="stats">
       <div class="stat"><div class="numero verde" id="stat-dentro">—</div><div class="etiqueta">En obra ahora</div></div>
       <div class="stat stat-clickable naranja-hover" id="card-naranjas" role="button" tabindex="0" title="Ver trabajadores presentes con documentación naranja"><div class="numero naranja" id="stat-naranja">—</div><div class="etiqueta">Documentación naranja</div></div>
@@ -529,6 +537,7 @@ document.getElementById('modal-foto-overlay').addEventListener('click', e => {
   await cargarAvisosAutocierre();
   await cargarRondaEncargado();
   await comprobarRP();
+  await comprobarHabilitacionesCaducidad();
   iniciarRefrescoPresencia();
 
   selector.addEventListener('change', async () => {
@@ -544,6 +553,7 @@ document.getElementById('modal-foto-overlay').addEventListener('click', e => {
     await cargarAvisosAutocierre();
     await cargarRondaEncargado();
     await comprobarRP();
+    await comprobarHabilitacionesCaducidad();
     iniciarRefrescoPresencia();
   });
 })();
@@ -589,6 +599,72 @@ async function comprobarRP() {
       bannerFormacion.classList.add('amarillo');
       bannerFormacion.innerHTML = '⚠ Recurso Preventivo con Formación 60h pendiente o caducada:<ul>' + nombres.map(n => `<li>${esc(n)}</li>`).join('') + '</ul>';
     }
+  } catch (_) {}
+}
+
+// ── H-7: aviso de habilitaciones caducadas o próximas a caducar (≤30 días) ──
+async function comprobarHabilitacionesCaducidad() {
+  const banner = document.getElementById('banner-hab-caducidad');
+  banner.className = 'banner-hab-caducidad oculto';
+  banner.innerHTML = '';
+  if (!obraActual) return;
+  try {
+    // 1. Trabajadores que han fichado alguna vez en esta obra → conjunto de la obra
+    const { data: fich } = await sb
+      .from('fichajes')
+      .select('trabajador_id')
+      .eq('obra_id', obraActual);
+    const idsObra = [...new Set((fich || []).map(f => f.trabajador_id).filter(Boolean))];
+    if (idsObra.length === 0) return;
+
+    // 2. Habilitaciones activas con fecha de caducidad de esos trabajadores
+    const { data: habs } = await sb
+      .from('habilitaciones_trabajador')
+      .select('trabajador_id, fecha_caducidad, tipo:tipo_habilitacion_id(nombre), trabajador:trabajador_id(nombre, apellidos)')
+      .in('trabajador_id', idsObra)
+      .eq('activo', true)
+      .not('fecha_caducidad', 'is', null);
+    if (!habs || habs.length === 0) return;
+
+    // 3. Clasificar por caducidad
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const limite = new Date(hoy);
+    limite.setDate(limite.getDate() + 30);
+
+    const caducadas = [];
+    const proximas = [];
+    habs.forEach(h => {
+      if (!h.fecha_caducidad) return;
+      const partes = h.fecha_caducidad.split('-');
+      const fc = new Date(+partes[0], +partes[1] - 1, +partes[2], 0, 0, 0, 0);
+      const t = h.trabajador || {};
+      const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || '(sin nombre)';
+      const tipo = h.tipo?.nombre || 'Habilitación';
+      const icono = iconoHab(tipo);
+      const fechaTxt = fc.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+      const item = { nombre, tipo, icono, fechaTxt };
+      if (fc < hoy) caducadas.push(item);
+      else if (fc <= limite) proximas.push(item);
+    });
+
+    if (caducadas.length === 0 && proximas.length === 0) return;
+
+    banner.classList.remove('oculto');
+    let html = '';
+    if (caducadas.length > 0) {
+      banner.classList.add('rojo');
+      html += '🚫 Habilitaciones caducadas:<ul>' +
+        caducadas.map(i => `<li>${i.icono} ${esc(i.nombre)} — ${esc(i.tipo)} (caducó ${esc(i.fechaTxt)})</li>`).join('') + '</ul>';
+    } else {
+      banner.classList.add('amarillo');
+    }
+    if (proximas.length > 0) {
+      html += (caducadas.length > 0 ? '<div style="margin-top:8px"></div>' : '') +
+        '⚠ Habilitaciones próximas a caducar (≤30 días):<ul>' +
+        proximas.map(i => `<li>${i.icono} ${esc(i.nombre)} — ${esc(i.tipo)} (caduca ${esc(i.fechaTxt)})</li>`).join('') + '</ul>';
+    }
+    banner.innerHTML = html;
   } catch (_) {}
 }
 
