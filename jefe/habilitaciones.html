@@ -44,28 +44,25 @@
   .seccion-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
   .seccion-body { padding: 16px 20px; }
 
-  /* LISTA CON HABILITACIONES */
   .tw-lista { display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow-y: auto; }
   .tw-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 13px; border: 1px solid var(--borde); border-radius: 8px; cursor: pointer; transition: background 0.12s, border-color 0.12s; }
   .tw-item:hover { background: var(--bg3); }
   .tw-item.seleccionado { background: var(--bg3); border-color: var(--azul); }
   .tw-nombre { font-size: 14px; font-weight: 600; }
   .tw-sub { font-size: 12px; color: var(--texto2); margin-top: 2px; }
-  .tw-habs-badges { display: flex; gap: 4px; flex-wrap: wrap; }
-  .tw-hab-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; white-space: nowrap; }
+  .tw-habs-badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
+  .tw-hab-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
   .tw-hab-badge.caducada      { background: rgba(244,67,54,0.15);   color: var(--rojo); }
   .tw-hab-badge.proxima       { background: rgba(255,193,7,0.15);   color: var(--amarillo); }
   .tw-hab-badge.vigente       { background: rgba(76,175,80,0.15);   color: var(--verde); }
   .tw-hab-badge.sin_caducidad { background: rgba(139,144,158,0.15); color: var(--texto2); }
 
-  /* BUSCADOR */
-  .buscador-wrap { display: flex; gap: 10px; margin-bottom: 10px; }
+  .buscador-wrap { display: flex; gap: 10px; margin-bottom: 6px; }
   .buscador-wrap input { flex: 1; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 13px; font-family: inherit; }
   .buscador-wrap input:focus { outline: none; border-color: var(--azul); }
   .buscador-wrap input::placeholder { color: var(--texto2); }
   .buscar-hint { font-size: 12px; color: var(--texto2); margin-bottom: 10px; }
 
-  /* PANEL TRABAJADOR */
   #panel-trabajador { display: none; }
   .tw-encabezado { margin-bottom: 16px; }
   .tw-encabezado .nombre { font-size: 16px; font-weight: 800; }
@@ -93,7 +90,8 @@
   .form-anadir select:focus, .form-anadir input[type="date"]:focus { outline: none; border-color: var(--azul); }
 
   .tipo-lista { display: flex; flex-direction: column; gap: 4px; }
-  .tipo-item { display: flex; align-items: center; padding: 9px 13px; border: 1px solid var(--borde); border-radius: 8px; }
+  .tipo-item { display: flex; align-items: center; gap: 10px; padding: 9px 13px; border: 1px solid var(--borde); border-radius: 8px; }
+  .tipo-icono { font-size: 18px; width: 24px; text-align: center; }
   .tipo-nombre { font-size: 13px; font-weight: 500; }
 
   .btn { border: none; border-radius: 6px; cursor: pointer; font-family: inherit; font-weight: 600; transition: opacity 0.15s; }
@@ -111,7 +109,6 @@
 
   .vacio    { padding: 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 20px; text-align: center; color: var(--texto2); font-size: 14px; }
-
   .separador { border: none; border-top: 1px solid var(--borde); margin: 14px 0; }
 </style>
 <script src="../js/auto-logout.js"></script>
@@ -152,9 +149,7 @@
 
     <div class="dos-columnas">
 
-      <!-- COLUMNA IZQUIERDA -->
       <div>
-
         <!-- Trabajadores con habilitaciones -->
         <div class="seccion">
           <div class="seccion-cab">
@@ -166,7 +161,7 @@
               <div class="vacio">Selecciona una obra.</div>
             </div>
             <hr class="separador">
-            <div class="buscador-wrap" style="margin-bottom:6px;">
+            <div class="buscador-wrap">
               <input type="text" id="input-buscar" placeholder="Buscar cualquier trabajador de la obra…" autocomplete="off" />
             </div>
             <div class="buscar-hint">Escribe al menos 2 caracteres para buscar.</div>
@@ -228,6 +223,29 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 AutoLogout.init(sb);
+
+// Diccionario de iconos por nombre de tipo (coincidencia parcial, minúsculas)
+const ICONOS_HAB = [
+  { clave: 'movimiento de tierras', icono: '🚜' },
+  { clave: 'dumper',                icono: '🚛' },
+  { clave: 'grúa torre',            icono: '🏗️' },
+  { clave: 'grua torre',            icono: '🏗️' },
+  { clave: 'plataforma elevadora',  icono: '🛗' },
+  { clave: 'carretilla elevadora',  icono: '🛺' },
+  { clave: 'toro',                  icono: '🛺' },
+  { clave: 'andamio',               icono: '🪜' },
+  { clave: 'altura con arnés',      icono: '🧗' },
+  { clave: 'altura con arnes',      icono: '🧗' },
+  { clave: 'eléctrico',             icono: '⚡' },
+  { clave: 'electrico',             icono: '⚡' },
+  { clave: 'eléctrica',             icono: '⚡' },
+];
+
+function iconoHab(nombre) {
+  const n = (nombre || '').toLowerCase();
+  const match = ICONOS_HAB.find(r => n.includes(r.clave));
+  return match ? match.icono : '🔧';
+}
 
 let tiposCache = [];
 let trabajadorActual = null;
@@ -300,7 +318,6 @@ async function onCambioObra() {
 
   localStorage.setItem('jefe_obra_activa_id', obraActualId);
 
-  // Cargar IDs de trabajadores de la obra
   const { data: valData } = await sb
     .from('validaciones_obra')
     .select('trabajador_id')
@@ -321,21 +338,20 @@ async function cargarHabilitados() {
     return;
   }
 
-  // Obtener habilitaciones activas de todos los trabajadores de la obra
   const { data, error } = await sb
     .from('habilitaciones_trabajador')
-    .select('trabajador_id, tipo:tipo_habilitacion_id(nombre), fecha_caducidad, activo')
+    .select('trabajador_id, tipo:tipo_habilitacion_id(nombre), fecha_caducidad')
     .in('trabajador_id', [...trabajadoresObraIds])
     .eq('activo', true);
 
   if (error) { el.innerHTML = `<div class="vacio">Error: ${esc(error.message)}</div>`; return; }
 
-  // Agrupar por trabajador
   const porTrabajador = {};
   (data || []).forEach(h => {
     if (!porTrabajador[h.trabajador_id]) porTrabajador[h.trabajador_id] = [];
     const estado = calcularEstado(h.fecha_caducidad);
-    porTrabajador[h.trabajador_id].push({ nombre: h.tipo?.nombre || '?', estado });
+    const nombre = h.tipo?.nombre || '?';
+    porTrabajador[h.trabajador_id].push({ nombre, estado, icono: iconoHab(nombre) });
   });
 
   const ids = Object.keys(porTrabajador);
@@ -345,7 +361,6 @@ async function cargarHabilitados() {
     return;
   }
 
-  // Obtener nombres de esos trabajadores
   const { data: twData } = await sb
     .from('trabajadores')
     .select('id, nombre, apellidos, dni, empresa:empresa_id(nombre)')
@@ -356,14 +371,16 @@ async function cargarHabilitados() {
 
   el.innerHTML = (twData || []).map(t => {
     const habs = porTrabajador[t.id] || [];
-    const badges = habs.map(h => `<span class="tw-hab-badge ${h.estado}">${esc(h.nombre)}</span>`).join('');
+    const badges = habs.map(h =>
+      `<span class="tw-hab-badge ${h.estado}">${h.icono} ${esc(h.nombre)}</span>`
+    ).join('');
     return `
       <div class="tw-item ${trabajadorActual?.id === t.id ? 'seleccionado' : ''}"
            onclick="seleccionar('${t.id}','${escAttr(t.nombre + ' ' + t.apellidos)}','${escAttr(t.dni)}','${escAttr(t.empresa?.nombre || '')}', event)">
         <div style="flex:1;min-width:0;">
-          <div class="tw-nombre">🏗️ ${esc(t.nombre)} ${esc(t.apellidos)}</div>
+          <div class="tw-nombre">${esc(t.nombre)} ${esc(t.apellidos)}</div>
           <div class="tw-sub">${esc(t.dni)} · ${esc(t.empresa?.nombre || 'Sin empresa')}</div>
-          <div class="tw-habs-badges" style="margin-top:5px;">${badges}</div>
+          <div class="tw-habs-badges">${badges}</div>
         </div>
       </div>`;
   }).join('');
@@ -383,21 +400,15 @@ function calcularEstado(fecha_caducidad) {
 async function buscarTrabajadores() {
   const q = document.getElementById('input-buscar').value.trim();
   const el = document.getElementById('lista-trabajadores');
-
-  if (!obraActualId) { el.innerHTML = ''; return; }
-  if (q.length < 2) { el.innerHTML = ''; return; }
+  if (!obraActualId || q.length < 2) { el.innerHTML = ''; return; }
 
   el.innerHTML = '<div class="cargando">Buscando…</div>';
-
   const { data, error } = await sb.from('trabajadores')
     .select('id, nombre, apellidos, dni, empresa:empresa_id(nombre)')
     .or(`nombre.ilike.%${q}%,apellidos.ilike.%${q}%,dni.ilike.%${q}%`)
-    .eq('activo', true)
-    .order('apellidos')
-    .limit(50);
+    .eq('activo', true).order('apellidos').limit(50);
 
   if (error) { el.innerHTML = `<div class="vacio">Error: ${esc(error.message)}</div>`; return; }
-
   const filtrados = (data || []).filter(t => trabajadoresObraIds.has(t.id));
   if (!filtrados.length) { el.innerHTML = '<div class="vacio">Sin resultados en esta obra.</div>'; return; }
 
@@ -447,10 +458,11 @@ async function cargarHabilitaciones(id) {
     const estado = h.estado_caducidad;
     const claseEstado = estado === 'proxima_caducidad' ? 'proxima' : estado;
     const cadTxt = h.fecha_caducidad ? 'Caduca: ' + formatFecha(h.fecha_caducidad) : 'Sin fecha de caducidad';
+    const ico = iconoHab(h.tipo_nombre);
     return `
       <div class="hab-item ${claseEstado}">
         <div style="flex:1">
-          <div class="hab-nombre">🏗️ ${esc(h.tipo_nombre)}</div>
+          <div class="hab-nombre">${ico} ${esc(h.tipo_nombre)}</div>
           <div class="hab-caducidad">${cadTxt}</div>
         </div>
         <div class="hab-acciones">
@@ -489,7 +501,7 @@ async function anadirHabilitacion() {
   const msgs = { creada: 'Habilitación añadida.', reactivada: 'Habilitación reactivada.', actualizada: 'Fecha actualizada.' };
   msgHab(msgs[res.accion] || 'Guardado.', 'ok');
   await cargarHabilitaciones(trabajadorActual.id);
-  await cargarHabilitados(); // refrescar lista superior
+  await cargarHabilitados();
 }
 
 async function quitarHabilitacion(tipoId, tipoNombre) {
@@ -504,7 +516,7 @@ async function quitarHabilitacion(tipoId, tipoNombre) {
   if (res.error) { msgHab('Error: ' + res.error, 'err'); return; }
   msgHab('Habilitación eliminada.', 'ok');
   await cargarHabilitaciones(trabajadorActual.id);
-  await cargarHabilitados(); // refrescar lista superior
+  await cargarHabilitados();
 }
 
 async function editarFecha(tipoId, fechaActual, tipoNombre) {
@@ -534,11 +546,14 @@ async function cargarTipos() {
   const el = document.getElementById('lista-tipos');
   if (!tiposCache.length) { el.innerHTML = '<div class="vacio">No hay tipos configurados.</div>'; return; }
   el.innerHTML = tiposCache.map(t => `
-    <div class="tipo-item"><span class="tipo-nombre">🏗️ ${esc(t.nombre)}</span></div>
+    <div class="tipo-item">
+      <span class="tipo-icono">${iconoHab(t.nombre)}</span>
+      <span class="tipo-nombre">${esc(t.nombre)}</span>
+    </div>
   `).join('');
   const sel = document.getElementById('sel-tipo');
   sel.innerHTML = '<option value="">Selecciona un tipo…</option>' +
-    tiposCache.map(t => `<option value="${t.id}">${esc(t.nombre)}</option>`).join('');
+    tiposCache.map(t => `<option value="${t.id}">${iconoHab(t.nombre)} ${esc(t.nombre)}</option>`).join('');
 }
 
 // ── UTILIDADES ────────────────────────────────────────────────────
