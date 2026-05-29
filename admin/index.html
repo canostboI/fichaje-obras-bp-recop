@@ -71,6 +71,7 @@
   .pill.rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
   .vacio { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+  .iconos-hab { display: inline; margin-left: 4px; font-size: 14px; letter-spacing: 1px; }
 
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
   .modal-overlay.visible { display: flex; }
@@ -179,6 +180,28 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 AutoLogout.init(sb);
 
+// ── Iconos de habilitación ──────────────────────────────────────────────────
+const ICONOS_HAB = [
+  { clave: 'movimiento de tierras', icono: '🚜' },
+  { clave: 'dumper',                icono: '🚛' },
+  { clave: 'grúa torre',            icono: '🏗️' },
+  { clave: 'grua torre',            icono: '🏗️' },
+  { clave: 'plataforma elevadora',  icono: '🛗' },
+  { clave: 'carretilla elevadora',  icono: '🛺' },
+  { clave: 'toro',                  icono: '🛺' },
+  { clave: 'andamio',               icono: '🪜' },
+  { clave: 'altura con arnés',      icono: '🧗' },
+  { clave: 'arnes',                 icono: '🧗' },
+  { clave: 'eléctrico',             icono: '⚡' },
+  { clave: 'electrico',             icono: '⚡' },
+  { clave: 'eléctrica',             icono: '⚡' },
+];
+function iconoHab(nombre) {
+  const n = (nombre || '').toLowerCase();
+  for (const { clave, icono } of ICONOS_HAB) { if (n.includes(clave)) return icono; }
+  return '🔧';
+}
+
 const cardIncidencias = document.getElementById('card-incidencias');
 if (cardIncidencias) {
   cardIncidencias.addEventListener('click', abrirModalIncidencias);
@@ -224,14 +247,52 @@ document.getElementById('btn-salir').addEventListener('click', async () => {
 async function cargarFichajes() {
   const { desdeISO, hastaISO } = rangoHoyLocal();
   const { data } = await sb.from('fichajes')
-    .select('tipo, hora, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)')
+    .select('tipo, hora, trabajador_id, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)')
     .gte('hora', desdeISO).lte('hora', hastaISO)
     .order('hora', { ascending: false }).limit(50);
+
   const n = data ? data.length : 0;
   document.getElementById('stat-fichajes').textContent = n;
   document.getElementById('badge-fichajes').textContent = n + ' registros';
-  if (!data || data.length === 0) { document.getElementById('tabla-fichajes').innerHTML = '<div class="vacio">No hay fichajes hoy</div>'; return; }
-  document.getElementById('tabla-fichajes').innerHTML = `<table><thead><tr><th>Estado</th><th>Nombre</th><th>DNI</th><th>Obra</th><th>Entrada</th><th>Salida</th></tr></thead><tbody>${data.map(f => `<tr><td><span class="pill ${f.tipo === 'entrada' ? 'verde' : 'azul'}">${f.tipo === 'entrada' ? 'En obra' : 'Salida'}</span></td><td><strong>${esc(f.trabajador?.nombre)} ${esc(f.trabajador?.apellidos)}</strong></td><td>${esc(f.trabajador?.dni)}</td><td>${esc(f.obra?.nombre)}</td><td>${f.tipo === 'entrada' ? formatHora(f.hora) : '—'}</td><td>${f.tipo === 'salida' ? formatHora(f.hora) : '—'}</td></tr>`).join('')}</tbody></table>`;
+
+  if (!data || data.length === 0) {
+    document.getElementById('tabla-fichajes').innerHTML = '<div class="vacio">No hay fichajes hoy</div>';
+    return;
+  }
+
+  // Cargar habilitaciones de los trabajadores en la tabla
+  const ids = [...new Set(data.map(f => f.trabajador_id).filter(Boolean))];
+  const habIconos = {};
+  if (ids.length > 0) {
+    const { data: habs } = await sb
+      .from('habilitaciones_trabajador')
+      .select('trabajador_id, tipo:tipo_habilitacion_id(nombre)')
+      .in('trabajador_id', ids)
+      .eq('activo', true);
+    (habs || []).forEach(h => {
+      const icono = iconoHab(h.tipo?.nombre || '');
+      if (!habIconos[h.trabajador_id]) habIconos[h.trabajador_id] = [];
+      if (!habIconos[h.trabajador_id].includes(icono)) habIconos[h.trabajador_id].push(icono);
+    });
+  }
+
+  document.getElementById('tabla-fichajes').innerHTML = `
+    <table><thead><tr>
+      <th>Estado</th><th>Nombre</th><th>DNI</th><th>Obra</th><th>Entrada</th><th>Salida</th>
+    </tr></thead><tbody>
+    ${data.map(f => {
+      const iconos = (habIconos[f.trabajador_id] || []).join(' ');
+      const iconosHtml = iconos ? `<span class="iconos-hab" title="Habilitaciones: ${iconos}">${iconos}</span>` : '';
+      return `<tr>
+        <td><span class="pill ${f.tipo === 'entrada' ? 'verde' : 'azul'}">${f.tipo === 'entrada' ? 'En obra' : 'Salida'}</span></td>
+        <td><strong>${esc(f.trabajador?.nombre)} ${esc(f.trabajador?.apellidos)}</strong>${iconosHtml}</td>
+        <td>${esc(f.trabajador?.dni)}</td>
+        <td>${esc(f.obra?.nombre)}</td>
+        <td>${f.tipo === 'entrada' ? formatHora(f.hora) : '—'}</td>
+        <td>${f.tipo === 'salida' ? formatHora(f.hora) : '—'}</td>
+      </tr>`;
+    }).join('')}
+    </tbody></table>`;
 }
 
 async function cargarObras() {
