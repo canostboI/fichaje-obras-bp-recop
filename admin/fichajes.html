@@ -59,6 +59,7 @@
   .pill.azul  { background: rgba(33,150,243,0.15); color: var(--azul); }
   .vacio    { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); }
+  .iconos-hab { display: inline; margin-left: 4px; font-size: 14px; letter-spacing: 1px; }
 </style>
 <script src="../js/auto-logout.js"></script>
 </head>
@@ -112,6 +113,28 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 AutoLogout.init(sb);
 
+// ── Iconos de habilitación ──────────────────────────────────────────────────
+const ICONOS_HAB = [
+  { clave: 'movimiento de tierras', icono: '🚜' },
+  { clave: 'dumper',                icono: '🚛' },
+  { clave: 'grúa torre',            icono: '🏗️' },
+  { clave: 'grua torre',            icono: '🏗️' },
+  { clave: 'plataforma elevadora',  icono: '🛗' },
+  { clave: 'carretilla elevadora',  icono: '🛺' },
+  { clave: 'toro',                  icono: '🛺' },
+  { clave: 'andamio',               icono: '🪜' },
+  { clave: 'altura con arnés',      icono: '🧗' },
+  { clave: 'arnes',                 icono: '🧗' },
+  { clave: 'eléctrico',             icono: '⚡' },
+  { clave: 'electrico',             icono: '⚡' },
+  { clave: 'eléctrica',             icono: '⚡' },
+];
+function iconoHab(nombre) {
+  const n = (nombre || '').toLowerCase();
+  for (const { clave, icono } of ICONOS_HAB) { if (n.includes(clave)) return icono; }
+  return '🔧';
+}
+
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '../'; return; }
@@ -141,7 +164,7 @@ async function buscar() {
   const obraId = document.getElementById('filtro-obra').value;
 
   let query = sb.from('fichajes')
-    .select('id, tipo, hora, cierre_automatico, es_tarde, fuera_de_zona, es_manual, origen, corregido_por, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)')
+    .select('id, tipo, hora, trabajador_id, cierre_automatico, es_tarde, fuera_de_zona, es_manual, origen, corregido_por, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)')
     .order('hora', { ascending: false }).limit(200);
 
   if (fecha) {
@@ -160,9 +183,27 @@ async function buscar() {
     return;
   }
 
+  // Cargar habilitaciones activas de los trabajadores en la tabla
+  const ids = [...new Set(data.map(f => f.trabajador_id).filter(Boolean))];
+  const habIconos = {};
+  if (ids.length > 0) {
+    const { data: habs } = await sb
+      .from('habilitaciones_trabajador')
+      .select('trabajador_id, tipo:tipo_habilitacion_id(nombre)')
+      .in('trabajador_id', ids)
+      .eq('activo', true);
+    (habs || []).forEach(h => {
+      const icono = iconoHab(h.tipo?.nombre || '');
+      if (!habIconos[h.trabajador_id]) habIconos[h.trabajador_id] = [];
+      if (!habIconos[h.trabajador_id].includes(icono)) habIconos[h.trabajador_id].push(icono);
+    });
+  }
+
   document.getElementById('badge-total').textContent = data.length + ' registros';
   document.getElementById('tabla-fichajes').innerHTML = `
-    <table><thead><tr><th>Trabajador</th><th>DNI</th><th>Obra</th><th>Tipo</th><th>Hora</th><th>Avisos</th></tr></thead>
+    <table><thead><tr>
+      <th>Trabajador</th><th>DNI</th><th>Obra</th><th>Tipo</th><th>Hora</th><th>Avisos</th>
+    </tr></thead>
     <tbody>${data.map(f => {
       const avisos = [];
       if (f.cierre_automatico) avisos.push('⏰ Autocierre');
@@ -170,8 +211,10 @@ async function buscar() {
       if (f.fuera_de_zona)     avisos.push('📍 Fuera de zona');
       if (f.es_manual)         avisos.push('✍️ Manual');
       if (f.corregido_por)     avisos.push('🛠️ Corregido');
+      const iconos = (habIconos[f.trabajador_id] || []).join(' ');
+      const iconosHtml = iconos ? `<span class="iconos-hab" title="Habilitaciones: ${iconos}">${iconos}</span>` : '';
       return `<tr>
-        <td><strong>${esc(f.trabajador?.nombre)} ${esc(f.trabajador?.apellidos)}</strong></td>
+        <td><strong>${esc(f.trabajador?.nombre)} ${esc(f.trabajador?.apellidos)}</strong>${iconosHtml}</td>
         <td>${esc(f.trabajador?.dni)}</td>
         <td>${esc(f.obra?.nombre)}</td>
         <td><span class="pill ${f.tipo === 'entrada' ? 'verde' : 'azul'}">${esc(f.tipo)}</span></td>
@@ -250,8 +293,7 @@ async function obtenerFichajesMes(obraId, mes) {
 function descargarBuffer(buffer, filename) {
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
   setTimeout(() => window.URL.revokeObjectURL(url), 1000);
 }
 
