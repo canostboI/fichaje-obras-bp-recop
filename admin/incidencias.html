@@ -62,28 +62,22 @@
     <img src="../assets/logos/bosch_pascual_logo_white.svg">
     <img src="../assets/logos/recop_logo_white.svg">
   </div>
-
   <div class="sidebar-section">Principal</div>
   <a href="index.html"><span class="ico">📊</span> Dashboard</a>
-
   <div class="sidebar-section">Gestión</div>
   <a href="obras.html"><span class="ico">🏗</span> Obras</a>
   <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
-
+  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
   <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
   <a href="incidencias.html" class="activo"><span class="ico">⚠️</span> Incidencias</a>
   <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
-
   <div class="sidebar-bottom">
     <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
   </div>
 </div>
 
 <div class="main">
-  <div class="topbar">
-    <h1>Incidencias</h1>
-  </div>
-
+  <div class="topbar"><h1>Incidencias</h1></div>
   <div class="contenido">
     <div class="barra-filtros">
       <input type="date" id="filtro-fecha">
@@ -93,7 +87,6 @@
       <button class="btn-secundario" id="btn-hoy">Hoy</button>
       <button class="btn-secundario" id="btn-limpiar">Limpiar fecha</button>
     </div>
-
     <div class="seccion">
       <div class="seccion-cab">
         <h2>Listado de incidencias</h2>
@@ -107,129 +100,79 @@
 <script>
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
-
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 AutoLogout.init(sb);
+
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '../'; return; }
-
-  const { data: u } = await sb.from('usuarios_app')
-    .select('rol')
-    .eq('auth_user_id', session.user.id)
-    .single();
-
+  const { data: u } = await sb.from('usuarios_app').select('rol').eq('auth_user_id', session.user.id).single();
   if (!u || u.rol !== 'admin') { window.location.href = '../'; return; }
-
   document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
-
   await cargarObras();
   await cargarTipos();
   await buscar();
 })();
 
-document.getElementById('btn-salir').onclick = async () => {
-  await sb.auth.signOut();
-  window.location.href = '../';
-};
+document.getElementById('btn-salir').onclick = async () => { await sb.auth.signOut(); window.location.href = '../'; };
 
 async function cargarObras() {
   const { data } = await sb.from('obras').select('id, nombre').eq('activa', true);
   const select = document.getElementById('filtro-obra');
-  (data || []).forEach(o => {
-    const opt = document.createElement('option');
-    opt.value = o.id;
-    opt.textContent = o.nombre;
-    select.appendChild(opt);
-  });
+  (data || []).forEach(o => { const opt = document.createElement('option'); opt.value = o.id; opt.textContent = o.nombre; select.appendChild(opt); });
 }
 
 async function cargarTipos() {
-  // Filtro dinámico: lee los tipos que realmente existen en BD
   const { data } = await sb.from('incidencias').select('tipo').limit(1000);
   const tipos = [...new Set((data || []).map(d => d.tipo).filter(Boolean))].sort();
   const select = document.getElementById('filtro-tipo');
-  tipos.forEach(t => {
-    const opt = document.createElement('option');
-    opt.value = t;
-    opt.textContent = t;
-    select.appendChild(opt);
-  });
+  tipos.forEach(t => { const opt = document.createElement('option'); opt.value = t; opt.textContent = t; select.appendChild(opt); });
 }
 
 document.getElementById('btn-buscar').onclick = buscar;
-document.getElementById('btn-hoy').onclick = () => {
-  document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
-  buscar();
-};
-document.getElementById('btn-limpiar').onclick = () => {
-  document.getElementById('filtro-fecha').value = '';
-  buscar();
-};
+document.getElementById('btn-hoy').onclick = () => { document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0]; buscar(); };
+document.getElementById('btn-limpiar').onclick = () => { document.getElementById('filtro-fecha').value = ''; buscar(); };
 
 async function buscar() {
   document.getElementById('tabla-incidencias').innerHTML = '<div class="cargando">Cargando…</div>';
-
   const fecha  = document.getElementById('filtro-fecha').value;
   const obraId = document.getElementById('filtro-obra').value;
   const tipo   = document.getElementById('filtro-tipo').value;
 
   let query = sb.from('incidencias')
     .select('id, tipo, detalle, comentario, created_at, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)')
-    .order('created_at', { ascending: false })
-    .limit(200);
+    .order('created_at', { ascending: false }).limit(200);
 
-  // Filtro de fecha respetando zona horaria local (CET/CEST):
-  // convierte el inicio y fin del día LOCAL a UTC ISO antes de filtrar.
   if (fecha) {
     const [y, m, d] = fecha.split('-').map(Number);
-    const desde = new Date(y, m - 1, d, 0, 0, 0, 0);          // inicio día local
-    const hasta = new Date(y, m - 1, d, 23, 59, 59, 999);     // fin día local
-    query = query.gte('created_at', desde.toISOString())
-                 .lte('created_at', hasta.toISOString());
+    const desde = new Date(y, m - 1, d, 0, 0, 0, 0);
+    const hasta = new Date(y, m - 1, d, 23, 59, 59, 999);
+    query = query.gte('created_at', desde.toISOString()).lte('created_at', hasta.toISOString());
   }
-
   if (obraId) query = query.eq('obra_id', obraId);
   if (tipo)   query = query.eq('tipo', tipo);
 
   const { data, error } = await query;
 
-  if (error) {
-    console.error(error);
-    document.getElementById('badge-total').textContent = 'Error';
-    document.getElementById('tabla-incidencias').innerHTML = '<div class="vacio">Error al cargar: ' + esc(error.message) + '</div>';
-    return;
-  }
+  if (error) { document.getElementById('badge-total').textContent = 'Error'; document.getElementById('tabla-incidencias').innerHTML = '<div class="vacio">Error al cargar: ' + esc(error.message) + '</div>'; return; }
 
-  if (!data || data.length === 0) {
-    document.getElementById('badge-total').textContent = '0 incidencias';
-    document.getElementById('tabla-incidencias').innerHTML = '<div class="vacio">No hay incidencias ✓</div>';
-    return;
-  }
+  if (!data || data.length === 0) { document.getElementById('badge-total').textContent = '0 incidencias'; document.getElementById('tabla-incidencias').innerHTML = '<div class="vacio">No hay incidencias ✓</div>'; return; }
 
   document.getElementById('badge-total').textContent = data.length + ' incidencias';
-
   document.getElementById('tabla-incidencias').innerHTML = `
-    <table>
-      <thead><tr>
-        <th>Trabajador</th><th>DNI</th><th>Obra</th><th>Tipo</th><th>Detalle</th><th>Fecha y hora</th>
-      </tr></thead>
-      <tbody>
-        ${data.map(i => `
-          <tr>
-            <td><strong>${esc(i.trabajador?.nombre)} ${esc(i.trabajador?.apellidos)}</strong></td>
-            <td>${esc(i.trabajador?.dni)}</td>
-            <td>${esc(i.obra?.nombre)}</td>
-            <td><span class="pill ${colorTipo(i.tipo)}">${esc(i.tipo)}</span></td>
-            <td class="detalle-celda">
-              ${esc(i.detalle || '—')}
-              ${i.comentario ? `<div class="comentario">${esc(i.comentario)}</div>` : ''}
-            </td>
-            <td>${formatFechaHora(i.created_at)}</td>
-          </tr>`).join('')}
-      </tbody>
-    </table>`;
+    <table><thead><tr>
+      <th>Trabajador</th><th>DNI</th><th>Obra</th><th>Tipo</th><th>Detalle</th><th>Fecha y hora</th>
+    </tr></thead><tbody>
+    ${data.map(i => `<tr>
+      <td><strong>${esc(i.trabajador?.nombre)} ${esc(i.trabajador?.apellidos)}</strong></td>
+      <td>${esc(i.trabajador?.dni)}</td>
+      <td>${esc(i.obra?.nombre)}</td>
+      <td><span class="pill ${colorTipo(i.tipo)}">${esc(i.tipo)}</span></td>
+      <td class="detalle-celda">${esc(i.detalle || '—')}${i.comentario ? `<div class="comentario">${esc(i.comentario)}</div>` : ''}</td>
+      <td>${formatFechaHora(i.created_at)}</td>
+    </tr>`).join('')}
+    </tbody></table>`;
 }
 
 function colorTipo(tipo) {
@@ -240,19 +183,8 @@ function colorTipo(tipo) {
   return 'gris';
 }
 
-function esc(txt) {
-  const d = document.createElement('div');
-  d.textContent = String(txt || '');
-  return d.innerHTML;
-}
-
-function formatFechaHora(iso) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' +
-         d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-}
+function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
+function formatFechaHora(iso) { if (!iso) return '—'; const d = new Date(iso); return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); }
 </script>
-
 </body>
 </html>

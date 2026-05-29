@@ -63,7 +63,6 @@
   .modal-qr { text-align: center; }
   .url-qr { font-size: 12px; color: var(--texto2); word-break: break-all; margin: 14px 0; padding: 10px; background: var(--bg3); border-radius: 8px; }
   #qr-canvas { margin: 16px auto; display: block; border-radius: 8px; background: white; padding: 8px; }
-
   .equipo-lista { margin-bottom: 20px; }
   .equipo-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg3); border-radius: 8px; margin-bottom: 8px; }
   .equipo-item-info { display: flex; flex-direction: column; gap: 2px; }
@@ -74,12 +73,9 @@
   .equipo-anadir h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--texto2); margin-bottom: 14px; }
   .btn-peligro { background: transparent; color: var(--rojo); border: 1px solid rgba(244,67,54,0.3); padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; }
   .btn-peligro:hover { background: rgba(244,67,54,0.1); }
-
   .crear-usuario { margin-top: 4px; }
   .crear-usuario h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--texto2); margin-bottom: 14px; }
   .aviso-crear { background: rgba(33,150,243,0.08); border: 1px solid rgba(33,150,243,0.2); border-radius: 8px; padding: 10px 12px; font-size: 12px; color: var(--texto2); margin-bottom: 14px; line-height: 1.5; }
-
-  /* Modal foto */
   .foto-actual { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; padding: 14px; background: var(--bg3); border-radius: 10px; }
   .foto-actual img { width: 80px; height: 56px; object-fit: cover; border-radius: 6px; border: 1px solid var(--borde); }
   .foto-actual-info { font-size: 13px; color: var(--texto2); }
@@ -108,6 +104,7 @@
   <div class="sidebar-section">Gestión</div>
   <a href="obras.html" class="activo"><span class="ico">🏗</span> Obras</a>
   <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
+  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
   <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
   <a href="incidencias.html"><span class="ico">⚠️</span> Incidencias</a>
   <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
@@ -133,7 +130,6 @@
   <div class="modal">
     <h2 id="modal-titulo">Nueva obra</h2>
     <div class="error-modal" id="error-modal"></div>
-
     <div class="campo">
       <label>Nº de obra</label>
       <input type="text" id="f-numero" placeholder="Ej: 32510" autocomplete="off">
@@ -184,7 +180,6 @@
         <option value="false">Inactiva</option>
       </select>
     </div>
-
     <div class="modal-acciones">
       <button class="btn-secundario" id="btn-cancelar">Cancelar</button>
       <button class="btn-primario" id="btn-guardar">Guardar</button>
@@ -212,20 +207,13 @@
     <h2 id="equipo-titulo">Equipo de la obra</h2>
     <div class="error-modal" id="error-equipo"></div>
     <div class="ok-modal" id="ok-equipo"></div>
-
-    <div class="equipo-lista" id="equipo-lista">
-      <div class="cargando">Cargando…</div>
-    </div>
-
+    <div class="equipo-lista" id="equipo-lista"><div class="cargando">Cargando…</div></div>
     <hr class="separador">
-
     <div class="equipo-anadir">
       <h3>Añadir usuario existente</h3>
       <div class="campo">
         <label>Usuario</label>
-        <select id="eq-usuario">
-          <option value="">Selecciona un usuario…</option>
-        </select>
+        <select id="eq-usuario"><option value="">Selecciona un usuario…</option></select>
       </div>
       <div class="campo">
         <label>Rol en la obra</label>
@@ -238,9 +226,7 @@
         <button class="btn-primario" id="btn-anadir-equipo">Añadir</button>
       </div>
     </div>
-
     <hr class="separador">
-
     <div class="crear-usuario">
       <h3>Crear usuario nuevo</h3>
       <div class="aviso-crear">
@@ -267,9 +253,7 @@
         <button class="btn-primario" id="btn-crear-usuario">Crear y asignar a esta obra</button>
       </div>
     </div>
-
     <hr class="separador">
-
     <div class="modal-acciones">
       <button class="btn-secundario" id="btn-cerrar-equipo">Cerrar</button>
     </div>
@@ -282,11 +266,7 @@
     <h2 id="foto-titulo">📷 Foto de fondo</h2>
     <div class="error-modal" id="error-foto"></div>
     <div class="ok-modal" id="ok-foto"></div>
-
-    <div class="foto-actual" id="foto-actual-contenedor">
-      <!-- Se rellena dinámicamente -->
-    </div>
-
+    <div class="foto-actual" id="foto-actual-contenedor"></div>
     <div class="drop-zone" id="drop-zone">
       <div class="icono">🖼️</div>
       <p>Haz clic para elegir una imagen o arrástrala aquí</p>
@@ -294,7 +274,6 @@
       <input type="file" id="foto-input" accept="image/jpeg,image/png">
       <div class="nombre-archivo" id="nombre-archivo"></div>
     </div>
-
     <div class="modal-acciones">
       <button class="btn-secundario" id="btn-cerrar-foto">Cancelar</button>
       <button class="btn-primario" id="btn-guardar-foto" disabled>Subir foto</button>
@@ -321,93 +300,47 @@ let qrActual       = null;
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '../'; return; }
-
-  const { data: u } = await sb
-    .from('usuarios_app')
-    .select('rol')
-    .eq('auth_user_id', session.user.id)
-    .single();
-
+  const { data: u } = await sb.from('usuarios_app').select('rol').eq('auth_user_id', session.user.id).single();
   if (!u || u.rol !== 'admin') { window.location.href = '../'; return; }
-
   await cargarObras();
   await cargarUsuarios();
 })();
 
-document.getElementById('btn-salir').onclick = async () => {
-  await sb.auth.signOut();
-  window.location.href = '../';
-};
-
-// ── Cargar obras ──────────────────────────────────────────────────────────
+document.getElementById('btn-salir').onclick = async () => { await sb.auth.signOut(); window.location.href = '../'; };
 
 async function cargarObras() {
-  const { data, error } = await sb
-    .from('obras')
+  const { data, error } = await sb.from('obras')
     .select('id, numero_obra, nombre, direccion, latitud, longitud, empresa_marca, radio_gps, hora_entrada_default, hora_salida_default, activa, foto_url')
     .order('nombre');
-
-  if (error) {
-    document.getElementById('tabla-obras').innerHTML = '<div class="vacio">Error al cargar obras</div>';
-    return;
-  }
-
+  if (error) { document.getElementById('tabla-obras').innerHTML = '<div class="vacio">Error al cargar obras</div>'; return; }
   todasObras = data || [];
-
-  if (todasObras.length === 0) {
-    document.getElementById('tabla-obras').innerHTML = '<div class="vacio">No hay obras todavía</div>';
-    return;
-  }
-
+  if (todasObras.length === 0) { document.getElementById('tabla-obras').innerHTML = '<div class="vacio">No hay obras todavía</div>'; return; }
   document.getElementById('tabla-obras').innerHTML = `
-    <table>
-      <thead>
-        <tr>
-          <th>Nº</th>
-          <th>Nombre</th>
-          <th>Dirección</th>
-          <th>Empresa</th>
-          <th>Radio GPS</th>
-          <th>Horario</th>
-          <th>Estado</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${todasObras.map(o => `
-          <tr>
-            <td><span class="num-obra">${esc(o.numero_obra || '—')}</span></td>
-            <td><strong>${esc(o.nombre)}</strong></td>
-            <td>${esc(o.direccion || '—')}</td>
-            <td>${esc(o.empresa_marca || '—')}</td>
-            <td>${esc(o.radio_gps || '—')}m</td>
-            <td>${hora(o.hora_entrada_default)} – ${hora(o.hora_salida_default)}</td>
-            <td><span class="pill ${o.activa ? 'verde' : 'gris'}">${o.activa ? 'Activa' : 'Inactiva'}</span></td>
-            <td>
-              <div class="acciones">
-                <button class="btn-secundario" onclick="abrirEquipoPorId('${o.id}')">👥 Equipo</button>
-                <button class="btn-secundario" onclick="abrirQRPorId('${o.id}')">QR</button>
-                <button class="btn-secundario" onclick="abrirFotoPorId('${o.id}')" title="${o.foto_url ? 'Cambiar foto' : 'Añadir foto'}">📷${o.foto_url ? ' ✓' : ''}</button>
-                <button class="btn-secundario" onclick="abrirEditarPorId('${o.id}')">Editar</button>
-              </div>
-            </td>
-          </tr>`).join('')}
-      </tbody>
-    </table>`;
+    <table><thead><tr>
+      <th>Nº</th><th>Nombre</th><th>Dirección</th><th>Empresa</th><th>Radio GPS</th><th>Horario</th><th>Estado</th><th>Acciones</th>
+    </tr></thead><tbody>
+      ${todasObras.map(o => `<tr>
+        <td><span class="num-obra">${esc(o.numero_obra || '—')}</span></td>
+        <td><strong>${esc(o.nombre)}</strong></td>
+        <td>${esc(o.direccion || '—')}</td>
+        <td>${esc(o.empresa_marca || '—')}</td>
+        <td>${esc(o.radio_gps || '—')}m</td>
+        <td>${hora(o.hora_entrada_default)} – ${hora(o.hora_salida_default)}</td>
+        <td><span class="pill ${o.activa ? 'verde' : 'gris'}">${o.activa ? 'Activa' : 'Inactiva'}</span></td>
+        <td><div class="acciones">
+          <button class="btn-secundario" onclick="abrirEquipoPorId('${o.id}')">👥 Equipo</button>
+          <button class="btn-secundario" onclick="abrirQRPorId('${o.id}')">QR</button>
+          <button class="btn-secundario" onclick="abrirFotoPorId('${o.id}')" title="${o.foto_url ? 'Cambiar foto' : 'Añadir foto'}">📷${o.foto_url ? ' ✓' : ''}</button>
+          <button class="btn-secundario" onclick="abrirEditarPorId('${o.id}')">Editar</button>
+        </div></td>
+      </tr>`).join('')}
+    </tbody></table>`;
 }
 
 async function cargarUsuarios() {
-  const { data } = await sb
-    .from('usuarios_app')
-    .select('id, nombre, email, rol')
-    .eq('activo', true)
-    .in('rol', ['jefe_obra', 'encargado'])
-    .order('nombre');
-
+  const { data } = await sb.from('usuarios_app').select('id, nombre, email, rol').eq('activo', true).in('rol', ['jefe_obra', 'encargado']).order('nombre');
   todosUsuarios = data || [];
 }
-
-// ── Modal obra ────────────────────────────────────────────────────────────
 
 document.getElementById('btn-nueva').onclick = () => {
   obraEditandoId = null;
@@ -429,7 +362,6 @@ document.getElementById('btn-nueva').onclick = () => {
 function abrirEditarPorId(id) {
   const o = todasObras.find(x => x.id === id);
   if (!o) { alert('No se ha encontrado la obra.'); return; }
-
   obraEditandoId = o.id;
   document.getElementById('modal-titulo').textContent = 'Editar obra';
   document.getElementById('f-numero').value = o.numero_obra || '';
@@ -446,25 +378,19 @@ function abrirEditarPorId(id) {
   document.getElementById('modal-obra').classList.add('visible');
 }
 
-document.getElementById('btn-cancelar').onclick = () => {
-  document.getElementById('modal-obra').classList.remove('visible');
-};
+document.getElementById('btn-cancelar').onclick = () => { document.getElementById('modal-obra').classList.remove('visible'); };
 
 document.getElementById('btn-guardar').onclick = async () => {
   const numeroRaw   = document.getElementById('f-numero').value.trim();
   const nombre      = document.getElementById('f-nombre').value.trim();
   const direccion   = document.getElementById('f-direccion').value.trim();
-  const latitudRaw  = document.getElementById('f-latitud').value;
-  const longitudRaw = document.getElementById('f-longitud').value;
-  const radioRaw    = document.getElementById('f-radio').value;
+  const latitud     = parseFloat(document.getElementById('f-latitud').value);
+  const longitud    = parseFloat(document.getElementById('f-longitud').value);
+  const radio_gps   = parseInt(document.getElementById('f-radio').value, 10);
   const entradaRaw  = document.getElementById('f-entrada').value;
   const salidaRaw   = document.getElementById('f-salida').value;
   const empresa_marca = document.getElementById('f-empresa').value;
   const activa      = document.getElementById('f-activa').value === 'true';
-
-  const latitud  = parseFloat(latitudRaw);
-  const longitud = parseFloat(longitudRaw);
-  const radio_gps = parseInt(radioRaw, 10);
 
   if (!nombre)                           { mostrarError('El nombre es obligatorio.'); return; }
   if (isNaN(latitud) || isNaN(longitud)) { mostrarError('Las coordenadas son obligatorias.'); return; }
@@ -474,11 +400,8 @@ document.getElementById('btn-guardar').onclick = async () => {
   const payload = {
     numero_obra: numeroRaw === '' ? null : numeroRaw,
     nombre, direccion,
-    latitud:  Number(latitud.toFixed(4)),
-    longitud: Number(longitud.toFixed(4)),
-    radio_gps,
-    hora_entrada_default: entradaRaw + ':00',
-    hora_salida_default:  salidaRaw  + ':00',
+    latitud: Number(latitud.toFixed(4)), longitud: Number(longitud.toFixed(4)),
+    radio_gps, hora_entrada_default: entradaRaw + ':00', hora_salida_default: salidaRaw + ':00',
     empresa_marca, activa
   };
 
@@ -488,38 +411,27 @@ document.getElementById('btn-guardar').onclick = async () => {
   } else {
     ({ error } = await sb.from('obras').insert(payload));
   }
-
   if (error) { mostrarError('Error al guardar: ' + error.message); return; }
-
   document.getElementById('modal-obra').classList.remove('visible');
   await cargarObras();
 };
 
-// ── Modal QR ──────────────────────────────────────────────────────────────
-
 function abrirQRPorId(id) {
   const o = todasObras.find(x => x.id === id);
   if (!o) { alert('No se ha encontrado la obra.'); return; }
-
   const url = `https://canostboi.github.io/fichaje-obras-bp-recop/fichaje/?obra=${o.id}`;
   qrActual = { nombre: o.nombre || 'Obra', empresa_marca: o.empresa_marca || 'bosch_pascual', url };
   document.getElementById('qr-titulo').textContent = 'QR — ' + qrActual.nombre;
   document.getElementById('qr-url').textContent = url;
-
   const canvas = document.getElementById('qr-canvas');
   new QRious({ element: canvas, value: url, size: 220, background: 'white', foreground: 'black' });
-
   const btn = document.getElementById('btn-descargar-qr');
   btn.href = canvas.toDataURL('image/png');
   btn.download = 'qr-' + limpiarNombreArchivo(o.nombre || 'obra') + '.png';
-
   document.getElementById('modal-qr').classList.add('visible');
 }
 
-document.getElementById('btn-cerrar-qr').onclick = () => {
-  document.getElementById('modal-qr').classList.remove('visible');
-};
-
+document.getElementById('btn-cerrar-qr').onclick = () => { document.getElementById('modal-qr').classList.remove('visible'); };
 document.getElementById('btn-imprimir-qr').onclick = imprimirQR;
 
 function obtenerMarcaQR(empresaMarca) {
@@ -529,27 +441,13 @@ function obtenerMarcaQR(empresaMarca) {
 
 function imprimirQR() {
   if (!qrActual) { alert('Primero abre el QR de una obra.'); return; }
-
   const canvas  = document.getElementById('qr-canvas');
   const dataUrl = canvas ? canvas.toDataURL('image/png') : '';
   const marca   = obtenerMarcaQR(qrActual.empresa_marca);
   const logoUrl = window.location.origin + window.location.pathname.replace(/admin\/.*$/, '') + marca.logo;
-
   const win = window.open('', '_blank');
-  win.document.write(`
-    <!DOCTYPE html><html><head>
-    <title>QR — ${qrActual.nombre}</title>
-    <style>
-      body { font-family: sans-serif; text-align: center; padding: 40px; }
-      .logo-marca { max-height: 60px; max-width: 220px; margin-bottom: 20px; }
-      h1 { font-size: 24px; margin-bottom: 8px; }
-      p { color: #666; font-size: 14px; margin-bottom: 24px; }
-      .sub-ar { display: block; margin-top: 8px; font-size: 18px; font-weight: 700; color: #444; direction: rtl; }
-      img.qr { display: block; margin: 0 auto; width: 280px; }
-      .aviso-obligatorio { margin: 26px auto 0; max-width: 560px; border: 2px solid #111; border-radius: 12px; padding: 16px 18px; color: #111; background: #fff; }
-      .aviso-obligatorio .es { font-size: 16px; font-weight: 800; line-height: 1.35; margin-bottom: 10px; }
-      .aviso-obligatorio .ar { font-size: 18px; font-weight: 800; line-height: 1.6; direction: rtl; }
-    </style>
+  win.document.write(`<!DOCTYPE html><html><head><title>QR — ${qrActual.nombre}</title>
+    <style>body{font-family:sans-serif;text-align:center;padding:40px}.logo-marca{max-height:60px;max-width:220px;margin-bottom:20px}h1{font-size:24px;margin-bottom:8px}p{color:#666;font-size:14px;margin-bottom:24px}.sub-ar{display:block;margin-top:8px;font-size:18px;font-weight:700;color:#444;direction:rtl}img.qr{display:block;margin:0 auto;width:280px}.aviso-obligatorio{margin:26px auto 0;max-width:560px;border:2px solid #111;border-radius:12px;padding:16px 18px;color:#111;background:#fff}.aviso-obligatorio .es{font-size:16px;font-weight:800;line-height:1.35;margin-bottom:10px}.aviso-obligatorio .ar{font-size:18px;font-weight:800;line-height:1.6;direction:rtl}</style>
     </head><body>
     <img class="logo-marca" src="${logoUrl}" alt="${marca.nombre}" />
     <h1>${qrActual.nombre}</h1>
@@ -559,60 +457,35 @@ function imprimirQR() {
       <div class="es">En esta obra es obligatorio fichar tanto a la entrada como a la salida. El incumplimiento puede tener consecuencias disciplinarias.</div>
       <div class="ar" lang="ar" dir="rtl">في هذا الموقع، تسجيل الحضور عند الدخول والخروج إلزامي.<br>عدم الامتثال قد يترتب عليه عواقب تأديبية.</div>
     </div>
-    <script>window.onload = () => { window.print(); }<\/script>
-    </body></html>`);
+    <script>window.onload=()=>{window.print()}<\/script></body></html>`);
   win.document.close();
 }
-
-// ── Modal equipo ──────────────────────────────────────────────────────────
 
 async function abrirEquipoPorId(id) {
   const o = todasObras.find(x => x.id === id);
   if (!o) { alert('No se ha encontrado la obra.'); return; }
-
   obraEquipoId = o.id;
   document.getElementById('equipo-titulo').textContent = '👥 Equipo — ' + (o.nombre || 'Obra');
   ocultarMensajesEquipo();
   limpiarFormularioNuevoUsuario();
   document.getElementById('modal-equipo').classList.add('visible');
-
   await cargarEquipo();
   rellenarSelectUsuarios();
 }
 
 async function cargarEquipo() {
   document.getElementById('equipo-lista').innerHTML = '<div class="cargando">Cargando…</div>';
-
-  const { data, error } = await sb
-    .from('usuarios_obra')
-    .select('id, rol_en_obra, usuario_app:usuario_app_id(id, nombre, email)')
-    .eq('obra_id', obraEquipoId);
-
-  if (error) {
-    document.getElementById('equipo-lista').innerHTML = '<div class="equipo-vacio">Error al cargar el equipo.</div>';
-    return;
-  }
-
-  if (!data || data.length === 0) {
-    document.getElementById('equipo-lista').innerHTML = '<div class="equipo-vacio">Esta obra no tiene equipo asignado todavía.</div>';
-    return;
-  }
-
+  const { data, error } = await sb.from('usuarios_obra').select('id, rol_en_obra, usuario_app:usuario_app_id(id, nombre, email)').eq('obra_id', obraEquipoId);
+  if (error) { document.getElementById('equipo-lista').innerHTML = '<div class="equipo-vacio">Error al cargar el equipo.</div>'; return; }
+  if (!data || data.length === 0) { document.getElementById('equipo-lista').innerHTML = '<div class="equipo-vacio">Esta obra no tiene equipo asignado todavía.</div>'; return; }
   document.getElementById('equipo-lista').innerHTML = data.map(item => `
     <div class="equipo-item">
       <div class="equipo-item-info">
         <span class="equipo-item-nombre">${esc(item.usuario_app?.nombre || '—')}</span>
-        <span class="equipo-item-email">
-          ${esc(item.usuario_app?.email || '')}
-          ·
-          <span class="pill ${item.rol_en_obra === 'jefe_obra' ? 'azul' : 'naranja'}">
-            ${item.rol_en_obra === 'jefe_obra' ? 'Jefe de obra' : 'Encargado'}
-          </span>
-        </span>
+        <span class="equipo-item-email">${esc(item.usuario_app?.email || '')} · <span class="pill ${item.rol_en_obra === 'jefe_obra' ? 'azul' : 'naranja'}">${item.rol_en_obra === 'jefe_obra' ? 'Jefe de obra' : 'Encargado'}</span></span>
       </div>
       <button class="btn-peligro" onclick="quitarDelEquipo('${item.id}')">Quitar</button>
-    </div>
-  `).join('');
+    </div>`).join('');
 }
 
 function rellenarSelectUsuarios() {
@@ -620,8 +493,7 @@ function rellenarSelectUsuarios() {
   select.innerHTML = '<option value="">Selecciona un usuario…</option>';
   todosUsuarios.forEach(u => {
     const opt = document.createElement('option');
-    opt.value = u.id;
-    opt.textContent = `${u.nombre || 'Sin nombre'} (${u.email || 'sin email'})`;
+    opt.value = u.id; opt.textContent = `${u.nombre || 'Sin nombre'} (${u.email || 'sin email'})`;
     select.appendChild(opt);
   });
 }
@@ -630,22 +502,9 @@ document.getElementById('btn-anadir-equipo').onclick = async () => {
   const usuarioAppId = document.getElementById('eq-usuario').value;
   const rol = document.getElementById('eq-rol').value;
   ocultarMensajesEquipo();
-
   if (!usuarioAppId) { mostrarErrorEquipo('Selecciona un usuario.'); return; }
-
-  const { error } = await sb.from('usuarios_obra').insert({
-    usuario_app_id: usuarioAppId,
-    obra_id: obraEquipoId,
-    rol_en_obra: rol
-  });
-
-  if (error) {
-    mostrarErrorEquipo(error.code === '23505'
-      ? 'Este usuario ya está asignado a esta obra.'
-      : 'Error: ' + error.message);
-    return;
-  }
-
+  const { error } = await sb.from('usuarios_obra').insert({ usuario_app_id: usuarioAppId, obra_id: obraEquipoId, rol_en_obra: rol });
+  if (error) { mostrarErrorEquipo(error.code === '23505' ? 'Este usuario ya está asignado a esta obra.' : 'Error: ' + error.message); return; }
   document.getElementById('eq-usuario').value = '';
   await cargarEquipo();
 };
@@ -655,38 +514,13 @@ document.getElementById('btn-crear-usuario').onclick = async () => {
   const email  = document.getElementById('nu-email').value.trim();
   const rol    = document.getElementById('nu-rol').value;
   ocultarMensajesEquipo();
-
   if (!nombre) { mostrarErrorEquipo('El nombre es obligatorio.'); return; }
   if (!email)  { mostrarErrorEquipo('El email es obligatorio.'); return; }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    mostrarErrorEquipo('El email no tiene un formato válido.');
-    return;
-  }
-
-  const { data: nuevoUsuario, error: errorInsert } = await sb
-    .from('usuarios_app')
-    .insert({ nombre, email, rol, activo: true })
-    .select('id')
-    .single();
-
-  if (errorInsert) {
-    mostrarErrorEquipo(errorInsert.code === '23505'
-      ? 'Ya existe un usuario con ese email.'
-      : 'Error al crear usuario: ' + errorInsert.message);
-    return;
-  }
-
-  const { error: errorAsignar } = await sb.from('usuarios_obra').insert({
-    usuario_app_id: nuevoUsuario.id,
-    obra_id: obraEquipoId,
-    rol_en_obra: rol
-  });
-
-  if (errorAsignar) {
-    mostrarErrorEquipo('Usuario creado pero error al asignarlo a la obra: ' + errorAsignar.message);
-    return;
-  }
-
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { mostrarErrorEquipo('El email no tiene un formato válido.'); return; }
+  const { data: nuevoUsuario, error: errorInsert } = await sb.from('usuarios_app').insert({ nombre, email, rol, activo: true }).select('id').single();
+  if (errorInsert) { mostrarErrorEquipo(errorInsert.code === '23505' ? 'Ya existe un usuario con ese email.' : 'Error al crear usuario: ' + errorInsert.message); return; }
+  const { error: errorAsignar } = await sb.from('usuarios_obra').insert({ usuario_app_id: nuevoUsuario.id, obra_id: obraEquipoId, rol_en_obra: rol });
+  if (errorAsignar) { mostrarErrorEquipo('Usuario creado pero error al asignarlo a la obra: ' + errorAsignar.message); return; }
   todosUsuarios.push({ id: nuevoUsuario.id, nombre, email, rol });
   rellenarSelectUsuarios();
   limpiarFormularioNuevoUsuario();
@@ -696,113 +530,48 @@ document.getElementById('btn-crear-usuario').onclick = async () => {
 
 async function quitarDelEquipo(usuariosObraId) {
   if (!confirm('¿Quitar este usuario de la obra?')) return;
-
   const { error } = await sb.from('usuarios_obra').delete().eq('id', usuariosObraId);
-
   if (error) { mostrarErrorEquipo('Error al quitar: ' + error.message); return; }
-
   await cargarEquipo();
 }
 
-document.getElementById('btn-cerrar-equipo').onclick = () => {
-  document.getElementById('modal-equipo').classList.remove('visible');
-};
-
-function limpiarFormularioNuevoUsuario() {
-  document.getElementById('nu-nombre').value = '';
-  document.getElementById('nu-email').value  = '';
-  document.getElementById('nu-rol').value    = 'jefe_obra';
-}
-
-function mostrarErrorEquipo(msg) {
-  const el = document.getElementById('error-equipo');
-  el.textContent = msg; el.style.display = 'block';
-}
-function mostrarOkEquipo(msg) {
-  const el = document.getElementById('ok-equipo');
-  el.textContent = msg; el.style.display = 'block';
-}
-function ocultarMensajesEquipo() {
-  document.getElementById('error-equipo').style.display = 'none';
-  document.getElementById('ok-equipo').style.display = 'none';
-}
-
-// ── Modal foto ────────────────────────────────────────────────────────────
+document.getElementById('btn-cerrar-equipo').onclick = () => { document.getElementById('modal-equipo').classList.remove('visible'); };
+function limpiarFormularioNuevoUsuario() { document.getElementById('nu-nombre').value = ''; document.getElementById('nu-email').value = ''; document.getElementById('nu-rol').value = 'jefe_obra'; }
+function mostrarErrorEquipo(msg) { const el = document.getElementById('error-equipo'); el.textContent = msg; el.style.display = 'block'; }
+function mostrarOkEquipo(msg) { const el = document.getElementById('ok-equipo'); el.textContent = msg; el.style.display = 'block'; }
+function ocultarMensajesEquipo() { document.getElementById('error-equipo').style.display = 'none'; document.getElementById('ok-equipo').style.display = 'none'; }
 
 function abrirFotoPorId(id) {
   const o = todasObras.find(x => x.id === id);
   if (!o) { alert('No se ha encontrado la obra.'); return; }
-
-  obraFotoId  = o.id;
-  fotoArchivo = null;
-
+  obraFotoId = o.id; fotoArchivo = null;
   document.getElementById('foto-titulo').textContent = '📷 Foto de fondo — ' + esc(o.nombre);
   document.getElementById('nombre-archivo').textContent = '';
   document.getElementById('btn-guardar-foto').disabled = true;
   document.getElementById('error-foto').style.display = 'none';
   document.getElementById('ok-foto').style.display = 'none';
   document.getElementById('foto-input').value = '';
-
-  // Mostrar foto actual
   const contenedor = document.getElementById('foto-actual-contenedor');
   if (o.foto_url) {
-    contenedor.innerHTML = `
-      <img src="${esc(o.foto_url)}" alt="Foto actual">
-      <div class="foto-actual-info">
-        <strong>Foto actual</strong>
-        Puedes subir una nueva para reemplazarla.
-        <br><button class="btn-quitar-foto" id="btn-quitar-foto-actual">Quitar foto</button>
-      </div>`;
+    contenedor.innerHTML = `<img src="${esc(o.foto_url)}" alt="Foto actual"><div class="foto-actual-info"><strong>Foto actual</strong>Puedes subir una nueva para reemplazarla.<br><button class="btn-quitar-foto" id="btn-quitar-foto-actual">Quitar foto</button></div>`;
     document.getElementById('btn-quitar-foto-actual').onclick = quitarFotoActual;
   } else {
-    contenedor.innerHTML = `
-      <div class="foto-sin-imagen">🏗️</div>
-      <div class="foto-actual-info">
-        <strong>Sin foto</strong>
-        Sube una imagen para mostrarla de fondo en la pantalla de fichaje.
-      </div>`;
+    contenedor.innerHTML = `<div class="foto-sin-imagen">🏗️</div><div class="foto-actual-info"><strong>Sin foto</strong>Sube una imagen para mostrarla de fondo en la pantalla de fichaje.</div>`;
   }
-
   document.getElementById('modal-foto').classList.add('visible');
 }
 
-// Clic en drop zone → abrir selector de archivo
-document.getElementById('drop-zone').onclick = (e) => {
-  if (e.target.id === 'btn-quitar-foto-actual') return;
-  document.getElementById('foto-input').click();
-};
-
-// Arrastrar y soltar
+document.getElementById('drop-zone').onclick = (e) => { if (e.target.id === 'btn-quitar-foto-actual') return; document.getElementById('foto-input').click(); };
 const dropZone = document.getElementById('drop-zone');
 dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', (e) => {
-  e.preventDefault();
-  dropZone.classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file) procesarArchivo(file);
-});
-
-document.getElementById('foto-input').onchange = (e) => {
-  const file = e.target.files[0];
-  if (file) procesarArchivo(file);
-};
+dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('drag-over'); const file = e.dataTransfer.files[0]; if (file) procesarArchivo(file); });
+document.getElementById('foto-input').onchange = (e) => { const file = e.target.files[0]; if (file) procesarArchivo(file); };
 
 function procesarArchivo(file) {
-  const errEl = document.getElementById('error-foto');
-  errEl.style.display = 'none';
-
-  if (!['image/jpeg', 'image/png'].includes(file.type)) {
-    errEl.textContent = 'Solo se aceptan imágenes JPG o PNG.';
-    errEl.style.display = 'block';
-    return;
-  }
-  if (file.size > 3 * 1024 * 1024) {
-    errEl.textContent = 'La imagen no puede superar los 3 MB.';
-    errEl.style.display = 'block';
-    return;
-  }
-
+  const errEl = document.getElementById('error-foto'); errEl.style.display = 'none';
+  if (!['image/jpeg', 'image/png'].includes(file.type)) { errEl.textContent = 'Solo se aceptan imágenes JPG o PNG.'; errEl.style.display = 'block'; return; }
+  if (file.size > 3 * 1024 * 1024) { errEl.textContent = 'La imagen no puede superar los 3 MB.'; errEl.style.display = 'block'; return; }
   fotoArchivo = file;
   document.getElementById('nombre-archivo').textContent = '✓ ' + file.name;
   document.getElementById('btn-guardar-foto').disabled = false;
@@ -810,119 +579,49 @@ function procesarArchivo(file) {
 
 document.getElementById('btn-guardar-foto').onclick = async () => {
   if (!fotoArchivo || !obraFotoId) return;
-
   const btnGuardar = document.getElementById('btn-guardar-foto');
-  btnGuardar.disabled = true;
-  btnGuardar.textContent = 'Subiendo…';
-
-  const errEl = document.getElementById('error-foto');
-  const okEl  = document.getElementById('ok-foto');
-  errEl.style.display = 'none';
-  okEl.style.display  = 'none';
-
+  btnGuardar.disabled = true; btnGuardar.textContent = 'Subiendo…';
+  const errEl = document.getElementById('error-foto'); const okEl = document.getElementById('ok-foto');
+  errEl.style.display = 'none'; okEl.style.display = 'none';
   try {
-    // 1. Subir al bucket obras-fotos
-    const ext      = fotoArchivo.type === 'image/png' ? 'png' : 'jpg';
+    const ext = fotoArchivo.type === 'image/png' ? 'png' : 'jpg';
     const rutaBlob = `obras/${obraFotoId}/fondo.${ext}`;
-
-    const { error: errorStorage } = await sb.storage
-      .from('obras-fotos')
-      .upload(rutaBlob, fotoArchivo, { upsert: true, contentType: fotoArchivo.type });
-
+    const { error: errorStorage } = await sb.storage.from('obras-fotos').upload(rutaBlob, fotoArchivo, { upsert: true, contentType: fotoArchivo.type });
     if (errorStorage) throw new Error('Error al subir la imagen: ' + errorStorage.message);
-
-    // 2. Obtener URL pública
     const { data: urlData } = sb.storage.from('obras-fotos').getPublicUrl(rutaBlob);
     const fotoUrl = urlData.publicUrl;
-
-    // 3. Guardar URL en BD via RPC
-    const { error: errorRPC } = await sb.rpc('actualizar_foto_obra', {
-      p_obra_id: obraFotoId,
-      p_foto_url: fotoUrl
-    });
-
+    const { error: errorRPC } = await sb.rpc('actualizar_foto_obra', { p_obra_id: obraFotoId, p_foto_url: fotoUrl });
     if (errorRPC) throw new Error('Error al guardar en BD: ' + errorRPC.message);
-
-    // 4. Actualizar local y cerrar
     const obra = todasObras.find(x => x.id === obraFotoId);
     if (obra) obra.foto_url = fotoUrl;
-
-    okEl.textContent = '✓ Foto guardada correctamente.';
-    okEl.style.display = 'block';
-
-    // Refrescar tabla para actualizar el ✓ en el botón
+    okEl.textContent = '✓ Foto guardada correctamente.'; okEl.style.display = 'block';
     await cargarObras();
-
-    setTimeout(() => {
-      document.getElementById('modal-foto').classList.remove('visible');
-    }, 1200);
-
+    setTimeout(() => { document.getElementById('modal-foto').classList.remove('visible'); }, 1200);
   } catch (err) {
-    errEl.textContent = err.message;
-    errEl.style.display = 'block';
-    btnGuardar.disabled = false;
-    btnGuardar.textContent = 'Subir foto';
+    errEl.textContent = err.message; errEl.style.display = 'block';
+    btnGuardar.disabled = false; btnGuardar.textContent = 'Subir foto';
   }
 };
 
 async function quitarFotoActual() {
   if (!confirm('¿Quitar la foto de fondo de esta obra?')) return;
-
-  const errEl = document.getElementById('error-foto');
-  const okEl  = document.getElementById('ok-foto');
-  errEl.style.display = 'none';
-  okEl.style.display  = 'none';
-
-  const { error } = await sb.rpc('actualizar_foto_obra', {
-    p_obra_id: obraFotoId,
-    p_foto_url: null
-  });
-
-  if (error) {
-    errEl.textContent = 'Error al quitar la foto: ' + error.message;
-    errEl.style.display = 'block';
-    return;
-  }
-
+  const errEl = document.getElementById('error-foto'); const okEl = document.getElementById('ok-foto');
+  errEl.style.display = 'none'; okEl.style.display = 'none';
+  const { error } = await sb.rpc('actualizar_foto_obra', { p_obra_id: obraFotoId, p_foto_url: null });
+  if (error) { errEl.textContent = 'Error al quitar la foto: ' + error.message; errEl.style.display = 'block'; return; }
   const obra = todasObras.find(x => x.id === obraFotoId);
   if (obra) obra.foto_url = null;
-
   await cargarObras();
-
   document.getElementById('modal-foto').classList.remove('visible');
 }
 
-document.getElementById('btn-cerrar-foto').onclick = () => {
-  document.getElementById('modal-foto').classList.remove('visible');
-};
+document.getElementById('btn-cerrar-foto').onclick = () => { document.getElementById('modal-foto').classList.remove('visible'); };
 
-// ── Utilidades generales ──────────────────────────────────────────────────
-
-function mostrarError(msg) {
-  const el = document.getElementById('error-modal');
-  el.textContent = msg; el.style.display = 'block';
-}
-function ocultarError() {
-  document.getElementById('error-modal').style.display = 'none';
-}
-function esc(txt) {
-  const d = document.createElement('div');
-  d.textContent = String(txt || '');
-  return d.innerHTML;
-}
-function hora(t) {
-  if (!t) return '—';
-  return String(t).substring(0, 5);
-}
-function limpiarNombreArchivo(txt) {
-  return String(txt || 'obra')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
+function mostrarError(msg) { const el = document.getElementById('error-modal'); el.textContent = msg; el.style.display = 'block'; }
+function ocultarError() { document.getElementById('error-modal').style.display = 'none'; }
+function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
+function hora(t) { if (!t) return '—'; return String(t).substring(0, 5); }
+function limpiarNombreArchivo(txt) { return String(txt || 'obra').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
 </script>
-
 </body>
 </html>

@@ -37,14 +37,10 @@
   .btn-secundario:hover { background: var(--bg3); color: var(--texto); }
   .btn-peligro-sutil { background: transparent; color: var(--rojo); border: 1px solid rgba(244,67,54,0.35); padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; }
   .btn-peligro-sutil:hover { background: rgba(244,67,54,0.1); }
-
-  .toolbar { display: flex; justify-content: flex-end; margin-bottom: 14px; }
   .toolbar-inferior { display: flex; justify-content: flex-end; margin-top: 16px; }
-
   .mensaje { padding: 11px 16px; border-radius: 8px; margin-bottom: 14px; font-size: 13px; display: none; white-space: pre-line; }
   .mensaje.ok  { background: rgba(76,175,80,0.12);  color: var(--verde); border: 1px solid rgba(76,175,80,0.3); }
   .mensaje.err { background: rgba(244,67,54,0.12);  color: var(--rojo);  border: 1px solid rgba(244,67,54,0.3); }
-
   .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   th { text-align: left; padding: 11px 16px; font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); }
@@ -52,16 +48,10 @@
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: var(--bg3); }
   tr.nueva td { border-left: 2px solid var(--verde); }
-  tr.nueva td:first-child { border-left: 2px solid var(--verde); }
-
-  td input[type="text"], td select {
-    width: 100%; background: var(--bg3); border: 1px solid var(--borde); border-radius: 6px;
-    color: var(--texto); font-size: 13px; padding: 7px 10px; font-family: inherit;
-  }
+  td input[type="text"], td select { width: 100%; background: var(--bg3); border: 1px solid var(--borde); border-radius: 6px; color: var(--texto); font-size: 13px; padding: 7px 10px; font-family: inherit; }
   td input[type="text"]:focus, td select:focus { outline: none; border-color: var(--azul); }
   td input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--azul); }
   td.celda-check { text-align: center; }
-
   .vacio { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); }
 </style>
@@ -79,7 +69,7 @@
   <div class="sidebar-section">Gestión</div>
   <a href="obras.html"><span class="ico">🏗</span> Obras</a>
   <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
-
+  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
   <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
   <a href="incidencias.html"><span class="ico">⚠️</span> Incidencias</a>
   <a href="reglas.html" class="activo"><span class="ico">📋</span> Reglas documentales</a>
@@ -94,11 +84,9 @@
     <button class="btn-primario" onclick="nuevaFila()">+ Nueva regla</button>
   </div>
   <div class="subtitulo">Define cuándo un documento pone a un trabajador en verde, naranja o rojo.</div>
-
   <div class="contenido">
     <div id="msgOk" class="mensaje ok"></div>
     <div id="msgErr" class="mensaje err"></div>
-
     <div class="seccion">
       <table id="tablaReglas">
         <thead>
@@ -116,7 +104,6 @@
         </tbody>
       </table>
     </div>
-
     <div class="toolbar-inferior">
       <button class="btn-exito" onclick="guardarTodo()">💾 Guardar cambios</button>
     </div>
@@ -124,177 +111,100 @@
 </div>
 
 <script>
-  const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
-  const { createClient } = supabase;
-  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  AutoLogout.init(sb);
+const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+AutoLogout.init(sb);
 
-  let reglas = []; // datos actuales
-  let eliminadas = []; // IDs a borrar
+let reglas = [];
+let eliminadas = [];
 
-  async function checkAdmin() {
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) { location.href = '../index.html'; return; }
-    const { data } = await sb.from('usuarios_app').select('rol').eq('auth_user_id', session.user.id).single();
-    if (!data || data.rol !== 'admin') { location.href = '../index.html'; }
+async function checkAdmin() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { location.href = '../index.html'; return; }
+  const { data } = await sb.from('usuarios_app').select('rol').eq('auth_user_id', session.user.id).single();
+  if (!data || data.rol !== 'admin') { location.href = '../index.html'; }
+}
+
+async function cargarReglas() {
+  const { data, error } = await sb.from('reglas_documentales').select('*').order('nombre_documento').order('estado_ecoordina');
+  if (error) { mostrarError('Error al cargar reglas: ' + error.message); return; }
+  reglas = data || [];
+  renderTabla();
+}
+
+function renderTabla() {
+  const tbody = document.getElementById('cuerpoTabla');
+  if (reglas.length === 0) { tbody.innerHTML = '<tr><td colspan="6"><div class="vacio">No hay reglas. Añade la primera.</div></td></tr>'; return; }
+  tbody.innerHTML = reglas.map((r, i) => `
+    <tr data-i="${i}" ${r._nueva ? 'class="nueva"' : ''}>
+      <td><input type="text" value="${esc(r.nombre_documento)}" onchange="actualizar(${i},'nombre_documento',this.value)"/></td>
+      <td><input type="text" value="${esc(r.estado_ecoordina)}" onchange="actualizar(${i},'estado_ecoordina',this.value)"/></td>
+      <td class="celda-check"><input type="checkbox" ${r.es_obligatorio ? 'checked' : ''} onchange="actualizar(${i},'es_obligatorio',this.checked)"/></td>
+      <td>
+        <select onchange="actualizar(${i},'aplica_a',this.value)">
+          <option value="trabajador" ${r.aplica_a==='trabajador'?'selected':''}>👷 Trabajador</option>
+          <option value="empresa"    ${r.aplica_a==='empresa'   ?'selected':''}>🏢 Empresa</option>
+        </select>
+      </td>
+      <td>
+        <select onchange="actualizar(${i},'resultado',this.value)">
+          <option value="verde"   ${r.resultado==='verde'  ?'selected':''}>🟢 Verde</option>
+          <option value="naranja" ${r.resultado==='naranja'?'selected':''}>🟠 Naranja</option>
+          <option value="rojo"    ${r.resultado==='rojo'   ?'selected':''}>🔴 Rojo</option>
+        </select>
+      </td>
+      <td><button class="btn-peligro-sutil" onclick="eliminarFila(${i})">Eliminar</button></td>
+    </tr>`).join('');
+}
+
+function esc(str) { return (str || '').replace(/"/g, '&quot;'); }
+function actualizar(i, campo, valor) { reglas[i][campo] = valor; if (!reglas[i]._nueva) reglas[i]._modificada = true; }
+
+function nuevaFila() {
+  reglas.push({ id: null, nombre_documento: '', estado_ecoordina: '', es_obligatorio: true, aplica_a: 'trabajador', resultado: 'rojo', _nueva: true });
+  renderTabla();
+  const filas = document.querySelectorAll('#cuerpoTabla tr');
+  const ultima = filas[filas.length - 1];
+  if (ultima) ultima.querySelector('input[type="text"]').focus();
+}
+
+function eliminarFila(i) {
+  const r = reglas[i];
+  if (r.id) eliminadas.push(r.id);
+  reglas.splice(i, 1);
+  renderTabla();
+}
+
+async function guardarTodo() {
+  ocultarMensajes();
+  for (const r of reglas) {
+    if (!r.nombre_documento.trim() || !r.estado_ecoordina.trim()) { mostrarError('Hay filas con Documento o Estado vacío. Rellénalo antes de guardar.'); return; }
   }
-
-  async function cargarReglas() {
-    const { data, error } = await sb.from('reglas_documentales')
-      .select('*')
-      .order('nombre_documento')
-      .order('estado_ecoordina');
-
-    if (error) { mostrarError('Error al cargar reglas: ' + error.message); return; }
-    reglas = data || [];
-    renderTabla();
+  let errores = [];
+  for (const id of eliminadas) { const { error } = await sb.from('reglas_documentales').delete().eq('id', id); if (error) errores.push('Borrar ' + id + ': ' + error.message); }
+  const nuevas = reglas.filter(r => r._nueva);
+  for (const r of nuevas) {
+    const { error } = await sb.from('reglas_documentales').insert({ nombre_documento: r.nombre_documento.trim(), estado_ecoordina: r.estado_ecoordina.trim(), es_obligatorio: r.es_obligatorio, aplica_a: r.aplica_a || 'trabajador', resultado: r.resultado });
+    if (error) errores.push('Insertar ' + r.nombre_documento + ': ' + error.message);
   }
-
-  function renderTabla() {
-    const tbody = document.getElementById('cuerpoTabla');
-    if (reglas.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6"><div class="vacio">No hay reglas. Añade la primera.</div></td></tr>';
-      return;
-    }
-    tbody.innerHTML = reglas.map((r, i) => `
-      <tr data-i="${i}" ${r._nueva ? 'class="nueva"' : ''}>
-        <td><input type="text" value="${esc(r.nombre_documento)}" onchange="actualizar(${i},'nombre_documento',this.value)"/></td>
-        <td><input type="text" value="${esc(r.estado_ecoordina)}" onchange="actualizar(${i},'estado_ecoordina',this.value)"/></td>
-        <td class="celda-check">
-          <input type="checkbox" ${r.es_obligatorio ? 'checked' : ''} onchange="actualizar(${i},'es_obligatorio',this.checked)"/>
-        </td>
-        <td>
-          <select onchange="actualizar(${i},'aplica_a',this.value)">
-            <option value="trabajador" ${r.aplica_a==='trabajador' ?'selected':''}>👷 Trabajador</option>
-            <option value="empresa"    ${r.aplica_a==='empresa'    ?'selected':''}>🏢 Empresa</option>
-          </select>
-        </td>
-        <td>
-          <select onchange="actualizar(${i},'resultado',this.value)">
-            <option value="verde"   ${r.resultado==='verde'   ?'selected':''}>🟢 Verde</option>
-            <option value="naranja" ${r.resultado==='naranja' ?'selected':''}>🟠 Naranja</option>
-            <option value="rojo"    ${r.resultado==='rojo'    ?'selected':''}>🔴 Rojo</option>
-          </select>
-        </td>
-        <td>
-          <button class="btn-peligro-sutil" onclick="eliminarFila(${i})">Eliminar</button>
-        </td>
-      </tr>
-    `).join('');
+  const modificadas = reglas.filter(r => r._modificada && !r._nueva);
+  for (const r of modificadas) {
+    const { error } = await sb.from('reglas_documentales').update({ nombre_documento: r.nombre_documento.trim(), estado_ecoordina: r.estado_ecoordina.trim(), es_obligatorio: r.es_obligatorio, aplica_a: r.aplica_a || 'trabajador', resultado: r.resultado }).eq('id', r.id);
+    if (error) errores.push('Actualizar ' + r.nombre_documento + ': ' + error.message);
   }
+  if (errores.length > 0) { mostrarError('Errores al guardar:\n' + errores.join('\n')); }
+  else { mostrarOk('Cambios guardados correctamente.'); eliminadas = []; await cargarReglas(); }
+}
 
-  function esc(str) {
-    return (str || '').replace(/"/g, '&quot;');
-  }
+function mostrarOk(msg) { const el = document.getElementById('msgOk'); el.textContent = msg; el.style.display = 'block'; setTimeout(() => el.style.display = 'none', 4000); }
+function mostrarError(msg) { const el = document.getElementById('msgErr'); el.textContent = msg; el.style.display = 'block'; }
+function ocultarMensajes() { document.getElementById('msgOk').style.display = 'none'; document.getElementById('msgErr').style.display = 'none'; }
 
-  function actualizar(i, campo, valor) {
-    reglas[i][campo] = valor;
-    if (!reglas[i]._nueva) reglas[i]._modificada = true;
-  }
+document.getElementById('btn-salir').addEventListener('click', async (e) => { e.preventDefault(); await sb.auth.signOut(); location.href = '../index.html'; });
 
-  function nuevaFila() {
-    reglas.push({
-      id: null,
-      nombre_documento: '',
-      estado_ecoordina: '',
-      es_obligatorio: true,
-      aplica_a: 'trabajador',
-      resultado: 'rojo',
-      _nueva: true
-    });
-    renderTabla();
-    // foco en el primer input de la nueva fila
-    const filas = document.querySelectorAll('#cuerpoTabla tr');
-    const ultima = filas[filas.length - 1];
-    if (ultima) ultima.querySelector('input[type="text"]').focus();
-  }
-
-  function eliminarFila(i) {
-    const r = reglas[i];
-    if (r.id) eliminadas.push(r.id); // marcar para borrar en BD
-    reglas.splice(i, 1);
-    renderTabla();
-  }
-
-  async function guardarTodo() {
-    ocultarMensajes();
-
-    // Validar que no haya campos vacíos
-    for (const r of reglas) {
-      if (!r.nombre_documento.trim() || !r.estado_ecoordina.trim()) {
-        mostrarError('Hay filas con Documento o Estado vacío. Rellénalo antes de guardar.');
-        return;
-      }
-    }
-
-    let errores = [];
-
-    // 1. Borrar eliminadas
-    for (const id of eliminadas) {
-      const { error } = await sb.from('reglas_documentales').delete().eq('id', id);
-      if (error) errores.push('Borrar ' + id + ': ' + error.message);
-    }
-
-    // 2. Insertar nuevas
-    const nuevas = reglas.filter(r => r._nueva);
-    for (const r of nuevas) {
-      const { error } = await sb.from('reglas_documentales').insert({
-        nombre_documento: r.nombre_documento.trim(),
-        estado_ecoordina: r.estado_ecoordina.trim(),
-        es_obligatorio: r.es_obligatorio,
-        aplica_a: r.aplica_a || 'trabajador',
-        resultado: r.resultado
-      });
-      if (error) errores.push('Insertar ' + r.nombre_documento + ': ' + error.message);
-    }
-
-    // 3. Actualizar modificadas
-    const modificadas = reglas.filter(r => r._modificada && !r._nueva);
-    for (const r of modificadas) {
-      const { error } = await sb.from('reglas_documentales').update({
-        nombre_documento: r.nombre_documento.trim(),
-        estado_ecoordina: r.estado_ecoordina.trim(),
-        es_obligatorio: r.es_obligatorio,
-        aplica_a: r.aplica_a || 'trabajador',
-        resultado: r.resultado
-      }).eq('id', r.id);
-      if (error) errores.push('Actualizar ' + r.nombre_documento + ': ' + error.message);
-    }
-
-    if (errores.length > 0) {
-      mostrarError('Errores al guardar:\n' + errores.join('\n'));
-    } else {
-      mostrarOk('Cambios guardados correctamente.');
-      eliminadas = [];
-      await cargarReglas(); // recargar desde BD
-    }
-  }
-
-  function mostrarOk(msg) {
-    const el = document.getElementById('msgOk');
-    el.textContent = msg; el.style.display = 'block';
-    setTimeout(() => el.style.display = 'none', 4000);
-  }
-  function mostrarError(msg) {
-    const el = document.getElementById('msgErr');
-    el.textContent = msg; el.style.display = 'block';
-  }
-  function ocultarMensajes() {
-    document.getElementById('msgOk').style.display = 'none';
-    document.getElementById('msgErr').style.display = 'none';
-  }
-
-  document.getElementById('btn-salir').addEventListener('click', async (e) => {
-    e.preventDefault();
-    await sb.auth.signOut();
-    location.href = '../index.html';
-  });
-
-  (async () => {
-    await checkAdmin();
-    await cargarReglas();
-  })();
+(async () => { await checkAdmin(); await cargarReglas(); })();
 </script>
 </body>
 </html>
