@@ -104,7 +104,7 @@
   <div class="sidebar-section">Gestión</div>
   <a href="obras.html"><span class="ico">🏗</span> Obras</a>
   <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
-
+  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
   <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
   <a href="incidencias.html"><span class="ico">⚠️</span> Incidencias</a>
   <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
@@ -177,17 +177,13 @@ const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  AutoLogout.init(sb);
-
+AutoLogout.init(sb);
 
 const cardIncidencias = document.getElementById('card-incidencias');
 if (cardIncidencias) {
   cardIncidencias.addEventListener('click', abrirModalIncidencias);
   cardIncidencias.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      abrirModalIncidencias();
-    }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirModalIncidencias(); }
   });
 }
 
@@ -195,15 +191,10 @@ const cardRojos = document.getElementById('card-rojos');
 if (cardRojos) {
   cardRojos.addEventListener('click', abrirModalAccesosDenegados);
   cardRojos.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      abrirModalAccesosDenegados();
-    }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirModalAccesosDenegados(); }
   });
 }
 
-// Devuelve { desdeISO, hastaISO } del día actual en hora LOCAL convertido a UTC.
-// Esto evita perder registros de medianoche en CET/CEST.
 function rangoHoyLocal() {
   const ahora = new Date();
   const desde = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 0, 0, 0, 0);
@@ -252,8 +243,6 @@ async function cargarObras() {
   document.getElementById('tabla-obras').innerHTML = `<table><thead><tr><th>Nombre</th><th>Dirección</th><th>Empresa</th></tr></thead><tbody>${data.map(o => `<tr><td><strong>${esc(o.nombre)}</strong></td><td>${esc(o.direccion || '—')}</td><td>${esc(o.empresa_marca || '—')}</td></tr>`).join('')}</tbody></table>`;
 }
 
-// Card rojo: cuenta todos los intentos de acceso denegados HOY (revisados o pendientes).
-// Mismo enfoque que jefe/index.html: histórico del día, sin filtrar por estado.
 async function cargarAccesosDenegadosHoy() {
   const { desdeISO, hastaISO } = rangoHoyLocal();
   const { count, error } = await sb.from('incidencias')
@@ -261,15 +250,10 @@ async function cargarAccesosDenegadosHoy() {
     .eq('tipo', 'bloqueo_rojo')
     .gte('created_at', desdeISO)
     .lte('created_at', hastaISO);
-  if (error) {
-    document.getElementById('stat-rojos').textContent = '—';
-    return;
-  }
+  if (error) { document.getElementById('stat-rojos').textContent = '—'; return; }
   document.getElementById('stat-rojos').textContent = count ?? 0;
 }
 
-// Tabla "Trabajadores con documentación en rojo": info de gestión (no es la del card).
-// Se mantiene tal cual estaba.
 async function cargarTablaRojos() {
   const { data } = await sb.from('validaciones_obra').select('motivos, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)').eq('estado', 'rojo').limit(50);
   const n = data ? data.length : 0;
@@ -334,15 +318,7 @@ function pintarDetalleAccesos(incidencias) {
     const o = inc.obra || null;
     const key = `${inc.obra_id || 'sin_obra'}|${t?.id || inc.trabajador_id || inc.detalle || 'sin_trabajador'}`;
     if (!porTrabajadorObra[key]) {
-      porTrabajadorObra[key] = {
-        trabajador: t,
-        obra: o,
-        intentos: 0,
-        pendientes: 0,
-        revisados: 0,
-        ultimo: inc.created_at,
-        detalles: new Set()
-      };
+      porTrabajadorObra[key] = { trabajador: t, obra: o, intentos: 0, pendientes: 0, revisados: 0, ultimo: inc.created_at, detalles: new Set() };
     }
     const g = porTrabajadorObra[key];
     g.intentos++;
@@ -393,12 +369,8 @@ document.getElementById('modal-accesos-overlay').addEventListener('click', e => 
 });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    cerrarModalAccesos();
-    cerrarModalIncidencias();
-  }
+  if (e.key === 'Escape') { cerrarModalAccesos(); cerrarModalIncidencias(); }
 });
-
 
 async function abrirModalIncidencias() {
   const overlay = document.getElementById('modal-incidencias-overlay');
