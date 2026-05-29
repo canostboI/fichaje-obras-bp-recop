@@ -35,7 +35,7 @@
   .barra-filtros { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
   .barra-filtros input, .barra-filtros select { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 14px; font-family: inherit; }
   .barra-filtros input { width: 260px; }
-  .barra-filtros select { min-width: 220px; cursor: pointer; }
+  .barra-filtros select { min-width: 200px; cursor: pointer; }
   .barra-filtros input:focus, .barra-filtros select:focus { outline: none; border-color: var(--azul); }
   .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 1050px; }
@@ -43,6 +43,22 @@
   td { padding: 13px 20px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: var(--bg3); }
+
+  /* Grupos empresa */
+  tr.grupo-empresa-cab { cursor: pointer; user-select: none; }
+  tr.grupo-empresa-cab td { background: var(--bg3); border-bottom: 1px solid var(--borde); border-top: 2px solid var(--borde); padding: 10px 20px; }
+  tr.grupo-empresa-cab:first-child td { border-top: none; }
+  tr.grupo-empresa-cab:hover td { background: #272b34; }
+  .grupo-empresa-label { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--texto); }
+  .grupo-empresa-chevron { font-size: 10px; color: var(--texto2); transition: transform 0.18s; display: inline-block; }
+  .grupo-empresa-chevron.abierto { transform: rotate(90deg); }
+  .grupo-empresa-badges { display: flex; gap: 6px; margin-left: auto; }
+  .badge-empresa { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+  .badge-empresa.rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
+  .badge-empresa.naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
+  .badge-empresa.total   { background: rgba(139,144,158,0.15); color: var(--texto2); }
+  tr.grupo-fila.oculto { display: none; }
+
   .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin: 2px; white-space: nowrap; }
   .pill.verde  { background: rgba(76,175,80,0.15);  color: var(--verde); }
   .pill.naranja{ background: rgba(255,152,0,0.15);  color: var(--naranja); }
@@ -95,6 +111,9 @@
   <div class="contenido">
     <div class="barra-filtros">
       <input type="text" id="filtro" placeholder="Buscar por nombre o DNI…">
+      <select id="filtro-empresa">
+        <option value="">Todas las empresas</option>
+      </select>
       <select id="filtro-obra">
         <option value="">Todas las obras</option>
       </select>
@@ -189,7 +208,8 @@ function iconoHab(nombre) {
 
 let trabajadorEditandoId = null;
 let todosTrabajadores = [];
-let habIconosPorTrabajador = {}; // { trabajador_id: ['🚜', '🪜', ...] }
+let habIconosPorTrabajador = {};
+const gruposAbiertos = {};
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -212,10 +232,13 @@ document.getElementById('btn-salir').onclick = async () => {
 };
 
 async function cargarTrabajadores() {
+  document.getElementById('tabla-trabajadores').innerHTML = '<div class="cargando">Cargando…</div>';
+
   const { data, error } = await sb
     .from('trabajadores')
     .select(`
       id, nombre, apellidos, dni, telefono, activo, categoria, precio_hora_personalizado,
+      empresa:empresa_id(id, nombre),
       validaciones_obra ( estado, obra:obra_id ( id, nombre ) )
     `)
     .order('apellidos');
@@ -227,7 +250,7 @@ async function cargarTrabajadores() {
 
   todosTrabajadores = data;
 
-  // Cargar habilitaciones activas de todos los trabajadores
+  // Cargar habilitaciones activas en paralelo
   const ids = data.map(t => t.id);
   habIconosPorTrabajador = {};
   if (ids.length > 0) {
@@ -245,33 +268,45 @@ async function cargarTrabajadores() {
     });
   }
 
-  rellenarFiltroObras(data);
+  rellenarFiltros(data);
   aplicarFiltros();
 }
 
-function rellenarFiltroObras(trabajadores) {
-  const mapa = new Map();
+function rellenarFiltros(trabajadores) {
+  // Selector empresa
+  const empresasMapa = new Map();
+  trabajadores.forEach(t => {
+    if (t.empresa?.id && !empresasMapa.has(t.empresa.id)) {
+      empresasMapa.set(t.empresa.id, t.empresa.nombre);
+    }
+  });
+  const empresas = [...empresasMapa.entries()].sort((a, b) => a[1].localeCompare(b[1], 'es'));
+  const selEmpresa = document.getElementById('filtro-empresa');
+  const valEmpresa = selEmpresa.value;
+  selEmpresa.innerHTML = '<option value="">Todas las empresas</option>' +
+    empresas.map(([id, nombre]) => `<option value="${id}">${esc(nombre)}</option>`).join('');
+  if (valEmpresa && empresasMapa.has(valEmpresa)) selEmpresa.value = valEmpresa;
 
+  // Selector obra
+  const obrasMapa = new Map();
   trabajadores.forEach(t => {
     (t.validaciones_obra || []).forEach(v => {
-      if (v.obra?.id && !mapa.has(v.obra.id)) {
-        mapa.set(v.obra.id, v.obra.nombre);
+      if (v.obra?.id && !obrasMapa.has(v.obra.id)) {
+        obrasMapa.set(v.obra.id, v.obra.nombre);
       }
     });
   });
-
-  const obras = [...mapa.entries()].sort((a, b) => a[1].localeCompare(b[1], 'es'));
-  const sel = document.getElementById('filtro-obra');
-  const actual = sel.value;
-
-  sel.innerHTML = '<option value="">Todas las obras</option>' +
+  const obras = [...obrasMapa.entries()].sort((a, b) => a[1].localeCompare(b[1], 'es'));
+  const selObra = document.getElementById('filtro-obra');
+  const valObra = selObra.value;
+  selObra.innerHTML = '<option value="">Todas las obras</option>' +
     obras.map(([id, nombre]) => `<option value="${id}">${esc(nombre)}</option>`).join('');
-
-  if (actual && mapa.has(actual)) sel.value = actual;
+  if (valObra && obrasMapa.has(valObra)) selObra.value = valObra;
 }
 
 function aplicarFiltros() {
   const q = document.getElementById('filtro').value.toLowerCase();
+  const empresaId = document.getElementById('filtro-empresa').value;
   const obraId = document.getElementById('filtro-obra').value;
 
   const filtrados = todosTrabajadores.filter(t => {
@@ -281,10 +316,12 @@ function aplicarFiltros() {
       nombreCompleto.includes(q) ||
       (t.dni || '').toLowerCase().includes(q);
 
+    const coincideEmpresa = !empresaId || t.empresa?.id === empresaId;
+
     const coincideObra = !obraId ||
       (t.validaciones_obra || []).some(v => v.obra?.id === obraId);
 
-    return coincideTexto && coincideObra;
+    return coincideTexto && coincideEmpresa && coincideObra;
   });
 
   renderTabla(filtrados);
@@ -296,52 +333,121 @@ function renderTabla(data) {
     return;
   }
 
+  // Agrupar por empresa
+  const porEmpresa = {};
+  data.forEach(t => {
+    const empresa = t.empresa?.nombre || 'Sin empresa asignada';
+    if (!porEmpresa[empresa]) porEmpresa[empresa] = [];
+    porEmpresa[empresa].push(t);
+  });
+
+  const empresasOrdenadas = Object.keys(porEmpresa).sort((a, b) => a.localeCompare(b, 'es'));
+
+  const cabecera = `
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>DNI</th>
+        <th>Teléfono</th>
+        <th>Categoría</th>
+        <th>Precio hora</th>
+        <th>Estado doc.</th>
+        <th>Obras</th>
+        <th>Activo</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>`;
+
+  let filasBody = '';
+
+  empresasOrdenadas.forEach(empresa => {
+    const trabajadores = porEmpresa[empresa];
+
+    // Calcular badges
+    let rojos = 0, naranjas = 0;
+    trabajadores.forEach(t => {
+      const estado = estadoDocumental(t.validaciones_obra);
+      if (estado === 'rojo') rojos++;
+      else if (estado === 'naranja') naranjas++;
+    });
+
+    const grupoAbierto = gruposAbiertos[empresa] !== false;
+    const chevronClase = grupoAbierto ? 'grupo-empresa-chevron abierto' : 'grupo-empresa-chevron';
+    const filaClase = grupoAbierto ? 'grupo-fila' : 'grupo-fila oculto';
+    const empresaEsc = esc(empresa);
+
+    const badgesHtml = [
+      rojos > 0    ? `<span class="badge-empresa rojo">${rojos} rojo${rojos > 1 ? 's' : ''}</span>` : '',
+      naranjas > 0 ? `<span class="badge-empresa naranja">${naranjas} naranja${naranjas > 1 ? 's' : ''}</span>` : '',
+      `<span class="badge-empresa total">${trabajadores.length} trabajador${trabajadores.length > 1 ? 'es' : ''}</span>`
+    ].join('');
+
+    // Escapar empresa para uso en atributos JS: usar índice en lugar del nombre
+    const grupoKey = empresaEsc;
+
+    filasBody += `
+      <tr class="grupo-empresa-cab" onclick="toggleGrupo(${JSON.stringify(empresa)})">
+        <td colspan="9">
+          <div class="grupo-empresa-label">
+            <span class="${chevronClase}" id="chevron-${empresaEsc}">${grupoAbierto ? '▶' : '▶'}</span>
+            ${empresaEsc}
+            <div class="grupo-empresa-badges">${badgesHtml}</div>
+          </div>
+        </td>
+      </tr>`;
+
+    trabajadores.forEach(t => {
+      const estadoGeneral = estadoDocumental(t.validaciones_obra);
+      const obras = (t.validaciones_obra || []).map(v =>
+        `<span class="pill ${esc(v.estado)}">${esc(v.obra?.nombre)}</span>`
+      ).join(' ') || '—';
+
+      const iconos = (habIconosPorTrabajador[t.id] || []).join(' ');
+      const iconosHtml = iconos
+        ? `<span class="iconos-hab" title="Habilitaciones: ${iconos}">${iconos}</span>`
+        : '';
+
+      filasBody += `
+        <tr class="${filaClase}" data-grupo="${empresaEsc}">
+          <td><strong>${esc(t.nombre)} ${esc(t.apellidos)}</strong>${iconosHtml}</td>
+          <td>${esc(t.dni)}</td>
+          <td>${esc(t.telefono || '—')}</td>
+          <td>${esc(t.categoria || '—')}</td>
+          <td>${formatearPrecio(t.precio_hora_personalizado)}</td>
+          <td><span class="pill ${estadoGeneral}">${estadoGeneral}</span></td>
+          <td>${obras}</td>
+          <td><span class="pill ${t.activo ? 'verde' : 'gris'}">${t.activo ? 'Sí' : 'No'}</span></td>
+          <td>
+            <div class="acciones">
+              <button class="btn-secundario" onclick="abrirEditarPorId('${t.id}')">Editar</button>
+            </div>
+          </td>
+        </tr>`;
+    });
+  });
+
   document.getElementById('tabla-trabajadores').innerHTML = `
     <table>
-      <thead>
-        <tr>
-          <th>Nombre</th>
-          <th>DNI</th>
-          <th>Teléfono</th>
-          <th>Categoría</th>
-          <th>Precio hora</th>
-          <th>Estado doc.</th>
-          <th>Obras</th>
-          <th>Activo</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${data.map(t => {
-          const estadoGeneral = estadoDocumental(t.validaciones_obra);
-          const obras = (t.validaciones_obra || []).map(v =>
-            `<span class="pill ${esc(v.estado)}">${esc(v.obra?.nombre)}</span>`
-          ).join(' ') || '—';
-
-          const iconos = (habIconosPorTrabajador[t.id] || []).join(' ');
-          const iconosHtml = iconos
-            ? `<span class="iconos-hab" title="Habilitaciones: ${iconos}">${iconos}</span>`
-            : '';
-
-          return `
-            <tr>
-              <td><strong>${esc(t.nombre)} ${esc(t.apellidos)}</strong>${iconosHtml}</td>
-              <td>${esc(t.dni)}</td>
-              <td>${esc(t.telefono || '—')}</td>
-              <td>${esc(t.categoria || '—')}</td>
-              <td>${formatearPrecio(t.precio_hora_personalizado)}</td>
-              <td><span class="pill ${estadoGeneral}">${estadoGeneral}</span></td>
-              <td>${obras}</td>
-              <td><span class="pill ${t.activo ? 'verde' : 'gris'}">${t.activo ? 'Sí' : 'No'}</span></td>
-              <td>
-                <div class="acciones">
-                  <button class="btn-secundario" onclick="abrirEditarPorId('${t.id}')">Editar</button>
-                </div>
-              </td>
-            </tr>`;
-        }).join('')}
-      </tbody>
+      ${cabecera}
+      <tbody>${filasBody}</tbody>
     </table>`;
+
+  // Aplicar estado de chevrons tras render
+  empresasOrdenadas.forEach(empresa => {
+    const abierto = gruposAbiertos[empresa] !== false;
+    const chevron = document.getElementById(`chevron-${esc(empresa)}`);
+    if (chevron) chevron.classList.toggle('abierto', abierto);
+  });
+}
+
+function toggleGrupo(empresa) {
+  const abierto = gruposAbiertos[empresa] !== false;
+  gruposAbiertos[empresa] = !abierto;
+  const chevron = document.getElementById(`chevron-${esc(empresa)}`);
+  if (chevron) chevron.classList.toggle('abierto', !abierto);
+  document.querySelectorAll(`tr.grupo-fila[data-grupo="${esc(empresa)}"]`).forEach(fila => {
+    fila.classList.toggle('oculto', abierto);
+  });
 }
 
 function estadoDocumental(validaciones) {
@@ -352,6 +458,7 @@ function estadoDocumental(validaciones) {
 }
 
 document.getElementById('filtro').addEventListener('input', aplicarFiltros);
+document.getElementById('filtro-empresa').addEventListener('change', aplicarFiltros);
 document.getElementById('filtro-obra').addEventListener('change', aplicarFiltros);
 
 document.getElementById('btn-nuevo').onclick = () => {
@@ -370,11 +477,7 @@ document.getElementById('btn-nuevo').onclick = () => {
 
 function abrirEditarPorId(id) {
   const t = todosTrabajadores.find(x => x.id === id);
-  if (!t) {
-    alert('No se ha encontrado el trabajador.');
-    return;
-  }
-
+  if (!t) { alert('No se ha encontrado el trabajador.'); return; }
   trabajadorEditandoId = t.id;
   document.getElementById('modal-titulo').textContent = 'Editar trabajador';
   document.getElementById('f-nombre').value = t.nombre || '';
@@ -414,17 +517,13 @@ document.getElementById('btn-guardar').onclick = async () => {
   }
 
   const payload = {
-    nombre,
-    apellidos,
-    dni,
-    activo,
+    nombre, apellidos, dni, activo,
     telefono: telefono || null,
     categoria: categoria || null,
     precio_hora_personalizado
   };
 
   let error;
-
   if (trabajadorEditandoId) {
     ({ error } = await sb.from('trabajadores').update(payload).eq('id', trabajadorEditandoId));
   } else {
