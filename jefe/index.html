@@ -185,6 +185,19 @@
   .banner-hab-caducidad.oculto { display: none; }
   .banner-hab-caducidad ul { margin: 4px 0 0 18px; font-size: 13px; }
   .banner-hab-caducidad li { margin-bottom: 2px; }
+
+  /* ── 6.3: Modal autocierres bloqueante ── */
+  .modal-autocierres { background: var(--bg2); color: var(--texto); border: 1px solid rgba(255,152,0,0.5); border-radius: 14px; padding: 28px; max-width: 540px; width: 92%; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+  .modal-autocierres-cab { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .modal-autocierres-cab h3 { font-size: 17px; font-weight: 700; color: var(--naranja); }
+  .modal-autocierres-sub { font-size: 13px; color: var(--texto2); margin-bottom: 20px; line-height: 1.5; }
+  .autocierre-item { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; }
+  .autocierre-item:last-child { margin-bottom: 0; }
+  .autocierre-nombre { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+  .autocierre-detalle { font-size: 13px; color: var(--texto2); }
+  .modal-autocierres-btns { display: flex; justify-content: flex-end; margin-top: 22px; }
+  .btn-entendido { background: var(--naranja); color: #111; border: none; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 700; font-family: inherit; }
+  .btn-entendido:hover { opacity: 0.88; }
 </style>
 </head>
 <body>
@@ -330,6 +343,23 @@
     <div class="modal-foto-btns">
       <button class="btn-cerrar-foto" onclick="cerrarModalFoto()">Cancelar</button>
       <button class="btn-subir-foto" id="btn-subir-foto" onclick="subirFotoObra()">Subir foto</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 6.3: Autocierres recientes (bloqueante) -->
+<div class="modal-overlay" id="modal-autocierres-overlay">
+  <div class="modal-autocierres">
+    <div class="modal-autocierres-cab">
+      <span style="font-size:22px">⏰</span>
+      <h3>Autocierres pendientes de revisar</h3>
+    </div>
+    <div class="modal-autocierres-sub">
+      En los últimos 7 días se cerraron automáticamente las siguientes jornadas porque el trabajador no fichó la salida. Revísalas en <strong>Fichajes</strong> y corrige la hora si es necesario.
+    </div>
+    <div id="autocierres-lista"></div>
+    <div class="modal-autocierres-btns">
+      <button class="btn-entendido" onclick="cerrarModalAutocierres()">Entendido</button>
     </div>
   </div>
 </div>
@@ -488,6 +518,40 @@ document.getElementById('modal-foto-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-foto-overlay')) cerrarModalFoto();
 });
 
+// ── 6.3: Modal autocierres recientes ──
+function cerrarModalAutocierres() {
+  document.getElementById('modal-autocierres-overlay').classList.remove('visible');
+}
+
+async function comprobarAutoierresRecientes(misObrasIds) {
+  if (!misObrasIds || misObrasIds.length === 0) return;
+  const hace7dias = new Date();
+  hace7dias.setDate(hace7dias.getDate() - 7);
+  hace7dias.setHours(0, 0, 0, 0);
+  const { data, error } = await sb
+    .from('fichajes')
+    .select('id, hora, trabajador:trabajador_id(nombre, apellidos), obra:obra_id(nombre)')
+    .in('obra_id', misObrasIds)
+    .eq('cierre_automatico', true)
+    .gte('hora', hace7dias.toISOString())
+    .order('hora', { ascending: false });
+  if (error || !data || data.length === 0) return;
+  const lista = document.getElementById('autocierres-lista');
+  lista.innerHTML = data.map(f => {
+    const t = f.trabajador || {};
+    const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || '(sin nombre)';
+    const obraNombre = f.obra?.nombre || '';
+    const fecha = new Date(f.hora).toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' });
+    const horaStr = formatHora(f.hora);
+    return `
+      <div class="autocierre-item">
+        <div class="autocierre-nombre">${esc(nombre)}</div>
+        <div class="autocierre-detalle">${obraNombre ? esc(obraNombre) + ' · ' : ''}${esc(fecha)} · cierre a las ${esc(horaStr)}</div>
+      </div>`;
+  }).join('');
+  document.getElementById('modal-autocierres-overlay').classList.add('visible');
+}
+
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '../'; return; }
@@ -539,6 +603,10 @@ document.getElementById('modal-foto-overlay').addEventListener('click', e => {
   await comprobarRP();
   await comprobarHabilitacionesCaducidad();
   iniciarRefrescoPresencia();
+
+  // 6.3: comprobar autocierres de todas las obras del jefe (últimos 7 días)
+  const todosIds = misObras.map(uo => uo.obra.id);
+  await comprobarAutoierresRecientes(todosIds);
 
   selector.addEventListener('change', async () => {
     obraActual = selector.value;
@@ -602,22 +670,18 @@ async function comprobarRP() {
   } catch (_) {}
 }
 
-// ── H-7: aviso de habilitaciones caducadas o próximas a caducar (≤30 días) ──
 async function comprobarHabilitacionesCaducidad() {
   const banner = document.getElementById('banner-hab-caducidad');
   banner.className = 'banner-hab-caducidad oculto';
   banner.innerHTML = '';
   if (!obraActual) return;
   try {
-    // 1. Trabajadores que han fichado alguna vez en esta obra → conjunto de la obra
     const { data: fich } = await sb
       .from('fichajes')
       .select('trabajador_id')
       .eq('obra_id', obraActual);
     const idsObra = [...new Set((fich || []).map(f => f.trabajador_id).filter(Boolean))];
     if (idsObra.length === 0) return;
-
-    // 2. Habilitaciones activas con fecha de caducidad de esos trabajadores
     const { data: habs } = await sb
       .from('habilitaciones_trabajador')
       .select('trabajador_id, fecha_caducidad, tipo:tipo_habilitacion_id(nombre), trabajador:trabajador_id(nombre, apellidos)')
@@ -625,13 +689,10 @@ async function comprobarHabilitacionesCaducidad() {
       .eq('activo', true)
       .not('fecha_caducidad', 'is', null);
     if (!habs || habs.length === 0) return;
-
-    // 3. Clasificar por caducidad
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     const limite = new Date(hoy);
     limite.setDate(limite.getDate() + 30);
-
     const caducadas = [];
     const proximas = [];
     habs.forEach(h => {
@@ -647,9 +708,7 @@ async function comprobarHabilitacionesCaducidad() {
       if (fc < hoy) caducadas.push(item);
       else if (fc <= limite) proximas.push(item);
     });
-
     if (caducadas.length === 0 && proximas.length === 0) return;
-
     banner.classList.remove('oculto');
     let html = '';
     if (caducadas.length > 0) {
@@ -836,7 +895,6 @@ async function cargarPresencia() {
     return;
   }
 
-  // ── RP-3: IDs de Recursos Preventivos ──
   let idsRP = new Set();
   try {
     const { data: rps } = await sb
@@ -847,7 +905,6 @@ async function cargarPresencia() {
     idsRP = new Set((rps || []).map(r => r.trabajador_id));
   } catch (_) {}
 
-  // ── H-6: iconos de habilitación ──
   let habIconosPorTrabajador = {};
   try {
     const { data: habs } = await sb
