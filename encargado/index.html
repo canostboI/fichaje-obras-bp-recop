@@ -137,7 +137,19 @@
       font-size: 1.05rem;
       font-weight: 500;
       opacity: 0.95;
-      margin-bottom: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+    .contador-desglose {
+      font-size: 0.88rem;
+      opacity: 0.9;
+      background: rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 0.4rem 0.8rem;
+      display: inline-block;
+      margin-bottom: 0.6rem;
+    }
+    .contador-desglose .externos-num {
+      font-weight: 800;
     }
     .contador-ultima {
       font-size: 0.9rem;
@@ -369,6 +381,7 @@
     <div id="contador-presencia" class="contador-presencia estado-vacio" style="display:none">
       <div class="contador-numero" id="contador-numero">0</div>
       <div class="contador-texto" id="contador-texto">personas en obra ahora</div>
+      <div class="contador-desglose" id="contador-desglose" style="display:none"></div>
       <div class="contador-ultima" id="contador-ultima" style="display:none"></div>
     </div>
 
@@ -516,6 +529,7 @@
   let naranjasActualesCache = [];
   let idsRPCache = new Set();
   let habIconosPorTrabajadorCache = {};
+  let empresasPropias = new Set(); // IDs de empresas propias
   let intervalRelativo = null;
   let intervalPresencia = null;
 
@@ -596,6 +610,19 @@
     }
   }
 
+  // Carga una sola vez los IDs de empresas propias
+  async function cargarEmpresasPropias() {
+    try {
+      const { data } = await sb
+        .from('empresas')
+        .select('id')
+        .eq('es_empresa_propia', true);
+      empresasPropias = new Set((data || []).map(e => e.id));
+    } catch (_) {
+      empresasPropias = new Set();
+    }
+  }
+
   async function init() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) { window.location.href = '../index.html'; return; }
@@ -612,6 +639,8 @@
     }
 
     nombreEncargado = usuario.nombre || 'Encargado';
+
+    await cargarEmpresasPropias();
 
     const { data: asignaciones } = await sb
       .from('usuarios_obra')
@@ -1079,7 +1108,7 @@
     try {
       let { data, error } = await sb
         .from('fichajes')
-        .select('tipo, hora, trabajador_id, trabajadores(nombre, apellidos, dni, empresas(nombre))')
+        .select('tipo, hora, trabajador_id, trabajadores(nombre, apellidos, dni, empresa_id, empresas(nombre))')
         .eq('obra_id', obraId)
         .gte('hora', desdeISO)
         .lte('hora', hastaISO)
@@ -1088,7 +1117,7 @@
       if (error) {
         const fb = await sb
           .from('fichajes')
-          .select('tipo, hora, trabajador_id, trabajadores(nombre, apellidos, dni)')
+          .select('tipo, hora, trabajador_id, trabajadores(nombre, apellidos, dni, empresa_id)')
           .eq('obra_id', obraId)
           .gte('hora', desdeISO)
           .lte('hora', hastaISO)
@@ -1114,8 +1143,9 @@
       const empresa = (f.trabajadores && f.trabajadores.empresas)
         ? (f.trabajadores.empresas.nombre || '')
         : '';
+      const empresaId = f.trabajadores?.empresa_id || null;
       estadoTrab[id] = {
-        id, nombre: nombreCompleto || 'Desconocido', empresa,
+        id, nombre: nombreCompleto || 'Desconocido', empresa, empresaId,
         tipo: f.tipo, horaISO: f.hora,
         horaTexto: new Date(f.hora).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
       };
@@ -1177,16 +1207,18 @@
     const statNaranjas = document.getElementById('stat-naranjas');
     if (statNaranjas) statNaranjas.textContent = naranjasActualesCache.length;
 
-    pintarContador(presentes.length, presentes.length > 0 ? presentes[0] : null);
+    pintarContador(presentes);
     pintarTarjetas(presentes);
     actualizarBotonRonda(presentes.length);
   }
 
-  function pintarContador(num, ultimo) {
+  function pintarContador(presentes) {
     const cont = document.getElementById('contador-presencia');
     const numEl = document.getElementById('contador-numero');
     const txtEl = document.getElementById('contador-texto');
+    const desglEl = document.getElementById('contador-desglose');
     const ultEl = document.getElementById('contador-ultima');
+    const num = presentes.length;
 
     cont.style.display = 'block';
     numEl.textContent = num;
@@ -1195,6 +1227,7 @@
       cont.classList.remove('estado-ok', 'estado-aviso');
       cont.classList.add('estado-vacio');
       txtEl.textContent = 'Nadie en obra ahora mismo';
+      desglEl.style.display = 'none';
       ultEl.style.display = 'none';
       return;
     }
@@ -1205,6 +1238,13 @@
 
     txtEl.textContent = num === 1 ? 'persona en obra ahora' : 'personas en obra ahora';
 
+    // Desglose propios / externos
+    const nPropios = presentes.filter(t => empresasPropias.has(t.empresaId)).length;
+    const nExternos = num - nPropios;
+    desglEl.style.display = 'inline-block';
+    desglEl.innerHTML = `${nPropios} propios · <span class="externos-num">${nExternos} externos</span>`;
+
+    const ultimo = presentes[0];
     if (ultimo) {
       ultEl.style.display = 'inline-block';
       ultEl.innerHTML = `Última entrada: <strong>${esc(ultimo.nombre)}</strong> · ${esc(textoRelativo(ultimo.horaISO))}`;
