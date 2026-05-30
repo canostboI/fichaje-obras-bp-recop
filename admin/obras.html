@@ -475,14 +475,20 @@ async function abrirEquipoPorId(id) {
 
 async function cargarEquipo() {
   document.getElementById('equipo-lista').innerHTML = '<div class="cargando">Cargando…</div>';
-  const { data, error } = await sb.from('usuarios_obra').select('id, rol_en_obra, usuario_app:usuario_app_id(id, nombre, email)').eq('obra_id', obraEquipoId);
+  // CAMBIO 6.2: añadido auth_user_id al select para detectar usuarios sin vincular
+  const { data, error } = await sb.from('usuarios_obra')
+    .select('id, rol_en_obra, usuario_app:usuario_app_id(id, nombre, email, auth_user_id)')
+    .eq('obra_id', obraEquipoId);
   if (error) { document.getElementById('equipo-lista').innerHTML = '<div class="equipo-vacio">Error al cargar el equipo.</div>'; return; }
   if (!data || data.length === 0) { document.getElementById('equipo-lista').innerHTML = '<div class="equipo-vacio">Esta obra no tiene equipo asignado todavía.</div>'; return; }
   document.getElementById('equipo-lista').innerHTML = data.map(item => `
     <div class="equipo-item">
       <div class="equipo-item-info">
         <span class="equipo-item-nombre">${esc(item.usuario_app?.nombre || '—')}</span>
-        <span class="equipo-item-email">${esc(item.usuario_app?.email || '')} · <span class="pill ${item.rol_en_obra === 'jefe_obra' ? 'azul' : 'naranja'}">${item.rol_en_obra === 'jefe_obra' ? 'Jefe de obra' : 'Encargado'}</span></span>
+        <span class="equipo-item-email">
+          ${esc(item.usuario_app?.email || '')} · <span class="pill ${item.rol_en_obra === 'jefe_obra' ? 'azul' : 'naranja'}">${item.rol_en_obra === 'jefe_obra' ? 'Jefe de obra' : 'Encargado'}</span>
+          ${!item.usuario_app?.auth_user_id ? ' <span class="pill naranja">⚠️ Sin vincular</span>' : ''}
+        </span>
       </div>
       <button class="btn-peligro" onclick="quitarDelEquipo('${item.id}')">Quitar</button>
     </div>`).join('');
