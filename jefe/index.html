@@ -50,6 +50,8 @@
   .stat-clickable:active { transform: scale(0.99); }
   .stat .numero { font-size: 38px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
   .stat .etiqueta { font-size: 13px; color: var(--texto2); }
+  .stat .desglose { font-size: 12px; color: var(--texto2); margin-top: 6px; }
+  .stat .desglose .externos-num { color: var(--texto); font-weight: 700; }
   .stat .numero.verde   { color: var(--verde); }
   .stat .numero.naranja { color: var(--naranja); }
   .stat .numero.rojo    { color: var(--rojo); }
@@ -246,7 +248,11 @@
     <div class="banner-rp-formacion oculto" id="banner-rp-formacion"></div>
     <div class="banner-hab-caducidad oculto" id="banner-hab-caducidad"></div>
     <div class="stats">
-      <div class="stat"><div class="numero verde" id="stat-dentro">—</div><div class="etiqueta">En obra ahora</div></div>
+      <div class="stat">
+        <div class="numero verde" id="stat-dentro">—</div>
+        <div class="etiqueta">En obra ahora</div>
+        <div class="desglose" id="stat-desglose" style="display:none"></div>
+      </div>
       <div class="stat stat-clickable naranja-hover" id="card-naranjas" role="button" tabindex="0" title="Ver trabajadores presentes con documentación naranja"><div class="numero naranja" id="stat-naranja">—</div><div class="etiqueta">Documentación naranja</div></div>
       <div class="stat stat-clickable rojo-hover" id="card-rojos" role="button" tabindex="0" title="Ver detalle de accesos denegados"><div class="numero rojo" id="stat-rojo">—</div><div class="etiqueta">Accesos denegados hoy</div></div>
     </div>
@@ -380,6 +386,7 @@ let fotoUrlActual = '';
 
 let validacionesCache = {};
 let naranjasActualesCache = [];
+let empresasPropias = new Set(); // IDs de empresas propias
 
 let estaOffline = false;
 let timeoutBannerOnline = null;
@@ -552,6 +559,19 @@ async function comprobarAutoierresRecientes(misObrasIds) {
   document.getElementById('modal-autocierres-overlay').classList.add('visible');
 }
 
+// Carga una sola vez los IDs de empresas propias
+async function cargarEmpresasPropias() {
+  try {
+    const { data } = await sb
+      .from('empresas')
+      .select('id')
+      .eq('es_empresa_propia', true);
+    empresasPropias = new Set((data || []).map(e => e.id));
+  } catch (_) {
+    empresasPropias = new Set();
+  }
+}
+
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '../'; return; }
@@ -566,6 +586,8 @@ async function comprobarAutoierresRecientes(misObrasIds) {
 
   document.getElementById('usuario-nombre').textContent = miUsuario.nombre || session.user.email;
   actualizarFechaHoy();
+
+  await cargarEmpresasPropias();
 
   const { data: misObras, error } = await sb
     .from('usuarios_obra')
@@ -807,13 +829,17 @@ async function cargarRondaEncargado() {
 async function cargarPresencia() {
   actualizarFechaHoy();
   document.getElementById('tabla-presencia').innerHTML = '<div class="cargando">Cargando…</div>';
+  const desgloseEl = document.getElementById('stat-desglose');
+  desgloseEl.style.display = 'none';
+  desgloseEl.innerHTML = '';
+
   const { desdeISO, hastaISO } = rangoHoyLocal();
 
   let fichajes;
   try {
     const resp = await sb
       .from('fichajes')
-      .select('id, tipo, hora, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni, empresa:empresa_id(nombre))')
+      .select('id, tipo, hora, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni, empresa_id, empresa:empresa_id(nombre))')
       .eq('obra_id', obraActual)
       .gte('hora', desdeISO)
       .lte('hora', hastaISO)
@@ -889,6 +915,14 @@ async function cargarPresencia() {
   document.getElementById('stat-dentro').textContent = nDentro;
   document.getElementById('stat-naranja').textContent = nNaranja;
   document.getElementById('badge-presencia').textContent = nDentro + ' dentro';
+
+  // Desglose propios / externos
+  if (nDentro > 0) {
+    const nPropios = dentro.filter(t => empresasPropias.has(t.trabajador.empresa_id)).length;
+    const nExternos = nDentro - nPropios;
+    desgloseEl.style.display = 'block';
+    desgloseEl.innerHTML = `${nPropios} propios · <span class="externos-num">${nExternos} externos</span>`;
+  }
 
   if (dentro.length === 0) {
     document.getElementById('tabla-presencia').innerHTML = '<div class="vacio">Nadie está en obra ahora mismo</div>';
