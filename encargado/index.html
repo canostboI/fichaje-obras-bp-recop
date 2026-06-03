@@ -185,23 +185,7 @@
       font-size: 0.95rem;
       margin-top: 0;
     }
-    .btn-actualizar {
-      background: var(--color-principal);
-      color: white;
-      border: none;
-      padding: 0.45rem 1rem;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      font-weight: 700;
-      white-space: nowrap;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: opacity 0.15s;
-    }
-    .btn-actualizar:hover { opacity: 0.85; }
-    .btn-actualizar:disabled { opacity: 0.5; cursor: not-allowed; }
+
     .banner-historico {
       background: #e3f2fd;
       border: 1px solid #90caf9;
@@ -369,9 +353,7 @@
       .panel-bloqueos .btn-visto-rojo { align-self: flex-end; }
       .contador-numero { font-size: 4rem; }
       .lista-tarjetas { grid-template-columns: 1fr; }
-      .presencia-controles { flex-direction: column; align-items: stretch; }
-      .presencia-controles input[type="date"] { width: 100%; }
-      .btn-actualizar { justify-content: center; }
+
     }
   </style>
 </head>
@@ -389,6 +371,7 @@
   <div class="header-right">
     <button class="btn-qr-header" id="btn-hab" onclick="window.location.href='habilitaciones.html'">🏗️ Habilitaciones</button>
     <button class="btn-qr-header" id="btn-ver-qr">📱 Ver QR</button>
+    <button class="btn-qr-header" id="btn-actualizar-presencia">🔄 Actualizar</button>
     <button id="btn-logout">Cerrar sesión</button>
   </div>
 </header>
@@ -441,11 +424,10 @@
     </div>
 
     <div class="card">
-      <!-- P-02: controles de fecha y botón actualizar -->
+      <!-- P-02: selector de fecha -->
       <div class="presencia-controles">
         <label for="input-fecha-presencia">📅 Fecha:</label>
         <input type="date" id="input-fecha-presencia" />
-        <button class="btn-actualizar" id="btn-actualizar-presencia">🔄 Actualizar</button>
       </div>
       <div class="banner-historico" id="banner-historico"></div>
       <h2>👷 Trabajadores presentes</h2>
@@ -673,11 +655,11 @@
     });
 
     document.getElementById('btn-actualizar-presencia').addEventListener('click', async () => {
-      const fecha = input.value || fechaHoyISO();
+      const fecha = document.getElementById('input-fecha-presencia').value || fechaHoyISO();
       if (!obraActualId) return;
       const btn = document.getElementById('btn-actualizar-presencia');
       btn.disabled = true;
-      btn.textContent = '⏳ Cargando…';
+      btn.textContent = '⏳';
       actualizarModoFecha(fecha);
       await cargarPresencia(obraActualId, fecha);
       btn.disabled = false;
@@ -828,6 +810,7 @@
     document.getElementById('panel-obra').style.display = 'block';
     document.getElementById('btn-ver-qr').style.display = 'inline-block';
     document.getElementById('btn-hab').style.display = 'inline-block';
+    document.getElementById('btn-actualizar-presencia').style.display = 'inline-block';
 
     // Resetear fecha a hoy al cargar obra
     const inputFecha = document.getElementById('input-fecha-presencia');
