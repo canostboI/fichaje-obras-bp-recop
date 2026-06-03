@@ -254,7 +254,7 @@
         <div class="desglose" id="stat-desglose" style="display:none"></div>
       </div>
       <div class="stat stat-clickable naranja-hover" id="card-naranjas" role="button" tabindex="0" title="Ver trabajadores presentes con documentación naranja"><div class="numero naranja" id="stat-naranja">—</div><div class="etiqueta">Documentación naranja</div></div>
-      <div class="stat stat-clickable rojo-hover" id="card-rojos" role="button" tabindex="0" title="Ver detalle de accesos denegados"><div class="numero rojo" id="stat-rojo">—</div><div class="etiqueta">Accesos denegados hoy</div></div>
+      <div class="stat stat-clickable rojo-hover" id="card-rojos" role="button" tabindex="0" title="Ver detalle de accesos denegados"><div class="numero rojo" id="stat-rojo">—</div><div class="etiqueta">Personas denegadas hoy</div></div>
     </div>
     <div style="height:20px"></div>
     <div class="panel-bloqueos oculto" id="panel-bloqueos">
@@ -386,7 +386,7 @@ let fotoUrlActual = '';
 
 let validacionesCache = {};
 let naranjasActualesCache = [];
-let empresasPropias = new Set(); // IDs de empresas propias
+let empresasPropias = new Set();
 
 let estaOffline = false;
 let timeoutBannerOnline = null;
@@ -1055,6 +1055,7 @@ document.getElementById('modal-naranjas-overlay').addEventListener('click', e =>
   if (e.target === document.getElementById('modal-naranjas-overlay')) cerrarModalNaranjas();
 });
 
+// ── P-01: cargarBloqueos — contador = personas distintas, no intentos ──
 async function cargarBloqueos() {
   const panel = document.getElementById('panel-bloqueos');
   const lista = document.getElementById('bloqueos-lista');
@@ -1064,14 +1065,18 @@ async function cargarBloqueos() {
   document.getElementById('stat-rojo').textContent = '0';
   if (!obraActual) return;
   const { desdeISO, hastaISO } = rangoHoyLocal();
-  const { count: totalHistorico } = await sb
+
+  // P-01 Fix 1: contar personas distintas, no filas totales
+  const { data: dataHistorico } = await sb
     .from('incidencias')
-    .select('*', { count: 'exact', head: true })
+    .select('trabajador_id')
     .eq('obra_id', obraActual)
     .eq('tipo', 'bloqueo_rojo')
     .gte('created_at', desdeISO)
     .lte('created_at', hastaISO);
-  document.getElementById('stat-rojo').textContent = totalHistorico ?? 0;
+  const personasDistintas = new Set((dataHistorico || []).map(i => i.trabajador_id).filter(Boolean)).size;
+  document.getElementById('stat-rojo').textContent = personasDistintas;
+
   const { data: incidencias, error } = await sb
     .from('incidencias')
     .select('id, detalle, created_at, trabajador:trabajador_id(id, nombre, apellidos, dni)')
@@ -1124,6 +1129,7 @@ async function marcarVistoRojo(incidenciaId, btn) {
   await cargarBloqueos();
 }
 
+// ── P-01 Fix 2: modal accesos denegados — añadir empresa en acceso-meta ──
 async function abrirModalAccesosDenegados() {
   const overlay = document.getElementById('modal-accesos-overlay');
   const contenido = document.getElementById('modal-accesos-contenido');
@@ -1139,7 +1145,7 @@ async function abrirModalAccesosDenegados() {
   const { desdeISO, hastaISO } = rangoHoyLocal();
   const { data, error } = await sb
     .from('incidencias')
-    .select('id, detalle, estado, created_at, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni)')
+    .select('id, detalle, estado, created_at, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni, empresa:empresa_id(nombre))')
     .eq('obra_id', obraActual)
     .eq('tipo', 'bloqueo_rojo')
     .gte('created_at', desdeISO)
@@ -1190,6 +1196,8 @@ function pintarDetalleAccesos(incidencias, motivosPorTrabajador) {
     const t = g.trabajador || {};
     const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || 'Trabajador no identificado';
     const dni = t.dni ? `DNI: ${t.dni}` : 'DNI no disponible';
+    // P-01 Fix 2: empresa visible
+    const empresa = t.empresa?.nombre ? ` · <strong>${esc(t.empresa.nombre)}</strong>` : '';
     const estadoTxt = g.pendientes > 0
       ? `${g.pendientes} pendiente${g.pendientes === 1 ? '' : 's'}${g.revisados ? ` · ${g.revisados} revisado${g.revisados === 1 ? '' : 's'}` : ''}`
       : `Todo revisado (${g.revisados})`;
@@ -1202,7 +1210,7 @@ function pintarDetalleAccesos(incidencias, motivosPorTrabajador) {
         <div class="acceso-top">
           <div>
             <div class="acceso-nombre">${esc(nombre)}</div>
-            <div class="acceso-meta">${esc(dni)} · Último intento: ${esc(formatHora(g.ultimo))}</div>
+            <div class="acceso-meta">${esc(dni)}${empresa} · Último intento: ${esc(formatHora(g.ultimo))}</div>
           </div>
           <div class="acceso-contador">${g.intentos} ${g.intentos === 1 ? 'intento' : 'intentos'}</div>
         </div>
