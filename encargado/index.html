@@ -125,6 +125,7 @@
     .contador-presencia.estado-ok      { background: linear-gradient(135deg, #2e7d32, #43a047); }
     .contador-presencia.estado-vacio   { background: linear-gradient(135deg, #555, #777); }
     .contador-presencia.estado-aviso   { background: linear-gradient(135deg, #ef6c00, #fb8c00); }
+    .contador-presencia.estado-historico { background: linear-gradient(135deg, #37474f, #546e7a); }
 
     .contador-numero {
       font-size: 5rem;
@@ -161,6 +162,57 @@
       max-width: 100%;
     }
     .contador-ultima strong { font-weight: 700; }
+
+    /* ── P-02: barra de fecha + actualizar ── */
+    .presencia-controles {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .presencia-controles label {
+      font-size: 0.88rem;
+      color: #555;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .presencia-controles input[type="date"] {
+      width: auto;
+      flex: 1;
+      min-width: 140px;
+      padding: 0.45rem 0.7rem;
+      font-size: 0.95rem;
+      margin-top: 0;
+    }
+    .btn-actualizar {
+      background: var(--color-principal);
+      color: white;
+      border: none;
+      padding: 0.45rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 700;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 0.15s;
+    }
+    .btn-actualizar:hover { opacity: 0.85; }
+    .btn-actualizar:disabled { opacity: 0.5; cursor: not-allowed; }
+    .banner-historico {
+      background: #e3f2fd;
+      border: 1px solid #90caf9;
+      border-left: 4px solid #1976d2;
+      border-radius: 8px;
+      padding: 0.6rem 1rem;
+      font-size: 0.88rem;
+      color: #0d47a1;
+      margin-bottom: 1rem;
+      display: none;
+    }
 
     .lista-tarjetas {
       display: grid;
@@ -317,6 +369,9 @@
       .panel-bloqueos .btn-visto-rojo { align-self: flex-end; }
       .contador-numero { font-size: 4rem; }
       .lista-tarjetas { grid-template-columns: 1fr; }
+      .presencia-controles { flex-direction: column; align-items: stretch; }
+      .presencia-controles input[type="date"] { width: 100%; }
+      .btn-actualizar { justify-content: center; }
     }
   </style>
 </head>
@@ -386,11 +441,18 @@
     </div>
 
     <div class="card">
-      <h2>👷 Trabajadores presentes ahora</h2>
+      <!-- P-02: controles de fecha y botón actualizar -->
+      <div class="presencia-controles">
+        <label for="input-fecha-presencia">📅 Fecha:</label>
+        <input type="date" id="input-fecha-presencia" />
+        <button class="btn-actualizar" id="btn-actualizar-presencia">🔄 Actualizar</button>
+      </div>
+      <div class="banner-historico" id="banner-historico"></div>
+      <h2>👷 Trabajadores presentes</h2>
       <div id="lista-presencia" class="lista-tarjetas"><p class="loading">Cargando...</p></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="card-fichaje-manual">
       <h2>🕐 Fichaje manual</h2>
       <p style="color:#666; font-size:0.9rem; margin-bottom:0.8rem;">
         Para registrar entrada o salida cuando un trabajador no pueda fichar desde su móvil.
@@ -398,7 +460,7 @@
       <button class="btn btn-manual" id="btn-abrir-manual">Fichar por trabajador</button>
     </div>
 
-    <div class="card-ronda">
+    <div class="card-ronda" id="card-confirmacion">
       <h2>✅ Confirmación de presencia</h2>
       <p class="ronda-subtitulo">
         Confirma que el recuento de la app es correcto y no hay nadie más en obra.
@@ -529,7 +591,7 @@
   let naranjasActualesCache = [];
   let idsRPCache = new Set();
   let habIconosPorTrabajadorCache = {};
-  let empresasPropias = new Set(); // IDs de empresas propias
+  let empresasPropias = new Set();
   let intervalRelativo = null;
   let intervalPresencia = null;
 
@@ -553,6 +615,74 @@
     const n = (nombre || '').toLowerCase();
     for (const { clave, icono } of ICONOS_HAB) { if (n.includes(clave)) return icono; }
     return '🔧';
+  }
+
+  // ── P-02: helpers de fecha ──
+  function fechaHoyISO() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function esHoy(fechaISO) {
+    return fechaISO === fechaHoyISO();
+  }
+
+  function rangoFechaLocal(fechaISO) {
+    const [y, m, d] = fechaISO.split('-').map(Number);
+    const desde = new Date(y, m - 1, d, 0, 0, 0, 0);
+    const hasta = new Date(y, m - 1, d, 23, 59, 59, 999);
+    return { desdeISO: desde.toISOString(), hastaISO: hasta.toISOString() };
+  }
+
+  function rangoHoyLocal() {
+    return rangoFechaLocal(fechaHoyISO());
+  }
+
+  function actualizarModoFecha(fechaISO) {
+    const esHoyFlag = esHoy(fechaISO);
+    const banner = document.getElementById('banner-historico');
+    const cardManual = document.getElementById('card-fichaje-manual');
+    const cardConfirmacion = document.getElementById('card-confirmacion');
+
+    if (esHoyFlag) {
+      banner.style.display = 'none';
+      cardManual.style.display = 'block';
+      cardConfirmacion.style.display = 'block';
+    } else {
+      const [y, m, d] = fechaISO.split('-').map(Number);
+      const fecha = new Date(y, m - 1, d);
+      const fechaTxt = fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      banner.textContent = `📅 Viendo presencia histórica del ${fechaTxt}. Los fichajes manuales y la confirmación solo están disponibles para hoy.`;
+      banner.style.display = 'block';
+      cardManual.style.display = 'none';
+      cardConfirmacion.style.display = 'none';
+    }
+  }
+
+  // ── Inicializar selector de fecha ──
+  function inicializarSelectorFecha() {
+    const input = document.getElementById('input-fecha-presencia');
+    input.value = fechaHoyISO();
+    input.max = fechaHoyISO(); // no permitir fechas futuras
+
+    input.addEventListener('change', async () => {
+      const fecha = input.value;
+      if (!fecha || !obraActualId) return;
+      actualizarModoFecha(fecha);
+      await cargarPresencia(obraActualId, fecha);
+    });
+
+    document.getElementById('btn-actualizar-presencia').addEventListener('click', async () => {
+      const fecha = input.value || fechaHoyISO();
+      if (!obraActualId) return;
+      const btn = document.getElementById('btn-actualizar-presencia');
+      btn.disabled = true;
+      btn.textContent = '⏳ Cargando…';
+      actualizarModoFecha(fecha);
+      await cargarPresencia(obraActualId, fecha);
+      btn.disabled = false;
+      btn.textContent = '🔄 Actualizar';
+    });
   }
 
   const cardNaranjas = document.getElementById('card-naranjas');
@@ -610,13 +740,9 @@
     }
   }
 
-  // Carga una sola vez los IDs de empresas propias
   async function cargarEmpresasPropias() {
     try {
-      const { data } = await sb
-        .from('empresas')
-        .select('id')
-        .eq('es_empresa_propia', true);
+      const { data } = await sb.from('empresas').select('id').eq('es_empresa_propia', true);
       empresasPropias = new Set((data || []).map(e => e.id));
     } catch (_) {
       empresasPropias = new Set();
@@ -641,6 +767,7 @@
     nombreEncargado = usuario.nombre || 'Encargado';
 
     await cargarEmpresasPropias();
+    inicializarSelectorFecha();
 
     const { data: asignaciones } = await sb
       .from('usuarios_obra')
@@ -702,8 +829,13 @@
     document.getElementById('btn-ver-qr').style.display = 'inline-block';
     document.getElementById('btn-hab').style.display = 'inline-block';
 
+    // Resetear fecha a hoy al cargar obra
+    const inputFecha = document.getElementById('input-fecha-presencia');
+    inputFecha.value = fechaHoyISO();
+    actualizarModoFecha(fechaHoyISO());
+
     await cargarTrabajadoresObra();
-    await cargarPresencia(obraId);
+    await cargarPresencia(obraId, fechaHoyISO());
     await cargarBloqueos();
     await cargarAvisosAutocierre();
     await cargarUltimaRonda();
@@ -719,12 +851,17 @@
     intervalPresencia = setInterval(() => {
       if (document.hidden) return;
       if (!obraActualId) return;
-      cargarPresencia(obraActualId);
+      // Solo auto-refrescar si estamos viendo hoy
+      const fechaActual = document.getElementById('input-fecha-presencia').value || fechaHoyISO();
+      if (esHoy(fechaActual)) cargarPresencia(obraActualId, fechaActual);
     }, 60 * 1000);
   }
 
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && obraActualId) cargarPresencia(obraActualId);
+    if (!document.hidden && obraActualId) {
+      const fechaActual = document.getElementById('input-fecha-presencia').value || fechaHoyISO();
+      if (esHoy(fechaActual)) cargarPresencia(obraActualId, fechaActual);
+    }
   });
 
   async function cargarBloqueos() {
@@ -733,15 +870,17 @@
 
     const { desdeISO, hastaISO } = rangoHoyLocal();
 
-    const { count: totalHistorico } = await sb
+    // Contador = personas distintas, no intentos (igual que P-01 en jefe)
+    const { data: dataHistorico } = await sb
       .from('incidencias')
-      .select('*', { count: 'exact', head: true })
+      .select('trabajador_id')
       .eq('obra_id', obraActualId)
       .eq('tipo', 'bloqueo_rojo')
       .gte('created_at', desdeISO)
       .lte('created_at', hastaISO);
+    const personasDistintas = new Set((dataHistorico || []).map(i => i.trabajador_id).filter(Boolean)).size;
     const statRojos = document.getElementById('stat-rojos');
-    if (statRojos) statRojos.textContent = totalHistorico ?? 0;
+    if (statRojos) statRojos.textContent = personasDistintas;
 
     const { data, error } = await sb
       .from('incidencias')
@@ -1091,18 +1230,13 @@
     return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   }
 
-  function rangoHoyLocal() {
-    const a = new Date();
-    const desde = new Date(a.getFullYear(), a.getMonth(), a.getDate(), 0, 0, 0, 0);
-    const hasta = new Date(a.getFullYear(), a.getMonth(), a.getDate(), 23, 59, 59, 999);
-    return { desdeISO: desde.toISOString(), hastaISO: hasta.toISOString() };
-  }
-
-  async function cargarPresencia(obraId) {
+  // ── P-02: cargarPresencia acepta fecha opcional ──
+  async function cargarPresencia(obraId, fechaISO) {
+    const fecha = fechaISO || fechaHoyISO();
     const lista = document.getElementById('lista-presencia');
     lista.innerHTML = '<p class="loading">Cargando...</p>';
 
-    const { desdeISO, hastaISO } = rangoHoyLocal();
+    const { desdeISO, hastaISO } = rangoFechaLocal(fecha);
 
     let fichajes;
     try {
@@ -1176,7 +1310,7 @@
       });
       naranjasActualesCache = presentes.filter(t => t.estado === 'naranja');
 
-      // ── RP-3: IDs de Recursos Preventivos ──
+      // RP-3
       idsRPCache = new Set();
       try {
         const { data: rps } = await sb
@@ -1187,7 +1321,7 @@
         idsRPCache = new Set((rps || []).map(r => r.trabajador_id));
       } catch (_) {}
 
-      // ── H-6: iconos de habilitación ──
+      // H-6
       habIconosPorTrabajadorCache = {};
       try {
         const { data: habs } = await sb
@@ -1207,56 +1341,69 @@
     const statNaranjas = document.getElementById('stat-naranjas');
     if (statNaranjas) statNaranjas.textContent = naranjasActualesCache.length;
 
-    pintarContador(presentes);
-    pintarTarjetas(presentes);
-    actualizarBotonRonda(presentes.length);
+    pintarContador(presentes, fecha);
+    pintarTarjetas(presentes, fecha);
+
+    // Solo actualizar botón de ronda si estamos viendo hoy
+    if (esHoy(fecha)) actualizarBotonRonda(presentes.length);
   }
 
-  function pintarContador(presentes) {
+  function pintarContador(presentes, fecha) {
     const cont = document.getElementById('contador-presencia');
     const numEl = document.getElementById('contador-numero');
     const txtEl = document.getElementById('contador-texto');
     const desglEl = document.getElementById('contador-desglose');
     const ultEl = document.getElementById('contador-ultima');
     const num = presentes.length;
+    const esHoyFlag = esHoy(fecha || fechaHoyISO());
 
     cont.style.display = 'block';
     numEl.textContent = num;
 
     if (num === 0) {
-      cont.classList.remove('estado-ok', 'estado-aviso');
+      cont.classList.remove('estado-ok', 'estado-aviso', 'estado-historico');
       cont.classList.add('estado-vacio');
-      txtEl.textContent = 'Nadie en obra ahora mismo';
+      txtEl.textContent = esHoyFlag ? 'Nadie en obra ahora mismo' : 'Nadie en obra ese día';
       desglEl.style.display = 'none';
       ultEl.style.display = 'none';
       return;
     }
 
     cont.classList.remove('estado-vacio', 'estado-aviso');
-    cont.classList.add('estado-ok');
-    if (num > 30) { cont.classList.remove('estado-ok'); cont.classList.add('estado-aviso'); }
+    if (!esHoyFlag) {
+      cont.classList.remove('estado-ok');
+      cont.classList.add('estado-historico');
+      txtEl.textContent = num === 1 ? 'persona estuvo en obra ese día' : 'personas estuvieron en obra ese día';
+    } else {
+      cont.classList.remove('estado-historico');
+      cont.classList.add('estado-ok');
+      if (num > 30) { cont.classList.remove('estado-ok'); cont.classList.add('estado-aviso'); }
+      txtEl.textContent = num === 1 ? 'persona en obra ahora' : 'personas en obra ahora';
+    }
 
-    txtEl.textContent = num === 1 ? 'persona en obra ahora' : 'personas en obra ahora';
-
-    // Desglose propios / externos
     const nPropios = presentes.filter(t => empresasPropias.has(t.empresaId)).length;
     const nExternos = num - nPropios;
     desglEl.style.display = 'inline-block';
     desglEl.innerHTML = `${nPropios} propios · <span class="externos-num">${nExternos} externos</span>`;
 
     const ultimo = presentes[0];
-    if (ultimo) {
+    if (ultimo && esHoyFlag) {
       ultEl.style.display = 'inline-block';
       ultEl.innerHTML = `Última entrada: <strong>${esc(ultimo.nombre)}</strong> · ${esc(textoRelativo(ultimo.horaISO))}`;
+    } else if (ultimo) {
+      ultEl.style.display = 'inline-block';
+      ultEl.innerHTML = `Última entrada registrada: <strong>${esc(ultimo.nombre)}</strong> · ${esc(ultimo.horaTexto)}`;
     } else {
       ultEl.style.display = 'none';
     }
   }
 
-  function pintarTarjetas(presentes) {
+  function pintarTarjetas(presentes, fecha) {
     const lista = document.getElementById('lista-presencia');
+    const esHoyFlag = esHoy(fecha || fechaHoyISO());
+
     if (presentes.length === 0) {
-      lista.innerHTML = '<p class="lista-vacia">Nadie en obra en este momento.</p>';
+      lista.innerHTML = `<p class="lista-vacia">${esHoyFlag ? 'Nadie en obra en este momento.' : 'No hay registros de presencia para esta fecha.'}</p>`;
       return;
     }
     lista.innerHTML = '';
@@ -1274,7 +1421,7 @@
         </div>
         <div class="tarjeta-hora">
           <div class="tarjeta-hora-grande">${esc(t.horaTexto)}</div>
-          <div class="tarjeta-hora-rel">${esc(textoRelativo(t.horaISO))}</div>
+          <div class="tarjeta-hora-rel">${esHoyFlag ? esc(textoRelativo(t.horaISO)) : ''}</div>
         </div>`;
       lista.appendChild(card);
     });
@@ -1282,6 +1429,8 @@
 
   function actualizarTextosRelativos() {
     if (!presentesCache) return;
+    const fecha = document.getElementById('input-fecha-presencia').value || fechaHoyISO();
+    if (!esHoy(fecha)) return; // no actualizar tiempos relativos en histórico
     const ultEl = document.getElementById('contador-ultima');
     if (presentesCache.length > 0 && ultEl && ultEl.style.display !== 'none') {
       const u = presentesCache[0];
@@ -1461,7 +1610,8 @@
 
     setTimeout(async () => {
       document.getElementById('modal-manual').classList.remove('visible');
-      await cargarPresencia(obraActualId);
+      const fechaActual = document.getElementById('input-fecha-presencia').value || fechaHoyISO();
+      await cargarPresencia(obraActualId, fechaActual);
     }, 900);
   });
 
