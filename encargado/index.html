@@ -185,6 +185,21 @@
       font-size: 0.95rem;
       margin-top: 0;
     }
+    /* ── P-03: botón imprimir lista ── */
+    .btn-imprimir-lista {
+      background: var(--color-principal);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 0.45rem 0.9rem;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .btn-imprimir-lista:hover { opacity: 0.92; }
+    .btn-imprimir-lista:disabled { background: #aaa; cursor: not-allowed; }
 
     .banner-historico {
       background: #e3f2fd;
@@ -424,10 +439,11 @@
     </div>
 
     <div class="card">
-      <!-- P-02: selector de fecha -->
+      <!-- P-02: selector de fecha · P-03: botón imprimir lista -->
       <div class="presencia-controles">
         <label for="input-fecha-presencia">📅 Fecha:</label>
         <input type="date" id="input-fecha-presencia" />
+        <button class="btn-imprimir-lista" id="btn-imprimir-lista">🖨️ Imprimir lista</button>
       </div>
       <div class="banner-historico" id="banner-historico"></div>
       <h2>👷 Trabajadores presentes</h2>
@@ -665,6 +681,9 @@
       btn.disabled = false;
       btn.textContent = '🔄 Actualizar';
     });
+
+    // ── P-03: imprimir lista de presentes ──
+    document.getElementById('btn-imprimir-lista').addEventListener('click', imprimirListaPresentes);
   }
 
   const cardNaranjas = document.getElementById('card-naranjas');
@@ -1261,8 +1280,9 @@
         ? (f.trabajadores.empresas.nombre || '')
         : '';
       const empresaId = f.trabajadores?.empresa_id || null;
+      const dni = (f.trabajadores && f.trabajadores.dni) ? f.trabajadores.dni : '';
       estadoTrab[id] = {
-        id, nombre: nombreCompleto || 'Desconocido', empresa, empresaId,
+        id, nombre: nombreCompleto || 'Desconocido', empresa, empresaId, dni,
         tipo: f.tipo, horaISO: f.hora,
         horaTexto: new Date(f.hora).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
       };
@@ -1408,6 +1428,106 @@
         </div>`;
       lista.appendChild(card);
     });
+  }
+
+  // ── P-03: imprimir lista de presentes ──
+  function imprimirListaPresentes() {
+    if (!obraActualId) { alert('No hay obra seleccionada.'); return; }
+
+    const presentes = presentesCache || [];
+    if (presentes.length === 0) {
+      alert('No hay trabajadores presentes para imprimir en la fecha seleccionada.');
+      return;
+    }
+
+    const fechaSel = document.getElementById('input-fecha-presencia').value || fechaHoyISO();
+    const [y, m, d] = fechaSel.split('-').map(Number);
+    const fechaObj = new Date(y, m - 1, d);
+    const fechaTxt = fechaObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const fechaTxtCap = fechaTxt.charAt(0).toUpperCase() + fechaTxt.slice(1);
+    const horaImpresion = new Date().toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    // Orden alfabético por nombre para la lista impresa
+    const ordenados = [...presentes].sort((a, b) =>
+      (a.nombre || '').localeCompare(b.nombre || '', 'es')
+    );
+
+    const total = ordenados.length;
+    const nPropios = ordenados.filter(t => empresasPropias.has(t.empresaId)).length;
+    const nExternos = total - nPropios;
+
+    const logoUrl = brandingActual
+      ? window.location.origin + window.location.pathname.replace(/encargado\/.*$/, '') + brandingActual.logo
+      : '';
+    const marcaNombre = brandingActual ? brandingActual.nombre : '';
+
+    const filas = ordenados.map((t, i) => `
+      <tr>
+        <td class="col-num">${i + 1}</td>
+        <td class="col-nombre">${esc(t.nombre || '—')}</td>
+        <td class="col-dni">${esc(t.dni || '—')}</td>
+        <td class="col-empresa">${esc(t.empresa || '—')}</td>
+        <td class="col-hora">${esc(t.horaTexto || '—')}</td>
+      </tr>`).join('');
+
+    const win = window.open('', '_blank');
+    win.document.write(`
+      <!DOCTYPE html><html lang="es"><head>
+      <meta charset="UTF-8">
+      <title>Lista de presentes — ${esc(obraActualNombre)} — ${esc(fechaSel)}</title>
+      <style>
+        * { box-sizing: border-box; }
+        body { font-family: sans-serif; color: #111; padding: 32px; }
+        .cab { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 2px solid #111; padding-bottom: 14px; margin-bottom: 18px; }
+        .cab-info h1 { font-size: 20px; margin: 0 0 4px; }
+        .cab-info .fecha { font-size: 14px; color: #444; }
+        .logo-marca { max-height: 54px; max-width: 200px; }
+        .resumen { font-size: 14px; margin-bottom: 16px; }
+        .resumen strong { font-size: 16px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        thead th { text-align: left; background: #f0f0f0; border-bottom: 2px solid #999; padding: 8px 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; }
+        tbody td { padding: 8px 10px; border-bottom: 1px solid #ddd; }
+        tbody tr:nth-child(even) { background: #fafafa; }
+        .col-num { width: 36px; color: #888; text-align: right; }
+        .col-hora { width: 70px; font-weight: 700; }
+        .col-dni { width: 110px; }
+        .pie { margin-top: 28px; font-size: 11px; color: #888; border-top: 1px solid #ddd; padding-top: 10px; }
+        .firma { margin-top: 40px; font-size: 13px; }
+        .firma .linea { margin-top: 36px; border-top: 1px solid #111; width: 260px; padding-top: 4px; }
+        @media print { body { padding: 12px; } }
+      </style>
+      </head><body>
+      <div class="cab">
+        <div class="cab-info">
+          <h1>Lista de presentes — ${esc(obraActualNombre)}</h1>
+          <div class="fecha">${esc(fechaTxtCap)}</div>
+        </div>
+        ${logoUrl ? `<img class="logo-marca" src="${logoUrl}" alt="${esc(marcaNombre)}" />` : ''}
+      </div>
+      <div class="resumen">
+        <strong>${total} ${total === 1 ? 'persona' : 'personas'}</strong>
+        &nbsp;·&nbsp; ${nPropios} propios &nbsp;·&nbsp; ${nExternos} externos
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th class="col-num">#</th>
+            <th>Nombre</th>
+            <th>DNI</th>
+            <th>Empresa</th>
+            <th class="col-hora">Entrada</th>
+          </tr>
+        </thead>
+        <tbody>${filas}</tbody>
+      </table>
+      <div class="firma">
+        Encargado: <strong>${esc(nombreEncargado)}</strong>
+        <div class="linea">Firma</div>
+      </div>
+      <div class="pie">Documento generado el ${esc(horaImpresion)} desde el panel de encargado. Refleja los trabajadores con entrada registrada en la obra para la fecha indicada.</div>
+      <script>window.onload = () => { window.print(); }<\/script>
+      </body></html>`);
+    win.document.close();
   }
 
   function actualizarTextosRelativos() {
