@@ -1270,7 +1270,8 @@
       return;
     }
 
-    const estadoTrab = {};
+    const esHoyFlag = esHoy(fecha);
+    const porTrab = {};
     fichajes.forEach(f => {
       const id = f.trabajador_id;
       const nombreCompleto = f.trabajadores
@@ -1281,15 +1282,36 @@
         : '';
       const empresaId = f.trabajadores?.empresa_id || null;
       const dni = (f.trabajadores && f.trabajadores.dni) ? f.trabajadores.dni : '';
-      estadoTrab[id] = {
-        id, nombre: nombreCompleto || 'Desconocido', empresa, empresaId, dni,
-        tipo: f.tipo, horaISO: f.hora,
-        horaTexto: new Date(f.hora).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-      };
+      if (!porTrab[id]) {
+        porTrab[id] = {
+          id, nombre: nombreCompleto || 'Desconocido', empresa, empresaId, dni,
+          tuvoEntrada: false, primeraEntradaISO: null, ultimoTipo: null, ultimoISO: null
+        };
+      }
+      const reg = porTrab[id];
+      // fichajes vienen en orden ascendente: el último sobrescribe
+      reg.ultimoTipo = f.tipo;
+      reg.ultimoISO = f.hora;
+      if (f.tipo === 'entrada') {
+        reg.tuvoEntrada = true;
+        if (!reg.primeraEntradaISO) reg.primeraEntradaISO = f.hora;
+      }
     });
 
-    const presentes = Object.values(estadoTrab)
-      .filter(t => t.tipo === 'entrada')
+    // Hoy: quien tiene su última acción en "entrada" (sigue dentro ahora).
+    // Histórico: cualquiera que registró al menos una entrada ese día,
+    //            haya salido o no (todos los que pisaron la obra).
+    const presentes = Object.values(porTrab)
+      .filter(t => esHoyFlag ? t.ultimoTipo === 'entrada' : t.tuvoEntrada)
+      .map(t => {
+        const horaISO = esHoyFlag ? t.ultimoISO : t.primeraEntradaISO;
+        return {
+          ...t,
+          tipo: 'entrada',
+          horaISO,
+          horaTexto: new Date(horaISO).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+        };
+      })
       .sort((a, b) => new Date(b.horaISO) - new Date(a.horaISO));
 
     presentesCache = presentes;
@@ -1440,17 +1462,13 @@
       return;
     }
 
-    const fechaSel = document.getElementById('input-fecha-presencia').value || fechaHoyISO();
-    const [y, m, d] = fechaSel.split('-').map(Number);
-    const fechaObj = new Date(y, m - 1, d);
-    const fechaTxt = fechaObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    const fechaTxtCap = fechaTxt.charAt(0).toUpperCase() + fechaTxt.slice(1);
-    const horaImpresion = new Date().toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-    // Orden alfabético por nombre para la lista impresa
-    const ordenados = [...presentes].sort((a, b) =>
-      (a.nombre || '').localeCompare(b.nombre || '', 'es')
-    );
+    // Orden por empresa y luego por nombre (más fácil de cotejar en obra)
+    const ordenados = [...presentes].sort((a, b) => {
+      const ea = (a.empresa || '').toLowerCase();
+      const eb = (b.empresa || '').toLowerCase();
+      if (ea !== eb) return ea.localeCompare(eb, 'es');
+      return (a.nombre || '').localeCompare(b.nombre || '', 'es');
+    });
 
     const total = ordenados.length;
     const nPropios = ordenados.filter(t => empresasPropias.has(t.empresaId)).length;
@@ -1467,40 +1485,38 @@
         <td class="col-nombre">${esc(t.nombre || '—')}</td>
         <td class="col-dni">${esc(t.dni || '—')}</td>
         <td class="col-empresa">${esc(t.empresa || '—')}</td>
-        <td class="col-hora">${esc(t.horaTexto || '—')}</td>
+        <td class="col-firma"></td>
       </tr>`).join('');
 
     const win = window.open('', '_blank');
     win.document.write(`
       <!DOCTYPE html><html lang="es"><head>
       <meta charset="UTF-8">
-      <title>Lista de presentes — ${esc(obraActualNombre)} — ${esc(fechaSel)}</title>
+      <title>Lista de presentes — ${esc(obraActualNombre)}</title>
       <style>
+        @page { size: landscape; margin: 14mm; }
         * { box-sizing: border-box; }
-        body { font-family: sans-serif; color: #111; padding: 32px; }
-        .cab { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 2px solid #111; padding-bottom: 14px; margin-bottom: 18px; }
-        .cab-info h1 { font-size: 20px; margin: 0 0 4px; }
-        .cab-info .fecha { font-size: 14px; color: #444; }
+        body { font-family: sans-serif; color: #111; padding: 8px; }
+        .cab { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 2px solid #111; padding-bottom: 12px; margin-bottom: 14px; }
+        .cab-info h1 { font-size: 20px; margin: 0; }
         .logo-marca { max-height: 54px; max-width: 200px; }
-        .resumen { font-size: 14px; margin-bottom: 16px; }
+        .resumen { font-size: 14px; margin-bottom: 12px; }
         .resumen strong { font-size: 16px; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        thead th { text-align: left; background: #f0f0f0; border-bottom: 2px solid #999; padding: 8px 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; }
-        tbody td { padding: 8px 10px; border-bottom: 1px solid #ddd; }
-        tbody tr:nth-child(even) { background: #fafafa; }
-        .col-num { width: 36px; color: #888; text-align: right; }
-        .col-hora { width: 70px; font-weight: 700; }
-        .col-dni { width: 110px; }
-        .pie { margin-top: 28px; font-size: 11px; color: #888; border-top: 1px solid #ddd; padding-top: 10px; }
-        .firma { margin-top: 40px; font-size: 13px; }
-        .firma .linea { margin-top: 36px; border-top: 1px solid #111; width: 260px; padding-top: 4px; }
-        @media print { body { padding: 12px; } }
+        th, td { border: 1px solid #333; padding: 9px 10px; }
+        thead th { text-align: left; background: #ececec; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; }
+        .col-num { width: 34px; text-align: center; color: #555; }
+        .col-dni { width: 120px; }
+        .col-empresa { width: 240px; }
+        .col-firma { width: 260px; }
+        tbody tr { height: 38px; }
+        .pie { margin-top: 22px; font-size: 12px; }
+        .pie .firma-encargado { margin-top: 34px; border-top: 1px solid #111; width: 300px; padding-top: 4px; }
       </style>
       </head><body>
       <div class="cab">
         <div class="cab-info">
           <h1>Lista de presentes — ${esc(obraActualNombre)}</h1>
-          <div class="fecha">${esc(fechaTxtCap)}</div>
         </div>
         ${logoUrl ? `<img class="logo-marca" src="${logoUrl}" alt="${esc(marcaNombre)}" />` : ''}
       </div>
@@ -1513,18 +1529,16 @@
           <tr>
             <th class="col-num">#</th>
             <th>Nombre</th>
-            <th>DNI</th>
-            <th>Empresa</th>
-            <th class="col-hora">Entrada</th>
+            <th class="col-dni">DNI</th>
+            <th class="col-empresa">Empresa</th>
+            <th class="col-firma">Firma</th>
           </tr>
         </thead>
         <tbody>${filas}</tbody>
       </table>
-      <div class="firma">
-        Encargado: <strong>${esc(nombreEncargado)}</strong>
-        <div class="linea">Firma</div>
+      <div class="pie">
+        <div class="firma-encargado">Firma del encargado: ${esc(nombreEncargado)}</div>
       </div>
-      <div class="pie">Documento generado el ${esc(horaImpresion)} desde el panel de encargado. Refleja los trabajadores con entrada registrada en la obra para la fecha indicada.</div>
       <script>window.onload = () => { window.print(); }<\/script>
       </body></html>`);
     win.document.close();
