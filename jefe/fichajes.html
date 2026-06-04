@@ -45,7 +45,7 @@
   .btn-secundario:hover { background: var(--bg3); color: var(--texto); }
   .btn-manual { background: var(--color-acento); color: white; border: none; padding: 9px 15px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
   .btn-manual:hover { opacity: 0.9; }
-  .btn-naranja { background: var(--naranja); color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .btn-naranja { background: var(--naranja); color: white; border: none; padding: 5px 10px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
   .btn-naranja:hover { opacity: 0.9; }
   .bloque-export { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 14px 20px; margin-bottom: 16px; }
   .bloque-export-titulo { font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; }
@@ -65,15 +65,27 @@
   .badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; background: rgba(33,150,243,0.15); color: var(--azul); }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   th { text-align: left; padding: 10px 20px; font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); }
-  td { padding: 13px 20px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+  td { padding: 11px 20px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: var(--bg3); }
   .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-  .pill.verde  { background: rgba(76,175,80,0.15);  color: var(--verde); }
-  .pill.azul   { background: rgba(33,150,243,0.15); color: var(--azul); }
-  .pill.naranja{ background: rgba(255,152,0,0.15);  color: var(--naranja); }
+  .pill.verde   { background: rgba(76,175,80,0.15);  color: var(--verde); }
+  .pill.azul    { background: rgba(33,150,243,0.15); color: var(--azul); }
+  .pill.naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
   .vacio    { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+
+  /* ── P-05: Vista por jornadas ── */
+  .jornada-hora { font-size: 14px; font-weight: 600; color: var(--texto); font-variant-numeric: tabular-nums; }
+  .jornada-hora.pendiente { color: var(--texto2); font-style: italic; font-weight: 400; }
+  .jornada-duracion { font-size: 13px; color: var(--texto2); }
+  .jornada-estado { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+  .jornada-estado.completa  { background: rgba(76,175,80,0.12);  color: var(--verde); }
+  .jornada-estado.dentro    { background: rgba(33,150,243,0.12); color: var(--azul); }
+  .jornada-estado.autocierre{ background: rgba(255,152,0,0.12);  color: var(--naranja); }
+  .jornada-avisos { font-size: 11px; color: var(--texto2); margin-top: 3px; }
+  .acciones-jornada { display: flex; gap: 6px; flex-wrap: wrap; }
+
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
   .modal-overlay.visible { display: flex; }
   .modal { background: var(--bg2); border: 1px solid var(--borde); border-radius: 14px; padding: 28px; width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; }
@@ -103,6 +115,7 @@
   <div class="sidebar-section">Gestión</div>
   <a href="fichajes.html" class="activo"><span class="ico">🕐</span> Fichajes</a>
   <a href="trabajadores.html"><span class="ico">👥</span> Trabajadores</a>
+  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
   <a href="documentos-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
   <div class="sidebar-bottom">
     <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
@@ -137,7 +150,7 @@
 
     <div class="seccion">
       <div class="seccion-cab">
-        <h2>Historial de fichajes</h2>
+        <h2>Jornadas</h2>
         <span class="badge" id="badge-total">—</span>
       </div>
       <div id="tabla-fichajes"><div class="cargando">Cargando…</div></div>
@@ -145,6 +158,7 @@
   </div>
 </div>
 
+<!-- Modal corrección -->
 <div class="modal-overlay" id="modal-correccion">
   <div class="modal">
     <h2>Corregir fichaje</h2>
@@ -160,6 +174,7 @@
   </div>
 </div>
 
+<!-- Modal fichaje manual -->
 <div class="modal-overlay" id="modal-manual">
   <div class="modal">
     <h2>Fichar por trabajador</h2>
@@ -265,16 +280,17 @@ document.getElementById('btn-hoy').addEventListener('click', () => {
 document.getElementById('btn-buscar').addEventListener('click', buscar);
 document.getElementById('btn-exportar').addEventListener('click', exportarExcelMensual);
 
+// ── P-05: Vista por jornadas ──
 async function buscar() {
   document.getElementById('tabla-fichajes').innerHTML = '<div class="cargando">Cargando…</div>';
   const fecha = document.getElementById('filtro-fecha').value;
 
   let query = sb
     .from('fichajes')
-    .select('id, tipo, hora, es_manual, cierre_automatico, corregido_por, trabajador:trabajador_id(nombre, apellidos, dni)')
+    .select('id, tipo, hora, es_manual, cierre_automatico, corregido_por, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni)')
     .eq('obra_id', obraActual)
-    .order('hora', { ascending: false })
-    .limit(200);
+    .order('hora', { ascending: true })
+    .limit(500);
 
   if (fecha) {
     const [y, m, d] = fecha.split('-').map(Number);
@@ -286,32 +302,201 @@ async function buscar() {
   const { data, error } = await query;
 
   if (error || !data || data.length === 0) {
-    document.getElementById('badge-total').textContent = '0 registros';
+    document.getElementById('badge-total').textContent = '0 jornadas';
     document.getElementById('tabla-fichajes').innerHTML = '<div class="vacio">No hay fichajes para esta fecha</div>';
     return;
   }
 
-  document.getElementById('badge-total').textContent = data.length + ' registros';
+  // Agrupar en jornadas: clave = trabajador_id + fecha local
+  // Una jornada = la entrada más reciente no cerrada + su salida correspondiente
+  // Puede haber varias jornadas por trabajador por día (entró, salió, volvió a entrar)
+  const jornadas = agruparEnJornadas(data);
+
+  // Ordenar: por fecha desc, luego por apellidos asc
+  jornadas.sort((a, b) => {
+    const fechaDiff = b.fechaKey.localeCompare(a.fechaKey);
+    if (fechaDiff !== 0) return fechaDiff;
+    const apA = (a.apellidos || '').toLowerCase();
+    const apB = (b.apellidos || '').toLowerCase();
+    return apA.localeCompare(apB, 'es');
+  });
+
+  document.getElementById('badge-total').textContent = jornadas.length + (jornadas.length === 1 ? ' jornada' : ' jornadas');
+
+  const mostrarFecha = !fecha; // solo si no hay filtro de fecha fijo
+
   document.getElementById('tabla-fichajes').innerHTML = `
     <table>
-      <thead><tr><th>Trabajador</th><th>DNI</th><th>Tipo</th><th>Hora</th><th>Avisos</th><th>Acción</th></tr></thead>
+      <thead><tr>
+        ${mostrarFecha ? '<th>Fecha</th>' : ''}
+        <th>Trabajador</th>
+        <th>DNI</th>
+        <th>Entrada</th>
+        <th>Salida</th>
+        <th>Duración</th>
+        <th>Estado</th>
+        <th>Acciones</th>
+      </tr></thead>
       <tbody>
-        ${data.map(f => {
-          const avisos = [];
-          if (f.cierre_automatico) avisos.push('⏰ Autocierre');
-          if (f.es_manual)         avisos.push('✍️ Manual');
-          if (f.corregido_por)     avisos.push('🛠️ Corregido');
-          return `<tr>
-            <td><strong>${esc(f.trabajador?.nombre)} ${esc(f.trabajador?.apellidos)}</strong></td>
-            <td>${esc(f.trabajador?.dni)}</td>
-            <td><span class="pill ${f.tipo === 'entrada' ? 'verde' : 'azul'}">${esc(f.tipo)}</span></td>
-            <td>${formatFechaHora(f.hora)}</td>
-            <td>${avisos.join(' ') || '—'}</td>
-            <td><button class="btn-naranja" onclick="abrirCorreccion('${f.id}', '${esc(f.trabajador?.nombre)} ${esc(f.trabajador?.apellidos)}', '${f.hora}')">Corregir</button></td>
-          </tr>`;
-        }).join('')}
+        ${jornadas.map(j => pintarJornada(j, mostrarFecha)).join('')}
       </tbody>
     </table>`;
+}
+
+function agruparEnJornadas(fichajes) {
+  // Procesar en orden cronológico: aparear entradas con salidas por trabajador
+  // Mantenemos una "entrada abierta" por trabajador y la cerramos con la siguiente salida
+  const abiertas = {}; // trabajador_id → jornada sin cerrar
+  const jornadas = [];
+
+  fichajes.forEach(f => {
+    const tid = f.trabajador_id;
+    const t = f.trabajador || {};
+
+    if (f.tipo === 'entrada') {
+      // Si hay una entrada abierta sin cerrar para este trabajador, la cerramos sin salida
+      // (no debería pasar si los datos son coherentes, pero por si acaso)
+      if (abiertas[tid]) {
+        jornadas.push(abiertas[tid]);
+      }
+      // Nueva jornada abierta
+      abiertas[tid] = {
+        trabajadorId: tid,
+        nombre: t.nombre || '',
+        apellidos: t.apellidos || '',
+        dni: t.dni || '',
+        fechaKey: isoAFechaLocal(f.hora), // YYYY-MM-DD local
+        entradaId: f.id,
+        entradaHora: f.hora,
+        entradaManual: !!f.es_manual,
+        entradaCorregida: !!f.corregido_por,
+        salidaId: null,
+        salidaHora: null,
+        salidaManual: false,
+        salidaCorregida: false,
+        autocierre: false,
+      };
+    } else if (f.tipo === 'salida') {
+      if (abiertas[tid]) {
+        // Cerrar la jornada abierta
+        abiertas[tid].salidaId = f.id;
+        abiertas[tid].salidaHora = f.hora;
+        abiertas[tid].salidaManual = !!f.es_manual;
+        abiertas[tid].salidaCorregida = !!f.corregido_por;
+        abiertas[tid].autocierre = !!f.cierre_automatico;
+        jornadas.push(abiertas[tid]);
+        delete abiertas[tid];
+      } else {
+        // Salida huérfana (sin entrada previa en el rango visible) — la mostramos igualmente
+        jornadas.push({
+          trabajadorId: tid,
+          nombre: t.nombre || '',
+          apellidos: t.apellidos || '',
+          dni: t.dni || '',
+          fechaKey: isoAFechaLocal(f.hora),
+          entradaId: null,
+          entradaHora: null,
+          entradaManual: false,
+          entradaCorregida: false,
+          salidaId: f.id,
+          salidaHora: f.hora,
+          salidaManual: !!f.es_manual,
+          salidaCorregida: !!f.corregido_por,
+          autocierre: !!f.cierre_automatico,
+        });
+      }
+    }
+  });
+
+  // Las entradas que quedaron abiertas (sigue dentro o sin datos de salida en el rango)
+  Object.values(abiertas).forEach(j => jornadas.push(j));
+
+  return jornadas;
+}
+
+function isoAFechaLocal(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dia}`;
+}
+
+function calcularDuracion(entradaIso, salidaIso) {
+  if (!entradaIso || !salidaIso) return null;
+  const mins = Math.round((new Date(salidaIso) - new Date(entradaIso)) / 60000);
+  if (mins < 0) return null;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function pintarJornada(j, mostrarFecha) {
+  const nombreCompleto = [j.nombre, j.apellidos].filter(Boolean).join(' ') || '(sin nombre)';
+
+  // Fecha legible
+  const fechaLegible = j.fechaKey
+    ? new Date(j.fechaKey + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' })
+    : '—';
+
+  // Hora entrada
+  const entradaTxt = j.entradaHora
+    ? `<span class="jornada-hora">${formatHora(j.entradaHora)}</span>`
+    : `<span class="jornada-hora pendiente">—</span>`;
+
+  // Hora salida
+  let salidaTxt;
+  if (j.salidaHora) {
+    salidaTxt = `<span class="jornada-hora">${formatHora(j.salidaHora)}</span>`;
+  } else {
+    salidaTxt = `<span class="jornada-hora pendiente">En obra</span>`;
+  }
+
+  // Duración
+  const duracion = calcularDuracion(j.entradaHora, j.salidaHora);
+  const duracionTxt = duracion
+    ? `<span class="jornada-duracion">${duracion}</span>`
+    : `<span class="jornada-duracion">—</span>`;
+
+  // Estado
+  let estadoHtml;
+  if (j.autocierre) {
+    estadoHtml = `<span class="jornada-estado autocierre">⏰ Autocierre</span>`;
+  } else if (!j.salidaHora) {
+    estadoHtml = `<span class="jornada-estado dentro">● En obra</span>`;
+  } else {
+    estadoHtml = `<span class="jornada-estado completa">✓ Completa</span>`;
+  }
+
+  // Avisos secundarios (manual / corregido)
+  const avisos = [];
+  if (j.entradaManual || j.salidaManual) avisos.push('✍️ Manual');
+  if (j.entradaCorregida || j.salidaCorregida) avisos.push('🛠️ Corregido');
+  const avisosHtml = avisos.length
+    ? `<div class="jornada-avisos">${avisos.join(' · ')}</div>`
+    : '';
+
+  // Botones de corrección
+  const btns = [];
+  if (j.entradaId) {
+    btns.push(`<button class="btn-naranja" onclick="abrirCorreccion('${j.entradaId}','${esc(nombreCompleto)} — entrada','${j.entradaHora}')">✏ Entrada</button>`);
+  }
+  if (j.salidaId) {
+    btns.push(`<button class="btn-naranja" onclick="abrirCorreccion('${j.salidaId}','${esc(nombreCompleto)} — salida','${j.salidaHora}')">✏ Salida</button>`);
+  }
+  const accionesHtml = `<div class="acciones-jornada">${btns.join('')}</div>`;
+
+  return `<tr>
+    ${mostrarFecha ? `<td style="color:var(--texto2);font-size:13px;white-space:nowrap">${fechaLegible}</td>` : ''}
+    <td><strong>${esc(nombreCompleto)}</strong></td>
+    <td style="color:var(--texto2)">${esc(j.dni)}</td>
+    <td>${entradaTxt}</td>
+    <td>${salidaTxt}</td>
+    <td>${duracionTxt}${avisosHtml}</td>
+    <td>${estadoHtml}</td>
+    <td>${accionesHtml}</td>
+  </tr>`;
 }
 
 async function cargarTrabajadoresObra() {
@@ -398,7 +583,8 @@ document.getElementById('btn-guardar-manual').addEventListener('click', async ()
 });
 
 function abrirCorreccion(id, nombre, hora) {
-  fichajeCorrigiendoId = id; fichajeCorrigiendoHora = hora;
+  fichajeCorrigiendoId = id;
+  fichajeCorrigiendoHora = hora;
   document.getElementById('correccion-subtitulo').textContent = nombre;
   const d = new Date(hora);
   document.getElementById('f-hora').value = isNaN(d.getTime()) ? '' : `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
@@ -443,7 +629,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
 });
 
 // =====================================================================
-// EXPORTACIÓN EXCEL MENSUAL
+// EXPORTACIÓN EXCEL MENSUAL (sin cambios)
 // =====================================================================
 async function exportarExcelMensual() {
   const msg = document.getElementById('msg-export');
@@ -469,7 +655,6 @@ async function exportarExcelMensual() {
       btn.disabled = false; btn.textContent = 'Exportar Excel'; return;
     }
 
-    // Cargar logo PNG via canvas (evita restricciones CORS de fetch en GitHub Pages)
     let logoBase64 = null;
     try {
       const marca = (obra?.empresa_marca || '').toLowerCase().trim();
@@ -574,11 +759,9 @@ function mostrarErrorManual(msg) { const el = document.getElementById('error-man
 
 function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
 
-function formatFechaHora(iso) {
+function formatHora(iso) {
   if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' +
-         d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 }
 </script>
 </body>
