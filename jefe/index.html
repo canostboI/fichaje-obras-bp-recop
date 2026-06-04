@@ -75,6 +75,44 @@
   .vacio { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
 
+  /* ── P-04: Encabezado de empresa en tabla de presencia ── */
+  .tr-empresa-cab td {
+    background: var(--bg3);
+    padding: 8px 20px;
+    border-bottom: 1px solid var(--borde);
+    border-top: 1px solid var(--borde);
+  }
+  .tr-empresa-cab:first-child td {
+    border-top: none;
+  }
+  .empresa-cab-inner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .empresa-cab-nombre {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--texto2);
+  }
+  .empresa-cab-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: rgba(139,144,158,0.15);
+    color: var(--texto2);
+  }
+  .empresa-cab-propia .empresa-cab-nombre {
+    color: var(--color-acento);
+  }
+  .empresa-cab-propia .empresa-cab-badge {
+    background: rgba(var(--color-acento-rgb, 255,152,0), 0.12);
+    color: var(--color-acento);
+  }
+
   .panel-bloqueos { background: rgba(244,67,54,0.08); border: 1px solid rgba(244,67,54,0.4); border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; }
   .panel-bloqueos.oculto { display: none; }
   .panel-bloqueos h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--rojo); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
@@ -954,30 +992,76 @@ async function cargarPresencia() {
     });
   } catch (_) {}
 
+  // ── P-04: Agrupar por empresa ──
+  // Separar propias de externas, ordenar cada grupo alfabéticamente por empresa
+  const grupos = {};
+  dentro.forEach(t => {
+    const empresaNombre = t.trabajador.empresa?.nombre || 'Sin empresa';
+    if (!grupos[empresaNombre]) {
+      grupos[empresaNombre] = {
+        nombre: empresaNombre,
+        esPropia: empresasPropias.has(t.trabajador.empresa_id),
+        trabajadores: []
+      };
+    }
+    grupos[empresaNombre].trabajadores.push(t);
+  });
+
+  // Ordenar: propias primero (alfabéticamente), luego externas (alfabéticamente)
+  const listaGrupos = Object.values(grupos).sort((a, b) => {
+    if (a.esPropia !== b.esPropia) return a.esPropia ? -1 : 1;
+    return a.nombre.localeCompare(b.nombre, 'es');
+  });
+
+  // Ordenar trabajadores dentro de cada grupo por apellidos
+  listaGrupos.forEach(g => {
+    g.trabajadores.sort((a, b) => {
+      const apellA = (a.trabajador.apellidos || '').toLowerCase();
+      const apellB = (b.trabajador.apellidos || '').toLowerCase();
+      return apellA.localeCompare(apellB, 'es');
+    });
+  });
+
+  // Construir filas HTML
+  let filas = '';
+  listaGrupos.forEach((grupo, gi) => {
+    const cabClase = grupo.esPropia ? 'tr-empresa-cab empresa-cab-propia' : 'tr-empresa-cab';
+    const cabClaseInner = 'empresa-cab-inner';
+    filas += `
+      <tr class="${cabClase}">
+        <td colspan="4">
+          <div class="${cabClaseInner}">
+            <span class="empresa-cab-nombre">${esc(grupo.nombre)}</span>
+            <span class="empresa-cab-badge">${grupo.trabajadores.length}</span>
+          </div>
+        </td>
+      </tr>`;
+
+    grupo.trabajadores.forEach(t => {
+      const ultimaEntrada = t.entradas[t.entradas.length - 1];
+      const estado = validaciones[t.trabajador.id]?.estado || 'verde';
+      const esClicable = estado === 'naranja' || estado === 'rojo';
+      const pillHtml = esClicable
+        ? `<span class="pill ${estado} clicable" onclick="abrirMotivos('${t.trabajador.id}')" title="Ver motivos">${estado}</span>`
+        : `<span class="pill ${estado}">${estado}</span>`;
+      const marcaRP = idsRP.has(t.trabajador.id) ? ' <span title="Recurso Preventivo designado">🛡️</span>' : '';
+      const iconosHab = (habIconosPorTrabajador[t.trabajador.id] || []).join(' ');
+      const iconosHabHtml = iconosHab ? ` <span title="Habilitaciones">${iconosHab}</span>` : '';
+      filas += `<tr>
+        <td><strong>${esc(t.trabajador.nombre)} ${esc(t.trabajador.apellidos)}</strong>${marcaRP}${iconosHabHtml}</td>
+        <td>${esc(t.trabajador.dni)}</td>
+        <td>${formatHora(ultimaEntrada.hora)}</td>
+        <td>${pillHtml}</td>
+      </tr>`;
+    });
+  });
+
   document.getElementById('tabla-presencia').innerHTML = `
     <table>
       <thead><tr>
         <th>Trabajador</th><th>DNI</th><th>Entrada</th><th>Doc.</th>
       </tr></thead>
-      <tbody>
-        ${dentro.map(t => {
-          const ultimaEntrada = t.entradas[t.entradas.length - 1];
-          const estado = validaciones[t.trabajador.id]?.estado || 'verde';
-          const esClicable = estado === 'naranja' || estado === 'rojo';
-          const pillHtml = esClicable
-            ? `<span class="pill ${estado} clicable" onclick="abrirMotivos('${t.trabajador.id}')" title="Ver motivos">${estado}</span>`
-            : `<span class="pill ${estado}">${estado}</span>`;
-          const marcaRP = idsRP.has(t.trabajador.id) ? ' <span title="Recurso Preventivo designado">🛡️</span>' : '';
-          const iconosHab = (habIconosPorTrabajador[t.trabajador.id] || []).join(' ');
-          const iconosHabHtml = iconosHab ? ` <span title="Habilitaciones">${iconosHab}</span>` : '';
-          return `<tr>
-            <td><strong>${esc(t.trabajador.nombre)} ${esc(t.trabajador.apellidos)}</strong>${marcaRP}${iconosHabHtml}</td>
-            <td>${esc(t.trabajador.dni)}</td>
-            <td>${formatHora(ultimaEntrada.hora)}</td>
-            <td>${pillHtml}</td>
-          </tr>`;
-        }).join('')}
-      </tbody>
+      <tbody>${filas}</tbody>
     </table>`;
 }
 
