@@ -667,7 +667,7 @@ async function cargarDnisEnObra(obraId) {
   dnisEnObra = {};
   const { data, error } = await sb
     .from('validaciones_obra')
-    .select('trabajador_id, estado, trabajadores(id, dni, nombre, apellidos)')
+    .select('trabajador_id, estado, trabajadores(id, dni, nombre, apellidos, empresa:empresa_id(es_empresa_propia))')
     .eq('obra_id', obraId);
 
   if (error) { console.error('Error cargando validaciones_obra:', error); return; }
@@ -679,7 +679,8 @@ async function cargarDnisEnObra(obraId) {
     dnisEnObra[dni] = {
       trabajador_id: t.id,
       nombre: [t.nombre, t.apellidos].filter(Boolean).join(' ') || t.dni,
-      estado: row.estado
+      estado: row.estado,
+      esPropia: t.empresa?.es_empresa_propia === true
     };
   }
 }
@@ -930,7 +931,10 @@ function renderAlertaSinRegla() {
 
 function renderDesaparecidos() {
   const dnisEnExcel = new Set(resultadoFinal.map(r => r.dni.toUpperCase()));
-  const desaparecidos = Object.entries(dnisEnObra).filter(([dni]) => !dnisEnExcel.has(dni));
+  // Los trabajadores propios (BP / Rècop) nunca aparecen en e-Coordina porque fichan
+  // manualmente: se excluyen de esta lista para no generar ruido.
+  const desaparecidos = Object.entries(dnisEnObra)
+    .filter(([dni, info]) => !dnisEnExcel.has(dni) && !info.esPropia);
 
   const bloque = document.getElementById('bloqueDesaparecidos');
   const lista = document.getElementById('listaDesaparecidos');
