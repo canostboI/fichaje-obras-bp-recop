@@ -343,6 +343,9 @@ let dnisEnObra = {}; // dni -> { trabajador_id, nombre, estado }
 // porque el texto que viene de e-Coordina puede tener formatos variados.
 let empresasPropias = new Set();
 
+// P-06: set de claves normalizadas de empresas con contrato vigente en la obra procesada
+let contratosVigentes = new Set(); // claves igual que empresasPropias: "NOMBRE|CIF", "NOMBRE:X", "CIF:X"
+
 // Documentos que solo aplican al Recurso Preventivo designado y que, por tanto,
 // NO deben heredarse a trabajadores de subcontratas.
 const DOCS_SOLO_RP = [
@@ -512,6 +515,39 @@ async function cargarEmpresasPropias() {
   }
 }
 
+// P-06: cargar empresas con contrato vigente para la obra procesada.
+// Usa el mismo patrón de claves normalizadas que empresasPropias.
+async function cargarContratosVigentes(obraId) {
+  contratosVigentes = new Set();
+  if (!obraId) return;
+  const hoy = new Date().toISOString().slice(0, 10);
+  const { data, error } = await sb
+    .from('contratos_empresa')
+    .select('empresa:empresa_id(nombre, cif)')
+    .eq('obra_id', obraId)
+    .lte('valido_desde', hoy)
+    .or(`valido_hasta.is.null,valido_hasta.gte.${hoy}`);
+  if (error) { console.error('Error cargando contratos:', error); return; }
+  for (const c of (data || [])) {
+    const nNombre = normalizar(c.empresa?.nombre);
+    const nCif = normalizar(c.empresa?.cif);
+    if (nNombre && nCif) contratosVigentes.add(`${nNombre}|${nCif}`);
+    if (nNombre) contratosVigentes.add(`NOMBRE:${nNombre}`);
+    if (nCif) contratosVigentes.add(`CIF:${nCif}`);
+  }
+}
+
+function tieneContratoVigente(empresaRaw) {
+  if (!empresaRaw) return false;
+  const { nombre, cif } = extraerEmpresa(empresaRaw);
+  const nNombre = normalizar(nombre);
+  const nCif = normalizar(cif);
+  if (nNombre && nCif && contratosVigentes.has(`${nNombre}|${nCif}`)) return true;
+  if (nNombre && contratosVigentes.has(`NOMBRE:${nNombre}`)) return true;
+  if (nCif && contratosVigentes.has(`CIF:${nCif}`)) return true;
+  return false;
+}
+
 // ── DRAG & DROP ───────────────────────────────────────────────────────────────
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
@@ -678,6 +714,9 @@ async function procesarExcel() {
     await cargarEmpresasPropias();
   }
 
+  // P-06: cargar contratos vigentes para esta obra
+  await cargarContratosVigentes(obraId);
+
   // Separar filas empresa / trabajador
   const filasEmpresa = [];
   const filasTrabajador = [];
@@ -765,6 +804,12 @@ async function procesarExcel() {
     // Paso RP-2: ¿es este trabajador de una empresa propia?
     // Si NO lo es, los documentos del Recurso Preventivo NO se le heredan.
     const empresaEsPropia = esEmpresaPropia(info.empresaRaw);
+
+    // P-06: subcontratas sin contrato vigente → rojo directo
+    if (!empresaEsPropia && !tieneContratoVigente(info.empresaRaw)) {
+      estadoFinal = 'rojo';
+      motivos.push('Sin contrato entre empresas → rojo');
+    }
 
     // ── Subsunción: Formación 60h implica Formación 20h ──────────────────────
     // Si el trabajador tiene cualquier documento "Formación 60 horas..." validado,
