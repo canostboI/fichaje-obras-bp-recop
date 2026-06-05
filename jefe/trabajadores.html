@@ -122,6 +122,8 @@
   .btn-accion:hover { background: var(--bg3); color: var(--texto); }
   .btn-accion.primario { border-color: var(--color-acento); color: var(--color-acento); }
   .btn-accion.primario:hover { background: rgba(255,152,0,0.1); }
+  .btn-accion.peligro { border-color: var(--rojo); color: var(--rojo); }
+  .btn-accion.peligro:hover { background: rgba(244,67,54,0.1); color: var(--rojo); }
 
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: none; align-items: center; justify-content: center; }
   .modal-overlay.abierto { display: flex; }
@@ -444,6 +446,19 @@
       <button type="button" class="btn-quitar" id="btn-quitar-contrato" style="display:none">Quitar contrato</button>
       <button type="button" class="btn-cancelar" id="btn-cancelar-contrato">Cancelar</button>
       <button type="button" class="btn-guardar" id="btn-guardar-contrato" style="display:none">Registrar contrato</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal confirmar quitar de la obra -->
+<div class="modal-overlay" id="modal-quitar-overlay">
+  <div class="modal" style="width:480px;">
+    <h3>🚪 Quitar de la obra</h3>
+    <div id="quitar-intro"></div>
+    <div id="quitar-msg"></div>
+    <div class="modal-acciones">
+      <button type="button" class="btn-cancelar" id="btn-cancelar-quitar">Cancelar</button>
+      <button type="button" class="btn-quitar" id="btn-confirmar-quitar" style="margin-right:0;">Sí, quitar de la obra</button>
     </div>
   </div>
 </div>
@@ -1003,7 +1018,7 @@ function renderTabla(lista) {
           <td>${esc(t.categoria || '—')}</td>
           <td>${formatearPrecio(t.precio_hora_personalizado)}</td>
           <td>${t.obras.map(o => pillObra(t, o)).join('')}</td>
-          <td><div class="acciones"><button class="btn-accion primario" onclick="abrirEdicion('${t.id}')">Editar</button></div></td>
+          <td><div class="acciones"><button class="btn-accion primario" onclick="abrirEdicion('${t.id}')">Editar</button>${obraFiltroTrabajadores ? `<button class="btn-accion peligro" onclick="abrirModalQuitar('${t.id}')">Quitar de la obra</button>` : ''}</div></td>
         </tr>`;
     });
   });
@@ -1550,6 +1565,57 @@ function aplicarFiltrosSinRender() {
   }
   return lista;
 }
+
+// ----- Quitar trabajador de la obra -----
+let quitarCtx = null;
+
+function abrirModalQuitar(trabajadorId) {
+  const obraFiltrada = obtenerObraFiltro();
+  if (!obraFiltrada) return; // seguridad: solo con obra concreta
+  const t = todosTrabajadores.find(x => x.id === trabajadorId);
+  if (!t) return;
+  quitarCtx = { trabajador_id: trabajadorId, obra_id: obraFiltrada.id };
+  document.getElementById('quitar-intro').innerHTML =
+    `Vas a quitar a <strong>${esc(nombreCompleto(t))}</strong> de la obra <strong>${esc(obraFiltrada.nombre)}</strong>.<br><br>` +
+    `Dejará de poder fichar con el QR de esta obra y desaparecerá de este listado. ` +
+    `Su histórico de fichajes se conserva. Si vuelve a aparecer en un Excel de e-Coordina, se reincorporará automáticamente.`;
+  const msg = document.getElementById('quitar-msg');
+  msg.className = ''; msg.textContent = '';
+  document.getElementById('btn-confirmar-quitar').disabled = false;
+  document.getElementById('modal-quitar-overlay').classList.add('abierto');
+}
+
+function cerrarModalQuitar() {
+  document.getElementById('modal-quitar-overlay').classList.remove('abierto');
+  quitarCtx = null;
+}
+
+document.getElementById('btn-cancelar-quitar').addEventListener('click', cerrarModalQuitar);
+document.getElementById('modal-quitar-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-quitar-overlay')) cerrarModalQuitar();
+});
+
+document.getElementById('btn-confirmar-quitar').addEventListener('click', async () => {
+  if (!quitarCtx) return;
+  const btn = document.getElementById('btn-confirmar-quitar');
+  const msg = document.getElementById('quitar-msg');
+  btn.disabled = true;
+  msg.className = ''; msg.textContent = 'Quitando…';
+  const { data, error } = await sb.rpc('quitar_trabajador_de_obra', {
+    p_trabajador_id: quitarCtx.trabajador_id,
+    p_obra_id: quitarCtx.obra_id
+  });
+  if (error) {
+    msg.className = 'msg-error'; msg.textContent = 'Error: ' + error.message;
+    btn.disabled = false; return;
+  }
+  if (data && data.ok === false) {
+    msg.className = 'msg-error'; msg.textContent = 'Error: ' + (data.error || 'No se pudo quitar');
+    btn.disabled = false; return;
+  }
+  msg.className = 'msg-ok'; msg.textContent = 'Trabajador quitado de la obra.';
+  setTimeout(() => { cerrarModalQuitar(); cargarTrabajadores(); }, 700);
+});
 </script>
 </body>
 </html>
