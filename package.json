@@ -2,11 +2,14 @@
   "name": "ecoordina-sync",
   "private": true,
   "version": "1.0.0",
-  "description": "Descarga automatica del CSV de e-Coordina (Hito 1: solo descarga)",
+  "description": "Automatizacion e-Coordina: descarga CSV (Hito 1) y vuelca estados a Supabase (Hito 2)",
   "scripts": {
-    "download": "node scripts/ecoordina-download.mjs"
+    "download": "node scripts/ecoordina-download.mjs",
+    "sync": "node scripts/ecoordina-sync.mjs"
   },
   "dependencies": {
-    "playwright": "^1.49.0"
+    "@supabase/supabase-js": "^2.108.0",
+    "playwright": "^1.49.0",
+    "xlsx": "^0.18.5"
   }
 }
