@@ -1,12 +1,12 @@
-name: e-Coordina · Hito 1 (solo descarga)
+name: e-Coordina · sincronización diaria
 
-# De momento solo ejecución MANUAL para probar.
-# El cron diario lo añadiremos en el Hito 2, cuando todo funcione.
+# De momento solo ejecución MANUAL para probar el Hito 2.
+# El cron diario lo activaremos cuando confirmemos que el volcado va bien.
 on:
   workflow_dispatch:
 
 jobs:
-  descargar:
+  sincronizar:
     runs-on: ubuntu-latest
     steps:
       - name: Descargar el repo
@@ -23,17 +23,23 @@ jobs:
       - name: Instalar navegador de Playwright
         run: npx playwright install --with-deps chromium
 
-      - name: Ejecutar descarga de e-Coordina
+      - name: 1) Descargar CSV de e-Coordina
         env:
           ECOORDINA_USER: ${{ secrets.ECOORDINA_USER }}
           ECOORDINA_PASS: ${{ secrets.ECOORDINA_PASS }}
         run: npm run download
 
-      - name: Subir resultado y capturas (siempre)
+      - name: 2) Volcar estados a Supabase
+        env:
+          SUPABASE_EMAIL: ${{ secrets.SUPABASE_EMAIL }}
+          SUPABASE_PASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
+        run: npm run sync
+
+      - name: Subir CSV y capturas (siempre)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: resultado-hito1
+          name: resultado-sync
           path: |
             output/
             debug/
