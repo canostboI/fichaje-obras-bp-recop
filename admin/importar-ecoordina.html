@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Importar e-Coordina (todas) — Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="../js/ecoordina-import.js"></script>
+<style>
+  :root {
+    --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
+    --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
+    --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
+  .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+  .sidebar-brand { padding: 18px 16px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: center; gap: 14px; }
+  .sidebar-brand img { height: 22px; width: auto; opacity: 0.9; }
+  .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
+  .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
+  .sidebar a:hover { background: var(--bg3); color: var(--texto); }
+  .sidebar a.activo { background: var(--bg3); color: var(--texto); font-weight: 600; }
+  .sidebar a .ico { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid var(--borde); }
+  .btn-salir { width: 100%; background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 8px; }
+  .btn-salir:hover { background: var(--bg3); color: var(--texto); }
+  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+  .topbar { padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+  .contenido { padding: 0 28px 28px; display: flex; flex-direction: column; gap: 20px; }
+
+  .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 22px 24px; }
+  .seccion h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
+  .ayuda { font-size: 13px; color: var(--texto2); line-height: 1.55; margin-bottom: 16px; }
+  .ayuda strong { color: var(--texto); }
+
+  .btn-primario { background: var(--azul); color: white; border: none; padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .btn-primario:hover { opacity: 0.9; }
+  .btn-primario:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-exito { background: var(--verde); color: white; border: none; padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .btn-exito:hover { opacity: 0.9; }
+  .btn-exito:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-secundario { background: transparent; color: var(--texto2); border: 1px solid var(--borde); padding: 9px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
+  .btn-secundario:hover { background: var(--bg3); color: var(--texto); }
+
+  .drop-zone { border: 2px dashed var(--borde); border-radius: 10px; padding: 36px 20px; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: var(--azul); background: rgba(33,150,243,0.04); }
+  .drop-zone p { font-size: 13px; color: var(--texto2); margin-top: 8px; }
+  .drop-zone .icono { font-size: 30px; }
+  input[type=file] { display: none; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; padding: 11px 14px; font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); }
+  td { padding: 12px 14px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  th.num, td.num { text-align: center; }
+  .num-obra { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--texto2); }
+
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+  .pill.verde { background: rgba(76,175,80,0.15); color: var(--verde); }
+  .pill.naranja { background: rgba(255,152,0,0.15); color: var(--naranja); }
+  .pill.rojo { background: rgba(244,67,54,0.15); color: var(--rojo); }
+  .pill.gris { background: rgba(139,144,158,0.15); color: var(--texto2); }
+  .cero { color: var(--texto2); opacity: 0.5; }
+
+  .alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; border: 1px solid var(--borde); line-height: 1.5; }
+  .alert-info { background: rgba(33,150,243,0.1); color: var(--azul); border-left: 3px solid var(--azul); }
+  .alert-warning { background: rgba(255,152,0,0.1); color: var(--naranja); border-left: 3px solid var(--naranja); }
+  .alert-success { background: rgba(76,175,80,0.1); color: var(--verde); border-left: 3px solid var(--verde); }
+  .alert-error { background: rgba(244,67,54,0.1); color: var(--rojo); border-left: 3px solid var(--rojo); }
+  .alert + .alert { margin-top: 10px; }
+
+  .aviso-no-guardado { background: rgba(255,152,0,0.15); border: 2px solid var(--naranja); border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; gap: 14px; font-size: 14px; }
+  .aviso-no-guardado .ico-grande { font-size: 26px; flex-shrink: 0; }
+  .aviso-no-guardado strong { color: var(--naranja); }
+
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  details.plegable { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 8px 12px; margin-top: 8px; }
+  details.plegable summary { cursor: pointer; font-size: 12px; font-weight: 600; color: var(--texto2); user-select: none; }
+  details.plegable summary:hover { color: var(--texto); }
+  details.plegable ul { list-style: none; padding: 8px 0 0; margin: 0; font-size: 12px; }
+  details.plegable li { padding: 3px 0; color: var(--texto); }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--bg); padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+  .nombre-archivo { margin-top: 10px; font-size: 12px; color: var(--azul); }
+  .acciones-fila { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+  .progreso { font-size: 13px; color: var(--texto2); }
+  .oculto { display: none; }
+</style>
+<script src="../js/auto-logout.js"></script>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-brand">
+    <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
+    <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
+  </div>
+  <div class="sidebar-section">Principal</div>
+  <a href="index.html"><span class="ico">📊</span> Dashboard</a>
+  <div class="sidebar-section">Gestión</div>
+  <a href="obras.html"><span class="ico">🏗</span> Obras</a>
+  <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
+  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
+  <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
+  <a href="incidencias.html"><span class="ico">⚠️</span> Incidencias</a>
+  <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
+  <a href="importar-ecoordina.html" class="activo"><span class="ico">📥</span> e-Coordina</a>
+  <div class="sidebar-bottom">
+    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>Importar e-Coordina · Todas las obras</h1>
+  </div>
+
+  <div class="contenido">
+
+    <!-- PASO 1 -->
+    <div class="seccion">
+      <h2>📥 Paso 1 — Sube el archivo general de e-Coordina</h2>
+      <p class="ayuda">
+        Sube <strong>una sola vez</strong> el archivo que contiene todas las obras de la empresa
+        (el de "Solicitudes de documentación" o el informe general). Cada obra se reconoce por su
+        <strong>Centro de e-Coordina</strong>, que se configura en cada obra desde
+        <strong>Obras → editar → Centro en e-Coordina</strong>.
+      </p>
+      <div id="estadoObras" class="alert alert-info" style="margin-bottom:16px;">Comprobando obras configuradas…</div>
+      <div class="drop-zone" id="dropZone">
+        <div class="icono">📊</div>
+        <p>Haz clic aquí o arrastra el archivo CSV o Excel de e-Coordina</p>
+        <p style="font-size:12px;">Archivos admitidos: .csv, .xlsx, .xls</p>
+        <div class="nombre-archivo" id="nombreArchivo"></div>
+      </div>
+      <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" />
+      <div class="acciones-fila">
+        <button class="btn-primario" id="btnAnalizar" disabled>Analizar todas las obras</button>
+        <span class="progreso" id="progresoAnalisis"></span>
+      </div>
+    </div>
+
+    <!-- PASO 2 -->
+    <div class="seccion oculto" id="seccionResumen">
+      <h2>📋 Paso 2 — Revisión por obra (antes de confirmar)</h2>
+      <div id="alertasResumen" style="margin-bottom:14px;"></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Obra</th>
+            <th class="num">Filas</th>
+            <th class="num">🔴 Rojo</th>
+            <th class="num">🟡 Naranja</th>
+            <th class="num">🟢 Verde</th>
+            <th class="num">⚪ Nuevos</th>
+            <th class="num">Desaparecidos</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyResumen"></tbody>
+      </table>
+
+      <div id="detallesObras" style="margin-top:16px;"></div>
+
+      <div class="aviso-no-guardado" style="margin-top:18px;">
+        <div class="ico-grande">⚠️</div>
+        <div>
+          <strong>Aún NO se ha guardado nada.</strong><br>
+          Revisa el resumen y pulsa <strong>"Confirmar importación de todas las obras"</strong> para guardar.
+          Los "desaparecidos" <strong>solo se informan</strong>: no se bloquea a nadie automáticamente
+          (eso se sigue haciendo a mano desde el panel del jefe).
+        </div>
+      </div>
+
+      <div class="acciones-fila">
+        <button class="btn-exito" id="btnConfirmar">✅ Confirmar importación de todas las obras</button>
+        <button class="btn-secundario" onclick="location.reload()">Cancelar</button>
+        <span class="progreso" id="progresoImport"></span>
+      </div>
+    </div>
+
+    <!-- PASO 3 -->
+    <div class="seccion oculto" id="seccionFinal">
+      <h2>✅ Paso 3 — Resultado</h2>
+      <div id="resumenFinal"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
+
+if (!window.supabase || !window.supabase.createClient) {
+  alert('No se ha cargado la librería de Supabase. Recarga la página.');
+}
+if (!window.EcoordinaImport) {
+  alert('No se ha cargado el módulo js/ecoordina-import.js. Revisa que el archivo esté subido.');
+}
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+AutoLogout.init(sb);
+const EI = window.EcoordinaImport;
+
+// Estado
+let ctxGlobal = { reglas: [], empresasPropias: new Set(), trabajadoresApp: {} };
+let obrasConCentro = [];
+let obrasSinCentro = [];
+let filasArchivo = null;
+let analisisPorObra = []; // [{ obra, filasUsadas, resultadoFinal, sinRegla, desaparecidos, counts }]
+
+function esc(v) {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+document.getElementById('btn-salir').onclick = async () => { await sb.auth.signOut(); window.location.href = '../index.html'; };
+
+// ── AUTH + carga inicial ───────────────────────────────────────────────────
+async function init() {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = '../index.html'; return; }
+
+    const { data: ua, error: uaErr } = await sb.from('usuarios_app')
+      .select('id, rol').eq('auth_user_id', session.user.id).maybeSingle();
+    if (uaErr || !ua) { alert('No se ha podido comprobar tu usuario.'); return; }
+    if (ua.rol !== 'admin') { alert('Esta pantalla es solo para administradores. Rol detectado: ' + ua.rol); window.location.href = 'index.html'; return; }
+
+    // Contexto global (una vez)
+    ctxGlobal.reglas = await EI.cargarReglas(sb);
+    ctxGlobal.empresasPropias = await EI.cargarEmpresasPropias(sb);
+    ctxGlobal.trabajadoresApp = await EI.cargarTrabajadoresApp(sb);
+
+    // Obras activas
+    const { data: obras, error: obErr } = await sb.from('obras')
+      .select('id, nombre, empresa_marca, ecoordina_centro')
+      .eq('activa', true).order('nombre');
+    if (obErr) { document.getElementById('estadoObras').textContent = 'Error cargando obras: ' + obErr.message; return; }
+
+    obrasConCentro = (obras || []).filter(o => (o.ecoordina_centro || '').trim() !== '');
+    obrasSinCentro = (obras || []).filter(o => (o.ecoordina_centro || '').trim() === '');
+
+    const box = document.getElementById('estadoObras');
+    if (obrasConCentro.length === 0) {
+      box.className = 'alert alert-warning';
+      box.innerHTML = 'Ninguna obra activa tiene configurado su <strong>Centro de e-Coordina</strong>. ' +
+        'Configúralo en <strong>Obras → editar</strong> antes de importar.';
+      return;
+    }
+    box.className = 'alert alert-info';
+    box.innerHTML = '<strong>' + obrasConCentro.length + '</strong> obra(s) configuradas con Centro de e-Coordina, listas para importar.' +
+      (obrasSinCentro.length ? ' <strong>' + obrasSinCentro.length + '</strong> obra(s) activas sin Centro se omitirán (' +
+        obrasSinCentro.map(o => esc(o.nombre)).join(', ') + ').' : '');
+  } catch (err) {
+    console.error('Error arrancando:', err);
+    alert('Error arrancando la pantalla: ' + (err.message || err));
+  }
+}
+
+// ── Carga de archivo ────────────────────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+dropZone.onclick = () => fileInput.click();
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) cargarArchivo(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) cargarArchivo(fileInput.files[0]); });
+
+async function cargarArchivo(file) {
+  try {
+    filasArchivo = await EI.leerArchivo(file);
+    if (!filasArchivo.length) { alert('El archivo se ha leído pero no tiene filas de datos.'); return; }
+    const centros = EI.centrosDistintos(filasArchivo);
+    document.getElementById('nombreArchivo').innerHTML =
+      '✅ <strong>' + esc(file.name) + '</strong> — ' + filasArchivo.length + ' registros, ' + centros.size + ' obra(s) en el archivo';
+    document.getElementById('btnAnalizar').disabled = (obrasConCentro.length === 0);
+  } catch (err) {
+    console.error(err);
+    alert('No se ha podido leer el archivo: ' + (err.message || err));
+  }
+}
+
+// ── Analizar todas las obras ─────────────────────────────────────────────────
+document.getElementById('btnAnalizar').onclick = analizarTodas;
+
+async function analizarTodas() {
+  if (!filasArchivo) { alert('Sube primero el archivo.'); return; }
+  const btn = document.getElementById('btnAnalizar');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Analizando…';
+  const prog = document.getElementById('progresoAnalisis');
+
+  analisisPorObra = [];
+  for (let i = 0; i < obrasConCentro.length; i++) {
+    const obra = obrasConCentro[i];
+    prog.textContent = 'Analizando ' + (i + 1) + '/' + obrasConCentro.length + ': ' + obra.nombre;
+
+    const filasObra = EI.filtrarPorCentro(filasArchivo, obra.ecoordina_centro);
+    const contratosVigentes = await EI.cargarContratosVigentes(sb, obra.id);
+    const { resultadoFinal, sinRegla } = EI.calcularResultado(filasObra, {
+      reglas: ctxGlobal.reglas,
+      empresasPropias: ctxGlobal.empresasPropias,
+      contratosVigentes,
+      trabajadoresApp: ctxGlobal.trabajadoresApp
+    });
+
+    // Desaparecidos (solo informar): asignados a la obra que no aparecen en el archivo
+    const dnisEnObra = await EI.cargarDnisEnObra(sb, obra.id);
+    const dnisEnArchivo = new Set(resultadoFinal.map(r => r.dni.toUpperCase()));
+    const desaparecidos = Object.entries(dnisEnObra)
+      .filter(([dni, info]) => !dnisEnArchivo.has(dni) && !info.esPropia)
+      .map(([dni, info]) => ({ dni, nombre: info.nombre, estado: info.estado }));
+
+    const enApp = resultadoFinal.filter(r => r.enApp);
+    const counts = {
+      rojos: enApp.filter(r => r.estadoCalculado === 'rojo').length,
+      naranjas: enApp.filter(r => r.estadoCalculado === 'naranja').length,
+      verdes: enApp.filter(r => r.estadoCalculado === 'verde').length,
+      nuevos: resultadoFinal.filter(r => !r.enApp).length
+    };
+
+    analisisPorObra.push({ obra, filasUsadas: filasObra.length, resultadoFinal, sinRegla: [...sinRegla], desaparecidos, counts });
+  }
+
+  prog.textContent = '';
+  btn.innerHTML = 'Analizar todas las obras';
+  renderResumen();
+  document.getElementById('seccionResumen').classList.remove('oculto');
+  document.getElementById('seccionResumen').scrollIntoView({ behavior: 'smooth' });
+}
+
+function celdaNum(n, clasePill) {
+  if (!n) return '<td class="num"><span class="cero">0</span></td>';
+  return '<td class="num"><span class="pill ' + clasePill + '">' + n + '</span></td>';
+}
+
+function renderResumen() {
+  const tbody = document.getElementById('tbodyResumen');
+  tbody.innerHTML = '';
+  let sinFilas = 0;
+  for (const a of analisisPorObra) {
+    if (a.filasUsadas === 0) sinFilas++;
+    const desap = a.desaparecidos.length
+      ? '<span class="pill naranja">' + a.desaparecidos.length + '</span>'
+      : '<span class="cero">0</span>';
+    tbody.insertAdjacentHTML('beforeend',
+      '<tr>' +
+        '<td>' + esc(a.obra.nombre) + '<br><span class="num-obra">' + esc(a.obra.ecoordina_centro) + '</span></td>' +
+        '<td class="num">' + a.filasUsadas + '</td>' +
+        celdaNum(a.counts.rojos, 'rojo') +
+        celdaNum(a.counts.naranjas, 'naranja') +
+        celdaNum(a.counts.verdes, 'verde') +
+        celdaNum(a.counts.nuevos, 'gris') +
+        '<td class="num">' + desap + '</td>' +
+      '</tr>');
+  }
+
+  // Alertas globales
+  const cont = document.getElementById('alertasResumen');
+  cont.innerHTML = '';
+  if (sinFilas) {
+    cont.innerHTML += '<div class="alert alert-warning">⚠️ ' + sinFilas +
+      ' obra(s) no tienen ninguna fila en este archivo (su Centro no aparece). No se tocará nada en ellas.</div>';
+  }
+  // Documentos sin regla (unificados de todas las obras)
+  const sinReglaGlobal = new Set();
+  analisisPorObra.forEach(a => a.sinRegla.forEach(s => sinReglaGlobal.add(s)));
+  if (sinReglaGlobal.size) {
+    const items = [...sinReglaGlobal].map(par => {
+      const [doc, estado] = par.split('||');
+      return '<li>' + esc(doc) + ' — <em>' + esc(estado) + '</em></li>';
+    }).join('');
+    cont.innerHTML += '<div class="alert alert-warning">⚠️ <strong>Documentos sin regla definida (' +
+      sinReglaGlobal.size + ') — tratados como NARANJA.</strong> Añade la regla en ' +
+      '<a href="reglas.html" style="color:var(--naranja)">Reglas documentales</a> para afinar el cálculo.' +
+      '<details class="plegable"><summary>Ver lista</summary><ul>' + items + '</ul></details></div>';
+  }
+
+  // Detalle desaparecidos por obra (solo informativo)
+  const detalles = document.getElementById('detallesObras');
+  const conDesap = analisisPorObra.filter(a => a.desaparecidos.length);
+  if (conDesap.length) {
+    const bloques = conDesap.map(a => {
+      const li = a.desaparecidos.map(d =>
+        '<li>' + esc(d.nombre) + ' <code>' + esc(d.dni) + '</code> ' +
+        '<span class="pill ' + esc(EI.estadoSeguro(d.estado)) + '">' + esc((d.estado || '').toUpperCase()) + '</span></li>'
+      ).join('');
+      return '<details class="plegable"><summary>' + esc(a.obra.nombre) + ' — ' + a.desaparecidos.length +
+        ' desaparecido(s)</summary><ul>' + li + '</ul></details>';
+    }).join('');
+    detalles.innerHTML = '<div class="ayuda" style="margin-bottom:6px;">Desaparecidos por obra (asignados que no salen en el archivo). ' +
+      'Solo informativo — no se bloquean aquí:</div>' + bloques;
+  } else {
+    detalles.innerHTML = '';
+  }
+}
+
+// ── Confirmar importación de todas ────────────────────────────────────────────
+document.getElementById('btnConfirmar').onclick = confirmarTodas;
+
+async function confirmarTodas() {
+  if (!analisisPorObra.length) { alert('Analiza primero.'); return; }
+  const btn = document.getElementById('btnConfirmar');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Guardando…';
+  const prog = document.getElementById('progresoImport');
+
+  const porObra = [];
+  let totCreados = 0, totActualizados = 0, totFallos = 0;
+
+  for (let i = 0; i < analisisPorObra.length; i++) {
+    const a = analisisPorObra[i];
+    prog.textContent = 'Guardando ' + (i + 1) + '/' + analisisPorObra.length + ': ' + a.obra.nombre;
+
+    // Importación masiva: NO se bloquea a desaparecidos (lista vacía).
+    const res = await EI.aplicar(sb, a.obra.id, a.resultadoFinal, []);
+    const creados = res.creadosLista.length;
+    const actualizados = res.actualizadosLista.length;
+    const fallos = res.fallos.length;
+    totCreados += creados; totActualizados += actualizados; totFallos += fallos;
+    porObra.push({ obra: a.obra, creados, actualizados, fallos, detalleFallos: res.fallos, saltadosPorForzado: res.saltadosPorForzado });
+  }
+
+  prog.textContent = '';
+  btn.innerHTML = '✅ Confirmar importación de todas las obras';
+
+  renderFinal(porObra, totCreados, totActualizados, totFallos);
+  document.getElementById('seccionFinal').classList.remove('oculto');
+  document.getElementById('seccionFinal').scrollIntoView({ behavior: 'smooth' });
+}
+
+function renderFinal(porObra, totCreados, totActualizados, totFallos) {
+  const cont = document.getElementById('resumenFinal');
+  const claseGlobal = totFallos ? 'alert-error' : 'alert-success';
+  let html = '<div class="alert ' + claseGlobal + '"><strong>Importación terminada.</strong> ' +
+    totCreados + ' creados, ' + totActualizados + ' actualizados' +
+    (totFallos ? ', <strong>' + totFallos + ' con error</strong>' : ', sin errores') + '.</div>';
+
+  html += '<table style="margin-top:14px;"><thead><tr>' +
+    '<th>Obra</th><th class="num">Creados</th><th class="num">Actualizados</th><th class="num">Errores</th><th class="num">Forzados (sin tocar)</th>' +
+    '</tr></thead><tbody>';
+  for (const p of porObra) {
+    html += '<tr>' +
+      '<td>' + esc(p.obra.nombre) + '</td>' +
+      '<td class="num">' + p.creados + '</td>' +
+      '<td class="num">' + p.actualizados + '</td>' +
+      '<td class="num">' + (p.fallos ? '<span class="pill rojo">' + p.fallos + '</span>' : '<span class="cero">0</span>') + '</td>' +
+      '<td class="num">' + (p.saltadosPorForzado || 0) + '</td>' +
+      '</tr>';
+  }
+  html += '</tbody></table>';
+
+  // Detalle de errores si los hay
+  const conFallos = porObra.filter(p => p.fallos);
+  if (conFallos.length) {
+    const bloques = conFallos.map(p => {
+      const li = p.detalleFallos.map(f =>
+        '<li>' + esc(f.nombre || '(sin nombre)') + ' <code>' + esc(f.dni) + '</code> — ' + esc(f.fase) + ': ' + esc(f.mensaje) + '</li>'
+      ).join('');
+      return '<details class="plegable"><summary>' + esc(p.obra.nombre) + ' — ' + p.fallos + ' error(es)</summary><ul>' + li + '</ul></details>';
+    }).join('');
+    html += '<div style="margin-top:12px;">' + bloques + '</div>';
+  }
+
+  cont.innerHTML = html;
+}
+
+init();
+</script>
+</body>
+</html>
