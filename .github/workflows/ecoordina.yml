@@ -1,1 +1,40 @@
+name: e-Coordina · Hito 1 (solo descarga)
 
+# De momento solo ejecución MANUAL para probar.
+# El cron diario lo añadiremos en el Hito 2, cuando todo funcione.
+on:
+  workflow_dispatch:
+
+jobs:
+  descargar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repo
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Instalar navegador de Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Ejecutar descarga de e-Coordina
+        env:
+          ECOORDINA_USER: ${{ secrets.ECOORDINA_USER }}
+          ECOORDINA_PASS: ${{ secrets.ECOORDINA_PASS }}
+        run: npm run download
+
+      - name: Subir resultado y capturas (siempre)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultado-hito1
+          path: |
+            output/
+            debug/
+          if-no-files-found: warn
