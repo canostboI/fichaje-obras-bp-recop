@@ -1,0 +1,12 @@
+{
+  "name": "ecoordina-sync",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Descarga automatica del CSV de e-Coordina (Hito 1: solo descarga)",
+  "scripts": {
+    "download": "node scripts/ecoordina-download.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  }
+}
