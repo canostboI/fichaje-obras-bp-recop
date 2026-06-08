@@ -446,7 +446,7 @@ async function cargarObras() {
 
   let obras = [];
   if (ua.rol === 'admin') {
-    const { data, error } = await sb.from('obras').select('id, nombre, empresa_marca').eq('activa', true).order('nombre');
+    const { data, error } = await sb.from('obras').select('id, nombre, empresa_marca, ecoordina_centro').eq('activa', true).order('nombre');
     if (error) { console.error('Error cargando obras como admin:', error); return; }
     obras = data || [];
   } else {
@@ -455,7 +455,7 @@ async function cargarObras() {
     if (uoError) { console.error('Error cargando usuarios_obra:', uoError); return; }
     const ids = (uo || []).map(r => r.obra_id);
     if (ids.length) {
-      const { data, error } = await sb.from('obras').select('id, nombre, empresa_marca').in('id', ids).eq('activa', true).order('nombre');
+      const { data, error } = await sb.from('obras').select('id, nombre, empresa_marca, ecoordina_centro').in('id', ids).eq('activa', true).order('nombre');
       if (error) { console.error('Error cargando obras:', error); return; }
       obras = data || [];
     }
@@ -691,6 +691,36 @@ async function procesarExcel() {
   if (!obraId) { alert('Selecciona una obra primero'); return; }
   if (!datosExcel) { alert('Primero sube el archivo de e-Coordina'); return; }
 
+  // ── Filtro por Centro de e-Coordina ──────────────────────────────────────
+  // Este archivo puede contener varias obras (columna "Centro"). Nos quedamos
+  // solo con las filas de la obra seleccionada. Si el archivo no trae columna
+  // Centro (informe antiguo de una sola obra), se procesa entero como siempre.
+  const obraSel = misObras.find(o => o.id === obraId);
+  const centroObra = (obraSel?.ecoordina_centro || '').trim();
+  const centrosEnArchivo = new Set(
+    datosExcel.map(f => normalizar(f['Centro'])).filter(Boolean)
+  );
+
+  let filasObra;
+  let infoCentro = '';
+  if (centrosEnArchivo.size === 0) {
+    // Archivo sin columna Centro: informe de una sola obra (formato antiguo).
+    filasObra = datosExcel;
+  } else {
+    // Archivo con Centro (posible multi-obra): hay que filtrar.
+    if (!centroObra) {
+      alert('Este archivo contiene una columna "Centro" con varias obras, pero la obra seleccionada no tiene configurado su Centro de e-Coordina.\n\nConfigura el Centro de esta obra antes de importar (no se ha guardado nada).');
+      return;
+    }
+    const centroNorm = normalizar(centroObra);
+    filasObra = datosExcel.filter(f => normalizar(f['Centro']) === centroNorm);
+    if (filasObra.length === 0) {
+      alert('En este archivo no hay ninguna fila para el Centro:\n\n"' + centroObra + '"\n\nComprueba que has seleccionado la obra correcta y que el texto del Centro coincide con el de e-Coordina (no se ha guardado nada).');
+      return;
+    }
+    infoCentro = 'El archivo contenía ' + centrosEnArchivo.size + ' obra(s). Se han usado las ' + filasObra.length + ' filas del Centro "' + centroObra + '".';
+  }
+
   sinRegla = new Set();
 
   const btn = document.getElementById('btnProcesar');
@@ -718,10 +748,10 @@ async function procesarExcel() {
   // P-06: cargar contratos vigentes para esta obra
   await cargarContratosVigentes(obraId);
 
-  // Separar filas empresa / trabajador
+  // Separar filas empresa / trabajador (solo las de esta obra)
   const filasEmpresa = [];
   const filasTrabajador = [];
-  for (const fila of datosExcel) {
+  for (const fila of filasObra) {
     const trabajadorRaw = fila['Trabajador'] || '';
     const dni = extraerDniDeTrabajador(trabajadorRaw);
     if (dni) {
@@ -874,6 +904,11 @@ async function procesarExcel() {
   renderAlertaCambiosEmpresa();
   renderAlertaSinRegla();
   renderDesaparecidos();
+
+  if (infoCentro) {
+    document.getElementById('alertas').insertAdjacentHTML('afterbegin',
+      '<div class="alert alert-info">📍 ' + escHtml(infoCentro) + '</div>');
+  }
 
   document.getElementById('avisoNoGuardado').classList.remove('oculto');
   document.getElementById('resumenFinal').innerHTML = '';
