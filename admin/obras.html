@@ -135,6 +135,13 @@
       <input type="text" id="f-numero" placeholder="Ej: 32510" autocomplete="off">
     </div>
     <div class="campo">
+      <label>Centro en e-Coordina (para el importador)</label>
+      <input type="text" id="f-ecoordina-centro" placeholder="Ej: VALLS - UTE ESCOLA MUSICA VALLS 32510" autocomplete="off">
+      <div style="font-size:12px;color:#8b909e;margin-top:4px;">
+        Texto EXACTO de la columna "Centro" del archivo de e-Coordina. Necesario para importar desde el archivo general de toda la empresa. Déjalo vacío si esta obra no está en e-Coordina.
+      </div>
+    </div>
+    <div class="campo">
       <label>Nombre de la obra</label>
       <input type="text" id="f-nombre" placeholder="Ej: Edificio Torres 3">
     </div>
@@ -310,7 +317,7 @@ document.getElementById('btn-salir').onclick = async () => { await sb.auth.signO
 
 async function cargarObras() {
   const { data, error } = await sb.from('obras')
-    .select('id, numero_obra, nombre, direccion, latitud, longitud, empresa_marca, radio_gps, hora_entrada_default, hora_salida_default, activa, foto_url')
+    .select('id, numero_obra, nombre, direccion, latitud, longitud, empresa_marca, radio_gps, hora_entrada_default, hora_salida_default, activa, foto_url, ecoordina_centro')
     .order('nombre');
   if (error) { document.getElementById('tabla-obras').innerHTML = '<div class="vacio">Error al cargar obras</div>'; return; }
   todasObras = data || [];
@@ -346,6 +353,7 @@ document.getElementById('btn-nueva').onclick = () => {
   obraEditandoId = null;
   document.getElementById('modal-titulo').textContent = 'Nueva obra';
   document.getElementById('f-numero').value = '';
+  document.getElementById('f-ecoordina-centro').value = '';
   document.getElementById('f-nombre').value = '';
   document.getElementById('f-direccion').value = '';
   document.getElementById('f-latitud').value = '';
@@ -365,6 +373,7 @@ function abrirEditarPorId(id) {
   obraEditandoId = o.id;
   document.getElementById('modal-titulo').textContent = 'Editar obra';
   document.getElementById('f-numero').value = o.numero_obra || '';
+  document.getElementById('f-ecoordina-centro').value = o.ecoordina_centro || '';
   document.getElementById('f-nombre').value = o.nombre || '';
   document.getElementById('f-direccion').value = o.direccion || '';
   document.getElementById('f-latitud').value = o.latitud || '';
@@ -391,6 +400,7 @@ document.getElementById('btn-guardar').onclick = async () => {
   const salidaRaw   = document.getElementById('f-salida').value;
   const empresa_marca = document.getElementById('f-empresa').value;
   const activa      = document.getElementById('f-activa').value === 'true';
+  const ecoordinaCentroRaw = document.getElementById('f-ecoordina-centro').value.trim();
 
   if (!nombre)                           { mostrarError('El nombre es obligatorio.'); return; }
   if (isNaN(latitud) || isNaN(longitud)) { mostrarError('Las coordenadas son obligatorias.'); return; }
@@ -402,7 +412,8 @@ document.getElementById('btn-guardar').onclick = async () => {
     nombre, direccion,
     latitud: Number(latitud.toFixed(4)), longitud: Number(longitud.toFixed(4)),
     radio_gps, hora_entrada_default: entradaRaw + ':00', hora_salida_default: salidaRaw + ':00',
-    empresa_marca, activa
+    empresa_marca, activa,
+    ecoordina_centro: ecoordinaCentroRaw === '' ? null : ecoordinaCentroRaw
   };
 
   let error;
