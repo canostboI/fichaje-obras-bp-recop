@@ -251,6 +251,10 @@
         <input type="email" id="nu-email" placeholder="pere@empresa.com">
       </div>
       <div class="campo">
+        <label>Teléfono móvil (opcional, para avisos WhatsApp)</label>
+        <input type="tel" id="nu-telefono" placeholder="+34600111222">
+      </div>
+      <div class="campo">
         <label>Rol</label>
         <select id="nu-rol">
           <option value="jefe_obra">Jefe de obra</option>
@@ -490,7 +494,7 @@ async function cargarEquipo() {
   document.getElementById('equipo-lista').innerHTML = '<div class="cargando">Cargando…</div>';
   // CAMBIO 6.2: añadido auth_user_id al select para detectar usuarios sin vincular
   const { data, error } = await sb.from('usuarios_obra')
-    .select('id, rol_en_obra, usuario_app:usuario_app_id(id, nombre, email, auth_user_id)')
+    .select('id, rol_en_obra, usuario_app:usuario_app_id(id, nombre, email, auth_user_id, telefono)')
     .eq('obra_id', obraEquipoId);
   if (error) { document.getElementById('equipo-lista').innerHTML = '<div class="equipo-vacio">Error al cargar el equipo.</div>'; return; }
   if (!data || data.length === 0) { document.getElementById('equipo-lista').innerHTML = '<div class="equipo-vacio">Esta obra no tiene equipo asignado todavía.</div>'; return; }
@@ -502,9 +506,35 @@ async function cargarEquipo() {
           ${esc(item.usuario_app?.email || '')} · <span class="pill ${item.rol_en_obra === 'jefe_obra' ? 'azul' : 'naranja'}">${item.rol_en_obra === 'jefe_obra' ? 'Jefe de obra' : 'Encargado'}</span>
           ${!item.usuario_app?.auth_user_id ? ' <span class="pill naranja">⚠️ Sin vincular</span>' : ''}
         </span>
+        <span class="equipo-item-email">
+          📞 ${item.usuario_app?.telefono ? esc(item.usuario_app.telefono) : '<em>sin teléfono</em>'}
+          <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;"
+            onclick="editarTelefono('${item.usuario_app?.id}', '${esc(item.usuario_app?.telefono || '')}')">Editar</button>
+        </span>
       </div>
       <button class="btn-peligro" onclick="quitarDelEquipo('${item.id}')">Quitar</button>
     </div>`).join('');
+}
+
+async function editarTelefono(usuarioAppId, actual) {
+  if (!usuarioAppId) return;
+  const nuevo = prompt(
+    'Teléfono móvil en formato internacional (ej: +34600111222).\nDéjalo vacío para borrarlo.',
+    actual || '+34'
+  );
+  if (nuevo === null) return; // cancelado
+  const limpio = nuevo.replace(/[\s\-\.]/g, '');
+  if (limpio !== '' && !/^\+\d{9,15}$/.test(limpio)) {
+    mostrarErrorEquipo('Formato no válido. Debe empezar por + y el prefijo del país, ej: +34600111222.');
+    return;
+  }
+  ocultarMensajesEquipo();
+  const { error } = await sb.from('usuarios_app')
+    .update({ telefono: limpio === '' ? null : limpio })
+    .eq('id', usuarioAppId);
+  if (error) { mostrarErrorEquipo('Error al guardar el teléfono: ' + error.message); return; }
+  mostrarOkEquipo('✓ Teléfono actualizado.');
+  await cargarEquipo();
 }
 
 function rellenarSelectUsuarios() {
@@ -531,12 +561,15 @@ document.getElementById('btn-anadir-equipo').onclick = async () => {
 document.getElementById('btn-crear-usuario').onclick = async () => {
   const nombre = document.getElementById('nu-nombre').value.trim();
   const email  = document.getElementById('nu-email').value.trim();
+  const telefonoRaw = document.getElementById('nu-telefono').value.trim();
   const rol    = document.getElementById('nu-rol').value;
   ocultarMensajesEquipo();
   if (!nombre) { mostrarErrorEquipo('El nombre es obligatorio.'); return; }
   if (!email)  { mostrarErrorEquipo('El email es obligatorio.'); return; }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { mostrarErrorEquipo('El email no tiene un formato válido.'); return; }
-  const { data: nuevoUsuario, error: errorInsert } = await sb.from('usuarios_app').insert({ nombre, email, rol, activo: true }).select('id').single();
+  const telefono = telefonoRaw.replace(/[\s\-\.]/g, '');
+  if (telefono !== '' && !/^\+\d{9,15}$/.test(telefono)) { mostrarErrorEquipo('El teléfono debe ir en formato internacional, ej: +34600111222 (o déjalo vacío).'); return; }
+  const { data: nuevoUsuario, error: errorInsert } = await sb.from('usuarios_app').insert({ nombre, email, rol, activo: true, telefono: telefono === '' ? null : telefono }).select('id').single();
   if (errorInsert) { mostrarErrorEquipo(errorInsert.code === '23505' ? 'Ya existe un usuario con ese email.' : 'Error al crear usuario: ' + errorInsert.message); return; }
   const { error: errorAsignar } = await sb.from('usuarios_obra').insert({ usuario_app_id: nuevoUsuario.id, obra_id: obraEquipoId, rol_en_obra: rol });
   if (errorAsignar) { mostrarErrorEquipo('Usuario creado pero error al asignarlo a la obra: ' + errorAsignar.message); return; }
@@ -555,7 +588,7 @@ async function quitarDelEquipo(usuariosObraId) {
 }
 
 document.getElementById('btn-cerrar-equipo').onclick = () => { document.getElementById('modal-equipo').classList.remove('visible'); };
-function limpiarFormularioNuevoUsuario() { document.getElementById('nu-nombre').value = ''; document.getElementById('nu-email').value = ''; document.getElementById('nu-rol').value = 'jefe_obra'; }
+function limpiarFormularioNuevoUsuario() { document.getElementById('nu-nombre').value = ''; document.getElementById('nu-email').value = ''; document.getElementById('nu-telefono').value = ''; document.getElementById('nu-rol').value = 'jefe_obra'; }
 function mostrarErrorEquipo(msg) { const el = document.getElementById('error-equipo'); el.textContent = msg; el.style.display = 'block'; }
 function mostrarOkEquipo(msg) { const el = document.getElementById('ok-equipo'); el.textContent = msg; el.style.display = 'block'; }
 function ocultarMensajesEquipo() { document.getElementById('error-equipo').style.display = 'none'; document.getElementById('ok-equipo').style.display = 'none'; }
