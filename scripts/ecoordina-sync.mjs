@@ -433,11 +433,36 @@ async function main() {
     const res = await volcarObra(sb, obra.id, resultado);
     if (!res.mainOk) huboFalloGrave = true;
     log(`   guardado: ${res.aplicados} aplicados · ${res.fallosCrear} fallos al crear · RPC principal ${res.mainOk ? 'OK' : 'ERROR'}`);
+
+    // Marcar la obra como sincronizada hoy (solo si se aplicó bien)
+    if (res.mainOk && res.aplicados > 0) {
+      const { error: updErr } = await sb.from('obras')
+        .update({ ultima_sync_ecoordina: new Date().toISOString() })
+        .eq('id', obra.id);
+      if (updErr) log(`   ⚠ no se pudo marcar ultima_sync_ecoordina en ${obra.nombre}:`, updErr.message);
+    }
+
     resumen.push({ obra: obra.nombre, trabajadores: resultado.length, ...cuenta, aplicados: res.aplicados, fallosCrear: res.fallosCrear, rpc: res.mainOk ? 'OK' : 'ERROR' });
   }
 
   log('================ RESUMEN ================');
   for (const r of resumen) log(JSON.stringify(r));
+
+  // Registro global para el panel admin
+  const obrasOk = resumen.filter(r => r.rpc === 'OK' && r.aplicados > 0).length;
+  const obrasError = resumen.filter(r => r.rpc === 'ERROR').length;
+  const estadoGlobal = obrasError > 0 ? 'error' : 'ok';
+  {
+    const { error: logErr } = await sb.from('ecoordina_sync').insert({
+      estado: estadoGlobal,
+      obras_ok: obrasOk,
+      obras_error: obrasError,
+      detalle: resumen
+    });
+    if (logErr) log('⚠ no se pudo guardar el registro en ecoordina_sync:', logErr.message);
+    else log(`Registro global guardado (${estadoGlobal}, ${obrasOk} obras OK, ${obrasError} con error)`);
+  }
+
   log('HITO 2 COMPLETADO' + (huboFalloGrave ? ' CON ERRORES ⚠' : ' ✅'));
 
   if (huboFalloGrave) process.exit(1);
