@@ -121,6 +121,7 @@
     <span class="usuario" id="usuario-email"></span>
   </div>
   <div class="contenido">
+    <div id="banner-ecoordina" style="display:none;margin-bottom:18px;padding:12px 16px;border-radius:10px;font-size:14px;font-weight:600;"></div>
     <div class="stats">
       <div class="stat"><div class="numero azul" id="stat-fichajes">—</div><div class="etiqueta">Fichajes hoy</div></div>
       <div class="stat"><div class="numero verde" id="stat-obras">—</div><div class="etiqueta">Obras activas</div></div>
@@ -237,9 +238,41 @@ function rangoHoyLocal() {
     cargarObras(),
     cargarAccesosDenegadosHoy(),
     cargarTablaRojos(),
-    cargarIncidencias()
+    cargarIncidencias(),
+    cargarSyncEcoordina()
   ]);
 })();
+
+async function cargarSyncEcoordina() {
+  const el = document.getElementById('banner-ecoordina');
+  const { data, error } = await sb.from('ecoordina_sync')
+    .select('ejecutada_en, estado, obras_ok, obras_error')
+    .order('ejecutada_en', { ascending: false }).limit(1).maybeSingle();
+  if (error || !data) {
+    el.style.display = 'block';
+    el.style.background = 'rgba(139,144,158,0.15)'; el.style.color = '#8b909e';
+    el.textContent = 'e-Coordina: aún no hay ninguna sincronización registrada.';
+    return;
+  }
+  const d = new Date(data.ejecutada_en);
+  const esHoy = d.toDateString() === new Date().toDateString();
+  const fecha = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  const hora = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  let bg, color, txt;
+  if (data.estado === 'error') {
+    bg = 'rgba(244,67,54,0.15)'; color = '#f44336';
+    txt = `⚠️ e-Coordina: la última sincronización (${esHoy ? 'hoy' : fecha} ${hora}) tuvo errores en ${data.obras_error} obra(s).`;
+  } else if (!esHoy) {
+    bg = 'rgba(255,152,0,0.15)'; color = '#ff9800';
+    txt = `⏳ e-Coordina: última sincronización el ${fecha} a las ${hora}. Hoy aún no se ha actualizado.`;
+  } else {
+    bg = 'rgba(76,175,80,0.15)'; color = '#4caf50';
+    txt = `✅ e-Coordina: sincronizado hoy a las ${hora} · ${data.obras_ok} obra(s) actualizada(s).`;
+  }
+  el.style.display = 'block';
+  el.style.background = bg; el.style.color = color;
+  el.textContent = txt;
+}
 
 document.getElementById('btn-salir').addEventListener('click', async () => {
   await sb.auth.signOut(); window.location.href = '../';

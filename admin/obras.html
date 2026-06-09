@@ -318,14 +318,14 @@ document.getElementById('btn-salir').onclick = async () => { await sb.auth.signO
 
 async function cargarObras() {
   const { data, error } = await sb.from('obras')
-    .select('id, numero_obra, nombre, direccion, latitud, longitud, empresa_marca, radio_gps, hora_entrada_default, hora_salida_default, activa, foto_url, ecoordina_centro')
+    .select('id, numero_obra, nombre, direccion, latitud, longitud, empresa_marca, radio_gps, hora_entrada_default, hora_salida_default, activa, foto_url, ecoordina_centro, ultima_sync_ecoordina')
     .order('nombre');
   if (error) { document.getElementById('tabla-obras').innerHTML = '<div class="vacio">Error al cargar obras</div>'; return; }
   todasObras = data || [];
   if (todasObras.length === 0) { document.getElementById('tabla-obras').innerHTML = '<div class="vacio">No hay obras todavía</div>'; return; }
   document.getElementById('tabla-obras').innerHTML = `
     <table><thead><tr>
-      <th>Nº</th><th>Nombre</th><th>Dirección</th><th>Empresa</th><th>Radio GPS</th><th>Horario</th><th>Estado</th><th>Acciones</th>
+      <th>Nº</th><th>Nombre</th><th>Dirección</th><th>Empresa</th><th>Radio GPS</th><th>Horario</th><th>Estado</th><th>e-Coordina</th><th>Acciones</th>
     </tr></thead><tbody>
       ${todasObras.map(o => `<tr>
         <td><span class="num-obra">${esc(o.numero_obra || '—')}</span></td>
@@ -335,6 +335,7 @@ async function cargarObras() {
         <td>${esc(o.radio_gps || '—')}m</td>
         <td>${hora(o.hora_entrada_default)} – ${hora(o.hora_salida_default)}</td>
         <td><span class="pill ${o.activa ? 'verde' : 'gris'}">${o.activa ? 'Activa' : 'Inactiva'}</span></td>
+        <td>${syncBadge(o.ultima_sync_ecoordina)}</td>
         <td><div class="acciones">
           <button class="btn-secundario" onclick="abrirEquipoPorId('${o.id}')">👥 Equipo</button>
           <button class="btn-secundario" onclick="abrirQRPorId('${o.id}')">QR</button>
@@ -638,6 +639,17 @@ document.getElementById('btn-cerrar-foto').onclick = () => { document.getElement
 function mostrarError(msg) { const el = document.getElementById('error-modal'); el.textContent = msg; el.style.display = 'block'; }
 function ocultarError() { document.getElementById('error-modal').style.display = 'none'; }
 function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
+
+function syncBadge(iso) {
+  if (!iso) return '<span class="pill gris" title="Nunca sincronizada con e-Coordina">Nunca</span>';
+  const d = new Date(iso);
+  const hoy = new Date();
+  const hora = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  if (d.toDateString() === hoy.toDateString())
+    return `<span class="pill verde" title="Sincronizada hoy a las ${hora}">Al día</span>`;
+  const fecha = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  return `<span class="pill naranja" title="Última sincronización: ${fecha} ${hora}">Desde ${fecha}</span>`;
+}
 function hora(t) { if (!t) return '—'; return String(t).substring(0, 5); }
 function limpiarNombreArchivo(txt) { return String(txt || 'obra').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
 </script>
