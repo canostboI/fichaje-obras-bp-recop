@@ -1486,6 +1486,7 @@
         <td class="col-dni">${esc(t.dni || '—')}</td>
         <td class="col-empresa">${esc(t.empresa || '—')}</td>
         <td class="col-hora"></td>
+        <td class="col-firma"></td>
         <td class="col-hora"></td>
         <td class="col-firma"></td>
       </tr>`).join('');
@@ -1498,6 +1499,7 @@
         <td class="col-dni"></td>
         <td class="col-empresa"></td>
         <td class="col-hora"></td>
+        <td class="col-firma"></td>
         <td class="col-hora"></td>
         <td class="col-firma"></td>
       </tr>`).join('');
@@ -1519,14 +1521,14 @@
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th, td { border: 1px solid #333; padding: 9px 10px; }
         thead th { text-align: left; background: #ececec; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; }
-        .col-num { width: 34px; text-align: center; color: #555; }
-        .col-dni { width: 110px; }
-        .col-empresa { width: 200px; }
-        .col-hora { width: 80px; }
-        .col-firma { width: 170px; }
+        .col-num { width: 28px; text-align: center; color: #555; }
+        .col-dni { width: 95px; }
+        .col-empresa { width: 160px; }
+        .col-hora { width: 72px; }
+        .col-firma { width: 130px; }
         tbody tr { height: 38px; }
-        .pie { margin-top: 22px; font-size: 12px; }
-        .pie .firma-encargado { margin-top: 34px; border-top: 1px solid #111; width: 300px; padding-top: 4px; }
+        .pie { margin-top: 14px; font-size: 12px; page-break-inside: avoid; }
+        .pie .firma-encargado { margin-top: 24px; border-top: 1px solid #111; width: 300px; padding-top: 4px; }
       </style>
       </head><body>
       <div class="cab">
@@ -1547,6 +1549,7 @@
             <th class="col-dni">DNI</th>
             <th class="col-empresa">Empresa</th>
             <th class="col-hora">H. entrada</th>
+            <th class="col-firma">Firma</th>
             <th class="col-hora">H. salida</th>
             <th class="col-firma">Firma</th>
           </tr>
