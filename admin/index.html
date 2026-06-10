@@ -342,7 +342,7 @@ async function cargarAccesosDenegadosHoy() {
   const { desdeISO, hastaISO } = rangoHoyLocal();
   const { count, error } = await sb.from('incidencias')
     .select('id', { count: 'exact', head: true })
-    .eq('tipo', 'bloqueo_rojo')
+    .in('tipo', ['bloqueo_rojo', 'fuera_de_zona'])
     .gte('created_at', desdeISO)
     .lte('created_at', hastaISO);
   if (error) { document.getElementById('stat-rojos').textContent = '—'; return; }
@@ -383,8 +383,8 @@ async function abrirModalAccesosDenegados() {
   const { desdeISO, hastaISO } = rangoHoyLocal();
   const { data, error } = await sb
     .from('incidencias')
-    .select('id, detalle, estado, created_at, trabajador_id, obra_id, trabajador:trabajador_id(id, nombre, apellidos, dni), obra:obra_id(id, nombre)')
-    .eq('tipo', 'bloqueo_rojo')
+    .select('id, tipo, detalle, estado, created_at, trabajador_id, obra_id, trabajador:trabajador_id(id, nombre, apellidos, dni), obra:obra_id(id, nombre)')
+    .in('tipo', ['bloqueo_rojo', 'fuera_de_zona'])
     .gte('created_at', desdeISO)
     .lte('created_at', hastaISO)
     .order('created_at', { ascending: false });
@@ -413,10 +413,11 @@ function pintarDetalleAccesos(incidencias) {
     const o = inc.obra || null;
     const key = `${inc.obra_id || 'sin_obra'}|${t?.id || inc.trabajador_id || inc.detalle || 'sin_trabajador'}`;
     if (!porTrabajadorObra[key]) {
-      porTrabajadorObra[key] = { trabajador: t, obra: o, intentos: 0, pendientes: 0, revisados: 0, ultimo: inc.created_at, detalles: new Set() };
+      porTrabajadorObra[key] = { trabajador: t, obra: o, intentos: 0, pendientes: 0, revisados: 0, ultimo: inc.created_at, detalles: new Set(), tipos: new Set() };
     }
     const g = porTrabajadorObra[key];
     g.intentos++;
+    g.tipos.add(inc.tipo || 'bloqueo_rojo');
     if ((inc.estado || 'nueva') === 'nueva') g.pendientes++;
     else g.revisados++;
     if (inc.created_at && new Date(inc.created_at) > new Date(g.ultimo)) g.ultimo = inc.created_at;
@@ -440,6 +441,10 @@ function pintarDetalleAccesos(incidencias) {
     const estadoTxt = g.pendientes > 0
       ? `${g.pendientes} pendiente${g.pendientes === 1 ? '' : 's'}${g.revisados ? ` · ${g.revisados} revisado${g.revisados === 1 ? '' : 's'}` : ''}`
       : `Todo revisado (${g.revisados})`;
+    const motivos = [];
+    if (g.tipos.has('bloqueo_rojo')) motivos.push('🔴 Documentación');
+    if (g.tipos.has('fuera_de_zona')) motivos.push('📍 Fuera de zona GPS');
+    const motivoTxt = motivos.join(' · ');
     const detalles = Array.from(g.detalles).slice(0, 3).map(d => esc(d)).join('<br>');
     return `
       <div class="acceso-item">
@@ -450,7 +455,7 @@ function pintarDetalleAccesos(incidencias) {
           </div>
           <div class="acceso-contador">${g.intentos} ${g.intentos === 1 ? 'intento' : 'intentos'}</div>
         </div>
-        <div class="acceso-detalle">${esc(estadoTxt)}${detalles ? '<br>' + detalles : ''}</div>
+        <div class="acceso-detalle">${motivoTxt ? '<strong>' + motivoTxt + '</strong><br>' : ''}${esc(estadoTxt)}${detalles ? '<br>' + detalles : ''}</div>
       </div>`;
   }).join('');
 }
