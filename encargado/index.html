@@ -1485,6 +1485,20 @@
         <td class="col-nombre">${esc(t.nombre || '—')}</td>
         <td class="col-dni">${esc(t.dni || '—')}</td>
         <td class="col-empresa">${esc(t.empresa || '—')}</td>
+        <td class="col-hora"></td>
+        <td class="col-hora"></td>
+        <td class="col-firma"></td>
+      </tr>`).join('');
+
+    // 3 filas vacías extra para personal nuevo del día
+    const filasVacias = [1, 2, 3].map(n => `
+      <tr class="fila-vacia">
+        <td class="col-num">${total + n}</td>
+        <td class="col-nombre"></td>
+        <td class="col-dni"></td>
+        <td class="col-empresa"></td>
+        <td class="col-hora"></td>
+        <td class="col-hora"></td>
         <td class="col-firma"></td>
       </tr>`).join('');
 
@@ -1506,9 +1520,10 @@
         th, td { border: 1px solid #333; padding: 9px 10px; }
         thead th { text-align: left; background: #ececec; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; }
         .col-num { width: 34px; text-align: center; color: #555; }
-        .col-dni { width: 120px; }
-        .col-empresa { width: 240px; }
-        .col-firma { width: 260px; }
+        .col-dni { width: 110px; }
+        .col-empresa { width: 200px; }
+        .col-hora { width: 80px; }
+        .col-firma { width: 170px; }
         tbody tr { height: 38px; }
         .pie { margin-top: 22px; font-size: 12px; }
         .pie .firma-encargado { margin-top: 34px; border-top: 1px solid #111; width: 300px; padding-top: 4px; }
@@ -1531,10 +1546,12 @@
             <th>Nombre</th>
             <th class="col-dni">DNI</th>
             <th class="col-empresa">Empresa</th>
+            <th class="col-hora">H. entrada</th>
+            <th class="col-hora">H. salida</th>
             <th class="col-firma">Firma</th>
           </tr>
         </thead>
-        <tbody>${filas}</tbody>
+        <tbody>${filas}${filasVacias}</tbody>
       </table>
       <div class="pie">
         <div class="firma-encargado">Firma del encargado: ${esc(nombreEncargado)}</div>
