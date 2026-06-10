@@ -1155,7 +1155,7 @@ async function cargarBloqueos() {
     .from('incidencias')
     .select('trabajador_id')
     .eq('obra_id', obraActual)
-    .eq('tipo', 'bloqueo_rojo')
+    .in('tipo', ['bloqueo_rojo', 'fuera_de_zona'])
     .gte('created_at', desdeISO)
     .lte('created_at', hastaISO);
   const personasDistintas = new Set((dataHistorico || []).map(i => i.trabajador_id).filter(Boolean)).size;
@@ -1163,9 +1163,9 @@ async function cargarBloqueos() {
 
   const { data: incidencias, error } = await sb
     .from('incidencias')
-    .select('id, detalle, created_at, trabajador:trabajador_id(id, nombre, apellidos, dni)')
+    .select('id, tipo, detalle, created_at, trabajador:trabajador_id(id, nombre, apellidos, dni)')
     .eq('obra_id', obraActual)
-    .eq('tipo', 'bloqueo_rojo')
+    .in('tipo', ['bloqueo_rojo', 'fuera_de_zona'])
     .eq('estado', 'nueva')
     .gte('created_at', desdeISO)
     .lte('created_at', hastaISO)
@@ -1175,9 +1175,10 @@ async function cargarBloqueos() {
   incidencias.forEach(inc => {
     const tid = inc.trabajador?.id || 'desconocido';
     if (!porTrabajador[tid]) {
-      porTrabajador[tid] = { incidencia_id: inc.id, trabajador: inc.trabajador, primer_intento: inc.created_at, ultimo_intento: inc.created_at, intentos: 1 };
+      porTrabajador[tid] = { incidencia_id: inc.id, trabajador: inc.trabajador, primer_intento: inc.created_at, ultimo_intento: inc.created_at, intentos: 1, tipos: new Set([inc.tipo || 'bloqueo_rojo']) };
     } else {
       porTrabajador[tid].intentos++;
+      porTrabajador[tid].tipos.add(inc.tipo || 'bloqueo_rojo');
       if (inc.created_at < porTrabajador[tid].primer_intento) porTrabajador[tid].primer_intento = inc.created_at;
     }
   });
@@ -1193,11 +1194,15 @@ async function cargarBloqueos() {
     const dni = t.dni ? ` — ${t.dni}` : '';
     const horaUltimo = formatHora(g.ultimo_intento);
     const intentosTexto = g.intentos === 1 ? '1 intento' : `${g.intentos} intentos`;
+    const etiquetas = [];
+    if (g.tipos.has('bloqueo_rojo')) etiquetas.push('🔴 Documentación');
+    if (g.tipos.has('fuera_de_zona')) etiquetas.push('📍 GPS');
+    const etiquetaTxt = etiquetas.join(' · ');
     return `
       <div class="bloqueo-item" data-id="${g.incidencia_id}">
         <div class="bloqueo-info">
           <strong>${esc(nombre)}</strong>
-          <div class="detalle">${esc(horaUltimo)} · ${esc(intentosTexto)}${esc(dni)}</div>
+          <div class="detalle">${esc(etiquetaTxt)} · ${esc(horaUltimo)} · ${esc(intentosTexto)}${esc(dni)}</div>
         </div>
         <button class="btn-visto-rojo" onclick="marcarVistoRojo('${g.incidencia_id}', this)">✓ Visto</button>
       </div>`;
@@ -1229,9 +1234,9 @@ async function abrirModalAccesosDenegados() {
   const { desdeISO, hastaISO } = rangoHoyLocal();
   const { data, error } = await sb
     .from('incidencias')
-    .select('id, detalle, estado, created_at, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni, empresa:empresa_id(nombre))')
+    .select('id, tipo, detalle, estado, created_at, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni, empresa:empresa_id(nombre))')
     .eq('obra_id', obraActual)
-    .eq('tipo', 'bloqueo_rojo')
+    .in('tipo', ['bloqueo_rojo', 'fuera_de_zona'])
     .gte('created_at', desdeISO)
     .lte('created_at', hastaISO)
     .order('created_at', { ascending: false });
@@ -1263,10 +1268,12 @@ function pintarDetalleAccesos(incidencias, motivosPorTrabajador) {
     const t = inc.trabajador || null;
     const key = t?.id || inc.trabajador_id || ('sin_trabajador_' + (inc.detalle || ''));
     if (!porTrabajador[key]) {
-      porTrabajador[key] = { trabajador: t, trabajador_id: inc.trabajador_id, intentos: 0, pendientes: 0, revisados: 0, ultimo: inc.created_at };
+      porTrabajador[key] = { trabajador: t, trabajador_id: inc.trabajador_id, intentos: 0, pendientes: 0, revisados: 0, ultimo: inc.created_at, tipos: new Set(), detallesGps: new Set() };
     }
     const g = porTrabajador[key];
     g.intentos++;
+    g.tipos.add(inc.tipo || 'bloqueo_rojo');
+    if (inc.tipo === 'fuera_de_zona' && inc.detalle) g.detallesGps.add(inc.detalle);
     if ((inc.estado || 'nueva') === 'nueva') g.pendientes++; else g.revisados++;
     if (inc.created_at && new Date(inc.created_at) > new Date(g.ultimo)) g.ultimo = inc.created_at;
   });
@@ -1286,8 +1293,17 @@ function pintarDetalleAccesos(incidencias, motivosPorTrabajador) {
       ? `${g.pendientes} pendiente${g.pendientes === 1 ? '' : 's'}${g.revisados ? ` · ${g.revisados} revisado${g.revisados === 1 ? '' : 's'}` : ''}`
       : `Todo revisado (${g.revisados})`;
     const motivos = motivosPorTrabajador[g.trabajador_id] || [];
-    const motivosHtml = motivos.length > 0
-      ? '<div class="acceso-motivos">' + motivos.map(m => `<div class="acceso-motivo-item">${esc(limpiarMotivo(m))}</div>`).join('') + '</div>'
+    const etiquetas = [];
+    if (g.tipos.has('bloqueo_rojo')) etiquetas.push('🔴 Documentación');
+    if (g.tipos.has('fuera_de_zona')) etiquetas.push('📍 Fuera de zona GPS');
+    const etiquetaTxt = etiquetas.join(' · ');
+    const motivosDoc = g.tipos.has('bloqueo_rojo')
+      ? motivos.map(m => `<div class="acceso-motivo-item">${esc(limpiarMotivo(m))}</div>`)
+      : [];
+    const motivosGps = Array.from(g.detallesGps).slice(0, 3).map(d => `<div class="acceso-motivo-item">${esc(d)}</div>`);
+    const todosMotivos = motivosDoc.concat(motivosGps);
+    const motivosHtml = todosMotivos.length > 0
+      ? '<div class="acceso-motivos">' + todosMotivos.join('') + '</div>'
       : '';
     return `
       <div class="acceso-item">
@@ -1298,7 +1314,7 @@ function pintarDetalleAccesos(incidencias, motivosPorTrabajador) {
           </div>
           <div class="acceso-contador">${g.intentos} ${g.intentos === 1 ? 'intento' : 'intentos'}</div>
         </div>
-        <div class="acceso-detalle">${esc(estadoTxt)}</div>
+        <div class="acceso-detalle">${etiquetaTxt ? '<strong>' + etiquetaTxt + '</strong> · ' : ''}${esc(estadoTxt)}</div>
         ${motivosHtml}
       </div>`;
   }).join('');
