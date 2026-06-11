@@ -310,7 +310,14 @@
     <div class="campo-fila">
       <div class="campo">
         <label>Categoría</label>
-        <input type="text" id="modal-categoria" placeholder="Peón / Oficial 1ª / Encargado">
+        <select id="modal-categoria">
+          <option value="peon">Peón</option>
+          <option value="oficial">Oficial</option>
+          <option value="encargado">Encargado</option>
+          <option value="gruista">Gruista</option>
+          <option value="electricista">Electricista</option>
+          <option value="restaurador">Restaurador</option>
+        </select>
       </div>
       <div class="campo">
         <label>Precio hora</label>
@@ -1088,7 +1095,7 @@ document.getElementById('btn-nuevo').addEventListener('click', () => {
   document.getElementById('modal-nombre').value = '';
   document.getElementById('modal-apellidos').value = '';
   document.getElementById('modal-dni').value = '';
-  document.getElementById('modal-categoria').value = '';
+  document.getElementById('modal-categoria').value = 'peon';
   document.getElementById('modal-precio-hora').value = '';
   document.getElementById('modal-msg').textContent = '';
   document.getElementById('btn-guardar').disabled = false;
@@ -1107,7 +1114,9 @@ async function abrirEdicion(trabajadorId) {
   document.getElementById('modal-nombre').value = t.nombre || '';
   document.getElementById('modal-apellidos').value = t.apellidos || '';
   document.getElementById('modal-dni').value = t.dni || '';
-  document.getElementById('modal-categoria').value = t.categoria || '';
+  const selCat = document.getElementById('modal-categoria');
+  selCat.value = t.categoria || 'peon';
+  if (selCat.selectedIndex === -1) selCat.value = 'peon';
   document.getElementById('modal-precio-hora').value = t.precio_hora_personalizado ?? '';
   poblarSelectorEmpresas(t.empresa?.id || '');
   const { data: vals } = await sb.from('validaciones_obra').select('obra_id')
