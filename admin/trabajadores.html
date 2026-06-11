@@ -158,7 +158,14 @@
     <div class="campo-fila">
       <div class="campo">
         <label>Categoría</label>
-        <input type="text" id="f-categoria" placeholder="Peón / Oficial 1ª / Encargado">
+        <select id="f-categoria">
+          <option value="peon">Peón</option>
+          <option value="oficial">Oficial</option>
+          <option value="encargado">Encargado</option>
+          <option value="gruista">Gruista</option>
+          <option value="electricista">Electricista</option>
+          <option value="restaurador">Restaurador</option>
+        </select>
       </div>
       <div class="campo">
         <label>Precio hora</label>
@@ -488,7 +495,7 @@ document.getElementById('btn-nuevo').onclick = () => {
   document.getElementById('f-apellidos').value = '';
   document.getElementById('f-dni').value = '';
   document.getElementById('f-telefono').value = '';
-  document.getElementById('f-categoria').value = '';
+  document.getElementById('f-categoria').value = 'peon';
   document.getElementById('f-precio-hora').value = '';
   document.getElementById('f-activo').value = 'true';
   ocultarError();
@@ -504,7 +511,9 @@ function abrirEditarPorId(id) {
   document.getElementById('f-apellidos').value = t.apellidos || '';
   document.getElementById('f-dni').value = t.dni || '';
   document.getElementById('f-telefono').value = t.telefono || '';
-  document.getElementById('f-categoria').value = t.categoria || '';
+  const selCat = document.getElementById('f-categoria');
+  selCat.value = t.categoria || 'peon';
+  if (selCat.selectedIndex === -1) selCat.value = 'peon';
   document.getElementById('f-precio-hora').value = t.precio_hora_personalizado ?? '';
   document.getElementById('f-activo').value = String(t.activo);
   ocultarError();
