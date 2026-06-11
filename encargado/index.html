@@ -1510,25 +1510,23 @@
       <meta charset="UTF-8">
       <title>Lista de presentes — ${esc(obraActualNombre)}</title>
       <style>
-        @page { size: landscape; margin: 14mm; }
+        @page { size: landscape; margin: 10mm; }
         * { box-sizing: border-box; }
-        body { font-family: sans-serif; color: #111; padding: 8px; }
-        .cab { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 2px solid #111; padding-bottom: 12px; margin-bottom: 14px; }
-        .cab-info h1 { font-size: 20px; margin: 0; }
-        .logo-marca { max-height: 54px; max-width: 200px; }
-        .resumen { font-size: 14px; margin-bottom: 12px; }
-        .resumen strong { font-size: 16px; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th, td { border: 1px solid #333; padding: 9px 10px; }
-        thead th { text-align: left; background: #ececec; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; }
+        body { font-family: sans-serif; color: #111; padding: 4px; }
+        .cab { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 8px; }
+        .cab-info h1 { font-size: 18px; margin: 0; }
+        .logo-marca { max-height: 44px; max-width: 160px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { border: 1px solid #333; padding: 6px 8px; }
+        thead th { text-align: left; background: #ececec; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
         .col-num { width: 28px; text-align: center; color: #555; }
         .col-dni { width: 95px; }
         .col-empresa { width: 160px; }
         .col-hora { width: 72px; }
         .col-firma { width: 130px; }
-        tbody tr { height: 38px; }
-        .pie { margin-top: 14px; font-size: 12px; page-break-inside: avoid; }
-        .pie .firma-encargado { margin-top: 24px; border-top: 1px solid #111; width: 300px; padding-top: 4px; }
+        tbody tr { height: 32px; }
+        .pie { margin-top: 10px; font-size: 12px; page-break-inside: avoid; }
+        .pie .firma-encargado { margin-top: 18px; border-top: 1px solid #111; width: 300px; padding-top: 4px; }
       </style>
       </head><body>
       <div class="cab">
@@ -1537,10 +1535,7 @@
         </div>
         ${logoUrl ? `<img class="logo-marca" src="${logoUrl}" alt="${esc(marcaNombre)}" />` : ''}
       </div>
-      <div class="resumen">
-        <strong>${total} ${total === 1 ? 'persona' : 'personas'}</strong>
-        &nbsp;·&nbsp; ${nPropios} propios &nbsp;·&nbsp; ${nExternos} externos
-      </div>
+
       <table>
         <thead>
           <tr>
