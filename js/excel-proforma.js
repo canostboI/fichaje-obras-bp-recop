@@ -681,5 +681,10 @@
     return Math.round((Number(n) || 0) * 100) / 100;
   }
 
-  window.ExcelProforma = { generar };
+  // API pública.
+  // - generar: crea el Excel proforma (uso original).
+  // - agruparPorEmpresa y construirResumenTrabajadores: expuestas para P-07
+  //   (resumen mensual en pantalla), para que pantalla y Excel usen
+  //   exactamente el mismo cálculo de horas.
+  window.ExcelProforma = { generar, agruparPorEmpresa, construirResumenTrabajadores };
 })();
