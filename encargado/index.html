@@ -1305,11 +1305,14 @@
       .filter(t => esHoyFlag ? t.ultimoTipo === 'entrada' : t.tuvoEntrada)
       .map(t => {
         const horaISO = esHoyFlag ? t.ultimoISO : t.primeraEntradaISO;
+        const horaSalidaISO = (!esHoyFlag && t.ultimoTipo === 'salida') ? t.ultimoISO : null;
         return {
           ...t,
           tipo: 'entrada',
           horaISO,
-          horaTexto: new Date(horaISO).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+          horaTexto: new Date(horaISO).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+          horaSalidaISO,
+          horaSalidaTexto: horaSalidaISO ? new Date(horaSalidaISO).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : null
         };
       })
       .sort((a, b) => new Date(b.horaISO) - new Date(a.horaISO));
@@ -1445,8 +1448,12 @@
           <div class="tarjeta-empresa">${esc(t.empresa || '—')}</div>
         </div>
         <div class="tarjeta-hora">
-          <div class="tarjeta-hora-grande">${esc(t.horaTexto)}</div>
-          <div class="tarjeta-hora-rel">${esHoyFlag ? esc(textoRelativo(t.horaISO)) : ''}</div>
+          ${esHoyFlag
+            ? `<div class="tarjeta-hora-grande">${esc(t.horaTexto)}</div>
+               <div class="tarjeta-hora-rel">${esc(textoRelativo(t.horaISO))}</div>`
+            : `<div class="tarjeta-hora-grande" title="Hora de entrada">📥 ${esc(t.horaTexto)}</div>
+               <div class="tarjeta-hora-rel">${t.horaSalidaTexto ? '📤 ' + esc(t.horaSalidaTexto) : '<span style="color:#999">Sin salida registrada</span>'}</div>`
+          }
         </div>`;
       lista.appendChild(card);
     });
