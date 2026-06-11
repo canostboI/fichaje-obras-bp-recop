@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resumen mensual — Jefe de Obra</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/branding.js"></script>
+<script src="../js/auto-logout.js"></script>
+<script src="../js/excel-proforma.js"></script>
+<style>
+  :root {
+    --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
+    --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
+    --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
+    --color-acento: #ff9800;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
+  .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+  .sidebar-brand { padding: 18px 16px 14px; border-bottom: 1px solid var(--borde); }
+  .sidebar-brand img { max-width: 100%; max-height: 42px; display: none; object-fit: contain; }
+  .sidebar-logo { padding: 10px 20px 14px; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--color-acento); }
+  .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
+  .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
+  .sidebar a:hover { background: var(--bg3); color: var(--texto); }
+  .sidebar a.activo { background: var(--bg3); color: var(--texto); font-weight: 600; }
+  .sidebar a .ico { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid var(--borde); }
+  .btn-salir { width: 100%; background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 8px; }
+  .btn-salir:hover { background: var(--bg3); color: var(--texto); }
+  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .topbar { padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+  .topbar-right { display: flex; align-items: center; gap: 14px; }
+  .usuario { font-size: 13px; color: var(--texto2); }
+  .selector-obra { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 8px 12px; font-family: inherit; max-width: 220px; }
+  .selector-obra:focus { outline: none; border-color: var(--color-acento); }
+  .contenido { padding: 0 28px 28px; }
+
+  .barra-filtros { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+  .barra-filtros input[type="month"] { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 14px; font-family: inherit; width: 160px; color-scheme: dark; }
+  .barra-filtros input[type="month"]:focus { outline: none; border-color: var(--color-acento); }
+  .btn-secundario { background: transparent; color: var(--texto2); border: 1px solid var(--borde); padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
+  .btn-secundario:hover { background: var(--bg3); color: var(--texto); }
+  .msg-info { font-size: 12px; color: var(--texto2); }
+  .msg-info.err { color: var(--rojo); }
+  .msg-info.aviso { color: var(--naranja); }
+
+  .leyenda { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; font-size: 12px; color: var(--texto2); }
+  .leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+  .cuadro { width: 14px; height: 14px; border-radius: 3px; display: inline-block; border: 1px solid var(--borde); }
+  .cuadro.finde { background: #2a2d36; }
+  .cuadro.autocierre { background: rgba(255,152,0,0.35); }
+
+  .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; margin-bottom: 18px; }
+  .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .seccion-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; background: rgba(33,150,243,0.15); color: var(--azul); }
+
+  /* ── Tabla mensual con scroll horizontal y nombre fijo ── */
+  .tabla-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table.mes { border-collapse: collapse; font-size: 12px; width: max-content; min-width: 100%; }
+  table.mes th, table.mes td { border-bottom: 1px solid var(--borde); padding: 6px 6px; text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  table.mes thead th { font-size: 10px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.3px; background: var(--bg2); position: sticky; top: 0; }
+  table.mes th.col-nombre, table.mes td.col-nombre {
+    position: sticky; left: 0; z-index: 2; background: var(--bg2);
+    text-align: left; padding-left: 14px; padding-right: 12px;
+    min-width: 150px; max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+    box-shadow: 2px 0 0 var(--borde);
+  }
+  table.mes thead th.col-nombre { z-index: 3; }
+  table.mes td.col-nombre .nombre { font-weight: 600; color: var(--texto); font-size: 12px; white-space: normal; line-height: 1.25; }
+  table.mes td.col-nombre .sub { font-size: 10px; color: var(--texto2); }
+  table.mes th.dia { min-width: 34px; }
+  table.mes th.dia .num { display: block; font-size: 11px; color: var(--texto); }
+  table.mes th.dia .letra { display: block; font-size: 9px; color: var(--texto2); }
+  table.mes td.celda { color: var(--texto); }
+  table.mes td.celda.cero { color: var(--texto2); opacity: 0.35; }
+  table.mes th.finde, table.mes td.finde { background: #2a2d36; }
+  table.mes td.autocierre { background: rgba(255,152,0,0.35); color: #ffd699; font-weight: 700; }
+  table.mes th.col-total, table.mes td.col-total {
+    position: sticky; right: 0; z-index: 2; background: var(--bg3);
+    font-weight: 700; min-width: 60px; box-shadow: -2px 0 0 var(--borde);
+  }
+  table.mes thead th.col-total { z-index: 3; }
+  table.mes tr.fila-total td { background: var(--bg3); font-weight: 700; border-top: 2px solid var(--borde); }
+  table.mes tr.fila-total td.col-nombre { background: var(--bg3); }
+  table.mes tr.fila-total td.col-total { background: rgba(255,152,0,0.18); color: var(--color-acento); }
+
+  .vacio    { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+  .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+
+  /* ── Móvil ── */
+  @media (max-width: 760px) {
+    :root { --sidebar-w: 0px; }
+    .sidebar { position: static; width: 100%; flex-direction: row; align-items: center; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--borde); }
+    .sidebar-brand, .sidebar-section, .sidebar-bottom { display: none; }
+    .sidebar-logo { padding: 12px 14px; white-space: nowrap; }
+    .sidebar a { white-space: nowrap; }
+    body { flex-direction: column; }
+    .main { margin-left: 0; }
+    .topbar { padding: 14px 14px 8px; }
+    .topbar h1 { font-size: 17px; }
+    .contenido { padding: 0 10px 20px; }
+    table.mes th.col-nombre, table.mes td.col-nombre { min-width: 120px; max-width: 140px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-brand"><img id="sidebar-logo" alt=""></div>
+  <div class="sidebar-logo">Jefe de Obra</div>
+  <div class="sidebar-section">Principal</div>
+  <a href="index.html"><span class="ico">👷</span> Presencia</a>
+  <div class="sidebar-section">Gestión</div>
+  <a href="fichajes.html"><span class="ico">🕐</span> Fichajes</a>
+  <a href="resumen-mes.html" class="activo"><span class="ico">📊</span> Resumen mes</a>
+  <a href="trabajadores.html"><span class="ico">👥</span> Trabajadores</a>
+  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
+  <a href="documentos-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
+  <div class="sidebar-bottom">
+    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>Resumen mensual</h1>
+    <div class="topbar-right">
+      <select class="selector-obra" id="selector-obra"></select>
+      <span class="usuario" id="usuario-nombre"></span>
+    </div>
+  </div>
+
+  <div class="contenido">
+    <div class="barra-filtros">
+      <input type="month" id="filtro-mes">
+      <button class="btn-secundario" id="btn-mes-actual">Mes actual</button>
+      <span class="msg-info" id="msg-info"></span>
+    </div>
+
+    <div class="leyenda">
+      <span><span class="cuadro finde"></span> Fin de semana</span>
+      <span><span class="cuadro autocierre"></span> Día con cierre automático (revisar)</span>
+    </div>
+
+    <div id="zona-tablas">
+      <div class="seccion"><div class="cargando">Cargando…</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+AutoLogout.init(sb);
+
+const CLAVE_OBRA_ACTIVA_JEFE = 'jefe_obra_activa_id';
+
+let obraActual = null;
+let brandingActual = null;
+
+(async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '../'; return; }
+
+  const { data: miUsuario } = await sb
+    .from('usuarios_app').select('id, nombre')
+    .eq('auth_user_id', session.user.id).single();
+  if (!miUsuario) { window.location.href = '../'; return; }
+
+  document.getElementById('usuario-nombre').textContent = miUsuario.nombre || session.user.email;
+
+  const { data: misObras } = await sb
+    .from('usuarios_obra')
+    .select('obra_id, obra:obra_id(id, nombre, empresa_marca)')
+    .eq('usuario_app_id', miUsuario.id)
+    .eq('rol_en_obra', 'jefe_obra');
+  if (!misObras || misObras.length === 0) { window.location.href = '../'; return; }
+
+  const selector = document.getElementById('selector-obra');
+  misObras.forEach(uo => {
+    const opt = document.createElement('option');
+    opt.value = uo.obra.id;
+    opt.textContent = uo.obra.nombre;
+    opt.dataset.marca = uo.obra.empresa_marca || 'bosch_pascual';
+    selector.appendChild(opt);
+  });
+
+  const obraGuardada = localStorage.getItem(CLAVE_OBRA_ACTIVA_JEFE);
+  const obraInicial = misObras.find(uo => uo.obra.id === obraGuardada) || misObras[0];
+  obraActual = obraInicial.obra.id;
+  selector.value = obraActual;
+  localStorage.setItem(CLAVE_OBRA_ACTIVA_JEFE, obraActual);
+  aplicarBrandingObra(obraInicial.obra.empresa_marca);
+
+  document.getElementById('filtro-mes').value = mesActual();
+  await cargarResumen();
+
+  selector.addEventListener('change', async () => {
+    obraActual = selector.value;
+    localStorage.setItem(CLAVE_OBRA_ACTIVA_JEFE, obraActual);
+    const marca = selector.options[selector.selectedIndex].dataset.marca;
+    aplicarBrandingObra(marca);
+    await cargarResumen();
+  });
+  document.getElementById('filtro-mes').addEventListener('change', cargarResumen);
+  document.getElementById('btn-mes-actual').addEventListener('click', async () => {
+    document.getElementById('filtro-mes').value = mesActual();
+    await cargarResumen();
+  });
+})();
+
+function aplicarBrandingObra(empresaMarca) {
+  const marca = empresaMarca || 'bosch_pascual';
+  brandingActual = aplicarBranding(marca);
+  const logoImg = document.getElementById('sidebar-logo');
+  logoImg.src = '../' + brandingActual.logo_blanco;
+  logoImg.alt = brandingActual.nombre;
+  logoImg.style.display = 'block';
+}
+
+document.getElementById('btn-salir').addEventListener('click', async () => {
+  await sb.auth.signOut(); window.location.href = '../';
+});
+
+function mesActual() {
+  const a = new Date();
+  return a.getFullYear() + '-' + String(a.getMonth() + 1).padStart(2, '0');
+}
+
+// =====================================================================
+// CARGA DE DATOS (misma query que el Excel mensual de jefe/fichajes.html)
+// =====================================================================
+async function obtenerFichajesMes(obraId, mes) {
+  const [year, month] = mes.split('-').map(Number);
+  const desde = new Date(year, month - 1, 1, 0, 0, 0, 0);
+  const hasta = new Date(year, month, 1, 0, 0, 0, 0);
+
+  let { data, error } = await sb.from('fichajes')
+    .select(`id, tipo, hora, cierre_automatico, trabajador_id,
+      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado, empresa:empresa_id(nombre))`)
+    .eq('obra_id', obraId).gte('hora', desde.toISOString()).lt('hora', hasta.toISOString())
+    .order('hora', { ascending: true });
+  if (!error) return data || [];
+
+  const fallback = await sb.from('fichajes')
+    .select(`id, tipo, hora, cierre_automatico, trabajador_id,
+      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado)`)
+    .eq('obra_id', obraId).gte('hora', desde.toISOString()).lt('hora', hasta.toISOString())
+    .order('hora', { ascending: true });
+  if (fallback.error) throw fallback.error;
+  return fallback.data || [];
+}
+
+// =====================================================================
+// RENDER DEL RESUMEN MENSUAL
+// =====================================================================
+async function cargarResumen() {
+  const zona = document.getElementById('zona-tablas');
+  const msg  = document.getElementById('msg-info');
+  const mes  = document.getElementById('filtro-mes').value;
+  msg.className = 'msg-info'; msg.textContent = '';
+
+  if (!obraActual) { msg.className = 'msg-info err'; msg.textContent = 'No hay obra seleccionada.'; return; }
+  if (!mes || !/^\d{4}-\d{2}$/.test(mes)) { msg.className = 'msg-info err'; msg.textContent = 'Selecciona un mes.'; return; }
+  if (!window.ExcelProforma || !window.ExcelProforma.construirResumenTrabajadores) {
+    msg.className = 'msg-info err';
+    msg.textContent = 'No se ha cargado la versión actualizada de js/excel-proforma.js. Recarga la página.';
+    return;
+  }
+
+  zona.innerHTML = '<div class="seccion"><div class="cargando">Cargando…</div></div>';
+
+  let fichajes;
+  try {
+    fichajes = await obtenerFichajesMes(obraActual, mes);
+  } catch (e) {
+    zona.innerHTML = '';
+    msg.className = 'msg-info err';
+    msg.textContent = 'Error cargando fichajes: ' + (e.message || e);
+    return;
+  }
+
+  if (!fichajes || fichajes.length === 0) {
+    zona.innerHTML = '<div class="seccion"><div class="vacio">No hay fichajes en ese mes para esta obra.</div></div>';
+    return;
+  }
+
+  const [year, month] = mes.split('-').map(Number);
+  const diasMes = new Date(year, month, 0).getDate();
+
+  const grupos = window.ExcelProforma.agruparPorEmpresa(fichajes);
+  const nombresEmpresa = Object.keys(grupos).sort((a, b) => a.localeCompare(b, 'es'));
+
+  let html = '';
+  let totalAutocierres = 0;
+
+  nombresEmpresa.forEach(nombreEmpresa => {
+    const trabajadores = window.ExcelProforma.construirResumenTrabajadores(grupos[nombreEmpresa], diasMes);
+    trabajadores.forEach(t => { totalAutocierres += (t.autocierres_mes || 0); });
+    html += renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes);
+  });
+
+  zona.innerHTML = html;
+
+  if (totalAutocierres > 0) {
+    msg.className = 'msg-info aviso';
+    msg.textContent = `⚠️ ${totalAutocierres} ${totalAutocierres === 1 ? 'salida' : 'salidas'} con cierre automático este mes (en naranja).`;
+  }
+}
+
+function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
+  const findes = new Set();
+  for (let d = 1; d <= diasMes; d++) {
+    const dow = new Date(year, month - 1, d).getDay();
+    if (dow === 0 || dow === 6) findes.add(d);
+  }
+  const letras = ['D','L','M','X','J','V','S'];
+
+  // Cabecera
+  let thDias = '';
+  for (let d = 1; d <= diasMes; d++) {
+    const letra = letras[new Date(year, month - 1, d).getDay()];
+    thDias += `<th class="dia${findes.has(d) ? ' finde' : ''}"><span class="num">${d}</span><span class="letra">${letra}</span></th>`;
+  }
+
+  // Filas de trabajadores
+  let filas = '';
+  const totalDia = {};
+  for (let d = 1; d <= diasMes; d++) totalDia[d] = 0;
+  let totalEmpresa = 0;
+
+  trabajadores.forEach(t => {
+    let celdas = '';
+    for (let d = 1; d <= diasMes; d++) {
+      const h = t.dias[d] || 0;
+      totalDia[d] += h;
+      const esAuto = (t.dias_autocierre[d] || 0) > 0;
+      const clases = ['celda'];
+      if (findes.has(d)) clases.push('finde');
+      if (esAuto) clases.push('autocierre');
+      if (h === 0 && !esAuto) clases.push('cero');
+      celdas += `<td class="${clases.join(' ')}">${h > 0 ? formatHoras(h) : '·'}</td>`;
+    }
+    totalEmpresa += t.horas_mes;
+    filas += `<tr>
+      <td class="col-nombre">
+        <div class="nombre">${escapeHtml(t.nombre)}</div>
+        <div class="sub">${escapeHtml(t.dni || '')}${t.categoria ? ' · ' + escapeHtml(t.categoria) : ''}</div>
+      </td>
+      ${celdas}
+      <td class="col-total">${formatHoras(t.horas_mes)}</td>
+    </tr>`;
+  });
+
+  // Fila de totales por día
+  let celdasTotal = '';
+  for (let d = 1; d <= diasMes; d++) {
+    const h = redondear2(totalDia[d]);
+    celdasTotal += `<td class="${findes.has(d) ? 'finde' : ''}">${h > 0 ? formatHoras(h) : '·'}</td>`;
+  }
+
+  return `
+  <div class="seccion">
+    <div class="seccion-cab">
+      <h2>${escapeHtml(nombreEmpresa)}</h2>
+      <span class="badge">${trabajadores.length} trabajador${trabajadores.length === 1 ? '' : 'es'}</span>
+    </div>
+    <div class="tabla-scroll">
+      <table class="mes">
+        <thead>
+          <tr>
+            <th class="col-nombre">Trabajador</th>
+            ${thDias}
+            <th class="col-total">Horas</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filas}
+          <tr class="fila-total">
+            <td class="col-nombre">TOTAL</td>
+            ${celdasTotal}
+            <td class="col-total">${formatHoras(redondear2(totalEmpresa))}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function formatHoras(n) {
+  return Number(n).toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+function redondear2(n) {
+  return Math.round((Number(n) || 0) * 100) / 100;
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+</script>
+</body>
+</html>
