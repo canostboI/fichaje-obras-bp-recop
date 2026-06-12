@@ -27,15 +27,21 @@
   .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
   .topbar { padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; }
   .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+  .btn-imprimir { background: var(--bg2); border: 1px solid var(--borde); color: var(--texto); padding: 9px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; font-weight: 600; }
+  .btn-imprimir:hover { background: var(--bg3); }
   .contenido { padding: 0 28px 28px; }
-  .barra-filtros { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+  .barra-filtros { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
   .barra-filtros input, .barra-filtros select { background: var(--bg2); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 14px; font-family: inherit; }
   .barra-filtros input[type="date"] { width: 160px; color-scheme: dark; }
   .barra-filtros select { width: 200px; }
   .barra-filtros input:focus, .barra-filtros select:focus { outline: none; border-color: var(--azul); }
+  .barra-filtros .sep { color: var(--texto2); font-size: 13px; }
   .btn-secundario { background: transparent; color: var(--texto2); border: 1px solid var(--borde); padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
   .btn-secundario:hover { background: var(--bg3); color: var(--texto); }
-  .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
+  .barra-rapidos { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .btn-rapido { background: transparent; color: var(--texto2); border: 1px solid var(--borde); padding: 6px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; font-family: inherit; }
+  .btn-rapido:hover { background: var(--bg3); color: var(--texto); }
+  .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; margin-bottom: 18px; }
   .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; }
   .seccion-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
   .badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; background: rgba(255,152,0,0.15); color: var(--naranja); }
@@ -52,6 +58,32 @@
   .comentario { color: var(--texto2); font-size: 12px; margin-top: 3px; font-style: italic; }
   .vacio { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); }
+  .num-grande { font-size: 22px; font-weight: 800; }
+  .num-rojo { color: var(--rojo); }
+  .num-naranja { color: var(--naranja); }
+  .resumen-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  @media (max-width: 1100px) { .resumen-grid { grid-template-columns: 1fr; } }
+  .resumen-col { border-right: 1px solid var(--borde); }
+  .resumen-col:last-child { border-right: none; }
+  .resumen-col h3 { font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 20px 8px; }
+
+  /* ====== INFORME IMPRIMIBLE ====== */
+  #informe-print { display: none; }
+  @media print {
+    body { display: block; background: #fff; color: #000; }
+    .sidebar, .main { display: none !important; }
+    #informe-print { display: block; font-family: Arial, Helvetica, sans-serif; color: #000; }
+    @page { margin: 14mm; }
+    #informe-print h1 { font-size: 19px; margin-bottom: 2px; }
+    #informe-print .sub { font-size: 12px; color: #444; margin-bottom: 14px; }
+    #informe-print h2 { font-size: 14px; margin: 16px 0 6px; border-bottom: 2px solid #000; padding-bottom: 3px; }
+    #informe-print table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px; }
+    #informe-print th, #informe-print td { border: 1px solid #999; padding: 5px 7px; text-align: left; color: #000; }
+    #informe-print th { background: #eee; font-size: 10px; text-transform: uppercase; }
+    #informe-print .total-linea { font-size: 12px; font-weight: bold; margin: 8px 0 4px; }
+    #informe-print tr { page-break-inside: avoid; }
+    #informe-print .pie { margin-top: 18px; font-size: 10px; color: #555; }
+  }
 </style>
   <script src="../js/auto-logout.js"></script>
 </head>
@@ -78,16 +110,34 @@
 </div>
 
 <div class="main">
-  <div class="topbar"><h1>Incidencias</h1></div>
+  <div class="topbar">
+    <h1>Incidencias</h1>
+    <button class="btn-imprimir" id="btn-imprimir">🖨️ Imprimir informe de incidencias</button>
+  </div>
   <div class="contenido">
     <div class="barra-filtros">
-      <input type="date" id="filtro-fecha">
+      <input type="date" id="filtro-desde" title="Desde">
+      <span class="sep">→</span>
+      <input type="date" id="filtro-hasta" title="Hasta">
       <select id="filtro-obra"><option value="">Todas las obras</option></select>
       <select id="filtro-tipo"><option value="">Todos los tipos</option></select>
       <button class="btn-secundario" id="btn-buscar">Buscar</button>
-      <button class="btn-secundario" id="btn-hoy">Hoy</button>
-      <button class="btn-secundario" id="btn-limpiar">Limpiar fecha</button>
     </div>
+    <div class="barra-rapidos">
+      <button class="btn-rapido" data-rango="hoy">Hoy</button>
+      <button class="btn-rapido" data-rango="7dias">Últimos 7 días</button>
+      <button class="btn-rapido" data-rango="mes">Este mes</button>
+      <button class="btn-rapido" data-rango="mes-anterior">Mes anterior</button>
+    </div>
+
+    <div class="seccion">
+      <div class="seccion-cab">
+        <h2>Resumen de accesos denegados en el periodo</h2>
+        <span class="badge" id="badge-resumen">—</span>
+      </div>
+      <div id="resumen"><div class="cargando">Cargando…</div></div>
+    </div>
+
     <div class="seccion">
       <div class="seccion-cab">
         <h2>Listado de incidencias</h2>
@@ -98,6 +148,9 @@
   </div>
 </div>
 
+<!-- Informe imprimible (solo visible al imprimir) -->
+<div id="informe-print"></div>
+
 <script>
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
@@ -105,12 +158,14 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 AutoLogout.init(sb);
 
+let datosActuales = [];   // incidencias del periodo actual (para resumen e informe)
+
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '../'; return; }
   const { data: u } = await sb.from('usuarios_app').select('rol').eq('auth_user_id', session.user.id).single();
   if (!u || u.rol !== 'admin') { window.location.href = '../'; return; }
-  document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
+  aplicarRango('mes');
   await cargarObras();
   await cargarTipos();
   await buscar();
@@ -131,36 +186,162 @@ async function cargarTipos() {
   tipos.forEach(t => { const opt = document.createElement('option'); opt.value = t; opt.textContent = t; select.appendChild(opt); });
 }
 
-document.getElementById('btn-buscar').onclick = buscar;
-document.getElementById('btn-hoy').onclick = () => { document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0]; buscar(); };
-document.getElementById('btn-limpiar').onclick = () => { document.getElementById('filtro-fecha').value = ''; buscar(); };
+// ===== Rangos rápidos =====
+function aplicarRango(rango) {
+  const hoy = new Date();
+  let desde, hasta;
+  if (rango === 'hoy') {
+    desde = hasta = hoy;
+  } else if (rango === '7dias') {
+    hasta = hoy;
+    desde = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 6);
+  } else if (rango === 'mes') {
+    desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    hasta = hoy;
+  } else if (rango === 'mes-anterior') {
+    desde = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
+    hasta = new Date(hoy.getFullYear(), hoy.getMonth(), 0);
+  }
+  document.getElementById('filtro-desde').value = aISO(desde);
+  document.getElementById('filtro-hasta').value = aISO(hasta);
+}
+function aISO(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 
+document.querySelectorAll('.btn-rapido').forEach(b => {
+  b.onclick = () => { aplicarRango(b.dataset.rango); buscar(); };
+});
+document.getElementById('btn-buscar').onclick = buscar;
+
+// ===== Búsqueda =====
 async function buscar() {
   document.getElementById('tabla-incidencias').innerHTML = '<div class="cargando">Cargando…</div>';
-  const fecha  = document.getElementById('filtro-fecha').value;
+  document.getElementById('resumen').innerHTML = '<div class="cargando">Cargando…</div>';
+
+  const fDesde = document.getElementById('filtro-desde').value;
+  const fHasta = document.getElementById('filtro-hasta').value;
   const obraId = document.getElementById('filtro-obra').value;
   const tipo   = document.getElementById('filtro-tipo').value;
 
   let query = sb.from('incidencias')
-    .select('id, tipo, detalle, comentario, created_at, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)')
-    .order('created_at', { ascending: false }).limit(200);
+    .select('id, tipo, detalle, comentario, created_at, trabajador_id, obra_id, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)')
+    .order('created_at', { ascending: false }).limit(1000);
 
-  if (fecha) {
-    const [y, m, d] = fecha.split('-').map(Number);
-    const desde = new Date(y, m - 1, d, 0, 0, 0, 0);
-    const hasta = new Date(y, m - 1, d, 23, 59, 59, 999);
-    query = query.gte('created_at', desde.toISOString()).lte('created_at', hasta.toISOString());
+  if (fDesde) {
+    const [y, m, d] = fDesde.split('-').map(Number);
+    query = query.gte('created_at', new Date(y, m - 1, d, 0, 0, 0, 0).toISOString());
+  }
+  if (fHasta) {
+    const [y, m, d] = fHasta.split('-').map(Number);
+    query = query.lte('created_at', new Date(y, m - 1, d, 23, 59, 59, 999).toISOString());
   }
   if (obraId) query = query.eq('obra_id', obraId);
   if (tipo)   query = query.eq('tipo', tipo);
 
   const { data, error } = await query;
 
-  if (error) { document.getElementById('badge-total').textContent = 'Error'; document.getElementById('tabla-incidencias').innerHTML = '<div class="vacio">Error al cargar: ' + esc(error.message) + '</div>'; return; }
+  if (error) {
+    document.getElementById('badge-total').textContent = 'Error';
+    document.getElementById('tabla-incidencias').innerHTML = '<div class="vacio">Error al cargar: ' + esc(error.message) + '</div>';
+    document.getElementById('resumen').innerHTML = '<div class="vacio">—</div>';
+    return;
+  }
 
-  if (!data || data.length === 0) { document.getElementById('badge-total').textContent = '0 incidencias'; document.getElementById('tabla-incidencias').innerHTML = '<div class="vacio">No hay incidencias ✓</div>'; return; }
+  datosActuales = data || [];
+  pintarResumen(datosActuales);
+  pintarListado(datosActuales);
+}
 
-  document.getElementById('badge-total').textContent = data.length + ' incidencias';
+// ===== Causas: cada incidencia puede aportar una o varias causas =====
+// bloqueo_rojo nuevo: detalle = JSON array de motivos → una causa por motivo
+// bloqueo_rojo antiguo: texto genérico → "Documentación en rojo (sin detalle)"
+// fuera_de_zona: causa fija "Fuera de zona GPS"
+function causasDenegacion(inc) {
+  if (inc.tipo === 'fuera_de_zona') return ['Fuera de zona GPS'];
+  if (inc.tipo !== 'bloqueo_rojo') return null; // no es denegación
+  const det = (inc.detalle || '').trim();
+  try {
+    const arr = JSON.parse(det);
+    if (Array.isArray(arr) && arr.length > 0) return arr.map(x => String(x).trim()).filter(Boolean);
+  } catch (e) { /* no es JSON: registro antiguo */ }
+  return ['Documentación en rojo (sin detalle)'];
+}
+
+// ===== Resumen: cuenta TRABAJADORES DISTINTOS por causa (no intentos) =====
+function calcularResumen(incs) {
+  const porCausa = new Map();          // causa → Set(trabajador_id)
+  const porObra  = new Map();          // obra → Set("trabajador|causa")
+  const trabajadoresDenegados = new Set();
+
+  incs.forEach(i => {
+    const causas = causasDenegacion(i);
+    if (!causas) return;
+    const tid = i.trabajador_id || 'desconocido';
+    const obraNombre = i.obra?.nombre || 'Obra desconocida';
+    trabajadoresDenegados.add(tid);
+    causas.forEach(c => {
+      if (!porCausa.has(c)) porCausa.set(c, new Set());
+      porCausa.get(c).add(tid);
+      if (!porObra.has(obraNombre)) porObra.set(obraNombre, new Set());
+      porObra.get(obraNombre).add(tid + '|' + c);
+    });
+  });
+
+  const causas = [...porCausa.entries()]
+    .map(([causa, set]) => ({ causa, n: set.size }))
+    .sort((a, b) => b.n - a.n);
+  const obras = [...porObra.entries()]
+    .map(([obra, set]) => ({ obra, n: set.size }))
+    .sort((a, b) => b.n - a.n);
+  const totalIncidencias = causas.reduce((s, c) => s + c.n, 0);
+
+  return { causas, obras, totalIncidencias, totalTrabajadores: trabajadoresDenegados.size };
+}
+
+function pintarResumen(incs) {
+  const r = calcularResumen(incs);
+  document.getElementById('badge-resumen').textContent =
+    r.totalIncidencias + ' incidencias · ' + r.totalTrabajadores + ' trabajadores';
+
+  if (r.totalIncidencias === 0) {
+    document.getElementById('resumen').innerHTML = '<div class="vacio">Sin accesos denegados en el periodo ✓</div>';
+    return;
+  }
+
+  document.getElementById('resumen').innerHTML = `
+    <div class="resumen-grid">
+      <div class="resumen-col">
+        <h3>Por causa (trabajadores distintos)</h3>
+        <table><tbody>
+          ${r.causas.map(c => `<tr>
+            <td>${iconoCausa(c.causa)} ${esc(c.causa)}</td>
+            <td style="text-align:right; width:80px;"><span class="num-grande ${c.causa === 'Fuera de zona GPS' ? 'num-naranja' : 'num-rojo'}">${c.n}</span></td>
+          </tr>`).join('')}
+        </tbody></table>
+      </div>
+      <div class="resumen-col">
+        <h3>Por obra</h3>
+        <table><tbody>
+          ${r.obras.map(o => `<tr>
+            <td>🏗 ${esc(o.obra)}</td>
+            <td style="text-align:right; width:80px;"><span class="num-grande">${o.n}</span></td>
+          </tr>`).join('')}
+        </tbody></table>
+      </div>
+    </div>`;
+}
+
+function iconoCausa(c) {
+  return c === 'Fuera de zona GPS' ? '📍' : '🔴';
+}
+
+// ===== Listado detallado =====
+function pintarListado(data) {
+  if (!data || data.length === 0) {
+    document.getElementById('badge-total').textContent = '0 incidencias';
+    document.getElementById('tabla-incidencias').innerHTML = '<div class="vacio">No hay incidencias ✓</div>';
+    return;
+  }
+  document.getElementById('badge-total').textContent = data.length + ' registros';
   document.getElementById('tabla-incidencias').innerHTML = `
     <table><thead><tr>
       <th>Trabajador</th><th>DNI</th><th>Obra</th><th>Tipo</th><th>Detalle</th><th>Fecha y hora</th>
@@ -170,10 +351,21 @@ async function buscar() {
       <td>${esc(i.trabajador?.dni)}</td>
       <td>${esc(i.obra?.nombre)}</td>
       <td><span class="pill ${colorTipo(i.tipo)}">${esc(i.tipo)}</span></td>
-      <td class="detalle-celda">${esc(i.detalle || '—')}${i.comentario ? `<div class="comentario">${esc(i.comentario)}</div>` : ''}</td>
+      <td class="detalle-celda">${detalleBonito(i)}${i.comentario ? `<div class="comentario">${esc(i.comentario)}</div>` : ''}</td>
       <td>${formatFechaHora(i.created_at)}</td>
     </tr>`).join('')}
     </tbody></table>`;
+}
+
+// Si el detalle es un JSON array de motivos, mostrarlo legible
+function detalleBonito(i) {
+  const det = (i.detalle || '').trim();
+  if (!det) return '—';
+  try {
+    const arr = JSON.parse(det);
+    if (Array.isArray(arr)) return arr.map(m => '• ' + esc(String(m))).join('<br>');
+  } catch (e) { /* texto normal */ }
+  return esc(det);
 }
 
 function colorTipo(tipo) {
@@ -184,8 +376,72 @@ function colorTipo(tipo) {
   return 'gris';
 }
 
+// ===== Informe imprimible =====
+document.getElementById('btn-imprimir').onclick = () => {
+  const r = calcularResumen(datosActuales);
+  const fDesde = document.getElementById('filtro-desde').value;
+  const fHasta = document.getElementById('filtro-hasta').value;
+  const selObra = document.getElementById('filtro-obra');
+  const obraNombre = selObra.value ? selObra.options[selObra.selectedIndex].text : 'Todas las obras';
+  const periodo = (fDesde ? formatFecha(fDesde) : 'inicio') + ' — ' + (fHasta ? formatFecha(fHasta) : 'hoy');
+
+  // Detalle del informe: solo denegaciones, deduplicadas por trabajador+causa
+  const vistos = new Set();
+  const filas = [];
+  // Recorremos de más antiguo a más reciente para quedarnos con la primera vez
+  [...datosActuales].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)).forEach(i => {
+    const causas = causasDenegacion(i);
+    if (!causas) return;
+    causas.forEach(c => {
+      const clave = (i.trabajador_id || '?') + '|' + c;
+      if (vistos.has(clave)) return;
+      vistos.add(clave);
+      filas.push({
+        nombre: ((i.trabajador?.nombre || '') + ' ' + (i.trabajador?.apellidos || '')).trim() || '—',
+        dni: i.trabajador?.dni || '—',
+        obra: i.obra?.nombre || '—',
+        causa: c,
+        fecha: formatFechaHora(i.created_at)
+      });
+    });
+  });
+
+  document.getElementById('informe-print').innerHTML = `
+    <h1>Informe de incidencias de acceso</h1>
+    <div class="sub">
+      Obra: <strong>${esc(obraNombre)}</strong> &nbsp;·&nbsp;
+      Periodo: <strong>${esc(periodo)}</strong> &nbsp;·&nbsp;
+      Generado: ${new Date().toLocaleDateString('es-ES')} ${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+    </div>
+
+    <div class="total-linea">Total: ${r.totalIncidencias} incidencias · ${r.totalTrabajadores} trabajadores afectados</div>
+
+    <h2>Resumen por causa</h2>
+    <table><thead><tr><th>Causa de la denegación</th><th style="width:120px;">Trabajadores</th></tr></thead><tbody>
+      ${r.causas.length ? r.causas.map(c => `<tr><td>${esc(c.causa)}</td><td>${c.n}</td></tr>`).join('') : '<tr><td colspan="2">Sin denegaciones en el periodo</td></tr>'}
+    </tbody></table>
+
+    <h2>Resumen por obra</h2>
+    <table><thead><tr><th>Obra</th><th style="width:120px;">Incidencias</th></tr></thead><tbody>
+      ${r.obras.length ? r.obras.map(o => `<tr><td>${esc(o.obra)}</td><td>${o.n}</td></tr>`).join('') : '<tr><td colspan="2">—</td></tr>'}
+    </tbody></table>
+
+    <h2>Detalle (primera vez registrada de cada caso)</h2>
+    <table><thead><tr><th>Trabajador</th><th>DNI</th><th>Obra</th><th>Causa</th><th>Fecha</th></tr></thead><tbody>
+      ${filas.length ? filas.map(f => `<tr><td>${esc(f.nombre)}</td><td>${esc(f.dni)}</td><td>${esc(f.obra)}</td><td>${esc(f.causa)}</td><td>${esc(f.fecha)}</td></tr>`).join('') : '<tr><td colspan="5">Sin denegaciones en el periodo</td></tr>'}
+    </tbody></table>
+
+    <div class="pie">
+      Cada caso cuenta una vez por trabajador y causa, aunque haya habido varios intentos.
+      Generado con Fichaje Obras — Bosch Pascual / Rècop.
+    </div>`;
+
+  window.print();
+};
+
 function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
 function formatFechaHora(iso) { if (!iso) return '—'; const d = new Date(iso); return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); }
+function formatFecha(isoFecha) { const [y, m, d] = isoFecha.split('-'); return d + '/' + m + '/' + y; }
 </script>
 </body>
 </html>
