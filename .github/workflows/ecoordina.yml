@@ -1,12 +1,14 @@
 name: e-Coordina · sincronización diaria
 
-# Ejecución automática L-V a las 04:00 UTC (= 06:00 España en VERANO).
-# ⚠️ Cambio de hora de octubre: pasar a '0 5 * * 1-5' (CET = UTC+1).
+# Ejecución automática L-V a las 02:43 UTC (= 04:43 España en VERANO).
+# Minuto "raro" a propósito: los crons a en-punto (ej. '0 4') se retrasan
+# horas en GitHub por congestión. Con minuto impar el retraso es mínimo.
+# ⚠️ Cambio de hora de octubre: pasar a '43 3 * * 1-5' (CET = UTC+1).
 # También se puede lanzar a mano desde la pestaña Actions (workflow_dispatch).
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 4 * * 1-5'
+    - cron: '43 2 * * 1-5'
 
 jobs:
   sincronizar:
