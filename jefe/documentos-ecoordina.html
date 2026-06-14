@@ -347,6 +347,9 @@ let empresasPropias = new Set();
 // P-06: set de claves normalizadas de empresas con contrato vigente en la obra procesada
 let contratosVigentes = new Set(); // claves igual que empresasPropias: "NOMBRE|CIF", "NOMBRE:X", "CIF:X"
 
+// P-14: set de claves normalizadas de empresas con libro de subcontratación vigente en la obra procesada
+let librosVigentes = new Set(); // mismas claves que contratosVigentes
+
 // Documentos que solo aplican al Recurso Preventivo designado y que, por tanto,
 // NO deben heredarse a trabajadores de subcontratas.
 const DOCS_SOLO_RP = [
@@ -546,6 +549,38 @@ function tieneContratoVigente(empresaRaw) {
   if (nNombre && nCif && contratosVigentes.has(`${nNombre}|${nCif}`)) return true;
   if (nNombre && contratosVigentes.has(`NOMBRE:${nNombre}`)) return true;
   if (nCif && contratosVigentes.has(`CIF:${nCif}`)) return true;
+  return false;
+}
+
+// P-14: cargar empresas con libro de subcontratación vigente para la obra procesada.
+async function cargarLibrosVigentes(obraId) {
+  librosVigentes = new Set();
+  if (!obraId) return;
+  const hoy = new Date().toISOString().slice(0, 10);
+  const { data, error } = await sb
+    .from('libros_subcontratacion')
+    .select('empresa:empresa_id(nombre, cif)')
+    .eq('obra_id', obraId)
+    .lte('valido_desde', hoy)
+    .or(`valido_hasta.is.null,valido_hasta.gte.${hoy}`);
+  if (error) { console.error('Error cargando libros de subcontratación:', error); return; }
+  for (const l of (data || [])) {
+    const nNombre = normalizar(l.empresa?.nombre);
+    const nCif = normalizar(l.empresa?.cif);
+    if (nNombre && nCif) librosVigentes.add(`${nNombre}|${nCif}`);
+    if (nNombre) librosVigentes.add(`NOMBRE:${nNombre}`);
+    if (nCif) librosVigentes.add(`CIF:${nCif}`);
+  }
+}
+
+function tieneLibroVigente(empresaRaw) {
+  if (!empresaRaw) return false;
+  const { nombre, cif } = extraerEmpresa(empresaRaw);
+  const nNombre = normalizar(nombre);
+  const nCif = normalizar(cif);
+  if (nNombre && nCif && librosVigentes.has(`${nNombre}|${nCif}`)) return true;
+  if (nNombre && librosVigentes.has(`NOMBRE:${nNombre}`)) return true;
+  if (nCif && librosVigentes.has(`CIF:${nCif}`)) return true;
   return false;
 }
 
@@ -749,6 +784,9 @@ async function procesarExcel() {
   // P-06: cargar contratos vigentes para esta obra
   await cargarContratosVigentes(obraId);
 
+  // P-14: cargar libros de subcontratación vigentes para esta obra
+  await cargarLibrosVigentes(obraId);
+
   // Separar filas empresa / trabajador (solo las de esta obra)
   const filasEmpresa = [];
   const filasTrabajador = [];
@@ -841,6 +879,12 @@ async function procesarExcel() {
     if (!empresaEsPropia && !tieneContratoVigente(info.empresaRaw)) {
       estadoFinal = 'rojo';
       motivos.push('Sin contrato entre empresas → rojo');
+    }
+
+    // P-14: subcontratas sin libro de subcontratación vigente → rojo directo (independiente del contrato)
+    if (!empresaEsPropia && !tieneLibroVigente(info.empresaRaw)) {
+      estadoFinal = 'rojo';
+      motivos.push('Sin libro de subcontratación → rojo');
     }
 
     // ── Subsunción: Formación 60h implica Formación 20h ──────────────────────
