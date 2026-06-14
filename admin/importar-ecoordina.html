@@ -303,10 +303,12 @@ async function analizarTodas() {
 
     const filasObra = EI.filtrarPorCentro(filasArchivo, obra.ecoordina_centro);
     const contratosVigentes = await EI.cargarContratosVigentes(sb, obra.id);
+    const librosVigentes = await EI.cargarLibrosVigentes(sb, obra.id);
     const { resultadoFinal, sinRegla } = EI.calcularResultado(filasObra, {
       reglas: ctxGlobal.reglas,
       empresasPropias: ctxGlobal.empresasPropias,
       contratosVigentes,
+      librosVigentes,
       trabajadoresApp: ctxGlobal.trabajadoresApp
     });
 
