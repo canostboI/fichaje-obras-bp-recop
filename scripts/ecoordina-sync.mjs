@@ -102,6 +102,7 @@ function peorEstado(a, b) {
 let reglas = [];
 let empresasPropias = new Set();
 let contratosVigentes = new Set();
+let librosVigentes = new Set();
 
 function aplicarRegla(nombreDoc, estadoEcoordina, tipoAplica) {
   let regla = reglas.find(r => r.aplica_a === tipoAplica && r.nombre_documento === nombreDoc && r.estado_ecoordina === estadoEcoordina);
@@ -126,6 +127,16 @@ function tieneContratoVigente(empresaRaw) {
   if (nNombre && nCif && contratosVigentes.has(`${nNombre}|${nCif}`)) return true;
   if (nNombre && contratosVigentes.has(`NOMBRE:${nNombre}`)) return true;
   if (nCif && contratosVigentes.has(`CIF:${nCif}`)) return true;
+  return false;
+}
+function tieneLibroVigente(empresaRaw) {
+  if (!empresaRaw) return false;
+  const { nombre, cif } = extraerEmpresa(empresaRaw);
+  const nNombre = normalizar(nombre);
+  const nCif = normalizar(cif);
+  if (nNombre && nCif && librosVigentes.has(`${nNombre}|${nCif}`)) return true;
+  if (nNombre && librosVigentes.has(`NOMBRE:${nNombre}`)) return true;
+  if (nCif && librosVigentes.has(`CIF:${nCif}`)) return true;
   return false;
 }
 
@@ -236,6 +247,11 @@ function calcularResultadoObra(filasObra, trabajadoresApp) {
     if (!empresaEsPropia && !tieneContratoVigente(info.empresaRaw)) {
       estadoFinal = 'rojo';
       motivos.push('Sin contrato entre empresas → rojo');
+    }
+
+    if (!empresaEsPropia && !tieneLibroVigente(info.empresaRaw)) {
+      estadoFinal = 'rojo';
+      motivos.push('Sin libro de subcontratación → rojo');
     }
 
     const tiene60hValidada = info.docs.some(d =>
@@ -422,6 +438,21 @@ async function main() {
       if (nNombre && nCif) contratosVigentes.add(`${nNombre}|${nCif}`);
       if (nNombre) contratosVigentes.add(`NOMBRE:${nNombre}`);
       if (nCif) contratosVigentes.add(`CIF:${nCif}`);
+    }
+
+    // Libros de subcontratación vigentes de esta obra (P-14)
+    librosVigentes = new Set();
+    const { data: libros, error: lErr } = await sb.from('libros_subcontratacion')
+      .select('empresa:empresa_id(nombre, cif)')
+      .eq('obra_id', obra.id)
+      .lte('valido_desde', hoy)
+      .or(`valido_hasta.is.null,valido_hasta.gte.${hoy}`);
+    if (lErr) { log(`   ⚠ error cargando libros de subcontratación de ${obra.nombre}:`, lErr.message); }
+    for (const l of (libros || [])) {
+      const nNombre = normalizar(l.empresa?.nombre), nCif = normalizar(l.empresa?.cif);
+      if (nNombre && nCif) librosVigentes.add(`${nNombre}|${nCif}`);
+      if (nNombre) librosVigentes.add(`NOMBRE:${nNombre}`);
+      if (nCif) librosVigentes.add(`CIF:${nCif}`);
     }
 
     const resultado = calcularResultadoObra(filasObra, trabajadoresApp);
