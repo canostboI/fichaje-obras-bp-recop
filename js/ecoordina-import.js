@@ -121,6 +121,17 @@ window.EcoordinaImport = (function () {
     return false;
   }
 
+  function tieneLibroVigente(librosVigentes, empresaRaw) {
+    if (!empresaRaw) return false;
+    const { nombre, cif } = extraerEmpresa(empresaRaw);
+    const nNombre = normalizar(nombre);
+    const nCif = normalizar(cif);
+    if (nNombre && nCif && librosVigentes.has(`${nNombre}|${nCif}`)) return true;
+    if (nNombre && librosVigentes.has(`NOMBRE:${nNombre}`)) return true;
+    if (nCif && librosVigentes.has(`CIF:${nCif}`)) return true;
+    return false;
+  }
+
   // ── Parseo de archivo (usa XLSX global) ───────────────────────────────────
   function convertirWorkbookAFilas(wb) {
     const ws = wb.Sheets[wb.SheetNames[0]];
@@ -223,6 +234,26 @@ window.EcoordinaImport = (function () {
     return set;
   }
 
+  async function cargarLibrosVigentes(sb, obraId) {
+    const set = new Set();
+    if (!obraId) return set;
+    const hoy = new Date().toISOString().slice(0, 10);
+    const { data, error } = await sb.from('libros_subcontratacion')
+      .select('empresa:empresa_id(nombre, cif)')
+      .eq('obra_id', obraId)
+      .lte('valido_desde', hoy)
+      .or(`valido_hasta.is.null,valido_hasta.gte.${hoy}`);
+    if (error) { console.error('Error cargando libros de subcontratación:', error); return set; }
+    for (const l of (data || [])) {
+      const nNombre = normalizar(l.empresa?.nombre);
+      const nCif = normalizar(l.empresa?.cif);
+      if (nNombre && nCif) set.add(`${nNombre}|${nCif}`);
+      if (nNombre) set.add(`NOMBRE:${nNombre}`);
+      if (nCif) set.add(`CIF:${nCif}`);
+    }
+    return set;
+  }
+
   async function cargarTrabajadoresApp(sb) {
     const map = {};
     const { data, error } = await sb.from('trabajadores').select('id, nombre, dni');
@@ -259,6 +290,7 @@ window.EcoordinaImport = (function () {
     const reglas = ctx.reglas || [];
     const empresasPropias = ctx.empresasPropias || new Set();
     const contratosVigentes = ctx.contratosVigentes || new Set();
+    const librosVigentes = ctx.librosVigentes || new Set();
     const trabajadoresApp = ctx.trabajadoresApp || {};
     const sinRegla = new Set();
 
@@ -351,6 +383,12 @@ window.EcoordinaImport = (function () {
       if (!empresaEsPropia && !tieneContratoVigente(contratosVigentes, info.empresaRaw)) {
         estadoFinal = 'rojo';
         motivos.push('Sin contrato entre empresas → rojo');
+      }
+
+      // Subcontratas sin libro de subcontratación vigente → rojo directo (check independiente del contrato).
+      if (!empresaEsPropia && !tieneLibroVigente(librosVigentes, info.empresaRaw)) {
+        estadoFinal = 'rojo';
+        motivos.push('Sin libro de subcontratación → rojo');
       }
 
       // Subsunción: Formación 60h validada cubre el requisito de Formación 20h.
@@ -506,6 +544,7 @@ window.EcoordinaImport = (function () {
     esDocSoloRP,
     esEmpresaPropia,
     tieneContratoVigente,
+    tieneLibroVigente,
     convertirWorkbookAFilas,
     parsearContenido,
     leerArchivo,
@@ -514,6 +553,7 @@ window.EcoordinaImport = (function () {
     cargarReglas,
     cargarEmpresasPropias,
     cargarContratosVigentes,
+    cargarLibrosVigentes,
     cargarTrabajadoresApp,
     cargarDnisEnObra,
     calcularResultado,
