@@ -62,6 +62,22 @@ window.EcoordinaImport = (function () {
     return { nombre: texto.trim(), cif: '' };
   }
 
+  // Devuelve las palabras de un nombre, normalizadas y ordenadas, para poder
+  // compararlas sin importar el orden ni las comas (apellidos, nombre / nombre apellidos).
+  function tokensNombre(s) {
+    return normalizar(String(s || '').replace(/,/g, ' '))
+      .split(' ')
+      .filter(Boolean)
+      .sort();
+  }
+  // ¿El nombre de la empresa coincide con el del trabajador? (= mismo conjunto
+  // de palabras). Es la firma típica de un AUTÓNOMO: la empresa lleva su nombre.
+  function mismosNombres(a, b) {
+    const ta = tokensNombre(a), tb = tokensNombre(b);
+    if (ta.length === 0 || tb.length === 0 || ta.length !== tb.length) return false;
+    return ta.every((t, i) => t === tb[i]);
+  }
+
   // ── Fechas ─────────────────────────────────────────────────────────────────
   function parsearFechaEcoordina(texto) {
     if (!texto) return null;
@@ -344,10 +360,16 @@ window.EcoordinaImport = (function () {
 
     // Problemas por empresa (documentos de empresa sin regla → naranja por seguridad)
     const problemasPorEmpresa = {};
+    // Empresas con una Formación de 60h validada a nivel de empresa. Sirve para
+    // acreditar el 60h de los AUTÓNOMOS, cuyo curso cuelga de la empresa (= ellos).
+    const empresasCon60hValidada = new Set();
     for (const fila of filasEmpresa) {
       const empresaRaw = String(fila['Empresa'] || '').trim();
       if (!empresaRaw) continue;
       const nombreDoc = fila['Documento'] || '', estado = fila['Estado'] || '';
+      if (estado === 'Validado' && String(nombreDoc).startsWith('Formación 60 horas')) {
+        empresasCon60hValidada.add(empresaRaw);
+      }
       if (estado === 'Validado') continue;
       const regla = aplicarRegla(reglas, nombreDoc, estado, 'empresa');
       if (regla) {
@@ -392,9 +414,12 @@ window.EcoordinaImport = (function () {
       }
 
       // Subsunción: Formación 60h validada cubre el requisito de Formación 20h.
-      const tiene60hValidada = info.docs.some(d =>
-        d.doc.startsWith('Formación 60 horas') && d.estado === 'Validado'
-      );
+      // Cuenta tanto si el 60h cuelga del propio trabajador como si, siendo
+      // AUTÓNOMO (la empresa lleva su nombre), su 60h validado cuelga de la empresa.
+      const esAutonomo = mismosNombres(info.nombre, extraerEmpresa(info.empresaRaw).nombre);
+      const tiene60hValidada =
+        info.docs.some(d => d.doc.startsWith('Formación 60 horas') && d.estado === 'Validado') ||
+        (esAutonomo && empresasCon60hValidada.has(info.empresaRaw));
 
       for (const { doc, estado } of info.docs) {
         if (estado === 'Validado') continue;
