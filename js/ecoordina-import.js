@@ -407,14 +407,13 @@ window.EcoordinaImport = (function () {
         motivos.push('Sin contrato entre empresas → rojo');
       }
 
-      // Subcontratas sin libro de subcontratación vigente → AVISO (naranja), no bloqueo.
-      // TEMPORAL (16/6/2026): el control se rebaja de rojo a naranja mientras se
-      // cargan los libros en la app (P-14 se activó sin datos cargados y bloqueó la
-      // obra entera). Para reactivar el bloqueo, volver a poner estadoFinal = 'rojo'
-      // y el texto '→ rojo'. Ver ESTADO.md.
+      // Subcontratas que no han firmado el libro de subcontratación → rojo.
+      // Reactivado el 16/6/2026 tras cargar las firmas reales en la app
+      // (firma registrada = fila vigente en libros_subcontratacion). Empresas
+      // propias exentas. Ver ESTADO.md.
       if (!empresaEsPropia && !tieneLibroVigente(librosVigentes, info.empresaRaw)) {
-        estadoFinal = peorEstado(estadoFinal, 'naranja');
-        motivos.push('Sin libro de subcontratación → naranja (pendiente de cargar el libro)');
+        estadoFinal = 'rojo';
+        motivos.push('No ha firmado el libro de subcontratación → rojo');
       }
 
       // Subsunción: Formación 60h validada cubre el requisito de Formación 20h.
