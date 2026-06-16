@@ -712,7 +712,7 @@ async function exportarExcelMensual() {
 }
 
 async function obtenerObra(obraId) {
-  const { data, error } = await sb.from('obras').select('id, nombre, numero_obra, empresa_marca').eq('id', obraId).single();
+  const { data, error } = await sb.from('obras').select('id, nombre, numero_obra, empresa_marca, hora_entrada_default, hora_salida_default').eq('id', obraId).single();
   if (error) throw error;
   return data;
 }
