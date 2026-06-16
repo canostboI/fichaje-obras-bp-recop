@@ -112,7 +112,10 @@
       nombresEmpresa
         .sort((a, b) => a.localeCompare(b, 'es'))
         .forEach(nombreEmpresa => {
-          const trabajadores = construirResumenTrabajadores(grupos[nombreEmpresa], diasMes);
+          const trabajadores = construirResumenTrabajadores(
+            grupos[nombreEmpresa], diasMes,
+            { horaEntrada: obra && obra.hora_entrada_default, horaSalida: obra && obra.hora_salida_default }
+          );
           trabajadores.forEach(t => { totalAutocierres += (t.autocierres_mes || 0); });
           crearHojaEmpresa(workbook, {
             obra, nombreEmpresa, mes, year, month, diasMes,
@@ -137,7 +140,9 @@
     return grupos;
   }
 
-  function construirResumenTrabajadores(fichajes, diasMes) {
+  function construirResumenTrabajadores(fichajes, diasMes, opts) {
+    const horaEntradaObra = opts && opts.horaEntrada ? opts.horaEntrada : null;
+    const horaSalidaObra  = opts && opts.horaSalida  ? opts.horaSalida  : null;
     const mapa = new Map();
 
     fichajes.forEach(f => {
@@ -179,22 +184,40 @@
       Object.keys(porDia).forEach(diaStr => {
         const dia = Number(diaStr);
         const eventos = porDia[dia].sort((a, b) => a.hora - b.hora);
-        let entrada = null, horas = 0, autocierresDia = 0;
 
+        // Modelo de obra: una entrada al llegar y una salida al irse (la pausa
+        // de comer NO se ficha). Tomamos la primera entrada y la última salida
+        // del día; el descanso se descuenta como bloque sobre el bruto.
+        let primeraEntrada = null, ultimaSalida = null, autocierresDia = 0;
         eventos.forEach(ev => {
           if (ev.tipo === 'entrada') {
-            if (!entrada) entrada = ev.hora;
+            if (!primeraEntrada) primeraEntrada = ev.hora;
           } else if (ev.tipo === 'salida') {
-            if (entrada) {
-              const diff = (ev.hora - entrada) / 3600000;
-              if (diff > 0 && diff < 24) horas += diff;
-              entrada = null;
-            }
+            ultimaSalida = ev.hora;
             if (ev.cierre_automatico) autocierresDia++;
           }
         });
 
-        t.dias[dia] = redondear2(horas);
+        let netoDia = 0;
+        if (primeraEntrada && ultimaSalida && ultimaSalida > primeraEntrada) {
+          let inicio = redondearEntrada(primeraEntrada);
+          let fin    = redondearSalida(ultimaSalida);
+
+          // Suelo: no se paga antes de la hora oficial de entrada de la obra.
+          const suelo = limiteDelDia(primeraEntrada, horaEntradaObra);
+          if (suelo && inicio < suelo) inicio = suelo;
+
+          // Techo: no se pagan horas después de la hora oficial de salida.
+          const techo = limiteDelDia(primeraEntrada, horaSalidaObra);
+          if (techo && fin > techo) fin = techo;
+
+          const bruto = (fin - inicio) / 3600000;
+          if (bruto > 0 && bruto < 24) {
+            netoDia = Math.max(0, bruto - descansoMin(bruto) / 60);
+          }
+        }
+
+        t.dias[dia] = redondear2(netoDia);
         t.dias_autocierre[dia] = autocierresDia;
       });
 
@@ -679,6 +702,55 @@
 
   function redondear2(n) {
     return Math.round((Number(n) || 0) * 100) / 100;
+  }
+
+  // ===== Cálculo de horas: redondeo al cuarto de hora + descanso =====
+  // Reglas de negocio (Decisión A, abril 2026 · cerrada 16/6/2026):
+  // - El redondeo va SIEMPRE en contra de la demora, con margen de cortesía
+  //   de 3 minutos:
+  //     · Entrada: si ficha en los 3 primeros minutos de un cuarto, cuenta
+  //       desde ese cuarto; si se pasa, sube al cuarto siguiente.
+  //     · Salida: si ficha en los 3 últimos minutos antes de un cuarto, le
+  //       cuenta ese cuarto; si no, baja al cuarto anterior.
+  // - No se paga antes de la hora oficial de entrada de la obra (fichar antes
+  //   está permitido, pero no suma): suelo = hora_entrada_default.
+  // - No se pagan horas después de la hora oficial de salida (las extra las
+  //   confirma el jefe aparte): techo = hora_salida_default.
+  // - Descanso proporcional sobre horas brutas: ≤4h → 0 · 4–7h → 30 · ≥7h → 90.
+  const CUARTO_MS   = 15 * 60 * 1000;
+  const CORTESIA_MS = 3 * 60 * 1000;
+
+  function redondearEntrada(fecha) {
+    const ms = fecha.getTime();
+    const base = Math.floor(ms / CUARTO_MS) * CUARTO_MS; // cuarto anterior
+    const resto = ms - base;
+    if (resto <= CORTESIA_MS) return new Date(base);     // cortesía: cuenta desde el cuarto
+    return new Date(base + CUARTO_MS);                   // sube al siguiente
+  }
+
+  function redondearSalida(fecha) {
+    const ms = fecha.getTime();
+    const base = Math.floor(ms / CUARTO_MS) * CUARTO_MS;
+    const resto = ms - base;
+    if (CUARTO_MS - resto <= CORTESIA_MS) return new Date(base + CUARTO_MS); // cortesía
+    return new Date(base);                                                   // baja al anterior
+  }
+
+  // Construye el límite (suelo/techo) del día a partir de una hora "HH:MM"
+  // o "HH:MM:SS". Devuelve null si no hay hora oficial definida.
+  function limiteDelDia(fechaRef, horaStr) {
+    if (!horaStr) return null;
+    const partes = String(horaStr).split(':');
+    const h = Number(partes[0]);
+    const m = Number(partes[1] || 0);
+    if (isNaN(h)) return null;
+    return new Date(fechaRef.getFullYear(), fechaRef.getMonth(), fechaRef.getDate(), h, m, 0, 0);
+  }
+
+  function descansoMin(brutoH) {
+    if (brutoH <= 4) return 0;
+    if (brutoH < 7) return 30;
+    return 90;
   }
 
   // API pública.
