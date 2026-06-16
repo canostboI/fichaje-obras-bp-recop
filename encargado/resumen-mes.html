@@ -317,6 +317,15 @@
     const [year, month] = mes.split('-').map(Number);
     const diasMes = new Date(year, month, 0).getDate();
 
+    // Horas oficiales de la obra (suelo/techo del cómputo de horas).
+    let horasObra = { entrada: null, salida: null };
+    try {
+      const { data: obraInfo } = await sb.from('obras')
+        .select('hora_entrada_default, hora_salida_default')
+        .eq('id', obraActualId).single();
+      if (obraInfo) horasObra = { entrada: obraInfo.hora_entrada_default, salida: obraInfo.hora_salida_default };
+    } catch (e) { /* sin horas oficiales: el cálculo simplemente no aplica suelo/techo */ }
+
     const grupos = window.ExcelProforma.agruparPorEmpresa(fichajes);
     const nombresEmpresa = Object.keys(grupos).sort((a, b) => a.localeCompare(b, 'es'));
 
@@ -324,7 +333,10 @@
     let totalAutocierres = 0;
 
     nombresEmpresa.forEach(nombreEmpresa => {
-      const trabajadores = window.ExcelProforma.construirResumenTrabajadores(grupos[nombreEmpresa], diasMes);
+      const trabajadores = window.ExcelProforma.construirResumenTrabajadores(
+        grupos[nombreEmpresa], diasMes,
+        { horaEntrada: horasObra.entrada, horaSalida: horasObra.salida }
+      );
       trabajadores.forEach(t => { totalAutocierres += (t.autocierres_mes || 0); });
       html += renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes);
     });
