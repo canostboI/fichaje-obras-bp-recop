@@ -886,13 +886,13 @@ async function procesarExcel() {
       motivos.push('Sin contrato entre empresas → rojo');
     }
 
-    // P-14: subcontratas sin libro de subcontratación vigente.
-    // TEMPORAL (16/6/2026): rebajado de rojo a AVISO (naranja) mientras se cargan los
-    // libros en la app (se activó sin datos y bloqueó la obra entera). Para reactivar
-    // el bloqueo, volver a poner estadoFinal = 'rojo' y el texto '→ rojo'. Ver ESTADO.md.
+    // P-14: subcontratas que no han firmado el libro de subcontratación → rojo.
+    // Reactivado el 16/6/2026 tras cargar las firmas reales en la app
+    // (firma registrada = fila vigente en libros_subcontratacion). Empresas
+    // propias exentas. Ver ESTADO.md.
     if (!empresaEsPropia && !tieneLibroVigente(info.empresaRaw)) {
-      estadoFinal = peorEstado(estadoFinal, 'naranja');
-      motivos.push('Sin libro de subcontratación → naranja (pendiente de cargar el libro)');
+      estadoFinal = 'rojo';
+      motivos.push('No ha firmado el libro de subcontratación → rojo');
     }
 
     // ── Subsunción: Formación 60h implica Formación 20h ──────────────────────
