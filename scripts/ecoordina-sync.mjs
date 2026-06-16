@@ -268,9 +268,13 @@ function calcularResultadoObra(filasObra, trabajadoresApp) {
       motivos.push('Sin contrato entre empresas → rojo');
     }
 
+    // TEMPORAL (16/6/2026): sin libro → AVISO (naranja), no bloqueo. El control de
+    // libro se rebajó de rojo a naranja mientras se cargan los libros en la app
+    // (P-14 se activó sin datos y bloqueó la obra entera). Para reactivar el bloqueo,
+    // volver a poner estadoFinal = 'rojo' y el texto '→ rojo'. Ver ESTADO.md.
     if (!empresaEsPropia && !tieneLibroVigente(info.empresaRaw)) {
-      estadoFinal = 'rojo';
-      motivos.push('Sin libro de subcontratación → rojo');
+      estadoFinal = peorEstado(estadoFinal, 'naranja');
+      motivos.push('Sin libro de subcontratación → naranja (pendiente de cargar el libro)');
     }
 
     // Subsunción: Formación 60h validada cubre el requisito de Formación 20h.
