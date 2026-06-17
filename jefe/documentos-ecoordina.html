@@ -344,6 +344,10 @@ let dnisEnObra = {}; // dni -> { trabajador_id, nombre, estado }
 // porque el texto que viene de e-Coordina puede tener formatos variados.
 let empresasPropias = new Set();
 
+// Autónomos sin asalariados (empresas.es_autonomo_sin_asalariados = true).
+// Mismo formato de claves que empresasPropias.
+let autonomosSolos = new Set();
+
 // P-06: set de claves normalizadas de empresas con contrato vigente en la obra procesada
 let contratosVigentes = new Set(); // claves igual que empresasPropias: "NOMBRE|CIF", "NOMBRE:X", "CIF:X"
 
@@ -355,6 +359,13 @@ let librosVigentes = new Set(); // mismas claves que contratosVigentes
 const DOCS_SOLO_RP = [
   'Nombramiento del Recurso Preventivo',
   'Formación 60 horas (Nivel básico) del Recurso preventivo'
+];
+
+// Documentos de PRL que solo aplican a empresas con plantilla. A un autónomo
+// sin asalariados (marcado en la app) se le perdonan. Anclas cortas.
+const DOCS_SOLO_PLANTILLA = [
+  'Modalidad Preventiva adoptada',
+  'Evaluación de riesgos'
 ];
 
 function escHtml(valor) {
@@ -390,6 +401,17 @@ function esDocSoloRP(nombreDoc) {
   return false;
 }
 
+// Comprueba si un nombre de documento es de los que solo aplican a empresas con plantilla
+function esDocSoloPlantilla(nombreDoc) {
+  const norm = normalizar(nombreDoc);
+  for (const ref of DOCS_SOLO_PLANTILLA) {
+    const refNorm = normalizar(ref);
+    if (norm === refNorm) return true;
+    if (norm.includes(refNorm)) return true;
+  }
+  return false;
+}
+
 // Comprueba si una empresa (texto crudo de e-Coordina, formato "NOMBRE - CIF")
 // está en el conjunto de empresas propias.
 function esEmpresaPropia(empresaRaw) {
@@ -400,6 +422,18 @@ function esEmpresaPropia(empresaRaw) {
   if (nNombre && nCif && empresasPropias.has(`${nNombre}|${nCif}`)) return true;
   if (nNombre && empresasPropias.has(`NOMBRE:${nNombre}`)) return true;
   if (nCif && empresasPropias.has(`CIF:${nCif}`)) return true;
+  return false;
+}
+
+// Comprueba si una empresa está marcada como autónomo sin asalariados.
+function esAutonomoSinAsalariados(empresaRaw) {
+  if (!empresaRaw) return false;
+  const { nombre, cif } = extraerEmpresa(empresaRaw);
+  const nNombre = normalizar(nombre);
+  const nCif = normalizar(cif);
+  if (nNombre && nCif && autonomosSolos.has(`${nNombre}|${nCif}`)) return true;
+  if (nNombre && autonomosSolos.has(`NOMBRE:${nNombre}`)) return true;
+  if (nCif && autonomosSolos.has(`CIF:${nCif}`)) return true;
   return false;
 }
 
@@ -425,6 +459,7 @@ async function init() {
     await cargarObras();
     await cargarReglas();
     await cargarEmpresasPropias();
+    await cargarAutonomosSolos();
   } catch (err) {
     console.error('Error arrancando e-Coordina:', err);
     alert('Error arrancando e-Coordina: ' + (err.message || err));
@@ -516,6 +551,28 @@ async function cargarEmpresasPropias() {
     if (nNombre && nCif) empresasPropias.add(`${nNombre}|${nCif}`);
     if (nNombre) empresasPropias.add(`NOMBRE:${nNombre}`);
     if (nCif) empresasPropias.add(`CIF:${nCif}`);
+  }
+}
+
+// Carga las empresas marcadas como autónomo sin asalariados.
+async function cargarAutonomosSolos() {
+  autonomosSolos = new Set();
+  const { data, error } = await sb
+    .from('empresas')
+    .select('nombre, cif, es_autonomo_sin_asalariados')
+    .eq('es_autonomo_sin_asalariados', true);
+
+  if (error) {
+    console.error('Error cargando autónomos sin asalariados:', error);
+    return;
+  }
+
+  for (const e of (data || [])) {
+    const nNombre = normalizar(e.nombre);
+    const nCif = normalizar(e.cif);
+    if (nNombre && nCif) autonomosSolos.add(`${nNombre}|${nCif}`);
+    if (nNombre) autonomosSolos.add(`NOMBRE:${nNombre}`);
+    if (nCif) autonomosSolos.add(`CIF:${nCif}`);
   }
 }
 
@@ -779,6 +836,7 @@ async function procesarExcel() {
   // Por si init() falló al cargar empresas propias, reintentar aquí (idempotente)
   if (empresasPropias.size === 0) {
     await cargarEmpresasPropias();
+    await cargarAutonomosSolos();
   }
 
   // P-06: cargar contratos vigentes para esta obra
@@ -880,6 +938,10 @@ async function procesarExcel() {
     // Si NO lo es, los documentos del Recurso Preventivo NO se le heredan.
     const empresaEsPropia = esEmpresaPropia(info.empresaRaw);
 
+    // ¿Autónomo sin asalariados? Si lo es, se le perdonan los documentos de
+    // empresa de PRL que solo aplican a empresas con plantilla.
+    const empresaEsAutonomoSolo = esAutonomoSinAsalariados(info.empresaRaw);
+
     // P-06: subcontratas sin contrato vigente → rojo directo
     if (!empresaEsPropia && !tieneContratoVigente(info.empresaRaw)) {
       estadoFinal = 'rojo';
@@ -925,6 +987,10 @@ async function procesarExcel() {
       // ── Paso RP-2: NO heredar documentos del Recurso Preventivo
       // a trabajadores de subcontratas (empresas no propias).
       if (!empresaEsPropia && esDocSoloRP(p.doc)) {
+        continue;
+      }
+      // Autónomo sin asalariados: no exigir docs de PRL de empresa con plantilla.
+      if (empresaEsAutonomoSolo && esDocSoloPlantilla(p.doc)) {
         continue;
       }
       estadoFinal = peorEstado(estadoFinal, p.resultado);
