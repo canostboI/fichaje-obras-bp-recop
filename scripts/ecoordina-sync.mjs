@@ -38,6 +38,13 @@ const DOCS_SOLO_RP = [
   'Formación 60 horas (Nivel básico) del Recurso preventivo'
 ];
 
+// Documentos de PRL que solo aplican a empresas con plantilla. A un autónomo
+// sin asalariados (marcado en la app) se le perdonan. Anclas cortas.
+const DOCS_SOLO_PLANTILLA = [
+  'Modalidad Preventiva adoptada',
+  'Evaluación de riesgos'
+];
+
 function log(...a) { console.log(new Date().toISOString(), ...a); }
 
 // ── Helpers portados literalmente del importador web ──────────────────────────
@@ -71,6 +78,15 @@ function mismosNombres(a, b) {
 function esDocSoloRP(nombreDoc) {
   const norm = normalizar(nombreDoc);
   for (const ref of DOCS_SOLO_RP) {
+    const refNorm = normalizar(ref);
+    if (norm === refNorm) return true;
+    if (norm.includes(refNorm)) return true;
+  }
+  return false;
+}
+function esDocSoloPlantilla(nombreDoc) {
+  const norm = normalizar(nombreDoc);
+  for (const ref of DOCS_SOLO_PLANTILLA) {
     const refNorm = normalizar(ref);
     if (norm === refNorm) return true;
     if (norm.includes(refNorm)) return true;
@@ -115,6 +131,7 @@ function peorEstado(a, b) {
 // ── Estado global cargado de Supabase ─────────────────────────────────────────
 let reglas = [];
 let empresasPropias = new Set();
+let autonomosSolos = new Set();
 let contratosVigentes = new Set();
 let librosVigentes = new Set();
 
@@ -131,6 +148,16 @@ function esEmpresaPropia(empresaRaw) {
   if (nNombre && nCif && empresasPropias.has(`${nNombre}|${nCif}`)) return true;
   if (nNombre && empresasPropias.has(`NOMBRE:${nNombre}`)) return true;
   if (nCif && empresasPropias.has(`CIF:${nCif}`)) return true;
+  return false;
+}
+function esAutonomoSinAsalariados(empresaRaw) {
+  if (!empresaRaw) return false;
+  const { nombre, cif } = extraerEmpresa(empresaRaw);
+  const nNombre = normalizar(nombre);
+  const nCif = normalizar(cif);
+  if (nNombre && nCif && autonomosSolos.has(`${nNombre}|${nCif}`)) return true;
+  if (nNombre && autonomosSolos.has(`NOMBRE:${nNombre}`)) return true;
+  if (nCif && autonomosSolos.has(`CIF:${nCif}`)) return true;
   return false;
 }
 function tieneContratoVigente(empresaRaw) {
@@ -262,6 +289,7 @@ function calcularResultadoObra(filasObra, trabajadoresApp) {
     const motivos = [];
 
     const empresaEsPropia = esEmpresaPropia(info.empresaRaw);
+    const empresaEsAutonomoSolo = esAutonomoSinAsalariados(info.empresaRaw);
 
     if (!empresaEsPropia && !tieneContratoVigente(info.empresaRaw)) {
       estadoFinal = 'rojo';
@@ -300,6 +328,7 @@ function calcularResultadoObra(filasObra, trabajadoresApp) {
     const empProblemas = problemasPorEmpresa[info.empresaRaw] || [];
     for (const p of empProblemas) {
       if (!empresaEsPropia && esDocSoloRP(p.doc)) continue;
+      if (empresaEsAutonomoSolo && esDocSoloPlantilla(p.doc)) continue;
       estadoFinal = peorEstado(estadoFinal, p.resultado);
       motivos.push(`[Empresa] ${p.doc} (${p.estado}) → ${p.resultado}`);
     }
@@ -406,7 +435,18 @@ async function main() {
       if (nCif) empresasPropias.add(`CIF:${nCif}`);
     }
   }
-  log(`Reglas: ${reglas.length} · Empresas propias: ${empresasPropias.size}`);
+  {
+    const { data, error } = await sb.from('empresas').select('nombre, cif, es_autonomo_sin_asalariados').eq('es_autonomo_sin_asalariados', true);
+    if (error) { console.error('ERROR cargando autónomos sin asalariados:', error.message); process.exit(1); }
+    autonomosSolos = new Set();
+    for (const e of (data || [])) {
+      const nNombre = normalizar(e.nombre), nCif = normalizar(e.cif);
+      if (nNombre && nCif) autonomosSolos.add(`${nNombre}|${nCif}`);
+      if (nNombre) autonomosSolos.add(`NOMBRE:${nNombre}`);
+      if (nCif) autonomosSolos.add(`CIF:${nCif}`);
+    }
+  }
+  log(`Reglas: ${reglas.length} · Empresas propias: ${empresasPropias.size} · Autónomos solos: ${autonomosSolos.size}`);
 
   // Trabajadores de la app (para marca enApp; no se crean los desconocidos aquí)
   const trabajadoresApp = {};
