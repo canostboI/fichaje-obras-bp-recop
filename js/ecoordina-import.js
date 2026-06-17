@@ -37,6 +37,18 @@ window.EcoordinaImport = (function () {
     'Evaluación de riesgos'
   ];
 
+  // Documentos que solo exige un OFICIO concreto (categoría de la app). Si el
+  // trabajador NO es de una de esas categorías, el documento no le aplica y se
+  // salta (no penaliza). e-Coordina siempre manda "peon", por eso miramos la
+  // categoría real de la app (la que ponen admin/jefe a mano). Esto es tan
+  // fiable como esas categorías: un gruista mal clasificado dejaría de
+  // controlarse su autorización de maquinaria.
+  // Anclas cortas: casan aunque el nombre lleve coletillas.
+  const DOCS_POR_OFICIO = [
+    { doc: 'Autorización de uso de maquinaria', categorias: ['gruista'] },
+    { doc: 'Formación en riesgo eléctrico',     categorias: ['electricista'] }
+  ];
+
   // ── Normalización / helpers de texto ──────────────────────────────────────
   function normalizar(s) {
     return String(s || '')
@@ -134,6 +146,23 @@ window.EcoordinaImport = (function () {
       if (norm.includes(refNorm)) return true;
     }
     return false;
+  }
+
+  // ¿Este documento es "de oficio" y la categoría del trabajador NO lo exige?
+  // Devuelve true si hay que SALTAR el documento para este trabajador.
+  // Sin categoría conocida → se trata como 'peon' (no le aplican docs de oficio).
+  function docNoAplicaPorOficio(nombreDoc, categoria) {
+    const norm = normalizar(nombreDoc);
+    const cat = normalizar(categoria || 'peon');
+    for (const m of DOCS_POR_OFICIO) {
+      const refNorm = normalizar(m.doc);
+      if (norm === refNorm || norm.includes(refNorm)) {
+        // Es un documento de oficio: ¿la categoría está entre las que lo exigen?
+        const loExige = m.categorias.some(c => normalizar(c) === cat);
+        return !loExige; // no lo exige → saltar
+      }
+    }
+    return false; // no es documento de oficio → no se salta
   }
 
   function esEmpresaPropia(empresasPropias, empresaRaw) {
@@ -322,9 +351,9 @@ window.EcoordinaImport = (function () {
 
   async function cargarTrabajadoresApp(sb) {
     const map = {};
-    const { data, error } = await sb.from('trabajadores').select('id, nombre, dni');
+    const { data, error } = await sb.from('trabajadores').select('id, nombre, dni, categoria');
     if (error) { console.error('Error cargando trabajadores:', error); return map; }
-    (data || []).forEach(t => { if (t.dni) map[String(t.dni).toUpperCase()] = { id: t.id, nombre: t.nombre }; });
+    (data || []).forEach(t => { if (t.dni) map[String(t.dni).toUpperCase()] = { id: t.id, nombre: t.nombre, categoria: t.categoria }; });
     return map;
   }
 
@@ -479,9 +508,15 @@ window.EcoordinaImport = (function () {
         info.docs.some(d => d.doc.startsWith('Formación 60 horas') && d.estado === 'Validado') ||
         (esAutonomo && empresasCon60hValidada.has(info.empresaRaw));
 
+      // Categoría real del trabajador en la app (no la de e-Coordina, que
+      // siempre es "peon"). Si no está en la app todavía → 'peon' por defecto.
+      const categoriaApp = (trabajadoresApp[dni] && trabajadoresApp[dni].categoria) || 'peon';
+
       for (const { doc, estado } of info.docs) {
         if (estado === 'Validado') continue;
         if (tiene60hValidada && doc.startsWith('Formación 20 horas')) continue;
+        // Documento de oficio que esta categoría no necesita → no le aplica.
+        if (docNoAplicaPorOficio(doc, categoriaApp)) continue;
         const regla = aplicarRegla(reglas, doc, estado, 'trabajador');
         if (regla) {
           estadoFinal = peorEstado(estadoFinal, regla.resultado);
@@ -617,6 +652,7 @@ window.EcoordinaImport = (function () {
   return {
     DOCS_SOLO_RP,
     DOCS_SOLO_PLANTILLA,
+    DOCS_POR_OFICIO,
     normalizar,
     estadoSeguro,
     extraerDniDeTrabajador,
@@ -629,6 +665,7 @@ window.EcoordinaImport = (function () {
     aplicarRegla,
     esDocSoloRP,
     esDocSoloPlantilla,
+    docNoAplicaPorOficio,
     esEmpresaPropia,
     esAutonomoSinAsalariados,
     tieneContratoVigente,
