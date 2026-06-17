@@ -45,6 +45,15 @@ const DOCS_SOLO_PLANTILLA = [
   'Evaluación de riesgos'
 ];
 
+// Documentos que solo exige un OFICIO concreto (categoría de la app). Si el
+// trabajador NO es de una de esas categorías, el documento no le aplica y se
+// salta. e-Coordina siempre manda "peon", por eso miramos la categoría real de
+// la app. Tan fiable como esas categorías. Anclas cortas (casan con coletillas).
+const DOCS_POR_OFICIO = [
+  { doc: 'Autorización de uso de maquinaria', categorias: ['gruista'] },
+  { doc: 'Formación en riesgo eléctrico',     categorias: ['electricista'] }
+];
+
 function log(...a) { console.log(new Date().toISOString(), ...a); }
 
 // ── Helpers portados literalmente del importador web ──────────────────────────
@@ -90,6 +99,20 @@ function esDocSoloPlantilla(nombreDoc) {
     const refNorm = normalizar(ref);
     if (norm === refNorm) return true;
     if (norm.includes(refNorm)) return true;
+  }
+  return false;
+}
+// ¿Documento "de oficio" que la categoría del trabajador NO exige? → saltar.
+// Sin categoría conocida → se trata como 'peon'.
+function docNoAplicaPorOficio(nombreDoc, categoria) {
+  const norm = normalizar(nombreDoc);
+  const cat = normalizar(categoria || 'peon');
+  for (const m of DOCS_POR_OFICIO) {
+    const refNorm = normalizar(m.doc);
+    if (norm === refNorm || norm.includes(refNorm)) {
+      const loExige = m.categorias.some(c => normalizar(c) === cat);
+      return !loExige;
+    }
   }
   return false;
 }
@@ -312,9 +335,15 @@ function calcularResultadoObra(filasObra, trabajadoresApp) {
       info.docs.some(d => d.doc.startsWith('Formación 60 horas') && d.estado === 'Validado') ||
       (esAutonomo && empresasCon60hValidada.has(info.empresaRaw));
 
+    // Categoría real del trabajador en la app (e-Coordina siempre dice "peon").
+    // Si aún no está en la app → 'peon' por defecto.
+    const categoriaApp = (trabajadoresApp[dni] && trabajadoresApp[dni].categoria) || 'peon';
+
     for (const { doc, estado } of info.docs) {
       if (estado === 'Validado') continue;
       if (tiene60hValidada && doc.startsWith('Formación 20 horas')) continue;
+      // Documento de oficio que esta categoría no necesita → no le aplica.
+      if (docNoAplicaPorOficio(doc, categoriaApp)) continue;
       const regla = aplicarRegla(doc, estado, 'trabajador');
       if (regla) {
         estadoFinal = peorEstado(estadoFinal, regla.resultado);
@@ -451,9 +480,9 @@ async function main() {
   // Trabajadores de la app (para marca enApp; no se crean los desconocidos aquí)
   const trabajadoresApp = {};
   {
-    const { data, error } = await sb.from('trabajadores').select('id, nombre, dni');
+    const { data, error } = await sb.from('trabajadores').select('id, nombre, dni, categoria');
     if (error) { console.error('ERROR cargando trabajadores:', error.message); process.exit(1); }
-    (data || []).forEach(t => { if (t.dni) trabajadoresApp[String(t.dni).toUpperCase()] = { id: t.id, nombre: t.nombre }; });
+    (data || []).forEach(t => { if (t.dni) trabajadoresApp[String(t.dni).toUpperCase()] = { id: t.id, nombre: t.nombre, categoria: t.categoria }; });
   }
 
   // Obras activas
