@@ -208,7 +208,7 @@ AutoLogout.init(sb);
 const EI = window.EcoordinaImport;
 
 // Estado
-let ctxGlobal = { reglas: [], empresasPropias: new Set(), trabajadoresApp: {} };
+let ctxGlobal = { reglas: [], empresasPropias: new Set(), autonomosSolos: new Set(), trabajadoresApp: {} };
 let obrasConCentro = [];
 let obrasSinCentro = [];
 let filasArchivo = null;
@@ -236,6 +236,7 @@ async function init() {
     // Contexto global (una vez)
     ctxGlobal.reglas = await EI.cargarReglas(sb);
     ctxGlobal.empresasPropias = await EI.cargarEmpresasPropias(sb);
+    ctxGlobal.autonomosSolos = await EI.cargarAutonomosSolos(sb);
     ctxGlobal.trabajadoresApp = await EI.cargarTrabajadoresApp(sb);
 
     // Obras activas
@@ -307,6 +308,7 @@ async function analizarTodas() {
     const { resultadoFinal, sinRegla } = EI.calcularResultado(filasObra, {
       reglas: ctxGlobal.reglas,
       empresasPropias: ctxGlobal.empresasPropias,
+      autonomosSolos: ctxGlobal.autonomosSolos,
       contratosVigentes,
       librosVigentes,
       trabajadoresApp: ctxGlobal.trabajadoresApp
