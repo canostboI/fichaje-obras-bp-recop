@@ -26,6 +26,17 @@ window.EcoordinaImport = (function () {
     'Formación 60 horas (Nivel básico) del Recurso preventivo'
   ];
 
+  // Documentos de PRL que solo tienen sentido en una empresa con plantilla.
+  // A un AUTÓNOMO SIN ASALARIADOS (marcado en la app con
+  // empresas.es_autonomo_sin_asalariados = true) no se le exigen → se le
+  // perdonan estos documentos de empresa. Anclas cortas: casan aunque el
+  // nombre real lleve coletillas (p. ej. "Modalidad Preventiva adoptada
+  // (especialidades Técnicas) + Recibo").
+  const DOCS_SOLO_PLANTILLA = [
+    'Modalidad Preventiva adoptada',
+    'Evaluación de riesgos'
+  ];
+
   // ── Normalización / helpers de texto ──────────────────────────────────────
   function normalizar(s) {
     return String(s || '')
@@ -115,6 +126,16 @@ window.EcoordinaImport = (function () {
     return false;
   }
 
+  function esDocSoloPlantilla(nombreDoc) {
+    const norm = normalizar(nombreDoc);
+    for (const ref of DOCS_SOLO_PLANTILLA) {
+      const refNorm = normalizar(ref);
+      if (norm === refNorm) return true;
+      if (norm.includes(refNorm)) return true;
+    }
+    return false;
+  }
+
   function esEmpresaPropia(empresasPropias, empresaRaw) {
     if (!empresaRaw) return false;
     const { nombre, cif } = extraerEmpresa(empresaRaw);
@@ -123,6 +144,19 @@ window.EcoordinaImport = (function () {
     if (nNombre && nCif && empresasPropias.has(`${nNombre}|${nCif}`)) return true;
     if (nNombre && empresasPropias.has(`NOMBRE:${nNombre}`)) return true;
     if (nCif && empresasPropias.has(`CIF:${nCif}`)) return true;
+    return false;
+  }
+
+  // Misma forma que esEmpresaPropia, pero sobre el conjunto de empresas
+  // marcadas como autónomo sin asalariados.
+  function esAutonomoSinAsalariados(autonomosSolos, empresaRaw) {
+    if (!empresaRaw) return false;
+    const { nombre, cif } = extraerEmpresa(empresaRaw);
+    const nNombre = normalizar(nombre);
+    const nCif = normalizar(cif);
+    if (nNombre && nCif && autonomosSolos.has(`${nNombre}|${nCif}`)) return true;
+    if (nNombre && autonomosSolos.has(`NOMBRE:${nNombre}`)) return true;
+    if (nCif && autonomosSolos.has(`CIF:${nCif}`)) return true;
     return false;
   }
 
@@ -230,6 +264,22 @@ window.EcoordinaImport = (function () {
     return set;
   }
 
+  // Carga las empresas marcadas como autónomo sin asalariados. Mismo formato
+  // de Set que cargarEmpresasPropias.
+  async function cargarAutonomosSolos(sb) {
+    const set = new Set();
+    const { data, error } = await sb.from('empresas').select('nombre, cif, es_autonomo_sin_asalariados').eq('es_autonomo_sin_asalariados', true);
+    if (error) { console.error('Error cargando autónomos sin asalariados:', error); return set; }
+    for (const e of (data || [])) {
+      const nNombre = normalizar(e.nombre);
+      const nCif = normalizar(e.cif);
+      if (nNombre && nCif) set.add(`${nNombre}|${nCif}`);
+      if (nNombre) set.add(`NOMBRE:${nNombre}`);
+      if (nCif) set.add(`CIF:${nCif}`);
+    }
+    return set;
+  }
+
   async function cargarContratosVigentes(sb, obraId) {
     const set = new Set();
     if (!obraId) return set;
@@ -300,11 +350,12 @@ window.EcoordinaImport = (function () {
 
   // ── Cálculo del resultado para UNA obra ───────────────────────────────────
   // filasObra: filas del archivo ya filtradas para esta obra.
-  // ctx: { reglas, empresasPropias, contratosVigentes, trabajadoresApp }
+  // ctx: { reglas, empresasPropias, autonomosSolos, contratosVigentes, librosVigentes, trabajadoresApp }
   // Devuelve: { resultadoFinal, descartadosMultiEmpresa, sinRegla }
   function calcularResultado(filasObra, ctx) {
     const reglas = ctx.reglas || [];
     const empresasPropias = ctx.empresasPropias || new Set();
+    const autonomosSolos = ctx.autonomosSolos || new Set();
     const contratosVigentes = ctx.contratosVigentes || new Set();
     const librosVigentes = ctx.librosVigentes || new Set();
     const trabajadoresApp = ctx.trabajadoresApp || {};
@@ -401,6 +452,10 @@ window.EcoordinaImport = (function () {
       // ¿Empresa propia? Si NO lo es, los documentos del RP no se le heredan.
       const empresaEsPropia = esEmpresaPropia(empresasPropias, info.empresaRaw);
 
+      // ¿Autónomo sin asalariados? Si lo es, se le perdonan los documentos de
+      // empresa de PRL que solo aplican a empresas con plantilla.
+      const empresaEsAutonomoSolo = esAutonomoSinAsalariados(autonomosSolos, info.empresaRaw);
+
       // Subcontratas sin contrato vigente → rojo directo.
       if (!empresaEsPropia && !tieneContratoVigente(contratosVigentes, info.empresaRaw)) {
         estadoFinal = 'rojo';
@@ -442,6 +497,8 @@ window.EcoordinaImport = (function () {
       for (const p of empProblemas) {
         // No heredar documentos del Recurso Preventivo a subcontratas.
         if (!empresaEsPropia && esDocSoloRP(p.doc)) continue;
+        // Autónomo sin asalariados: no exigir docs de PRL de empresa con plantilla.
+        if (empresaEsAutonomoSolo && esDocSoloPlantilla(p.doc)) continue;
         estadoFinal = peorEstado(estadoFinal, p.resultado);
         motivos.push(`[Empresa] ${p.doc} (${p.estado}) → ${p.resultado}`);
       }
@@ -559,6 +616,7 @@ window.EcoordinaImport = (function () {
   // ── API pública ───────────────────────────────────────────────────────────
   return {
     DOCS_SOLO_RP,
+    DOCS_SOLO_PLANTILLA,
     normalizar,
     estadoSeguro,
     extraerDniDeTrabajador,
@@ -570,7 +628,9 @@ window.EcoordinaImport = (function () {
     peorEstado,
     aplicarRegla,
     esDocSoloRP,
+    esDocSoloPlantilla,
     esEmpresaPropia,
+    esAutonomoSinAsalariados,
     tieneContratoVigente,
     tieneLibroVigente,
     convertirWorkbookAFilas,
@@ -580,6 +640,7 @@ window.EcoordinaImport = (function () {
     filtrarPorCentro,
     cargarReglas,
     cargarEmpresasPropias,
+    cargarAutonomosSolos,
     cargarContratosVigentes,
     cargarLibrosVigentes,
     cargarTrabajadoresApp,
