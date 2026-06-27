@@ -6,6 +6,7 @@
   <title>Importar e-Coordina</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="../js/ecoordina-import.js"></script>
   <script src="../js/branding.js"></script>
   <script src="../js/auto-logout.js"></script>
   <style>
@@ -29,173 +30,85 @@
 
     /* MAIN */
     .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
-    .topbar { padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--borde); }
+    .topbar { padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--borde); background: var(--bg2); }
     .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
-    .topbar a.volver { font-size: 13px; color: var(--texto2); text-decoration: none; }
-    .topbar a.volver:hover { color: var(--texto); }
+    .volver { font-size: 13px; color: var(--texto2); text-decoration: none; padding: 8px 14px; border: 1px solid var(--borde); border-radius: 8px; }
+    .volver:hover { color: var(--texto); background: var(--bg3); }
 
-    .contenido { padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
-
-    /* CARD */
-    .card {
-      background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px;
-      padding: 20px 24px;
-    }
-    .card h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; color: var(--texto); }
-
-    /* DROP ZONE */
-    .drop-zone {
-      border: 2px dashed var(--borde); border-radius: 8px; padding: 40px;
-      text-align: center; cursor: pointer; transition: all 0.2s; background: var(--bg3);
-    }
-    .drop-zone:hover, .drop-zone.dragover { border-color: var(--color-acento); background: rgba(255,152,0,0.05); }
-    .drop-zone p { color: var(--texto2); font-size: 14px; margin-top: 8px; }
-    .drop-zone .icon { font-size: 36px; }
-
-    input[type="file"] { display: none; }
-
-    /* SELECT */
-    select {
-      padding: 9px 13px; border: 1px solid var(--borde); border-radius: 8px;
-      font-size: 14px; background: var(--bg3); color: var(--texto);
-      width: 100%; max-width: 400px; font-family: inherit;
-    }
-    select:focus { outline: none; border-color: var(--color-acento); }
-
-    /* BOTONES */
-    .btn {
-      padding: 10px 20px; border-radius: 8px; font-size: 13px;
-      font-weight: 700; border: none; cursor: pointer; transition: opacity 0.15s;
-      font-family: inherit;
-    }
-    .btn-primary { background: var(--color-acento); color: #000; }
-    .btn-primary:hover { opacity: 0.85; }
-    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-success { background: var(--verde); color: #fff; }
-    .btn-success:hover { opacity: 0.85; }
-    .btn-success:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-outline { background: transparent; color: var(--texto2); border: 1px solid var(--borde); }
-    .btn-outline:hover { background: var(--bg3); color: var(--texto); }
-
-    /* TABLA */
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th { background: var(--bg3); padding: 10px 12px; text-align: left; font-weight: 700; color: var(--texto2); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); }
-    td { padding: 10px 12px; border-bottom: 1px solid var(--borde); vertical-align: middle; color: var(--texto); }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: var(--bg3); }
-    code { font-family: monospace; background: var(--bg3); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
-
-    /* BADGES */
-    .badge {
-      display: inline-block; padding: 3px 9px; border-radius: 20px;
-      font-size: 11px; font-weight: 700;
-    }
-    .badge-verde   { background: rgba(76,175,80,0.15);  color: var(--verde); }
-    .badge-naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
-    .badge-rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
-    .badge-ignorado { background: var(--bg3); color: var(--texto2); }
-
-    .motivos { font-size: 11px; color: var(--texto2); margin-top: 2px; }
-
-    /* ALERTAS */
-    .alert {
-      padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px;
-      border: 1px solid var(--borde);
-    }
-    .alert-info    { background: rgba(33,150,243,0.1);  color: var(--azul);    border-left: 3px solid var(--azul); }
-    .alert-warning { background: rgba(255,152,0,0.1);   color: var(--naranja); border-left: 3px solid var(--naranja); }
-    .alert-success { background: rgba(76,175,80,0.1);   color: var(--verde);   border-left: 3px solid var(--verde); }
-    .alert-error   { background: rgba(244,67,54,0.1);   color: var(--rojo);    border-left: 3px solid var(--rojo); }
-
-    /* AVISO "AÚN NO GUARDADO" */
-    .aviso-no-guardado {
-      background: rgba(255,152,0,0.15);
-      border: 2px solid var(--naranja);
-      border-radius: 10px;
-      padding: 14px 18px;
-      margin-top: 18px;
-      margin-bottom: 14px;
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      font-size: 14px;
-      color: var(--texto);
-    }
-    .aviso-no-guardado .ico-grande { font-size: 28px; flex-shrink: 0; }
-    .aviso-no-guardado strong { color: var(--naranja); }
-    .aviso-no-guardado.oculto { display: none; }
-
-    /* BLOQUE DESAPARECIDOS */
-    .bloque-desaparecidos {
-      background: rgba(244,67,54,0.08);
-      border: 2px solid var(--rojo);
-      border-radius: 10px;
-      padding: 16px 20px;
-      margin-top: 14px;
-      margin-bottom: 14px;
-    }
-    .bloque-desaparecidos.oculto { display: none; }
-    .bloque-desaparecidos h3 {
-      font-size: 14px; font-weight: 700; color: var(--rojo); margin-bottom: 10px;
-    }
-    .bloque-desaparecidos p { font-size: 13px; color: var(--texto2); margin-bottom: 12px; }
-    .desaparecido-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 8px 0; border-bottom: 1px solid var(--borde);
-      font-size: 13px; color: var(--texto);
-    }
-    .desaparecido-item:last-child { border-bottom: none; }
-    .desaparecido-item input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--rojo); }
-
-    /* STATS */
-    .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
-    .stat-box {
-      background: var(--bg3); border-radius: 8px; padding: 14px 20px;
-      text-align: center; min-width: 110px; border: 1px solid var(--borde);
-    }
-    .stat-box .num { font-size: 24px; font-weight: 800; }
-    .stat-box .label { font-size: 11px; color: var(--texto2); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-
-    /* SPINNER */
-    .spinner {
-      display: inline-block; width: 14px; height: 14px;
-      border: 2px solid rgba(0,0,0,0.3); border-top-color: #000;
-      border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle;
-    }
-    .btn-success .spinner { border-color: rgba(255,255,255,0.3); border-top-color: #fff; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* FORM */
-    .form-group { margin-bottom: 16px; }
-    .form-group label {
-      display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px;
-      color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px;
-    }
-
-    .ayuda { font-size: 13px; color: var(--texto2); margin-bottom: 16px; }
+    .contenido { padding: 28px; display: flex; flex-direction: column; gap: 22px; }
+    .card { background: var(--bg2); border: 1px solid var(--borde); border-radius: 12px; padding: 22px 24px; }
+    .card h2 { font-size: 16px; font-weight: 700; margin-bottom: 14px; }
+    .ayuda { font-size: 13px; color: var(--texto2); line-height: 1.55; margin-bottom: 14px; }
     .ayuda strong { color: var(--texto); }
 
-    #resultado { display: none; }
-    #paso-obra { display: none; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    select { width: 100%; background: var(--bg); color: var(--texto); border: 1px solid var(--borde); border-radius: 8px; padding: 10px 14px; font-size: 14px; font-family: inherit; }
+    select:focus { outline: none; border-color: var(--color-acento); }
 
-    /* DETAILS — listas plegables */
-    details.lista-plegable {
-      background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px;
-      padding: 10px 14px; margin-top: 10px;
-    }
-    details.lista-plegable summary {
-      cursor: pointer; font-weight: 700; font-size: 13px; color: var(--texto); user-select: none;
-    }
-    details.lista-plegable summary:hover { color: var(--color-acento); }
-    details.lista-plegable[open] summary { margin-bottom: 10px; }
-    details.lista-plegable ul {
-      list-style: none; padding: 0; margin: 0; max-height: 280px; overflow-y: auto; font-size: 13px;
-    }
-    details.lista-plegable li {
-      padding: 5px 0; border-bottom: 1px solid var(--borde); color: var(--texto);
-    }
-    details.lista-plegable li:last-child { border-bottom: none; }
-    details.lista-plegable li code { background: var(--bg2); font-size: 11px; margin-left: 6px; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; border: none; transition: opacity 0.15s, background 0.15s; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: var(--azul); color: white; }
+    .btn-primary:hover:not(:disabled) { opacity: 0.9; }
+    .btn-success { background: var(--verde); color: white; }
+    .btn-success:hover:not(:disabled) { opacity: 0.9; }
+    .btn-outline { background: transparent; color: var(--texto2); border: 1px solid var(--borde); }
+    .btn-outline:hover:not(:disabled) { background: var(--bg3); color: var(--texto); }
+
+    .drop-zone { border: 2px dashed var(--borde); border-radius: 10px; padding: 36px 20px; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+    .drop-zone:hover, .drop-zone.dragover { border-color: var(--color-acento); background: rgba(255,152,0,0.04); }
+    .drop-zone .icon { font-size: 32px; margin-bottom: 6px; }
+    .drop-zone p { font-size: 13px; color: var(--texto2); }
+    input[type=file] { display: none; }
+
+    #paso-obra { display: none; }
+    #resultado { display: none; }
+
+    .alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; line-height: 1.5; margin-bottom: 10px; }
+    .alert-info { background: rgba(33,150,243,0.08); border: 1px solid rgba(33,150,243,0.3); color: #90caf9; }
+    .alert-warning { background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.3); color: #ffb74d; }
+    .alert-error { background: rgba(244,67,54,0.08); border: 1px solid rgba(244,67,54,0.3); color: #ef9a9a; }
+    .alert-success { background: rgba(76,175,80,0.08); border: 1px solid rgba(76,175,80,0.3); color: #a5d6a7; }
+    .alert a { color: inherit; text-decoration: underline; }
+
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .stat-box { background: var(--bg3); border: 1px solid var(--borde); border-radius: 10px; padding: 14px; text-align: center; }
+    .stat-box .num { font-size: 28px; font-weight: 800; }
+    .stat-box .label { font-size: 11px; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+    th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); background: var(--bg3); }
+    td { padding: 10px 12px; border-bottom: 1px solid var(--borde); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; background: var(--bg3); padding: 2px 6px; border-radius: 4px; }
+
+    .badge { display: inline-block; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .badge-verde { background: rgba(76,175,80,0.18); color: #a5d6a7; }
+    .badge-naranja { background: rgba(255,152,0,0.18); color: #ffcc80; }
+    .badge-rojo { background: rgba(244,67,54,0.18); color: #ef9a9a; }
+    .motivos { font-size: 12px; color: var(--texto2); line-height: 1.4; }
+    .motivos:not(:last-child) { margin-bottom: 2px; }
+
+    .bloque-desaparecidos { margin-top: 22px; padding: 18px; border: 1px solid rgba(255,152,0,0.3); background: rgba(255,152,0,0.04); border-radius: 10px; }
+    .bloque-desaparecidos.oculto { display: none; }
+    .bloque-desaparecidos h3 { font-size: 14px; margin-bottom: 10px; color: #ffb74d; }
+    .bloque-desaparecidos p { font-size: 13px; color: var(--texto2); line-height: 1.5; margin-bottom: 10px; }
+    .desaparecido-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,152,0,0.15); }
+    .desaparecido-item:last-child { border-bottom: none; }
+    .desaparecido-item input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; }
+
+    .aviso-no-guardado { display: flex; align-items: center; gap: 14px; padding: 14px 18px; margin-top: 18px; border-radius: 10px; background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.3); color: #ffcc80; font-size: 13px; line-height: 1.5; }
+    .aviso-no-guardado.oculto { display: none; }
+    .aviso-no-guardado .ico-grande { font-size: 22px; }
+
+    .lista-plegable { margin-top: 12px; }
+    .lista-plegable summary { cursor: pointer; padding: 8px 0; font-weight: 600; font-size: 13px; }
+    .lista-plegable ul { margin: 6px 0 10px 22px; font-size: 13px; line-height: 1.7; }
+
+    .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: girar 0.7s linear infinite; }
+    @keyframes girar { to { transform: rotate(360deg); } }
+
+    .oculto { display: none; }
   </style>
 </head>
 <body>
@@ -316,67 +229,54 @@
 </div>
 
 <script>
+/* ============================================================================
+   jefe/documentos-ecoordina.html — importador del jefe (una obra).
+
+   Refactor 27/6/2026 (Subloque 4 de la auditoría): mata la copia inline del
+   semáforo y delega TODA la lógica de negocio en js/ecoordina-import.js
+   (window.EcoordinaImport, alias EI). Aquí solo queda UI + auth + flujo.
+
+   Cierra los hallazgos M-09 y MJ-17 de AUDITORIA_PROFUNDA.md. La regla
+   "el semáforo se calcula en 3 sitios" pasa a "se calcula en 2 sitios":
+   js/ecoordina-import.js (web) y scripts/ecoordina-sync.mjs (cron nocturno).
+   ========================================================================== */
+
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
 
 if (!window.supabase || !window.supabase.createClient) {
   alert('No se ha cargado la librería de Supabase. Revisa la conexión o recarga la página.');
 }
+if (!window.EcoordinaImport) {
+  alert('No se ha cargado el módulo js/ecoordina-import.js. Revisa que el archivo esté subido.');
+}
 
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 AutoLogout.init(sb);
+const EI = window.EcoordinaImport;
 
+// ── Estado de la página ────────────────────────────────────────────────────
 let session = null;
 let misObras = [];
-let reglas = [];
-let trabajadoresApp = {}; // dni -> {id, nombre}
+// Contexto que se pasa a EI.calcularResultado. Los sets que no dependen de la
+// obra (reglas, empresas propias, autónomos solos, trabajadoresApp) se cargan
+// en init(); los que sí dependen (contratos, libros) se cargan al procesar.
+let ctx = {
+  reglas: [],
+  empresasPropias: new Set(),
+  autonomosSolos: new Set(),
+  trabajadoresApp: {},
+  contratosVigentes: new Set(),
+  librosVigentes: new Set()
+};
 let datosExcel = null;
 let resultadoFinal = [];
 let descartadosMultiEmpresa = [];
 let sinRegla = new Set();
-// DNIs actualmente en validaciones_obra para la obra seleccionada
-let dnisEnObra = {}; // dni -> { trabajador_id, nombre, estado }
+let dnisEnObra = {}; // dni -> { trabajador_id, nombre, estado, esPropia }
 
-// ── Paso RP-2: empresas propias y docs RP-only ────────────────────────────
-// Set de claves normalizadas para identificar empresas propias.
-// Se intentan varias claves por empresa (nombre+cif, solo nombre, solo cif)
-// porque el texto que viene de e-Coordina puede tener formatos variados.
-let empresasPropias = new Set();
-
-// Autónomos sin asalariados (empresas.es_autonomo_sin_asalariados = true).
-// Mismo formato de claves que empresasPropias.
-let autonomosSolos = new Set();
-
-// P-06: set de claves normalizadas de empresas con contrato vigente en la obra procesada
-let contratosVigentes = new Set(); // claves igual que empresasPropias: "NOMBRE|CIF", "NOMBRE:X", "CIF:X"
-
-// P-14: set de claves normalizadas de empresas con libro de subcontratación vigente en la obra procesada
-let librosVigentes = new Set(); // mismas claves que contratosVigentes
-
-// Documentos que solo aplican al Recurso Preventivo designado y que, por tanto,
-// NO deben heredarse a trabajadores de subcontratas.
-const DOCS_SOLO_RP = [
-  'Nombramiento del Recurso Preventivo',
-  'Formación 60 horas (Nivel básico) del Recurso preventivo'
-];
-
-// Documentos de PRL que solo aplican a empresas con plantilla. A un autónomo
-// sin asalariados (marcado en la app) se le perdonan. Anclas cortas.
-const DOCS_SOLO_PLANTILLA = [
-  'Modalidad Preventiva adoptada',
-  'Evaluación de riesgos'
-];
-
-// Documentos que solo exige un OFICIO concreto (categoría de la app). Si el
-// trabajador NO es de una de esas categorías, el documento no le aplica y se
-// salta. e-Coordina siempre manda "peon", por eso miramos la categoría real de
-// la app. Tan fiable como esas categorías. Anclas cortas (casan con coletillas).
-const DOCS_POR_OFICIO = [
-  { doc: 'Autorización de uso de maquinaria', categorias: ['gruista'] },
-  { doc: 'Formación en riesgo eléctrico',     categorias: ['electricista'] }
-];
-
+// ── Helpers UI puros ───────────────────────────────────────────────────────
 function escHtml(valor) {
   return String(valor ?? '')
     .replace(/&/g, '&amp;')
@@ -386,82 +286,7 @@ function escHtml(valor) {
     .replace(/'/g, '&#39;');
 }
 
-function estadoSeguro(estado) {
-  return ['verde', 'naranja', 'rojo'].includes(estado) ? estado : 'naranja';
-}
-
-// Normaliza un texto para comparación: mayúsculas, sin espacios extra, sin acentos
-function normalizar(s) {
-  return String(s || '')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase()
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-// Comprueba si un nombre de documento coincide (tolerante) con alguno de DOCS_SOLO_RP
-function esDocSoloRP(nombreDoc) {
-  const norm = normalizar(nombreDoc);
-  for (const ref of DOCS_SOLO_RP) {
-    const refNorm = normalizar(ref);
-    if (norm === refNorm) return true;
-    if (norm.includes(refNorm)) return true;
-  }
-  return false;
-}
-
-// Comprueba si un nombre de documento es de los que solo aplican a empresas con plantilla
-function esDocSoloPlantilla(nombreDoc) {
-  const norm = normalizar(nombreDoc);
-  for (const ref of DOCS_SOLO_PLANTILLA) {
-    const refNorm = normalizar(ref);
-    if (norm === refNorm) return true;
-    if (norm.includes(refNorm)) return true;
-  }
-  return false;
-}
-
-// ¿Documento "de oficio" que la categoría del trabajador NO exige? → saltar.
-// Sin categoría conocida → se trata como 'peon'.
-function docNoAplicaPorOficio(nombreDoc, categoria) {
-  const norm = normalizar(nombreDoc);
-  const cat = normalizar(categoria || 'peon');
-  for (const m of DOCS_POR_OFICIO) {
-    const refNorm = normalizar(m.doc);
-    if (norm === refNorm || norm.includes(refNorm)) {
-      const loExige = m.categorias.some(c => normalizar(c) === cat);
-      return !loExige;
-    }
-  }
-  return false;
-}
-
-// Comprueba si una empresa (texto crudo de e-Coordina, formato "NOMBRE - CIF")
-// está en el conjunto de empresas propias.
-function esEmpresaPropia(empresaRaw) {
-  if (!empresaRaw) return false;
-  const { nombre, cif } = extraerEmpresa(empresaRaw);
-  const nNombre = normalizar(nombre);
-  const nCif = normalizar(cif);
-  if (nNombre && nCif && empresasPropias.has(`${nNombre}|${nCif}`)) return true;
-  if (nNombre && empresasPropias.has(`NOMBRE:${nNombre}`)) return true;
-  if (nCif && empresasPropias.has(`CIF:${nCif}`)) return true;
-  return false;
-}
-
-// Comprueba si una empresa está marcada como autónomo sin asalariados.
-function esAutonomoSinAsalariados(empresaRaw) {
-  if (!empresaRaw) return false;
-  const { nombre, cif } = extraerEmpresa(empresaRaw);
-  const nNombre = normalizar(nombre);
-  const nCif = normalizar(cif);
-  if (nNombre && nCif && autonomosSolos.has(`${nNombre}|${nCif}`)) return true;
-  if (nNombre && autonomosSolos.has(`NOMBRE:${nNombre}`)) return true;
-  if (nCif && autonomosSolos.has(`CIF:${nCif}`)) return true;
-  return false;
-}
-
-// ── AUTH ──────────────────────────────────────────────────────────────────────
+// ── AUTH + carga inicial ───────────────────────────────────────────────────
 async function init() {
   try {
     const { data: { session: s }, error: sessionError } = await sb.auth.getSession();
@@ -481,9 +306,12 @@ async function init() {
     }
 
     await cargarObras();
-    await cargarReglas();
-    await cargarEmpresasPropias();
-    await cargarAutonomosSolos();
+
+    // Contexto global (no depende de obra). Se carga una vez.
+    ctx.reglas = await EI.cargarReglas(sb);
+    ctx.empresasPropias = await EI.cargarEmpresasPropias(sb);
+    ctx.autonomosSolos = await EI.cargarAutonomosSolos(sb);
+    ctx.trabajadoresApp = await EI.cargarTrabajadoresApp(sb);
   } catch (err) {
     console.error('Error arrancando e-Coordina:', err);
     alert('Error arrancando e-Coordina: ' + (err.message || err));
@@ -549,123 +377,7 @@ async function cargarObras() {
   });
 }
 
-async function cargarReglas() {
-  const { data, error } = await sb.from('reglas_documentales').select('*');
-  if (error) { console.error('Error cargando reglas:', error); reglas = []; return; }
-  reglas = data || [];
-}
-
-// Paso RP-2: cargar el set de empresas propias para identificar a quién SÍ
-// se le heredan los documentos del Recurso Preventivo.
-async function cargarEmpresasPropias() {
-  empresasPropias = new Set();
-  const { data, error } = await sb
-    .from('empresas')
-    .select('nombre, cif, es_empresa_propia')
-    .eq('es_empresa_propia', true);
-
-  if (error) {
-    console.error('Error cargando empresas propias:', error);
-    return;
-  }
-
-  for (const e of (data || [])) {
-    const nNombre = normalizar(e.nombre);
-    const nCif = normalizar(e.cif);
-    if (nNombre && nCif) empresasPropias.add(`${nNombre}|${nCif}`);
-    if (nNombre) empresasPropias.add(`NOMBRE:${nNombre}`);
-    if (nCif) empresasPropias.add(`CIF:${nCif}`);
-  }
-}
-
-// Carga las empresas marcadas como autónomo sin asalariados.
-async function cargarAutonomosSolos() {
-  autonomosSolos = new Set();
-  const { data, error } = await sb
-    .from('empresas')
-    .select('nombre, cif, es_autonomo_sin_asalariados')
-    .eq('es_autonomo_sin_asalariados', true);
-
-  if (error) {
-    console.error('Error cargando autónomos sin asalariados:', error);
-    return;
-  }
-
-  for (const e of (data || [])) {
-    const nNombre = normalizar(e.nombre);
-    const nCif = normalizar(e.cif);
-    if (nNombre && nCif) autonomosSolos.add(`${nNombre}|${nCif}`);
-    if (nNombre) autonomosSolos.add(`NOMBRE:${nNombre}`);
-    if (nCif) autonomosSolos.add(`CIF:${nCif}`);
-  }
-}
-
-// P-06: cargar empresas con contrato vigente para la obra procesada.
-// Usa el mismo patrón de claves normalizadas que empresasPropias.
-async function cargarContratosVigentes(obraId) {
-  contratosVigentes = new Set();
-  if (!obraId) return;
-  const hoy = new Date().toISOString().slice(0, 10);
-  const { data, error } = await sb
-    .from('contratos_empresa')
-    .select('empresa:empresa_id(nombre, cif)')
-    .eq('obra_id', obraId)
-    .lte('valido_desde', hoy)
-    .or(`valido_hasta.is.null,valido_hasta.gte.${hoy}`);
-  if (error) { console.error('Error cargando contratos:', error); return; }
-  for (const c of (data || [])) {
-    const nNombre = normalizar(c.empresa?.nombre);
-    const nCif = normalizar(c.empresa?.cif);
-    if (nNombre && nCif) contratosVigentes.add(`${nNombre}|${nCif}`);
-    if (nNombre) contratosVigentes.add(`NOMBRE:${nNombre}`);
-    if (nCif) contratosVigentes.add(`CIF:${nCif}`);
-  }
-}
-
-function tieneContratoVigente(empresaRaw) {
-  if (!empresaRaw) return false;
-  const { nombre, cif } = extraerEmpresa(empresaRaw);
-  const nNombre = normalizar(nombre);
-  const nCif = normalizar(cif);
-  if (nNombre && nCif && contratosVigentes.has(`${nNombre}|${nCif}`)) return true;
-  if (nNombre && contratosVigentes.has(`NOMBRE:${nNombre}`)) return true;
-  if (nCif && contratosVigentes.has(`CIF:${nCif}`)) return true;
-  return false;
-}
-
-// P-14: cargar empresas con libro de subcontratación vigente para la obra procesada.
-async function cargarLibrosVigentes(obraId) {
-  librosVigentes = new Set();
-  if (!obraId) return;
-  const hoy = new Date().toISOString().slice(0, 10);
-  const { data, error } = await sb
-    .from('libros_subcontratacion')
-    .select('empresa:empresa_id(nombre, cif)')
-    .eq('obra_id', obraId)
-    .lte('valido_desde', hoy)
-    .or(`valido_hasta.is.null,valido_hasta.gte.${hoy}`);
-  if (error) { console.error('Error cargando libros de subcontratación:', error); return; }
-  for (const l of (data || [])) {
-    const nNombre = normalizar(l.empresa?.nombre);
-    const nCif = normalizar(l.empresa?.cif);
-    if (nNombre && nCif) librosVigentes.add(`${nNombre}|${nCif}`);
-    if (nNombre) librosVigentes.add(`NOMBRE:${nNombre}`);
-    if (nCif) librosVigentes.add(`CIF:${nCif}`);
-  }
-}
-
-function tieneLibroVigente(empresaRaw) {
-  if (!empresaRaw) return false;
-  const { nombre, cif } = extraerEmpresa(empresaRaw);
-  const nNombre = normalizar(nombre);
-  const nCif = normalizar(cif);
-  if (nNombre && nCif && librosVigentes.has(`${nNombre}|${nCif}`)) return true;
-  if (nNombre && librosVigentes.has(`NOMBRE:${nNombre}`)) return true;
-  if (nCif && librosVigentes.has(`CIF:${nCif}`)) return true;
-  return false;
-}
-
-// ── DRAG & DROP ───────────────────────────────────────────────────────────────
+// ── DRAG & DROP ────────────────────────────────────────────────────────────
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
 
@@ -678,145 +390,34 @@ dropZone.addEventListener('drop', e => {
 });
 fileInput.addEventListener('change', () => { if (fileInput.files[0]) procesarArchivo(fileInput.files[0]); });
 
-function convertirWorkbookAFilas(wb) {
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  if (!ws) throw new Error('El archivo no contiene ninguna hoja o tabla legible.');
-
-  const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
-  const headerIndex = rawRows.findIndex(row => {
-    const cols = row.map(c => String(c).trim());
-    return cols.includes('Documento') && cols.includes('Estado') &&
-           cols.includes('Empresa') && cols.includes('Trabajador');
-  });
-
-  if (headerIndex === -1) throw new Error('No se han encontrado las cabeceras esperadas de e-Coordina.');
-
-  const headers = rawRows[headerIndex].map(h => String(h).trim());
-  return rawRows.slice(headerIndex + 1)
-    .map(row => { const obj = {}; headers.forEach((h, i) => { if (h) obj[h] = row[i] ?? ''; }); return obj; })
-    .filter(obj => Object.values(obj).some(v => String(v).trim() !== ''));
-}
-
-function procesarArchivo(file) {
-  const nombre = file.name.toLowerCase();
-  const esCsv = nombre.endsWith('.csv');
-  const esExcel = nombre.endsWith('.xlsx') || nombre.endsWith('.xls');
-  if (!esCsv && !esExcel) { alert('Solo se aceptan archivos .csv, .xlsx o .xls'); return; }
-
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      let wb;
-      if (esCsv) {
-        wb = XLSX.read(e.target.result, { type: 'string', raw: false, FS: ';' });
-      } else {
-        wb = XLSX.read(e.target.result, { type: 'array' });
-      }
-      const filas = convertirWorkbookAFilas(wb);
-      if (!filas.length) { alert('El archivo se ha leído, pero no se han encontrado filas de datos.'); return; }
-      datosExcel = filas;
-      dropZone.innerHTML = `
-        <div class="icon">✅</div>
-        <p><strong>${escHtml(file.name)}</strong> cargado</p>
-        <p style="font-size:12px;margin-top:4px;">${filas.length} registros leídos</p>
-      `;
-      document.getElementById('paso-obra').style.display = 'block';
-    } catch (err) {
-      console.error(err);
-      alert('No se ha podido leer el archivo de e-Coordina: ' + (err.message || err));
-    }
-  };
-  reader.onerror = () => alert('No se ha podido leer el archivo seleccionado.');
-  if (esCsv) {
-    reader.readAsText(file, 'ISO-8859-1');
-  } else {
-    reader.readAsArrayBuffer(file);
+async function procesarArchivo(file) {
+  try {
+    const filas = await EI.leerArchivo(file);
+    if (!filas.length) { alert('El archivo se ha leído, pero no se han encontrado filas de datos.'); return; }
+    datosExcel = filas;
+    dropZone.innerHTML = `
+      <div class="icon">✅</div>
+      <p><strong>${escHtml(file.name)}</strong> cargado</p>
+      <p style="font-size:12px;margin-top:4px;">${filas.length} registros leídos</p>
+    `;
+    document.getElementById('paso-obra').style.display = 'block';
+  } catch (err) {
+    console.error(err);
+    alert('No se ha podido leer el archivo de e-Coordina: ' + (err.message || err));
   }
 }
 
-// ── EXTRAER DNI / NOMBRE / EMPRESA ───────────────────────────────────────────
-function extraerDniDeTrabajador(texto) {
-  if (!texto) return null;
-  const partes = texto.split(' - ');
-  if (partes.length < 2) return null;
-  const dni = partes[partes.length - 1].trim();
-  if (/^[A-Z0-9]{6,10}$/i.test(dni)) return dni.toUpperCase();
-  return null;
-}
-function extraerNombreTrabajador(texto) {
-  if (!texto) return '';
-  return texto.split(' - ')[0].replace(/^[,\s]+/, '').trim();
-}
-function extraerNombreEmpresa(texto) {
-  if (!texto) return '';
-  return texto.split(' - ')[0].trim();
-}
-
-// ── PARSEO DE FECHAS ─────────────────────────────────────────────────────────
-function parsearFechaEcoordina(texto) {
-  if (!texto) return null;
-  const t = String(texto).trim();
-  const m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (!m) return null;
-  const d = new Date(parseInt(m[3],10), parseInt(m[2],10)-1, parseInt(m[1],10));
-  return isNaN(d.getTime()) ? null : d.getTime();
-}
-function fechaMasRecienteDeFila(fila) {
-  const candidatos = [fila['F.emisión'], fila['F.emision'], fila['F.verificado'], fila['F.cumplimentado'], fila['F.solicitado']];
-  let max = -Infinity;
-  for (const c of candidatos) { const t = parsearFechaEcoordina(c); if (t !== null && t > max) max = t; }
-  return max === -Infinity ? null : max;
-}
-
-// ── APLICAR REGLAS ────────────────────────────────────────────────────────────
-function aplicarRegla(nombreDoc, estadoEcoordina, tipoAplica) {
-  let regla = reglas.find(r => r.aplica_a === tipoAplica && r.nombre_documento === nombreDoc && r.estado_ecoordina === estadoEcoordina);
-  if (!regla) regla = reglas.find(r => r.aplica_a === tipoAplica && r.nombre_documento === '*' && r.estado_ecoordina === estadoEcoordina);
-  return regla || null;
-}
-function peorEstado(a, b) {
-  const orden = { rojo: 3, naranja: 2, verde: 1 };
-  return (orden[a] || 0) >= (orden[b] || 0) ? a : b;
-}
-
-// ── CARGAR DNIs EN OBRA (para detectar desaparecidos) ────────────────────────
-async function cargarDnisEnObra(obraId) {
-  dnisEnObra = {};
-  const { data, error } = await sb
-    .from('validaciones_obra')
-    .select('trabajador_id, estado, trabajadores(id, dni, nombre, apellidos, empresa:empresa_id(es_empresa_propia))')
-    .eq('obra_id', obraId);
-
-  if (error) { console.error('Error cargando validaciones_obra:', error); return; }
-
-  for (const row of (data || [])) {
-    const t = row.trabajadores;
-    if (!t || !t.dni) continue;
-    const dni = String(t.dni).toUpperCase();
-    dnisEnObra[dni] = {
-      trabajador_id: t.id,
-      nombre: [t.nombre, t.apellidos].filter(Boolean).join(' ') || t.dni,
-      estado: row.estado,
-      esPropia: t.empresa?.es_empresa_propia === true
-    };
-  }
-}
-
-// ── PROCESAR ARCHIVO ──────────────────────────────────────────────────────────
+// ── PROCESAR ───────────────────────────────────────────────────────────────
 async function procesarExcel() {
   const obraId = document.getElementById('obraSelect').value;
   if (!obraId) { alert('Selecciona una obra primero'); return; }
   if (!datosExcel) { alert('Primero sube el archivo de e-Coordina'); return; }
 
-  // ── Filtro por Centro de e-Coordina ──────────────────────────────────────
-  // Este archivo puede contener varias obras (columna "Centro"). Nos quedamos
-  // solo con las filas de la obra seleccionada. Si el archivo no trae columna
-  // Centro (informe antiguo de una sola obra), se procesa entero como siempre.
+  // Filtro por Centro de e-Coordina (multi-obra). Mantiene la UX del jefe:
+  // mensajes de error claros antes de tocar nada.
   const obraSel = misObras.find(o => o.id === obraId);
   const centroObra = (obraSel?.ecoordina_centro || '').trim();
-  const centrosEnArchivo = new Set(
-    datosExcel.map(f => normalizar(f['Centro'])).filter(Boolean)
-  );
+  const centrosEnArchivo = EI.centrosDistintos(datosExcel);
 
   let filasObra;
   let infoCentro = '';
@@ -829,8 +430,7 @@ async function procesarExcel() {
       alert('Este archivo contiene una columna "Centro" con varias obras, pero la obra seleccionada no tiene configurado su Centro de e-Coordina.\n\nConfigura el Centro de esta obra antes de importar (no se ha guardado nada).');
       return;
     }
-    const centroNorm = normalizar(centroObra);
-    filasObra = datosExcel.filter(f => normalizar(f['Centro']) === centroNorm);
+    filasObra = EI.filtrarPorCentro(datosExcel, centroObra);
     if (filasObra.length === 0) {
       alert('En este archivo no hay ninguna fila para el Centro:\n\n"' + centroObra + '"\n\nComprueba que has seleccionado la obra correcta y que el texto del Centro coincide con el de e-Coordina (no se ha guardado nada).');
       return;
@@ -838,239 +438,61 @@ async function procesarExcel() {
     infoCentro = 'El archivo contenía ' + centrosEnArchivo.size + ' obra(s). Se han usado las ' + filasObra.length + ' filas del Centro "' + centroObra + '".';
   }
 
-  sinRegla = new Set();
-
   const btn = document.getElementById('btnProcesar');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Procesando...';
 
-  // Cargar trabajadores de la app
-  const { data: trabApp, error: trabErr } = await sb.from('trabajadores').select('id, nombre, dni, categoria');
-  if (trabErr) {
-    console.error('Error cargando trabajadores:', trabErr);
-    alert('No se han podido cargar los trabajadores de la app.');
-    btn.disabled = false; btn.innerHTML = 'Procesar archivo'; return;
-  }
-  trabajadoresApp = {};
-  (trabApp || []).forEach(t => { if (t.dni) trabajadoresApp[String(t.dni).toUpperCase()] = { id: t.id, nombre: t.nombre, categoria: t.categoria }; });
+  try {
+    // Reintento defensivo: si init falló al cargar el contexto global, lo
+    // reintenta aquí (idempotente). Cubre el caso de empresas/autónomos a
+    // pelo y de trabajadoresApp.
+    if (ctx.empresasPropias.size === 0) ctx.empresasPropias = await EI.cargarEmpresasPropias(sb);
+    if (ctx.autonomosSolos.size === 0) ctx.autonomosSolos = await EI.cargarAutonomosSolos(sb);
+    if (!ctx.reglas.length) ctx.reglas = await EI.cargarReglas(sb);
 
-  // Cargar DNIs ya asignados a esta obra
-  await cargarDnisEnObra(obraId);
+    // Contexto que SÍ depende de la obra: se recarga cada vez (puede haber
+    // habido cambios de contrato/libro entre procesados).
+    ctx.contratosVigentes = await EI.cargarContratosVigentes(sb, obraId);
+    ctx.librosVigentes = await EI.cargarLibrosVigentes(sb, obraId);
+    ctx.trabajadoresApp = await EI.cargarTrabajadoresApp(sb);
 
-  // Por si init() falló al cargar empresas propias, reintentar aquí (idempotente)
-  if (empresasPropias.size === 0) {
-    await cargarEmpresasPropias();
-    await cargarAutonomosSolos();
-  }
+    // DNIs ya asignados a esta obra (para detectar desaparecidos).
+    dnisEnObra = await EI.cargarDnisEnObra(sb, obraId);
 
-  // P-06: cargar contratos vigentes para esta obra
-  await cargarContratosVigentes(obraId);
+    // Cálculo del semáforo: TODA la lógica vive en el módulo.
+    const calc = EI.calcularResultado(filasObra, ctx);
+    resultadoFinal = calc.resultadoFinal;
+    descartadosMultiEmpresa = calc.descartadosMultiEmpresa;
+    sinRegla = calc.sinRegla;
 
-  // P-14: cargar libros de subcontratación vigentes para esta obra
-  await cargarLibrosVigentes(obraId);
+    // Render
+    renderTabla();
+    renderStats();
+    renderAlertaCambiosEmpresa();
+    renderAlertaSinRegla();
+    renderDesaparecidos();
 
-  // Separar filas empresa / trabajador (solo las de esta obra)
-  const filasEmpresa = [];
-  const filasTrabajador = [];
-  for (const fila of filasObra) {
-    const trabajadorRaw = fila['Trabajador'] || '';
-    const dni = extraerDniDeTrabajador(trabajadorRaw);
-    if (dni) {
-      filasTrabajador.push({ ...fila, _dni: dni, _nombreTrabajador: extraerNombreTrabajador(trabajadorRaw), _empresaRaw: String(fila['Empresa'] || '').trim(), _fechaRef: fechaMasRecienteDeFila(fila) });
-    } else {
-      filasEmpresa.push(fila);
-    }
-  }
-
-  // Fix cambio de empresa
-  descartadosMultiEmpresa = [];
-  const ESTADOS_PROBLEMATICOS = new Set(['No válido', 'Sin presentar', 'Caducado', 'Pendiente']);
-  const statsPorDniEmpresa = {};
-  for (const fila of filasTrabajador) {
-    const dni = fila._dni; const emp = fila._empresaRaw || '(sin empresa)';
-    if (!statsPorDniEmpresa[dni]) statsPorDniEmpresa[dni] = {};
-    if (!statsPorDniEmpresa[dni][emp]) statsPorDniEmpresa[dni][emp] = { validados: 0, problematicos: 0, fechaMax: null };
-    const s = statsPorDniEmpresa[dni][emp];
-    const estado = String(fila['Estado'] || '').trim();
-    if (estado === 'Validado') s.validados++;
-    else if (ESTADOS_PROBLEMATICOS.has(estado)) s.problematicos++;
-    if (fila._fechaRef !== null && (s.fechaMax === null || fila._fechaRef > s.fechaMax)) s.fechaMax = fila._fechaRef;
-  }
-  const empresaGanadoraPorDni = {};
-  for (const [dni, empresas] of Object.entries(statsPorDniEmpresa)) {
-    const claves = Object.keys(empresas);
-    if (claves.length <= 1) { empresaGanadoraPorDni[dni] = claves[0] || ''; continue; }
-    claves.sort((a, b) => {
-      const sa = empresas[a], sb2 = empresas[b];
-      if (sa.validados !== sb2.validados) return sb2.validados - sa.validados;
-      if (sa.problematicos !== sb2.problematicos) return sa.problematicos - sb2.problematicos;
-      const fa = sa.fechaMax, fb = sb2.fechaMax;
-      if (fa == null && fb == null) return 0;
-      if (fa == null) return 1; if (fb == null) return -1;
-      return fb - fa;
-    });
-    empresaGanadoraPorDni[dni] = claves[0];
-    descartadosMultiEmpresa.push({ dni, ganadora: claves[0], descartadas: claves.slice(1) });
-  }
-  const filasTrabajadorFiltradas = filasTrabajador.filter(fila => {
-    const ganadora = empresaGanadoraPorDni[fila._dni];
-    return !ganadora || fila._empresaRaw === ganadora;
-  });
-
-  // Problemas por empresa
-  // FIX 6.1: documentos de empresa sin regla definida se tratan como naranja
-  const problemasPorEmpresa = {};
-  // Empresas con Formación de 60h validada a nivel de empresa (para autónomos).
-  const empresasCon60hValidada = new Set();
-  for (const fila of filasEmpresa) {
-    const empresaRaw = String(fila['Empresa'] || '').trim();
-    if (!empresaRaw) continue;
-    const nombreDoc = fila['Documento'] || '', estado = fila['Estado'] || '';
-    if (estado === 'Validado' && String(nombreDoc).startsWith('Formación 60 horas')) {
-      empresasCon60hValidada.add(empresaRaw);
-    }
-    if (estado === 'Validado') continue;
-    const regla = aplicarRegla(nombreDoc, estado, 'empresa');
-    if (regla) {
-      if (!problemasPorEmpresa[empresaRaw]) problemasPorEmpresa[empresaRaw] = [];
-      problemasPorEmpresa[empresaRaw].push({ doc: nombreDoc, estado, resultado: regla.resultado });
-    } else {
-      // Sin regla definida: registrar para el aviso Y forzar naranja por seguridad
-      sinRegla.add(`${nombreDoc}||${estado}`);
-      if (!problemasPorEmpresa[empresaRaw]) problemasPorEmpresa[empresaRaw] = [];
-      problemasPorEmpresa[empresaRaw].push({ doc: nombreDoc, estado, resultado: 'naranja' });
-    }
-  }
-
-  // Agrupar por trabajador
-  const porTrabajador = {};
-  for (const fila of filasTrabajadorFiltradas) {
-    const dni = fila._dni;
-    if (!porTrabajador[dni]) {
-      porTrabajador[dni] = { dni, nombre: fila._nombreTrabajador, empresa: extraerNombreEmpresa(fila['Empresa'] || ''), empresaRaw: fila._empresaRaw, docs: [] };
-    }
-    porTrabajador[dni].docs.push({ doc: fila['Documento'] || '', estado: fila['Estado'] || '' });
-  }
-
-  // Calcular semáforo
-  resultadoFinal = [];
-  for (const [dni, info] of Object.entries(porTrabajador)) {
-    let estadoFinal = 'verde';
-    const motivos = [];
-
-    // Paso RP-2: ¿es este trabajador de una empresa propia?
-    // Si NO lo es, los documentos del Recurso Preventivo NO se le heredan.
-    const empresaEsPropia = esEmpresaPropia(info.empresaRaw);
-
-    // ¿Autónomo sin asalariados? Si lo es, se le perdonan los documentos de
-    // empresa de PRL que solo aplican a empresas con plantilla.
-    const empresaEsAutonomoSolo = esAutonomoSinAsalariados(info.empresaRaw);
-
-    // P-06: subcontratas sin contrato vigente → rojo directo
-    if (!empresaEsPropia && !tieneContratoVigente(info.empresaRaw)) {
-      estadoFinal = 'rojo';
-      motivos.push('Sin contrato entre empresas → rojo');
+    if (infoCentro) {
+      document.getElementById('alertas').insertAdjacentHTML('afterbegin',
+        '<div class="alert alert-info">📍 ' + escHtml(infoCentro) + '</div>');
     }
 
-    // P-14: subcontratas que no han firmado el libro de subcontratación → rojo.
-    // Reactivado el 16/6/2026 tras cargar las firmas reales en la app
-    // (firma registrada = fila vigente en libros_subcontratacion). Empresas
-    // propias exentas. Ver ESTADO.md.
-    if (!empresaEsPropia && !tieneLibroVigente(info.empresaRaw)) {
-      estadoFinal = 'rojo';
-      motivos.push('No ha firmado el libro de subcontratación → rojo');
-    }
+    document.getElementById('avisoNoGuardado').classList.remove('oculto');
+    document.getElementById('resumenFinal').innerHTML = '';
+    document.getElementById('msgConfirmar').textContent = '';
 
-    // ── Subsunción: Formación 60h implica Formación 20h ──────────────────────
-    // Si el trabajador tiene cualquier documento "Formación 60 horas..." validado,
-    // se considera que el requisito de "Formación 20 horas..." también está cubierto.
-    // Cuenta también si, siendo AUTÓNOMO, su 60h validado cuelga de la empresa.
-    const esAutonomo = mismosNombres(info.nombre, extraerEmpresa(info.empresaRaw).nombre);
-    const tiene60hValidada =
-      info.docs.some(d => d.doc.startsWith('Formación 60 horas') && d.estado === 'Validado') ||
-      (esAutonomo && empresasCon60hValidada.has(info.empresaRaw));
-
-    // Categoría real del trabajador en la app (e-Coordina siempre dice "peon").
-    // Si aún no está en la app → 'peon' por defecto.
-    const categoriaApp = (trabajadoresApp[dni] && trabajadoresApp[dni].categoria) || 'peon';
-
-    for (const { doc, estado } of info.docs) {
-      if (estado === 'Validado') continue;
-      // Si tiene 60h validada, ignorar cualquier problema con 20h
-      if (tiene60hValidada && doc.startsWith('Formación 20 horas')) continue;
-      // Documento de oficio que esta categoría no necesita → no le aplica.
-      if (docNoAplicaPorOficio(doc, categoriaApp)) continue;
-      const regla = aplicarRegla(doc, estado, 'trabajador');
-      if (regla) {
-        estadoFinal = peorEstado(estadoFinal, regla.resultado);
-        motivos.push(`${doc} (${estado}) → ${regla.resultado}`);
-      } else {
-        // FIX 6.1: sin regla definida → naranja por seguridad (antes se ignoraba)
-        sinRegla.add(`${doc}||${estado}`);
-        estadoFinal = peorEstado(estadoFinal, 'naranja');
-        motivos.push(`${doc} (${estado}) → naranja [sin regla definida, revisar Admin → Reglas]`);
-      }
-    }
-
-    const empProblemas = problemasPorEmpresa[info.empresaRaw] || [];
-    for (const p of empProblemas) {
-      // ── Paso RP-2: NO heredar documentos del Recurso Preventivo
-      // a trabajadores de subcontratas (empresas no propias).
-      if (!empresaEsPropia && esDocSoloRP(p.doc)) {
-        continue;
-      }
-      // Autónomo sin asalariados: no exigir docs de PRL de empresa con plantilla.
-      if (empresaEsAutonomoSolo && esDocSoloPlantilla(p.doc)) {
-        continue;
-      }
-      estadoFinal = peorEstado(estadoFinal, p.resultado);
-      motivos.push(`[Empresa] ${p.doc} (${p.estado}) → ${p.resultado}`);
-    }
-
-    const descInfo = descartadosMultiEmpresa.find(d => d.dni === dni);
-    if (descInfo) {
-      const nombresDesc = descInfo.descartadas.map(e => extraerNombreEmpresa(e)).join(', ');
-      motivos.push(`[Cambio de empresa] Se han ignorado los documentos de: ${nombresDesc}`);
-    }
-
-    const enApp = !!trabajadoresApp[dni];
-    resultadoFinal.push({
-      dni,
-      nombre: info.nombre,
-      empresa: info.empresa,
-      empresaRaw: info.empresaRaw,
-      estadoCalculado: estadoFinal,
-      motivos,
-      enApp,
-      trabajadorId: enApp ? trabajadoresApp[dni].id : null,
-      nombreApp: enApp ? trabajadoresApp[dni].nombre : null
-    });
+    document.getElementById('resultado').style.display = 'block';
+    document.getElementById('resultado').scrollIntoView({ behavior: 'smooth' });
+  } catch (err) {
+    console.error('Error procesando:', err);
+    alert('Error procesando el archivo: ' + (err.message || err));
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Procesar archivo';
   }
-
-  const orden = { rojo: 0, naranja: 1, verde: 2 };
-  resultadoFinal.sort((a, b) => orden[a.estadoCalculado] - orden[b.estadoCalculado]);
-
-  renderTabla();
-  renderStats();
-  renderAlertaCambiosEmpresa();
-  renderAlertaSinRegla();
-  renderDesaparecidos();
-
-  if (infoCentro) {
-    document.getElementById('alertas').insertAdjacentHTML('afterbegin',
-      '<div class="alert alert-info">📍 ' + escHtml(infoCentro) + '</div>');
-  }
-
-  document.getElementById('avisoNoGuardado').classList.remove('oculto');
-  document.getElementById('resumenFinal').innerHTML = '';
-  document.getElementById('msgConfirmar').textContent = '';
-
-  btn.disabled = false; btn.innerHTML = 'Procesar archivo';
-  document.getElementById('resultado').style.display = 'block';
-  document.getElementById('resultado').scrollIntoView({ behavior: 'smooth' });
 }
 
-// ── RENDER ────────────────────────────────────────────────────────────────────
+// ── RENDER ─────────────────────────────────────────────────────────────────
 function renderStats() {
   const enApp = resultadoFinal.filter(r => r.enApp);
   const rojos = enApp.filter(r => r.estadoCalculado === 'rojo').length;
@@ -1091,7 +513,7 @@ function renderAlertaCambiosEmpresa() {
   const lineas = descartadosMultiEmpresa.map(d => {
     const trabajador = resultadoFinal.find(r => r.dni === d.dni);
     const nombre = trabajador ? trabajador.nombre : d.dni;
-    return `<li><strong>${escHtml(nombre)}</strong> (${escHtml(d.dni)}): se ha usado <strong>${escHtml(extraerNombreEmpresa(d.ganadora))}</strong> e ignorado <em>${escHtml(d.descartadas.map(e => extraerNombreEmpresa(e)).join(', '))}</em></li>`;
+    return `<li><strong>${escHtml(nombre)}</strong> (${escHtml(d.dni)}): se ha usado <strong>${escHtml(EI.extraerNombreEmpresa(d.ganadora))}</strong> e ignorado <em>${escHtml(d.descartadas.map(e => EI.extraerNombreEmpresa(e)).join(', '))}</em></li>`;
   }).join('');
   cont.innerHTML = `
     <div class="alert alert-info">
@@ -1117,8 +539,8 @@ function renderAlertaSinRegla() {
 
 function renderDesaparecidos() {
   const dnisEnExcel = new Set(resultadoFinal.map(r => r.dni.toUpperCase()));
-  // Los trabajadores propios (BP / Rècop) nunca aparecen en e-Coordina porque fichan
-  // manualmente: se excluyen de esta lista para no generar ruido.
+  // Los trabajadores propios (BP / Rècop) nunca aparecen en e-Coordina porque
+  // fichan manualmente: se excluyen para no generar ruido.
   const desaparecidos = Object.entries(dnisEnObra)
     .filter(([dni, info]) => !dnisEnExcel.has(dni) && !info.esPropia);
 
@@ -1137,7 +559,7 @@ function renderDesaparecidos() {
       <label for="des_${escHtml(dni)}" style="cursor:pointer;flex:1;">
         <strong>${escHtml(info.nombre)}</strong>
         <code style="margin-left:8px;">${escHtml(dni)}</code>
-        <span class="badge badge-${escHtml(estadoSeguro(info.estado))}" style="margin-left:8px;">${escHtml((info.estado || '').toUpperCase())}</span>
+        <span class="badge badge-${escHtml(EI.estadoSeguro(info.estado))}" style="margin-left:8px;">${escHtml((info.estado || '').toUpperCase())}</span>
       </label>
     </div>
   `).join('');
@@ -1149,7 +571,7 @@ function renderTabla() {
   const tbody = document.getElementById('tbodyResultado');
   tbody.innerHTML = '';
   for (const r of resultadoFinal) {
-    const estadoCalc = estadoSeguro(r.estadoCalculado);
+    const estadoCalc = EI.estadoSeguro(r.estadoCalculado);
     const badgeClass = `badge-${estadoCalc}`;
     const enAppBadge = r.enApp ? `<span class="badge badge-verde">✓ Sí</span>` : `<span class="badge badge-naranja">Nuevo</span>`;
     const motivosHtml = r.motivos.length
@@ -1168,29 +590,7 @@ function renderTabla() {
   }
 }
 
-// ── HELPERS EMPRESA ───────────────────────────────────────────────────────────
-function extraerEmpresa(texto) {
-  if (!texto) return { nombre: '', cif: '' };
-  const partes = texto.split(' - ');
-  if (partes.length >= 2) return { nombre: partes.slice(0, partes.length - 1).join(' - ').trim(), cif: partes[partes.length - 1].trim() };
-  return { nombre: texto.trim(), cif: '' };
-}
-
-// Palabras de un nombre, normalizadas y ordenadas, para comparar sin importar
-// el orden ni las comas. Sirve para detectar AUTÓNOMOS (empresa = la persona).
-function tokensNombre(s) {
-  return normalizar(String(s || '').replace(/,/g, ' '))
-    .split(' ')
-    .filter(Boolean)
-    .sort();
-}
-function mismosNombres(a, b) {
-  const ta = tokensNombre(a), tb = tokensNombre(b);
-  if (ta.length === 0 || tb.length === 0 || ta.length !== tb.length) return false;
-  return ta.every((t, i) => t === tb[i]);
-}
-
-// ── CONFIRMAR ─────────────────────────────────────────────────────────────────
+// ── CONFIRMAR ──────────────────────────────────────────────────────────────
 async function confirmarImportacion() {
   const obraId = document.getElementById('obraSelect').value;
   if (!resultadoFinal.length) { document.getElementById('msgConfirmar').textContent = 'No hay trabajadores para importar.'; return; }
@@ -1200,89 +600,18 @@ async function confirmarImportacion() {
   btn.innerHTML = '<span class="spinner"></span> Guardando...';
   document.getElementById('resumenFinal').innerHTML = '';
 
-  const creadosLista = [];
-  const actualizadosLista = [];
-  const fallos = [];
-
-  // ── Paso 1: Crear/actualizar trabajadores y recoger sus IDs ──────────────
-  const resultadosConId = [];
-
-  for (const r of resultadoFinal) {
-    try {
-      const { nombre: empNombre, cif: empCif } = extraerEmpresa(r.empresaRaw || '');
-      const { data: rpcData, error: rpcErr } = await sb.rpc('crear_o_actualizar_trabajador_para_import', {
-        p_nombre: r.nombre || '',
-        p_apellidos: '',
-        p_dni: r.dni,
-        p_categoria: 'peon',
-        p_empresa_nombre: empNombre || '',
-        p_empresa_cif: empCif || ''
-      });
-
-      if (rpcErr || !rpcData || rpcData.ok === false) {
-        fallos.push({ dni: r.dni, nombre: r.nombre, fase: 'crear/actualizar trabajador', mensaje: (rpcErr && rpcErr.message) || (rpcData && rpcData.error) || 'Error desconocido' });
-        continue;
-      }
-
-      const idDevuelto = rpcData.id;
-      if (!idDevuelto) {
-        fallos.push({ dni: r.dni, nombre: r.nombre, fase: 'crear/actualizar trabajador', mensaje: 'La RPC no ha devuelto id' });
-        continue;
-      }
-
-      if (!r.enApp) creadosLista.push({ nombre: r.nombre, dni: r.dni });
-      else actualizadosLista.push({ nombre: r.nombre, dni: r.dni });
-
-      resultadosConId.push({ ...r, trabajadorId: idDevuelto });
-
-    } catch (err) {
-      console.error('Excepción al crear/actualizar trabajador', r.dni, err);
-      fallos.push({ dni: r.dni, nombre: r.nombre, fase: 'crear/actualizar trabajador', mensaje: err.message || String(err) });
-    }
-  }
-
-  // ── Paso 2: Construir array para la RPC ──────────────────────────────────
-  const p_resultados = resultadosConId.map(r => ({
-    trabajador_id: r.trabajadorId,
-    estado: r.estadoCalculado,
-    motivos: r.motivos.length ? r.motivos : null
-  }));
-
-  // ── Paso 3: Recoger DNIs marcados como "bloquear" ─────────────────────────
+  // Recoger DNIs marcados como bloquear (desaparecidos seleccionados).
   const checkboxes = document.querySelectorAll('#listaDesaparecidos input[type="checkbox"]:checked');
-  const p_dnis_a_bloquear = Array.from(checkboxes).map(cb => ({ dni: cb.value }));
+  const dnisABloquear = Array.from(checkboxes).map(cb => ({ dni: cb.value }));
 
-  // ── Paso 4: Llamar a la RPC principal ────────────────────────────────────
-  let saltadosPorForzado = 0;
-  let bloqueadosPorAusencia = 0;
-
-  if (p_resultados.length || p_dnis_a_bloquear.length) {
-    try {
-      const { data: rpcResult, error: rpcErr } = await sb.rpc('aplicar_resultado_ecoordina', {
-        p_obra_id: obraId,
-        p_resultados: p_resultados,
-        p_dnis_a_bloquear: p_dnis_a_bloquear
-      });
-
-      if (rpcErr) {
-        fallos.push({ dni: '—', nombre: '—', fase: 'aplicar resultado (RPC)', mensaje: rpcErr.message || String(rpcErr) });
-      } else if (rpcResult && rpcResult.ok === false) {
-        fallos.push({ dni: '—', nombre: '—', fase: 'aplicar resultado (RPC)', mensaje: rpcResult.error || 'La RPC devolvió ok=false' });
-      } else if (rpcResult) {
-        saltadosPorForzado = rpcResult.saltados_por_forzado || 0;
-        bloqueadosPorAusencia = rpcResult.bloqueados_por_ausencia || 0;
-      }
-    } catch (err) {
-      console.error('Excepción en aplicar_resultado_ecoordina:', err);
-      fallos.push({ dni: '—', nombre: '—', fase: 'aplicar resultado (RPC)', mensaje: err.message || String(err) });
-    }
-  }
+  // Toda la escritura (crear/actualizar trabajadores + RPC principal) vive
+  // en el módulo. Devuelve listas para construir el resumen UI.
+  const res = await EI.aplicar(sb, obraId, resultadoFinal, dnisABloquear);
 
   btn.disabled = false;
   btn.innerHTML = '✅ Confirmar importación';
   document.getElementById('avisoNoGuardado').classList.add('oculto');
 
-  // ── Resumen final ──────────────────────────────────────────────────────────
   const msg = document.getElementById('msgConfirmar');
   const resumenCont = document.getElementById('resumenFinal');
 
@@ -1292,8 +621,11 @@ async function confirmarImportacion() {
     return `<details class="lista-plegable"><summary style="color:${color}">${escHtml(titulo)} (${items.length})</summary><ul>${li}</ul></details>`;
   };
 
-  const creados = creadosLista.length;
-  const actualizados = actualizadosLista.length;
+  const creados = res.creadosLista.length;
+  const actualizados = res.actualizadosLista.length;
+  const fallos = res.fallos;
+  const saltadosPorForzado = res.saltadosPorForzado || 0;
+  const bloqueadosPorAusencia = res.bloqueadosPorAusencia || 0;
 
   const avisoForzados = saltadosPorForzado > 0
     ? `<div class="alert alert-warning" style="margin-top:10px;">
@@ -1317,8 +649,8 @@ async function confirmarImportacion() {
       </div>
       ${avisoForzados}
       ${avisoBloqueados}
-      ${construirLista('🆕 Trabajadores nuevos creados', creadosLista, 'var(--verde)')}
-      ${construirLista('🔁 Trabajadores actualizados', actualizadosLista, 'var(--azul)')}
+      ${construirLista('🆕 Trabajadores nuevos creados', res.creadosLista, 'var(--verde)')}
+      ${construirLista('🔁 Trabajadores actualizados', res.actualizadosLista, 'var(--azul)')}
     `;
   } else {
     msg.style.color = 'var(--rojo)';
@@ -1341,15 +673,15 @@ async function confirmarImportacion() {
       </div>
       ${avisoForzados}
       ${avisoBloqueados}
-      ${construirLista('🆕 Trabajadores nuevos creados', creadosLista, 'var(--verde)')}
-      ${construirLista('🔁 Trabajadores actualizados', actualizadosLista, 'var(--azul)')}
+      ${construirLista('🆕 Trabajadores nuevos creados', res.creadosLista, 'var(--verde)')}
+      ${construirLista('🔁 Trabajadores actualizados', res.actualizadosLista, 'var(--azul)')}
     `;
   }
 
   resumenCont.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-// ── INIT ──────────────────────────────────────────────────────────────────────
+// ── INIT ───────────────────────────────────────────────────────────────────
 init();
 </script>
 </body>
