@@ -5,10 +5,19 @@ name: e-Coordina · sincronización diaria
 # horas en GitHub por congestión. Con minuto impar el retraso es mínimo.
 # ⚠️ Cambio de hora de octubre: pasar a '43 2 * * 1-5' (CET = UTC+1).
 # También se puede lanzar a mano desde la pestaña Actions (workflow_dispatch).
+#
+# MJ-20 (auditoría): si la sync falla, se abre (o actualiza) una issue
+# automática en el repo con la etiqueta "sync-fallida" y un enlace al run.
+# Si ya hay una issue abierta con esa etiqueta, se añade un comentario en
+# vez de crear otra (evita acumular issues duplicadas).
 on:
   workflow_dispatch:
   schedule:
     - cron: '43 1 * * 1-5'
+
+permissions:
+  contents: read
+  issues: write
 
 jobs:
   sincronizar:
@@ -49,3 +58,39 @@ jobs:
             output/
             debug/
           if-no-files-found: warn
+
+      - name: Abrir issue si la sync ha fallado
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          TITULO="⚠️ Sync e-Coordina FALLIDA — $(date -u +'%d/%m/%Y')"
+          CUERPO="La sincronización nocturna con e-Coordina ha fallado.
+
+          **Run:** $RUN_URL
+
+          Pasos sugeridos:
+          1. Abrir el run y mirar qué paso falló (descarga CSV o volcado a Supabase).
+          2. Descargar el artifact \`resultado-sync\` (capturas en \`debug/\`).
+          3. Si es un fallo puntual de e-Coordina, relanzar a mano desde la pestaña Actions.
+          4. Cerrar esta issue cuando la sync vuelva a estar verde.
+
+          _Issue creada automáticamente por el workflow \`ecoordina.yml\`._"
+
+          # ¿Hay ya una issue abierta con la etiqueta sync-fallida?
+          EXISTENTE=$(gh issue list --repo "$GITHUB_REPOSITORY" \
+            --label "sync-fallida" --state open --json number --jq '.[0].number' || echo "")
+
+          if [ -n "$EXISTENTE" ] && [ "$EXISTENTE" != "null" ]; then
+            gh issue comment "$EXISTENTE" --repo "$GITHUB_REPOSITORY" \
+              --body "❌ Ha vuelto a fallar. Run: $RUN_URL"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "$TITULO" \
+              --body "$CUERPO" \
+              --label "sync-fallida" || \
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "$TITULO" \
+              --body "$CUERPO"
+          fi
