@@ -49,6 +49,20 @@ window.EcoordinaImport = (function () {
     { doc: 'Formación en riesgo eléctrico',     categorias: ['electricista'] }
   ];
 
+  // ── Fecha "hoy" en España (M-05) ──────────────────────────────────────────
+  // new Date().toISOString() da el día en UTC: entre las 00:00 y la 01:00
+  // (invierno) o las 02:00 (verano), devuelve el día ANTERIOR al real en
+  // España. Usamos js/fechas.js si la página lo tiene cargado; si no,
+  // fallback local con el mismo criterio (Europe/Madrid, DST correcto).
+  function hoyEspana() {
+    if (window.Fechas && typeof window.Fechas.hoyMadrid === 'function') {
+      return window.Fechas.hoyMadrid();
+    }
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date());
+  }
+
   // ── Normalización / helpers de texto ──────────────────────────────────────
   function normalizar(s) {
     return String(s || '')
@@ -118,9 +132,15 @@ window.EcoordinaImport = (function () {
   }
 
   // ── Reglas / semáforo ────────────────────────────────────────────────────
+  // M-10: matching normalizado (sin tildes, sin mayúsculas/minúsculas, sin
+  // espacios dobles). Antes era comparación exacta: una tilde distinta entre
+  // e-Coordina y reglas_documentales hacía que la regla no aplicara y el
+  // documento cayera al "naranja por defecto" en silencio.
   function aplicarRegla(reglas, nombreDoc, estadoEcoordina, tipoAplica) {
-    let regla = reglas.find(r => r.aplica_a === tipoAplica && r.nombre_documento === nombreDoc && r.estado_ecoordina === estadoEcoordina);
-    if (!regla) regla = reglas.find(r => r.aplica_a === tipoAplica && r.nombre_documento === '*' && r.estado_ecoordina === estadoEcoordina);
+    const nDoc = normalizar(nombreDoc);
+    const nEstado = normalizar(estadoEcoordina);
+    let regla = reglas.find(r => r.aplica_a === tipoAplica && normalizar(r.nombre_documento) === nDoc && normalizar(r.estado_ecoordina) === nEstado);
+    if (!regla) regla = reglas.find(r => r.aplica_a === tipoAplica && r.nombre_documento === '*' && normalizar(r.estado_ecoordina) === nEstado);
     return regla || null;
   }
   function peorEstado(a, b) {
@@ -312,7 +332,7 @@ window.EcoordinaImport = (function () {
   async function cargarContratosVigentes(sb, obraId) {
     const set = new Set();
     if (!obraId) return set;
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = hoyEspana(); // M-05: día de hoy en España, no en UTC
     const { data, error } = await sb.from('contratos_empresa')
       .select('empresa:empresa_id(nombre, cif)')
       .eq('obra_id', obraId)
@@ -332,7 +352,7 @@ window.EcoordinaImport = (function () {
   async function cargarLibrosVigentes(sb, obraId) {
     const set = new Set();
     if (!obraId) return set;
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = hoyEspana(); // M-05: día de hoy en España, no en UTC
     const { data, error } = await sb.from('libros_subcontratacion')
       .select('empresa:empresa_id(nombre, cif)')
       .eq('obra_id', obraId)
@@ -405,7 +425,9 @@ window.EcoordinaImport = (function () {
 
     // Fix cambio de empresa
     const descartadosMultiEmpresa = [];
-    const ESTADOS_PROBLEMATICOS = new Set(['No válido', 'Sin presentar', 'Caducado', 'Pendiente']);
+    // B-13: el valor real que exporta e-Coordina es 'Validación pendiente',
+    // no 'Pendiente'. Se mantienen ambos por si algún export antiguo usa el corto.
+    const ESTADOS_PROBLEMATICOS = new Set(['No válido', 'Sin presentar', 'Caducado', 'Validación pendiente', 'Pendiente']);
     const statsPorDniEmpresa = {};
     for (const fila of filasTrabajador) {
       const dni = fila._dni; const emp = fila._empresaRaw || '(sin empresa)';
