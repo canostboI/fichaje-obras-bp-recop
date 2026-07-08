@@ -52,6 +52,8 @@
   .cuadro { width: 14px; height: 14px; border-radius: 3px; display: inline-block; border: 1px solid var(--borde); }
   .cuadro.finde { background: #2a2d36; }
   .cuadro.autocierre { background: rgba(255,152,0,0.35); }
+  .cuadro.tocado { background: var(--bg2); position: relative; overflow: hidden; }
+  .cuadro.tocado::before { content: ''; position: absolute; top: 0; right: 0; border-top: 9px solid #e8ff00; border-left: 9px solid transparent; }
 
   .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; margin-bottom: 18px; }
   .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
@@ -81,6 +83,8 @@
   table.mes td.celda.cero:hover { opacity: 1; }
   table.mes th.finde, table.mes td.finde { background: #2a2d36; }
   table.mes td.autocierre { background: rgba(255,152,0,0.35); color: #ffd699; font-weight: 700; }
+  table.mes td.celda.tocado { position: relative; }
+  table.mes td.celda.tocado::before { content: ''; position: absolute; top: 0; right: 0; border-top: 9px solid #e8ff00; border-left: 9px solid transparent; }
   table.mes th.col-total, table.mes td.col-total {
     position: sticky; right: 0; z-index: 2; background: var(--bg3);
     font-weight: 700; min-width: 60px; box-shadow: -2px 0 0 var(--borde);
@@ -127,7 +131,9 @@
   .marca.manual     { background: rgba(33,150,243,0.15); color: var(--azul); }
   .marca.autocierre { background: rgba(255,152,0,0.18);  color: var(--naranja); }
   .marca.corregido  { background: rgba(139,144,158,0.18); color: var(--texto2); }
+  .motivo-mini { font-size: 10px; color: var(--texto2); max-width: 240px; white-space: normal; line-height: 1.3; }
   .dia-vacio { padding: 18px 14px; text-align: center; color: var(--texto2); font-size: 13px; }
+  .info-ajuste { background: rgba(232,255,0,0.07); border: 1px solid rgba(232,255,0,0.25); color: var(--texto2); padding: 10px 14px; border-radius: 8px; font-size: 12px; margin-bottom: 16px; line-height: 1.4; }
   .resumen-horas-dia { font-size: 13px; color: var(--texto2); margin-bottom: 16px; }
   .resumen-horas-dia b { color: var(--texto); }
 
@@ -185,7 +191,8 @@
     <div class="leyenda">
       <span><span class="cuadro finde"></span> Fin de semana</span>
       <span><span class="cuadro autocierre"></span> Día con cierre automático (revisar)</span>
-      <span>💡 Toca una celda para ver y corregir los fichajes de ese día</span>
+      <span><span class="cuadro tocado"></span> Día con fichajes manuales o corregidos</span>
+      <span>💡 Toca una celda para ver, ajustar o corregir los fichajes de ese día</span>
     </div>
 
     <div id="zona-tablas">
@@ -203,7 +210,8 @@
     <div class="lista-dia" id="dia-lista"></div>
     <div class="modal-acciones">
       <button class="btn-secundario" id="btn-cerrar-dia">Cerrar</button>
-      <button class="btn-primario" id="btn-abrir-manual">➕ Añadir fichaje manual</button>
+      <button class="btn-secundario" id="btn-abrir-manual">➕ Fichaje suelto</button>
+      <button class="btn-primario" id="btn-abrir-ajuste">⚡ Ajustar día</button>
     </div>
   </div>
 </div>
@@ -241,6 +249,24 @@
   </div>
 </div>
 
+<!-- Modal Ajustar día: entrada + salida + motivo en un solo paso -->
+<div class="modal-overlay" id="modal-ajuste">
+  <div class="modal">
+    <h2>⚡ Ajustar día</h2>
+    <div class="subtitulo" id="ajuste-subtitulo"></div>
+    <div class="info-ajuste">Pon la entrada y la salida reales del día. El sistema corregirá los fichajes que ya existan o creará fichajes manuales si faltan. Todo queda registrado con tu nombre y el motivo.</div>
+    <div class="error-modal" id="error-ajuste"></div>
+    <div class="ok-modal" id="ok-ajuste"></div>
+    <div class="campo"><label>Hora de entrada</label><input type="time" id="ajuste-entrada"></div>
+    <div class="campo"><label>Hora de salida</label><input type="time" id="ajuste-salida"></div>
+    <div class="campo"><label>Motivo</label><textarea id="ajuste-motivo" placeholder="Ej: no pudo fichar a primera hora, confirmado por el encargado"></textarea></div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cancelar-ajuste">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar-ajuste">Guardar día</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
@@ -262,6 +288,8 @@ let resumenTrabajadores = {};     // trabajador_id -> { nombre, dni }
 let diaAbierto = null;            // { trabajadorId, dia }
 let fichajeCorrigiendoId = null;
 let fichajeCorrigiendoHora = null;
+let diasTocadosMap = {};          // trabajador_id -> Set(días con fichaje manual/corregido)
+let horasObraActual = { entrada: null, salida: null };
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -341,14 +369,14 @@ async function obtenerFichajesMes(obraId, mes) {
   const hasta = new Date(year, month, 1, 0, 0, 0, 0);
 
   let { data, error } = await sb.from('fichajes')
-    .select(`id, tipo, hora, cierre_automatico, es_manual, corregido_por, trabajador_id,
+    .select(`id, tipo, hora, cierre_automatico, es_manual, corregido_por, motivo_correccion, trabajador_id,
       trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado, empresa:empresa_id(nombre))`)
     .eq('obra_id', obraId).gte('hora', desde.toISOString()).lt('hora', hasta.toISOString())
     .order('hora', { ascending: true });
   if (!error) return data || [];
 
   const fallback = await sb.from('fichajes')
-    .select(`id, tipo, hora, cierre_automatico, es_manual, corregido_por, trabajador_id,
+    .select(`id, tipo, hora, cierre_automatico, es_manual, corregido_por, motivo_correccion, trabajador_id,
       trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado)`)
     .eq('obra_id', obraId).gte('hora', desde.toISOString()).lt('hora', hasta.toISOString())
     .order('hora', { ascending: true });
@@ -389,6 +417,16 @@ async function cargarResumen() {
   mesCargado = mes;
   resumenTrabajadores = {};
 
+  // Días "tocados": con algún fichaje manual o corregido → esquina amarilla
+  diasTocadosMap = {};
+  fichajesMesCache.forEach(f => {
+    if (f.es_manual || f.corregido_por) {
+      const d = new Date(f.hora).getDate();
+      if (!diasTocadosMap[f.trabajador_id]) diasTocadosMap[f.trabajador_id] = new Set();
+      diasTocadosMap[f.trabajador_id].add(d);
+    }
+  });
+
   if (!fichajes || fichajes.length === 0) {
     zona.innerHTML = '<div class="seccion"><div class="vacio">No hay fichajes en ese mes para esta obra.</div></div>';
     return;
@@ -405,6 +443,7 @@ async function cargarResumen() {
       .eq('id', obraActual).single();
     if (obraInfo) horasObra = { entrada: obraInfo.hora_entrada_default, salida: obraInfo.hora_salida_default };
   } catch (e) { /* sin horas oficiales: el cálculo simplemente no aplica suelo/techo */ }
+  horasObraActual = horasObra;
 
   const grupos = window.ExcelProforma.agruparPorEmpresa(fichajes);
   const nombresEmpresa = Object.keys(grupos).sort((a, b) => a.localeCompare(b, 'es'));
@@ -460,6 +499,7 @@ function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
       const clases = ['celda'];
       if (findes.has(d)) clases.push('finde');
       if (esAuto) clases.push('autocierre');
+      if (diasTocadosMap[t.id] && diasTocadosMap[t.id].has(d)) clases.push('tocado');
       if (h === 0 && !esAuto) clases.push('cero');
       celdas += `<td class="${clases.join(' ')}" data-tid="${t.id}" data-dia="${d}">${h > 0 ? formatHoras(h) : '·'}</td>`;
     }
@@ -570,10 +610,13 @@ function renderListaDia(trabajadorId, dia) {
     if (f.es_manual) marcas.push('<span class="marca manual">manual</span>');
     if (f.cierre_automatico) marcas.push('<span class="marca autocierre">autocierre</span>');
     if (f.corregido_por) marcas.push('<span class="marca corregido">corregido</span>');
+    const motivoTxt = f.motivo_correccion
+      ? `<span class="motivo-mini">📝 ${escapeHtml(f.motivo_correccion)}</span>` : '';
     return `<div class="fila-fichaje">
       <div class="izq">
         <span class="tipo ${f.tipo === 'entrada' ? 'entrada' : 'salida'}">${f.tipo === 'entrada' ? '📥 Entrada' : '📤 Salida'}</span>
         <div class="marcas">${marcas.join('')}</div>
+        ${motivoTxt}
       </div>
       <span class="hora">${hhmm}</span>
       <button class="btn-naranja btn-corregir" data-fid="${f.id}" data-hora="${escapeHtml(f.hora)}" data-tipo="${f.tipo}">✏ Corregir</button>
@@ -727,6 +770,130 @@ async function recargarYReabrirDia() {
     diaAbierto = null;
   }
 }
+
+// =====================================================================
+// AJUSTAR DÍA: entrada + salida + motivo en un solo paso.
+// Corrige los fichajes que ya existen o crea manuales si faltan.
+// Usa las mismas RPC de siempre: corregir_fichaje y registrar_fichaje_manual.
+// =====================================================================
+function hhmmDe(isoHora) {
+  const d = new Date(isoHora);
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+document.getElementById('btn-abrir-ajuste').addEventListener('click', () => {
+  if (!diaAbierto) return;
+  const fichajes = fichajesDelDia(diaAbierto.trabajadorId, diaAbierto.dia);
+  const entradas = fichajes.filter(f => f.tipo === 'entrada');
+  const salidas  = fichajes.filter(f => f.tipo === 'salida');
+
+  if (entradas.length > 1 || salidas.length > 1) {
+    alert('Este día tiene varios tramos de entrada/salida. Para no liarla, corrige cada fichaje individualmente con el botón ✏ Corregir.');
+    return;
+  }
+
+  const t = resumenTrabajadores[diaAbierto.trabajadorId] || {};
+  const [year, month] = mesCargado.split('-').map(Number);
+  const fecha = new Date(year, month - 1, diaAbierto.dia);
+  document.getElementById('ajuste-subtitulo').textContent =
+    `${t.nombre || ''} · ${fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+
+  // Prellenar: hora real si existe fichaje; si no, la hora oficial de la obra
+  document.getElementById('ajuste-entrada').value =
+    entradas[0] ? hhmmDe(entradas[0].hora) : (horasObraActual.entrada ? horasObraActual.entrada.slice(0,5) : '');
+  document.getElementById('ajuste-salida').value =
+    salidas[0] ? hhmmDe(salidas[0].hora) : (horasObraActual.salida ? horasObraActual.salida.slice(0,5) : '');
+  document.getElementById('ajuste-motivo').value = '';
+  document.getElementById('error-ajuste').style.display = 'none';
+  document.getElementById('ok-ajuste').style.display = 'none';
+  document.getElementById('btn-guardar-ajuste').disabled = false;
+  document.getElementById('modal-ajuste').classList.add('visible');
+});
+
+document.getElementById('btn-cancelar-ajuste').addEventListener('click', () => {
+  document.getElementById('modal-ajuste').classList.remove('visible');
+});
+
+function mostrarErrorAjuste(txt) {
+  const e = document.getElementById('error-ajuste');
+  e.textContent = txt; e.style.display = 'block';
+}
+
+document.getElementById('btn-guardar-ajuste').addEventListener('click', async () => {
+  if (!diaAbierto) return;
+  const hEntrada = document.getElementById('ajuste-entrada').value;
+  const hSalida  = document.getElementById('ajuste-salida').value;
+  const motivo   = document.getElementById('ajuste-motivo').value.trim();
+
+  if (!hEntrada && !hSalida) { mostrarErrorAjuste('Pon al menos una hora (entrada o salida).'); return; }
+  if (hEntrada && hSalida && hSalida <= hEntrada) { mostrarErrorAjuste('La salida debe ser posterior a la entrada.'); return; }
+  if (!motivo) { mostrarErrorAjuste('El motivo es obligatorio: es lo que justifica el ajuste.'); return; }
+
+  const fichajes = fichajesDelDia(diaAbierto.trabajadorId, diaAbierto.dia);
+  const entradaExistente = fichajes.find(f => f.tipo === 'entrada') || null;
+  const salidaExistente  = fichajes.find(f => f.tipo === 'salida')  || null;
+
+  const [year, month] = mesCargado.split('-').map(Number);
+  const dia = diaAbierto.dia;
+  const aISO = (hhmm) => {
+    const [hh, mi] = hhmm.split(':').map(Number);
+    return new Date(year, month - 1, dia, hh, mi, 0, 0).toISOString();
+  };
+
+  // Plan de operaciones: primero la entrada, luego la salida (coherencia)
+  const ops = [];
+  if (hEntrada) {
+    if (entradaExistente) {
+      if (hhmmDe(entradaExistente.hora) !== hEntrada)
+        ops.push({ que: 'corregir', id: entradaExistente.id, hora: aISO(hEntrada), etiqueta: 'entrada' });
+    } else {
+      ops.push({ que: 'crear', tipo: 'entrada', hora: aISO(hEntrada), etiqueta: 'entrada' });
+    }
+  }
+  if (hSalida) {
+    if (salidaExistente) {
+      if (hhmmDe(salidaExistente.hora) !== hSalida)
+        ops.push({ que: 'corregir', id: salidaExistente.id, hora: aISO(hSalida), etiqueta: 'salida' });
+    } else {
+      ops.push({ que: 'crear', tipo: 'salida', hora: aISO(hSalida), etiqueta: 'salida' });
+    }
+  }
+
+  if (ops.length === 0) { mostrarErrorAjuste('No has cambiado nada respecto a lo que ya hay.'); return; }
+
+  document.getElementById('btn-guardar-ajuste').disabled = true;
+  document.getElementById('error-ajuste').style.display = 'none';
+
+  for (const op of ops) {
+    let resultado;
+    if (op.que === 'corregir') {
+      resultado = await sb.rpc('corregir_fichaje', {
+        p_fichaje_id: op.id, p_nueva_hora: op.hora, p_motivo: motivo
+      });
+    } else {
+      resultado = await sb.rpc('registrar_fichaje_manual', {
+        p_trabajador_id: diaAbierto.trabajadorId, p_obra_id: obraActual,
+        p_tipo: op.tipo, p_hora: op.hora, p_motivo: motivo
+      });
+    }
+    const { data, error } = resultado;
+    if (error || !data || data.success !== true) {
+      document.getElementById('btn-guardar-ajuste').disabled = false;
+      const detalle = error ? error.message : ((data && data.error) || 'error desconocido');
+      mostrarErrorAjuste(`No se ha podido guardar la ${op.etiqueta}: ${detalle}. Los cambios anteriores de este ajuste sí se han guardado; revisa el día.`);
+      // Recargar en segundo plano para que la vista refleje lo que sí entró
+      cargarResumen();
+      return;
+    }
+  }
+
+  document.getElementById('ok-ajuste').textContent = 'Día ajustado correctamente.';
+  document.getElementById('ok-ajuste').style.display = 'block';
+  setTimeout(async () => {
+    document.getElementById('modal-ajuste').classList.remove('visible');
+    await recargarYReabrirDia();
+  }, 900);
+});
 
 // =====================================================================
 // HELPERS
