@@ -559,6 +559,8 @@ const TEXTOS = {
     acceso_denegado:     '✗ Acceso denegado',
     motivos_bloqueo:     'Motivos del bloqueo:',
     avisos:              'Avisos:',
+    aviso_generico_docs: 'Hay documentación pendiente. Consulta con tu encargado.',
+    bloqueo_generico:    'Consulta con tu encargado para más información.',
     entrar:              'Entrar',
     salir:               'Salir',
     alt_entrar:          'En realidad voy a entrar',
@@ -576,7 +578,7 @@ const TEXTOS = {
     fichaje_rechazado:   'No se pudo registrar el fichaje.',
     reintentar:          'Reintentar',
     aviso_autocierre_titulo: '⚠ Atención: ayer no fichaste la salida',
-    aviso_autocierre_texto1: 'El sistema cerró tu jornada automáticamente a las',
+    aviso_autocierre_texto1: 'El sistema cerró tu jornada automáticamente a la hora de cierre de la obra.',
     aviso_autocierre_texto2: 'Esa hora es la que cuenta en tu factura.',
     aviso_autocierre_alerta: 'Si esa hora no es correcta, pierdes horas pagadas. Avisa al encargado para que lo corrija.',
     gps: {
@@ -633,6 +635,8 @@ const TEXTOS = {
     acceso_denegado:     '✗ الدخول ممنوع',
     motivos_bloqueo:     'أسباب المنع:',
     avisos:              'تنبيهات:',
+    aviso_generico_docs: 'هناك وثائق معلقة. استشر المسؤول.',
+    bloqueo_generico:    'استشر المسؤول لمزيد من المعلومات.',
     entrar:              'دخول',
     salir:               'خروج',
     alt_entrar:          'في الواقع سأدخل',
@@ -650,7 +654,7 @@ const TEXTOS = {
     fichaje_rechazado:   'تعذّر تسجيل الحضور.',
     reintentar:          'إعادة المحاولة',
     aviso_autocierre_titulo: '⚠ تنبيه: لم تسجّل خروجك أمس',
-    aviso_autocierre_texto1: 'أغلق النظام وردة عملك تلقائياً في الساعة',
+    aviso_autocierre_texto1: 'أغلق النظام وردة عملك تلقائياً في وقت إغلاق الموقع.',
     aviso_autocierre_texto2: 'هذا هو الوقت الذي يُحتسب في فاتورتك.',
     aviso_autocierre_alerta: 'إذا كان الوقت غير صحيح، ستخسر ساعات مدفوعة. أخبر المسؤول ليصحح ذلك.',
     gps: {
@@ -707,6 +711,8 @@ const TEXTOS = {
     acceso_denegado:     '✗ Acces refuzat',
     motivos_bloqueo:     'Motive de blocare:',
     avisos:              'Avertismente:',
+    aviso_generico_docs: 'Există documente în așteptare. Consultă responsabilul.',
+    bloqueo_generico:    'Consultă responsabilul pentru mai multe informații.',
     entrar:              'Intrare',
     salir:               'Ieșire',
     alt_entrar:          'De fapt voi intra',
@@ -724,7 +730,7 @@ const TEXTOS = {
     fichaje_rechazado:   'Pontajul nu a putut fi înregistrat.',
     reintentar:          'Reîncercați',
     aviso_autocierre_titulo: '⚠ Atenție: ieri nu ai înregistrat ieșirea',
-    aviso_autocierre_texto1: 'Sistemul ți-a închis tura automat la ora',
+    aviso_autocierre_texto1: 'Sistemul ți-a închis tura automat la ora de închidere a șantierului.',
     aviso_autocierre_texto2: 'Aceasta este ora care se contabilizează în factura ta.',
     aviso_autocierre_alerta: 'Dacă ora nu este corectă, pierzi ore plătite. Anunță responsabilul pentru a corecta.',
     gps: {
@@ -873,9 +879,14 @@ function aplicarIdioma(lang) {
   }
 
   if (!el.pasoResultado.classList.contains('oculto') && estado.validacion) {
-    const esCritico = estado.validacion.estado === 'rojo' && !estado.validacion.tiene_excepcion_hoy;
-    pintarMotivos(el.motivosBox, estado.validacion.motivos, esCritico);
-    pintarAvisoAutocierre(estado.validacion.aviso_autocierre);
+    const v2 = estado.validacion;
+    const esCritico = v2.estado === 'rojo' && !v2.tiene_excepcion_hoy;
+    if (v2.estado === 'verde') {
+      pintarMotivos(el.motivosBox, null);
+    } else {
+      pintarMotivos(el.motivosBox, [esCritico ? T('bloqueo_generico') : T('aviso_generico_docs')], esCritico);
+    }
+    pintarAvisoAutocierre(v2.aviso_autocierre);
   }
 }
 
@@ -1070,14 +1081,15 @@ function pintarMotivos(contenedor, motivos, criticos) {
 }
 
 function pintarAvisoAutocierre(aviso) {
-  if (!aviso || !aviso.hora) {
+  // A-02: la RPC ahora devuelve solo true/false (sin hora)
+  if (aviso !== true) {
     el.avisoAutocierreBox.classList.add('oculto');
     el.avisoAutocierreBox.innerHTML = '';
     return;
   }
   el.avisoAutocierreBox.innerHTML =
     '<span class="aviso-titulo">' + escapar(T('aviso_autocierre_titulo')) + '</span>' +
-    '<p>' + escapar(T('aviso_autocierre_texto1')) + ' <strong>' + escapar(aviso.hora) + '</strong>. ' +
+    '<p>' + escapar(T('aviso_autocierre_texto1')) + ' ' +
     escapar(T('aviso_autocierre_texto2')) + '</p>' +
     '<p class="aviso-alerta">' + escapar(T('aviso_autocierre_alerta')) + '</p>';
   el.avisoAutocierreBox.classList.remove('oculto');
@@ -1270,14 +1282,14 @@ function mostrarResultadoValidacion(v) {
     case 'naranja':
       el.estadoBox.classList.add('estado-naranja');
       el.estadoBox.textContent = T('acceso_aviso');
-      pintarMotivos(el.motivosBox, v.motivos, false);
+      pintarMotivos(el.motivosBox, [T('aviso_generico_docs')], false);
       pintarAvisoAutocierre(v.aviso_autocierre);
       configurarBotonesFichaje('naranja', tipoSugerido);
       break;
     case 'excepcion':
       el.estadoBox.classList.add('estado-naranja');
       el.estadoBox.textContent = T('acceso_excepcion');
-      pintarMotivos(el.motivosBox, v.motivos, false);
+      pintarMotivos(el.motivosBox, [T('aviso_generico_docs')], false);
       pintarAvisoAutocierre(v.aviso_autocierre);
       configurarBotonesFichaje('naranja', tipoSugerido);
       break;
@@ -1285,7 +1297,7 @@ function mostrarResultadoValidacion(v) {
     default:
       el.estadoBox.classList.add('estado-rojo');
       el.estadoBox.textContent = T('acceso_denegado');
-      pintarMotivos(el.motivosBox, v.motivos, true);
+      pintarMotivos(el.motivosBox, [T('bloqueo_generico')], true);
       el.avisoAutocierreBox.classList.add('oculto');
       el.botonesFichaje.classList.add('oculto');
       el.btnEntrada.disabled = true;
