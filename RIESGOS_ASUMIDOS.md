@@ -41,9 +41,8 @@ romper la operativa.
 falsa (mock location) en el móvil. Un trabajador con conocimientos
 podría fichar "desde la obra" estando en otro sitio.
 
-**Estado:** ⏳ **pendiente del visto bueno de Dani.** Recomendación de
-la auditoría: aceptar con las mitigaciones de abajo. Cuando Dani
-confirme, cambiar este estado a "aceptado" con fecha.
+**Estado:** ✅ **ACEPTADO por Dani el 8/7/2026** con las mitigaciones
+de abajo. Cierra el hallazgo B-15 de la auditoría profunda.
 
 **Por qué se recomienda aceptar:**
 - Detectar mock location de forma fiable requiere app nativa. Cambiar
