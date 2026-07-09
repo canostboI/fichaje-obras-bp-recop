@@ -4,21 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Resumen mensual — Jefe de Obra</title>
-<!-- Modal Eliminar fichaje manual -->
-<div class="modal-overlay" id="modal-eliminar">
-  <div class="modal">
-    <h2>🗑 Eliminar fichaje manual</h2>
-    <div class="subtitulo" id="eliminar-subtitulo"></div>
-    <div class="info-ajuste">Se borrará este fichaje manual y quedará constancia en incidencias de quién lo eliminó y por qué. Los fichajes reales (con GPS) no se pueden eliminar, solo corregir.</div>
-    <div class="error-modal" id="error-eliminar"></div>
-    <div class="campo"><label>Motivo de la eliminación</label><textarea id="eliminar-motivo" placeholder="Ej: fichaje creado por error, el trabajador no vino ese día"></textarea></div>
-    <div class="modal-acciones">
-      <button class="btn-secundario" id="btn-cancelar-eliminar">Cancelar</button>
-      <button class="btn-primario-rojo" id="btn-confirmar-eliminar">Eliminar</button>
-    </div>
-  </div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/branding.js"></script>
 <script src="../js/auto-logout.js"></script>
@@ -282,6 +267,21 @@
     <div class="modal-acciones">
       <button class="btn-secundario" id="btn-cancelar-ajuste">Cancelar</button>
       <button class="btn-primario" id="btn-guardar-ajuste">Guardar día</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Eliminar fichaje manual -->
+<div class="modal-overlay" id="modal-eliminar">
+  <div class="modal">
+    <h2>🗑 Eliminar fichaje manual</h2>
+    <div class="subtitulo" id="eliminar-subtitulo"></div>
+    <div class="info-ajuste">Se borrará este fichaje manual y quedará constancia en incidencias de quién lo eliminó y por qué. Los fichajes reales (con GPS) no se pueden eliminar, solo corregir.</div>
+    <div class="error-modal" id="error-eliminar"></div>
+    <div class="campo"><label>Motivo de la eliminación</label><textarea id="eliminar-motivo" placeholder="Ej: fichaje creado por error, el trabajador no vino ese día"></textarea></div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cancelar-eliminar">Cancelar</button>
+      <button class="btn-primario-rojo" id="btn-confirmar-eliminar">Eliminar</button>
     </div>
   </div>
 </div>
