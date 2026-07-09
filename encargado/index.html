@@ -319,6 +319,10 @@
     .checkbox-declaracion { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 1.4rem; cursor: pointer; }
     .checkbox-declaracion input[type="checkbox"] { width: 20px; height: 20px; min-width: 20px; margin-top: 2px; cursor: pointer; accent-color: #1b5e20; }
     .checkbox-declaracion span { font-size: 0.92rem; color: #333; line-height: 1.4; }
+    .campo-sin-fichar { margin-bottom: 1.2rem; }
+    .campo-sin-fichar label { display: block; font-size: 0.9rem; font-weight: 700; color: #b71c1c; margin-bottom: 0.35rem; }
+    .campo-sin-fichar input { width: 100px; padding: 0.55rem 0.7rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1.1rem; font-weight: 700; text-align: center; }
+    .campo-sin-fichar .hint-sin-fichar { font-size: 0.8rem; color: #777; margin-top: 0.3rem; line-height: 1.35; }
     .modal-confirmacion-acciones { display: flex; gap: 10px; justify-content: flex-end; }
     .btn-confirmar-ronda { background: #1b5e20; color: white; border: none; padding: 0.75rem 1.4rem; border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer; }
     .btn-confirmar-ronda:disabled { background: #aaa; cursor: not-allowed; }
@@ -562,6 +566,11 @@
   <div class="modal-confirmacion">
     <h3>✅ Confirmación de presencia</h3>
     <div class="declaracion-texto" id="declaracion-texto"></div>
+    <div class="campo-sin-fichar">
+      <label for="input-sin-fichar">Personas presentes que NO han podido fichar</label>
+      <input type="number" id="input-sin-fichar" min="0" step="1" inputmode="numeric">
+      <div class="hint-sin-fichar">Prellenado con los accesos denegados de hoy. Corrígelo si la realidad es otra.</div>
+    </div>
     <label class="checkbox-declaracion">
       <input type="checkbox" id="checkbox-declaracion">
       <span>He verificado presencialmente que estas son todas las personas en obra y no hay ninguna más.</span>
@@ -587,6 +596,7 @@
   let nombreEncargado = '';
 
   let presentesCache = [];
+  let rojosHoyCache = 0;
   let naranjasActualesCache = [];
   let idsRPCache = new Set();
   let habIconosPorTrabajadorCache = {};
@@ -869,7 +879,7 @@
 
   async function cargarBloqueos() {
     const panel = document.getElementById('panel-bloqueos');
-    if (!obraActualId) { panel.style.display = 'none'; return; }
+    if (!obraActualId) { panel.style.display = 'none'; rojosHoyCache = 0; return; }
 
     const { desdeISO, hastaISO } = rangoHoyLocal();
 
@@ -882,6 +892,7 @@
       .gte('created_at', desdeISO)
       .lte('created_at', hastaISO);
     const personasDistintas = new Set((dataHistorico || []).map(i => i.trabajador_id).filter(Boolean)).size;
+    rojosHoyCache = personasDistintas;
     const statRojos = document.getElementById('stat-rojos');
     if (statRojos) statRojos.textContent = personasDistintas;
 
@@ -1131,7 +1142,7 @@
     const { desdeISO, hastaISO } = rangoHoyLocal();
     const { data, error } = await sb
       .from('rondas_encargado')
-      .select('momento, personas_en_obra')
+      .select('momento, personas_en_obra, personas_sin_fichar')
       .eq('obra_id', obraActualId)
       .gte('momento', desdeISO)
       .lte('momento', hastaISO)
@@ -1142,25 +1153,50 @@
 
     const r = data[0];
     const hora = formatHora(r.momento);
-    const personas = r.personas_en_obra !== null ? ` · ${r.personas_en_obra} personas confirmadas` : '';
+    let personas = r.personas_en_obra !== null ? ` · ${r.personas_en_obra} fichadas` : '';
+    if (r.personas_sin_fichar != null && r.personas_sin_fichar > 0) personas += ` + ${r.personas_sin_fichar} sin fichar`;
     el.textContent = `Última confirmación hoy: ${hora}${personas}`;
     el.style.display = 'block';
   }
+
+  function leerSinFichar() {
+    const v = parseInt(document.getElementById('input-sin-fichar').value, 10);
+    return (Number.isFinite(v) && v >= 0) ? v : 0;
+  }
+
+  function pintarDeclaracionRonda() {
+    const numPresentes = presentesCache.length;
+    const sinFichar = leerSinFichar();
+    const total = numPresentes + sinFichar;
+
+    const ahora = new Date();
+    const fechaTexto = ahora.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+    const horaTexto = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    const fichadosTexto = numPresentes === 1 ? '1 persona fichada' : `${numPresentes} personas fichadas`;
+
+    let cuerpo;
+    if (sinFichar > 0) {
+      const sinTexto = sinFichar === 1 ? '1 persona presente sin poder fichar' : `${sinFichar} personas presentes sin poder fichar`;
+      cuerpo = `hay <strong>${esc(fichadosTexto)}</strong> y <strong>${esc(sinTexto)}</strong> ` +
+               `(<strong>${total} en total</strong>) trabajando en esta obra, y no más.`;
+    } else {
+      cuerpo = `hay <strong>${esc(fichadosTexto)}</strong> trabajando en esta obra, y no más.`;
+    }
+
+    document.getElementById('declaracion-texto').innerHTML =
+      `Yo, <strong>${esc(nombreEncargado)}</strong>, encargado de la obra <strong>${esc(obraActualNombre)}</strong>, ` +
+      `declaro que el día <strong>${esc(fechaTexto)}</strong> a las <strong>${esc(horaTexto)}</strong> ` + cuerpo;
+  }
+
+  document.getElementById('input-sin-fichar').addEventListener('input', pintarDeclaracionRonda);
 
   document.getElementById('btn-ronda').addEventListener('click', () => {
     if (!obraActualId) return;
     const numPresentes = presentesCache.length;
     if (numPresentes === 0) return;
 
-    const ahora = new Date();
-    const fechaTexto = ahora.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
-    const horaTexto = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-    const personasTexto = numPresentes === 1 ? '1 persona' : `${numPresentes} personas`;
-
-    document.getElementById('declaracion-texto').innerHTML =
-      `Yo, <strong>${esc(nombreEncargado)}</strong>, encargado de la obra <strong>${esc(obraActualNombre)}</strong>, ` +
-      `declaro que el día <strong>${esc(fechaTexto)}</strong> a las <strong>${esc(horaTexto)}</strong> ` +
-      `hay <strong>${esc(personasTexto)}</strong> trabajando en esta obra, y no más.`;
+    document.getElementById('input-sin-fichar').value = rojosHoyCache;
+    pintarDeclaracionRonda();
 
     document.getElementById('checkbox-declaracion').checked = false;
     document.getElementById('btn-confirmar-ronda').disabled = true;
@@ -1187,10 +1223,13 @@
     const msg = document.getElementById('msg-ronda');
     msg.style.display = 'none';
 
+    const sinFichar = leerSinFichar();
+
     const { data, error } = await sb.rpc('marcar_ronda', {
       p_obra_id: obraActualId,
       p_nota: null,
-      p_personas_en_obra: numPresentes
+      p_personas_en_obra: numPresentes,
+      p_personas_sin_fichar: sinFichar
     });
 
     document.getElementById('modal-confirmacion-overlay').classList.remove('visible');
@@ -1212,7 +1251,8 @@
       return;
     }
 
-    msg.textContent = `✅ Confirmado: ${numPresentes} ${numPresentes === 1 ? 'persona' : 'personas'} en obra a las ${formatHora(new Date().toISOString())}.`;
+    const extraSin = sinFichar > 0 ? ` + ${sinFichar} sin poder fichar` : '';
+    msg.textContent = `✅ Confirmado: ${numPresentes} ${numPresentes === 1 ? 'persona fichada' : 'personas fichadas'}${extraSin} a las ${formatHora(new Date().toISOString())}.`;
     msg.className = 'msg-ok';
     msg.style.display = 'block';
 
