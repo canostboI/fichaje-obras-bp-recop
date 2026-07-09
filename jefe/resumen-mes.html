@@ -7,6 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/branding.js"></script>
 <script src="../js/auto-logout.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="../js/excel-proforma.js"></script>
 <style>
   :root {
@@ -189,6 +190,7 @@
     <div class="barra-filtros">
       <input type="month" id="filtro-mes">
       <button class="btn-secundario" id="btn-mes-actual">Mes actual</button>
+      <button class="btn-primario" id="btn-exportar-excel">📥 Excel proforma</button>
       <span class="msg-info" id="msg-info"></span>
     </div>
 
@@ -360,6 +362,7 @@ let horasObraActual = { entrada: null, salida: null };
     document.getElementById('filtro-mes').value = mesActual();
     await cargarResumen();
   });
+  document.getElementById('btn-exportar-excel').addEventListener('click', exportarExcelProforma);
 })();
 
 function aplicarBrandingObra(empresaMarca) {
@@ -402,6 +405,108 @@ async function obtenerFichajesMes(obraId, mes) {
     .order('hora', { ascending: true });
   if (fallback.error) throw fallback.error;
   return fallback.data || [];
+}
+
+// =====================================================================
+// EXPORTAR EXCEL PROFORMA (mismo generador que jefe/fichajes.html)
+// =====================================================================
+async function exportarExcelProforma() {
+  const btn = document.getElementById('btn-exportar-excel');
+  const msg = document.getElementById('msg-info');
+  const mes = document.getElementById('filtro-mes').value;
+  msg.className = 'msg-info'; msg.textContent = '';
+
+  if (!obraActual) { msg.className = 'msg-info err'; msg.textContent = 'No hay obra seleccionada.'; return; }
+  if (!mes || !/^\d{4}-\d{2}$/.test(mes)) { msg.className = 'msg-info err'; msg.textContent = 'Selecciona un mes.'; return; }
+  if (!window.ExcelJS) { msg.className = 'msg-info err'; msg.textContent = 'No se ha cargado ExcelJS. Recarga la página.'; return; }
+  if (!window.ExcelProforma || !window.ExcelProforma.generar) { msg.className = 'msg-info err'; msg.textContent = 'No se ha cargado js/excel-proforma.js. Recarga la página.'; return; }
+
+  btn.disabled = true; const textoOriginal = btn.textContent; btn.textContent = 'Exportando…';
+
+  try {
+    // Fichajes: reutilizamos la caché si es el mismo mes ya pintado en pantalla.
+    const fichajes = (mesCargado === mes && fichajesMesCache.length > 0)
+      ? fichajesMesCache
+      : await obtenerFichajesMes(obraActual, mes);
+
+    if (!fichajes || fichajes.length === 0) {
+      msg.className = 'msg-info err'; msg.textContent = 'No hay fichajes en ese mes para esta obra.';
+      btn.disabled = false; btn.textContent = textoOriginal; return;
+    }
+
+    // Datos completos de la obra (el generador necesita nombre, nº y horas oficiales).
+    const { data: obra, error: errObra } = await sb.from('obras')
+      .select('id, nombre, numero_obra, empresa_marca, hora_entrada_default, hora_salida_default')
+      .eq('id', obraActual).single();
+    if (errObra) throw errObra;
+
+    // Logo de la marca en base64 (si falla, el Excel sale sin logo).
+    let logoBase64 = null;
+    try {
+      const marca = (obra?.empresa_marca || '').toLowerCase().trim();
+      const logoRutas = {
+        bosch_pascual: '../assets/logos/bosch_pascual_logo.png',
+        recop:         '../assets/logos/recop_logo.png',
+      };
+      const logoUrl = logoRutas[marca];
+      if (logoUrl) {
+        logoBase64 = await new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width  = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            canvas.getContext('2d').drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png'));
+          };
+          img.onerror = () => resolve(null);
+          img.src = logoUrl;
+        });
+      }
+    } catch (e) { logoBase64 = null; }
+
+    const { buffer, autocierres } = await window.ExcelProforma.generar({ obra, mes, fichajes, logoBase64 });
+
+    if (autocierres > 0) {
+      const seguir = window.confirm(
+        `Atención: se han detectado ${autocierres} ${autocierres === 1 ? 'salida' : 'salidas'} con cierre automático en este mes.\n\n` +
+        'Conviene revisarlas con el encargado o el trabajador antes de enviar el Excel a la propiedad. ' +
+        'En el archivo, esos días aparecen marcados en naranja claro con un comentario.\n\n' +
+        '¿Quieres exportar igualmente?'
+      );
+      if (!seguir) {
+        msg.className = 'msg-info err'; msg.textContent = 'Exportación cancelada.';
+        btn.disabled = false; btn.textContent = textoOriginal; return;
+      }
+    }
+
+    const nombreArchivo = `control_personal_${limpiarNombreArchivo(obra?.nombre || 'obra')}_${mes}.xlsx`;
+    descargarBuffer(buffer, nombreArchivo);
+
+    msg.className = 'msg-info';
+    msg.textContent = autocierres > 0
+      ? `Excel generado con ${autocierres} ${autocierres === 1 ? 'salida marcada' : 'salidas marcadas'} en naranja para revisar.`
+      : 'Excel generado.';
+
+  } catch (err) {
+    console.error(err);
+    msg.className = 'msg-info err'; msg.textContent = 'Error al exportar: ' + (err.message || err);
+  }
+
+  btn.disabled = false; btn.textContent = textoOriginal;
+}
+
+function descargarBuffer(buffer, filename) {
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+}
+
+function limpiarNombreArchivo(txt) {
+  return String(txt || 'archivo').toLowerCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
 // =====================================================================
