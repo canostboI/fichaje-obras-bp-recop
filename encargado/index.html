@@ -1252,8 +1252,13 @@
     }
 
     const extraSin = sinFichar > 0 ? ` + ${sinFichar} sin poder fichar` : '';
-    msg.textContent = `✅ Confirmado: ${numPresentes} ${numPresentes === 1 ? 'persona fichada' : 'personas fichadas'}${extraSin} a las ${formatHora(new Date().toISOString())}.`;
-    msg.className = 'msg-ok';
+    if (sinFichar > 0) {
+      msg.textContent = `⚠️ Confirmado con incidencia: ${numPresentes} ${numPresentes === 1 ? 'persona fichada' : 'personas fichadas'}${extraSin} a las ${formatHora(new Date().toISOString())}.`;
+      msg.className = 'msg-err';
+    } else {
+      msg.textContent = `✅ Confirmado: ${numPresentes} ${numPresentes === 1 ? 'persona fichada' : 'personas fichadas'} a las ${formatHora(new Date().toISOString())}.`;
+      msg.className = 'msg-ok';
+    }
     msg.style.display = 'block';
 
     actualizarBotonRonda(numPresentes);
