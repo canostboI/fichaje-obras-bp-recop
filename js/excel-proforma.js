@@ -200,8 +200,25 @@
 
         let netoDia = 0;
         if (primeraEntrada && ultimaSalida && ultimaSalida > primeraEntrada) {
+          // Compensación (9/7/2026): los minutos trabajados ANTES de la hora
+          // oficial de entrada compensan, hasta un máximo de 15 min, los que
+          // falten para llegar a la hora oficial de salida. Ej.: entra 7:42 y
+          // sale 17:19 con jornada 8:00-17:30 → los 18 min de antelación
+          // (topados a 15) cubren los 11 que faltan → cobra jornada completa.
+          // Se aplica sobre la hora REAL de salida, antes del redondeo, para
+          // que el resultado siga cayendo en cuartos limpios.
+          const sueloReal = limiteDelDia(primeraEntrada, horaEntradaObra);
+          const techoReal = limiteDelDia(primeraEntrada, horaSalidaObra);
+          let salidaEfectiva = ultimaSalida;
+          if (sueloReal && techoReal &&
+              primeraEntrada < sueloReal && ultimaSalida < techoReal) {
+            const colchon = Math.min(sueloReal - primeraEntrada, COMPENSACION_MAX_MS);
+            const deficit = techoReal - ultimaSalida;
+            salidaEfectiva = new Date(ultimaSalida.getTime() + Math.min(colchon, deficit));
+          }
+
           let inicio = redondearEntrada(primeraEntrada);
-          let fin    = redondearSalida(ultimaSalida);
+          let fin    = redondearSalida(salidaEfectiva);
 
           // Suelo: no se paga antes de la hora oficial de entrada de la obra.
           const suelo = limiteDelDia(primeraEntrada, horaEntradaObra);
@@ -717,8 +734,12 @@
   // - No se pagan horas después de la hora oficial de salida (las extra las
   //   confirma el jefe aparte): techo = hora_salida_default.
   // - Descanso proporcional sobre horas brutas: ≤4h → 0 · 4–7h → 30 · ≥7h → 90.
+  // - Compensación (añadida 9/7/2026): entrar antes de la hora oficial no
+  //   suma, pero compensa hasta 15 min de salida anticipada. Solo aplica si
+  //   la obra tiene hora oficial de entrada Y de salida definidas.
   const CUARTO_MS   = 15 * 60 * 1000;
   const CORTESIA_MS = 3 * 60 * 1000;
+  const COMPENSACION_MAX_MS = 15 * 60 * 1000;
 
   function redondearEntrada(fecha) {
     const ms = fecha.getTime();
