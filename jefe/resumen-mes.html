@@ -4,6 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Resumen mensual — Jefe de Obra</title>
+<!-- Modal Eliminar fichaje manual -->
+<div class="modal-overlay" id="modal-eliminar">
+  <div class="modal">
+    <h2>🗑 Eliminar fichaje manual</h2>
+    <div class="subtitulo" id="eliminar-subtitulo"></div>
+    <div class="info-ajuste">Se borrará este fichaje manual y quedará constancia en incidencias de quién lo eliminó y por qué. Los fichajes reales (con GPS) no se pueden eliminar, solo corregir.</div>
+    <div class="error-modal" id="error-eliminar"></div>
+    <div class="campo"><label>Motivo de la eliminación</label><textarea id="eliminar-motivo" placeholder="Ej: fichaje creado por error, el trabajador no vino ese día"></textarea></div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cancelar-eliminar">Cancelar</button>
+      <button class="btn-primario-rojo" id="btn-confirmar-eliminar">Eliminar</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/branding.js"></script>
 <script src="../js/auto-logout.js"></script>
@@ -114,6 +129,10 @@
   .btn-primario:disabled { opacity: 0.45; cursor: not-allowed; }
   .btn-naranja { background: var(--naranja); color: white; border: none; padding: 5px 10px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
   .btn-naranja:hover { opacity: 0.9; }
+  .btn-rojo { background: transparent; color: var(--rojo); border: 1px solid rgba(244,67,54,0.4); padding: 5px 9px; border-radius: 7px; font-size: 12px; cursor: pointer; font-family: inherit; }
+  .btn-rojo:hover { background: rgba(244,67,54,0.12); }
+  .btn-primario-rojo { background: var(--rojo); color: white; border: none; padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .btn-primario-rojo:disabled { opacity: 0.45; cursor: not-allowed; }
   .error-modal { background: rgba(244,67,54,0.1); color: var(--rojo); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; display: none; }
   .ok-modal { background: rgba(76,175,80,0.1); color: var(--verde); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; display: none; }
 
@@ -289,6 +308,7 @@ let diaAbierto = null;            // { trabajadorId, dia }
 let fichajeCorrigiendoId = null;
 let fichajeCorrigiendoHora = null;
 let diasTocadosMap = {};          // trabajador_id -> Set(días con fichaje manual/corregido)
+let diasTocadosInfo = {};         // trabajador_id -> { día: [líneas para el tooltip] }
 let horasObraActual = { entrada: null, salida: null };
 
 (async function init() {
@@ -419,11 +439,20 @@ async function cargarResumen() {
 
   // Días "tocados": con algún fichaje manual o corregido → esquina amarilla
   diasTocadosMap = {};
+  diasTocadosInfo = {};
   fichajesMesCache.forEach(f => {
     if (f.es_manual || f.corregido_por) {
       const d = new Date(f.hora).getDate();
       if (!diasTocadosMap[f.trabajador_id]) diasTocadosMap[f.trabajador_id] = new Set();
       diasTocadosMap[f.trabajador_id].add(d);
+      const hd = new Date(f.hora);
+      const hhmm = `${String(hd.getHours()).padStart(2,'0')}:${String(hd.getMinutes()).padStart(2,'0')}`;
+      const etiqueta = f.es_manual ? 'manual' : 'corregido';
+      const linea = `${f.tipo === 'entrada' ? 'Entrada' : 'Salida'} ${hhmm} (${etiqueta})`
+        + (f.motivo_correccion ? `: ${f.motivo_correccion}` : '');
+      if (!diasTocadosInfo[f.trabajador_id]) diasTocadosInfo[f.trabajador_id] = {};
+      if (!diasTocadosInfo[f.trabajador_id][d]) diasTocadosInfo[f.trabajador_id][d] = [];
+      diasTocadosInfo[f.trabajador_id][d].push(linea);
     }
   });
 
@@ -499,9 +528,14 @@ function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
       const clases = ['celda'];
       if (findes.has(d)) clases.push('finde');
       if (esAuto) clases.push('autocierre');
-      if (diasTocadosMap[t.id] && diasTocadosMap[t.id].has(d)) clases.push('tocado');
+      let tooltip = '';
+      if (diasTocadosMap[t.id] && diasTocadosMap[t.id].has(d)) {
+        clases.push('tocado');
+        const lineas = (diasTocadosInfo[t.id] && diasTocadosInfo[t.id][d]) || [];
+        tooltip = ` title="${escapeHtml(lineas.join('\n'))}"`;
+      }
       if (h === 0 && !esAuto) clases.push('cero');
-      celdas += `<td class="${clases.join(' ')}" data-tid="${t.id}" data-dia="${d}">${h > 0 ? formatHoras(h) : '·'}</td>`;
+      celdas += `<td class="${clases.join(' ')}" data-tid="${t.id}" data-dia="${d}"${tooltip}>${h > 0 ? formatHoras(h) : '·'}</td>`;
     }
     totalEmpresa += t.horas_mes;
     filas += `<tr>
@@ -620,11 +654,17 @@ function renderListaDia(trabajadorId, dia) {
       </div>
       <span class="hora">${hhmm}</span>
       <button class="btn-naranja btn-corregir" data-fid="${f.id}" data-hora="${escapeHtml(f.hora)}" data-tipo="${f.tipo}">✏ Corregir</button>
+      ${f.es_manual ? `<button class="btn-rojo btn-eliminar" data-fid="${f.id}" data-tipo="${f.tipo}" data-hhmm="${hhmm}" title="Eliminar fichaje manual">🗑</button>` : ''}
     </div>`;
   }).join('');
 }
 
 document.getElementById('dia-lista').addEventListener('click', (ev) => {
+  const btnDel = ev.target.closest('.btn-eliminar');
+  if (btnDel) {
+    abrirEliminacion(btnDel.dataset.fid, btnDel.dataset.tipo, btnDel.dataset.hhmm);
+    return;
+  }
   const btn = ev.target.closest('.btn-corregir');
   if (!btn) return;
   abrirCorreccion(btn.dataset.fid, btn.dataset.tipo, btn.dataset.hora);
@@ -893,6 +933,53 @@ document.getElementById('btn-guardar-ajuste').addEventListener('click', async ()
     document.getElementById('modal-ajuste').classList.remove('visible');
     await recargarYReabrirDia();
   }, 900);
+});
+
+// =====================================================================
+// ELIMINAR FICHAJE MANUAL (RPC eliminar_fichaje: solo manuales,
+// solo admin/jefe de la obra, deja rastro en incidencias)
+// =====================================================================
+let fichajeEliminandoId = null;
+
+function abrirEliminacion(fichajeId, tipo, hhmm) {
+  fichajeEliminandoId = fichajeId;
+  document.getElementById('eliminar-subtitulo').textContent =
+    `${tipo === 'entrada' ? 'Entrada' : 'Salida'} manual de las ${hhmm}`;
+  document.getElementById('eliminar-motivo').value = '';
+  document.getElementById('error-eliminar').style.display = 'none';
+  document.getElementById('btn-confirmar-eliminar').disabled = false;
+  document.getElementById('modal-eliminar').classList.add('visible');
+}
+
+document.getElementById('btn-cancelar-eliminar').addEventListener('click', () => {
+  document.getElementById('modal-eliminar').classList.remove('visible');
+  fichajeEliminandoId = null;
+});
+
+document.getElementById('btn-confirmar-eliminar').addEventListener('click', async () => {
+  const motivo = document.getElementById('eliminar-motivo').value.trim();
+  const err = document.getElementById('error-eliminar');
+  if (!motivo) {
+    err.textContent = 'El motivo es obligatorio.'; err.style.display = 'block'; return;
+  }
+  if (!fichajeEliminandoId) return;
+  document.getElementById('btn-confirmar-eliminar').disabled = true;
+  err.style.display = 'none';
+
+  const { data, error } = await sb.rpc('eliminar_fichaje', {
+    p_fichaje_id: fichajeEliminandoId, p_motivo: motivo
+  });
+
+  if (error || !data || data.success !== true) {
+    document.getElementById('btn-confirmar-eliminar').disabled = false;
+    err.textContent = 'No se ha podido eliminar: ' + (error ? error.message : ((data && data.error) || 'error desconocido'));
+    err.style.display = 'block';
+    return;
+  }
+
+  fichajeEliminandoId = null;
+  document.getElementById('modal-eliminar').classList.remove('visible');
+  await recargarYReabrirDia();
 });
 
 // =====================================================================
