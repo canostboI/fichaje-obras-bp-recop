@@ -141,6 +141,7 @@
 
   .banner-ronda { border-radius: 10px; padding: 13px 18px; margin-bottom: 20px; font-size: 14px; display: flex; align-items: center; gap: 10px; }
   .banner-ronda.confirmado { background: rgba(76,175,80,0.1); border: 1px solid rgba(76,175,80,0.35); color: var(--verde); }
+  .banner-ronda.alerta { background: rgba(244,67,54,0.12); border: 1px solid rgba(244,67,54,0.45); color: var(--rojo); font-weight: 600; }
   .banner-ronda.pendiente { background: rgba(139,144,158,0.08); border: 1px solid var(--borde); color: var(--texto2); }
   .banner-ronda.oculto { display: none; }
 
@@ -846,7 +847,7 @@ async function cargarRondaEncargado() {
   const { desdeISO, hastaISO } = rangoHoyLocal();
   const { data, error } = await sb
     .from('rondas_encargado')
-    .select('momento, personas_en_obra, encargado:usuario_app_id(nombre)')
+    .select('momento, personas_en_obra, personas_sin_fichar, encargado:usuario_app_id(nombre)')
     .eq('obra_id', obraActual)
     .gte('momento', desdeISO)
     .lte('momento', hastaISO)
@@ -859,10 +860,17 @@ async function cargarRondaEncargado() {
   }
   const r = data[0];
   const hora = formatHora(r.momento);
-  const personas = r.personas_en_obra !== null ? ` · ${r.personas_en_obra} personas confirmadas` : '';
   const nombre = r.encargado?.nombre ? ` ${r.encargado.nombre}` : '';
-  banner.className = 'banner-ronda confirmado';
-  banner.textContent = `✅ El encargado${nombre} ha confirmado presencia hoy a las ${hora}${personas}`;
+  const sinFichar = r.personas_sin_fichar != null ? r.personas_sin_fichar : 0;
+  if (sinFichar > 0) {
+    const fichadas = r.personas_en_obra !== null ? r.personas_en_obra : '?';
+    banner.className = 'banner-ronda alerta';
+    banner.textContent = `⚠️ El encargado${nombre} ha confirmado presencia a las ${hora}: ${fichadas} personas fichadas + ${sinFichar} PRESENTES SIN PODER FICHAR. Revisa los accesos denegados.`;
+  } else {
+    const personas = r.personas_en_obra !== null ? ` · ${r.personas_en_obra} personas confirmadas` : '';
+    banner.className = 'banner-ronda confirmado';
+    banner.textContent = `✅ El encargado${nombre} ha confirmado presencia hoy a las ${hora}${personas}`;
+  }
 }
 
 async function cargarPresencia() {
