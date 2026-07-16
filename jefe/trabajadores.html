@@ -367,6 +367,10 @@
     <div class="bloque-alt" id="bloque-alt" style="display:none">
       <div class="bloque-alt-titulo" id="bloque-alt-titulo"></div>
       <div class="bloque-alt-sub" id="bloque-alt-sub"></div>
+      <label id="chk-manana-wrap" style="display:none; align-items:center; gap:8px; font-size:13px; cursor:pointer; margin-bottom:4px;">
+        <input type="checkbox" id="chk-tambien-manana" style="width:16px; height:16px; cursor:pointer;">
+        También mañana (dar tiempo a e-Coordina a validar)
+      </label>
       <button type="button" class="btn-autorizar" id="btn-autorizar-hoy" style="display:none">🗝️ Autorizar solo hoy</button>
       <button type="button" class="btn-quitar" id="btn-quitar-autorizacion" style="display:none; margin:0">Quitar autorización de hoy</button>
     </div>
@@ -1279,8 +1283,12 @@ function abrirModalForzar(trabajadorId, obraId) {
   const bloque = document.getElementById('bloque-alt');
   const btnAutorizar = document.getElementById('btn-autorizar-hoy');
   const btnQuitarAut = document.getElementById('btn-quitar-autorizacion');
+  const chkMananaWrap = document.getElementById('chk-manana-wrap');
+  const chkManana = document.getElementById('chk-tambien-manana');
   btnAutorizar.style.display = 'none'; btnQuitarAut.style.display = 'none';
   btnAutorizar.disabled = false; btnQuitarAut.disabled = false;
+  chkMananaWrap.style.display = 'none'; chkManana.checked = false;
+  btnAutorizar.textContent = '🗝️ Autorizar solo hoy';
   if (forzarCtx.excepcion_hoy) {
     bloque.style.display = 'flex';
     document.getElementById('bloque-alt-titulo').textContent = 'Autorización puntual';
@@ -1290,6 +1298,7 @@ function abrirModalForzar(trabajadorId, obraId) {
     bloque.style.display = 'flex';
     document.getElementById('bloque-alt-titulo').textContent = 'O autorizar solo hoy';
     document.getElementById('bloque-alt-sub').textContent = 'Alternativa: dejarle pasar puntualmente hoy sin cambiar su estado documental. Mañana vuelve a estar bloqueado.';
+    chkMananaWrap.style.display = 'flex';
     btnAutorizar.style.display = 'inline-block';
   } else {
     bloque.style.display = 'none';
@@ -1343,20 +1352,27 @@ document.getElementById('btn-quitar-forzado').addEventListener('click', async ()
   setTimeout(() => { cerrarModalForzar(); cargarTrabajadores(); }, 800);
 });
 
+document.getElementById('chk-tambien-manana').addEventListener('change', e => {
+  document.getElementById('btn-autorizar-hoy').textContent =
+    e.target.checked ? '🗝️ Autorizar hoy y mañana' : '🗝️ Autorizar solo hoy';
+});
+
 document.getElementById('btn-autorizar-hoy').addEventListener('click', async () => {
   const btn = document.getElementById('btn-autorizar-hoy');
   const msg = document.getElementById('forzar-msg');
   const motivo = document.getElementById('forzar-motivo').value.trim();
   if (!motivo) { msg.className = 'msg-error'; msg.textContent = 'El motivo es obligatorio.'; return; }
+  const dias = document.getElementById('chk-tambien-manana').checked ? 2 : 1;
   btn.disabled = true; msg.className = ''; msg.textContent = 'Autorizando…';
   const { data, error } = await sb.rpc('autorizar_excepcion_roja', {
-    p_trabajador_id: forzarCtx.trabajador_id, p_obra_id: forzarCtx.obra_id, p_motivo_autorizacion: motivo
+    p_trabajador_id: forzarCtx.trabajador_id, p_obra_id: forzarCtx.obra_id,
+    p_motivo_autorizacion: motivo, p_dias: dias
   });
   if (error || (data && data.ok === false)) {
     msg.className = 'msg-error'; msg.textContent = 'Error: ' + (error?.message || data?.error || 'No se pudo autorizar');
     btn.disabled = false; return;
   }
-  msg.className = 'msg-ok'; msg.textContent = 'Autorizado para hoy.';
+  msg.className = 'msg-ok'; msg.textContent = dias === 2 ? 'Autorizado para hoy y mañana.' : 'Autorizado para hoy.';
   setTimeout(() => { cerrarModalForzar(); cargarTrabajadores(); }, 800);
 });
 
