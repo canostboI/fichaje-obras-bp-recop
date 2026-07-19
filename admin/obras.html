@@ -238,9 +238,10 @@
     <div class="crear-usuario">
       <h3>Crear usuario nuevo</h3>
       <div class="aviso-crear">
-        Crea aquí el usuario y luego ve a <strong>Supabase → Authentication → Add user → Create user</strong>
-        con el mismo email y la contraseña que quieras asignarle.
-        La primera vez que inicie sesión quedará vinculado automáticamente.
+        Crea aquí el usuario y dile que entre en la web de la app y pulse
+        <strong>"¿Primera vez? Crea tu contraseña"</strong> usando este mismo email.
+        Recibirá un correo de confirmación y al iniciar sesión quedará
+        vinculado automáticamente con su rol.
       </div>
       <div class="campo">
         <label>Nombre</label>
@@ -251,7 +252,7 @@
         <input type="email" id="nu-email" placeholder="pere@empresa.com">
       </div>
       <div class="campo">
-        <label>Teléfono móvil (opcional, para avisos WhatsApp)</label>
+        <label>Teléfono móvil (opcional, para avisos SMS)</label>
         <input type="tel" id="nu-telefono" placeholder="+34600111222">
       </div>
       <div class="campo">
@@ -577,7 +578,7 @@ document.getElementById('btn-crear-usuario').onclick = async () => {
   rellenarSelectUsuarios();
   limpiarFormularioNuevoUsuario();
   await cargarEquipo();
-  mostrarOkEquipo(`✓ Usuario "${nombre}" creado y asignado. Recuerda crearlo también en Supabase → Authentication con el mismo email.`);
+  mostrarOkEquipo(`✓ Usuario "${nombre}" creado y asignado. Dile que entre en la web y pulse "¿Primera vez? Crea tu contraseña" con este email.`);
 };
 
 async function quitarDelEquipo(usuariosObraId) {
