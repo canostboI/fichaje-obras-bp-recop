@@ -183,6 +183,22 @@
     <button id="btn-login">Entrar</button>
 
     <button class="enlace-cambio" id="ir-registro" type="button">¿Primera vez? Crea tu contraseña</button>
+    <button class="enlace-cambio" id="ir-reset" type="button" style="margin-top:10px;">¿Has olvidado tu contraseña?</button>
+  </div>
+
+  <!-- ============ VISTA RECUPERAR CONTRASEÑA ============ -->
+  <div id="vista-reset" style="display:none;">
+    <p class="nota-registro">
+      Escribe tu correo y te enviaremos un enlace para crear una
+      contraseña nueva.
+    </p>
+
+    <label for="reset-email">Correo electrónico</label>
+    <input type="email" id="reset-email" placeholder="tu@email.com" autocomplete="email">
+
+    <button id="btn-reset">Enviarme el enlace</button>
+
+    <button class="enlace-cambio" id="ir-login-2" type="button">← Volver a Entrar</button>
   </div>
 
   <!-- ============ VISTA REGISTRO (primera vez) ============ -->
@@ -228,10 +244,13 @@ const spinner  = document.getElementById('spinner');
 
 const vistaLogin    = document.getElementById('vista-login');
 const vistaRegistro = document.getElementById('vista-registro');
+const vistaReset    = document.getElementById('vista-reset');
 const regEmailEl = document.getElementById('reg-email');
 const regPassEl  = document.getElementById('reg-pass');
 const regPass2El = document.getElementById('reg-pass2');
 const btnRegistro = document.getElementById('btn-registro');
+const resetEmailEl = document.getElementById('reset-email');
+const btnReset     = document.getElementById('btn-reset');
 
 // Si ya hay sesión activa, redirigir directamente
 (async function () {
@@ -259,6 +278,7 @@ function ocultarError() {
 function setCargando(val) {
   btnLogin.disabled = val;
   btnRegistro.disabled = val;
+  btnReset.disabled = val;
   spinner.style.display = val ? 'block' : 'none';
 }
 
@@ -266,14 +286,29 @@ function setCargando(val) {
 document.getElementById('ir-registro').addEventListener('click', () => {
   ocultarError();
   vistaLogin.style.display = 'none';
+  vistaReset.style.display = 'none';
   vistaRegistro.style.display = 'block';
   // Si ya había escrito el email en el login, lo aprovechamos
   if (emailEl.value.trim() && !regEmailEl.value) regEmailEl.value = emailEl.value.trim();
 });
 
+document.getElementById('ir-reset').addEventListener('click', () => {
+  ocultarError();
+  vistaLogin.style.display = 'none';
+  vistaRegistro.style.display = 'none';
+  vistaReset.style.display = 'block';
+  if (emailEl.value.trim() && !resetEmailEl.value) resetEmailEl.value = emailEl.value.trim();
+});
+
 document.getElementById('ir-login').addEventListener('click', () => {
   ocultarError();
   vistaRegistro.style.display = 'none';
+  vistaLogin.style.display = 'block';
+});
+
+document.getElementById('ir-login-2').addEventListener('click', () => {
+  ocultarError();
+  vistaReset.style.display = 'none';
   vistaLogin.style.display = 'block';
 });
 
@@ -360,6 +395,38 @@ btnRegistro.addEventListener('click', async () => {
   vistaRegistro.style.display = 'none';
   vistaLogin.style.display = 'block';
   mostrarOk('✅ Cuenta creada. Te hemos enviado un correo de confirmación a ' + email + '. Pincha el enlace del email (mira también en spam) y después entra aquí con tu correo y contraseña.');
+});
+
+// ==== Recuperar contraseña ====
+resetEmailEl.addEventListener('keypress', e => {
+  if (e.key === 'Enter') btnReset.click();
+});
+
+btnReset.addEventListener('click', async () => {
+  ocultarError();
+  const email = resetEmailEl.value.trim().toLowerCase();
+
+  if (!email || !email.includes('@')) {
+    mostrarError('Introduce un correo válido.');
+    return;
+  }
+
+  setCargando(true);
+
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://canostboi.github.io/fichaje-obras-bp-recop/nueva-password.html'
+  });
+
+  setCargando(false);
+
+  if (error) {
+    mostrarError('No se pudo enviar el enlace: ' + error.message);
+    return;
+  }
+
+  vistaReset.style.display = 'none';
+  vistaLogin.style.display = 'block';
+  mostrarOk('✅ Si el correo existe, te hemos enviado un enlace para crear una contraseña nueva (mira también en spam).');
 });
 
 async function redirigirSegunRol() {
