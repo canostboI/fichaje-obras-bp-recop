@@ -62,6 +62,8 @@
     .cuadro.autocierre { background: #ffe0b2; }
     .cuadro.tocado { background: #fff; position: relative; overflow: hidden; }
     .cuadro.tocado::before { content: ''; position: absolute; top: 0; right: 0; border-top: 9px solid #d9b800; border-left: 9px solid transparent; }
+    .cuadro.fijado { background: #fff; position: relative; overflow: hidden; }
+    .cuadro.fijado::after { content: ''; position: absolute; bottom: 0; right: 0; border-bottom: 9px solid #1565c0; border-left: 9px solid transparent; }
 
     .seccion { background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 1.2rem; }
     .seccion-cab { padding: 0.9rem 1.2rem; border-bottom: 1px solid #e8e8e8; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
@@ -92,6 +94,8 @@
     table.mes td.autocierre { background: #ffe0b2; color: #a35200; font-weight: 700; }
     table.mes td.celda.tocado { position: relative; }
     table.mes td.celda.tocado::before { content: ''; position: absolute; top: 0; right: 0; border-top: 9px solid #d9b800; border-left: 9px solid transparent; }
+    table.mes td.celda.fijado { position: relative; }
+    table.mes td.celda.fijado::after { content: ''; position: absolute; bottom: 0; right: 0; border-bottom: 9px solid #1565c0; border-left: 9px solid transparent; }
     table.mes th.col-total, table.mes td.col-total {
       position: sticky; right: 0; z-index: 2; background: #f6f6f6;
       font-weight: 700; min-width: 56px; box-shadow: -2px 0 0 #ececec;
@@ -191,6 +195,7 @@
         <span><span class="cuadro finde"></span> Fin de semana</span>
         <span><span class="cuadro autocierre"></span> Día con cierre automático</span>
         <span><span class="cuadro tocado"></span> Día con fichajes manuales o corregidos</span>
+        <span><span class="cuadro fijado"></span> Día con horas fijadas a mano</span>
       </div>
     </div>
 
@@ -215,6 +220,7 @@
     <div class="modal-acciones">
       <button class="btn-secundario" id="btn-cerrar-dia">Cerrar</button>
       <button class="btn-secundario" id="btn-abrir-manual">➕ Fichaje suelto</button>
+      <button class="btn-secundario" id="btn-abrir-fijar">✔ Fijar horas</button>
       <button class="btn-primario" id="btn-abrir-ajuste">⚡ Ajustar día</button>
     </div>
   </div>
@@ -271,6 +277,25 @@
   </div>
 </div>
 
+<!-- Modal Fijar horas del día: decide cuántas horas se reconocen sin tocar los fichajes -->
+<div class="modal-overlay" id="modal-fijar">
+  <div class="modal">
+    <h2>✔ Fijar horas del día</h2>
+    <div class="subtitulo" id="fijar-subtitulo"></div>
+    <div class="info-ajuste">Los fichajes reales NO se tocan. Este número sustituye a las horas calculadas en el resumen y en el Excel, con tu nombre y el motivo. Puedes quitarlo cuando quieras y volver al cálculo automático.</div>
+    <div class="error-modal" id="error-fijar"></div>
+    <div class="ok-modal" id="ok-fijar"></div>
+    <div class="resumen-horas-dia" id="fijar-calculadas"></div>
+    <div class="campo"><label>Horas reconocidas</label><input type="number" id="fijar-horas" min="0" max="24" step="0.25"></div>
+    <div class="campo"><label>Motivo</label><textarea id="fijar-motivo" placeholder="Ej: gran esfuerzo, se le reconoce jornada completa"></textarea></div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cancelar-fijar">Cancelar</button>
+      <button class="btn-secundario" id="btn-quitar-fijar" style="display:none; color:#b71c1c; border-color:#e0b4b4;">Quitar y volver al cálculo</button>
+      <button class="btn-primario" id="btn-guardar-fijar">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <script>
   const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
@@ -288,7 +313,8 @@
   // Cache del mes cargado (para el detalle del día sin re-consultar)
   let fichajesMesCache = [];
   let mesCargado = null;            // 'YYYY-MM'
-  let resumenTrabajadores = {};     // trabajador_id -> { nombre, dni }
+  let resumenTrabajadores = {};     // trabajador_id -> { nombre, dni, dias, dias_ajuste }
+  let ajustesMesMap = {};           // trabajador_id -> { dia: { horas, motivo } }
   let horasObraActual = { entrada: null, salida: null };
 
   // Estado de los modales
@@ -507,6 +533,22 @@
     const [year, month] = mes.split('-').map(Number);
     const diasMes = new Date(year, month, 0).getDate();
 
+    // Ajustes de horas fijadas del mes (tabla ajustes_horas_dia)
+    ajustesMesMap = {};
+    try {
+      const primerDia = mes + '-01';
+      const ultimoDia = mes + '-' + String(diasMes).padStart(2, '0');
+      const { data: ajs } = await sb.from('ajustes_horas_dia')
+        .select('trabajador_id, fecha, horas, motivo')
+        .eq('obra_id', obraActualId)
+        .gte('fecha', primerDia).lte('fecha', ultimoDia);
+      (ajs || []).forEach(a => {
+        const dia = Number(String(a.fecha).slice(8, 10));
+        if (!ajustesMesMap[a.trabajador_id]) ajustesMesMap[a.trabajador_id] = {};
+        ajustesMesMap[a.trabajador_id][dia] = { horas: Number(a.horas), motivo: a.motivo || '' };
+      });
+    } catch (e) { /* si la tabla no responde, el resumen sale con las horas calculadas */ }
+
     // Horas oficiales de la obra (suelo/techo del cómputo de horas).
     let horasObra = { entrada: null, salida: null };
     try {
@@ -526,11 +568,11 @@
     nombresEmpresa.forEach(nombreEmpresa => {
       const trabajadores = window.ExcelProforma.construirResumenTrabajadores(
         grupos[nombreEmpresa], diasMes,
-        { horaEntrada: horasObra.entrada, horaSalida: horasObra.salida }
+        { horaEntrada: horasObra.entrada, horaSalida: horasObra.salida, ajustes: ajustesMesMap }
       );
       trabajadores.forEach(t => {
         totalAutocierres += (t.autocierres_mes || 0);
-        resumenTrabajadores[t.id] = { nombre: t.nombre, dni: t.dni };
+        resumenTrabajadores[t.id] = { nombre: t.nombre, dni: t.dni, dias: t.dias, dias_ajuste: t.dias_ajuste || {} };
       });
       html += renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes);
     });
@@ -571,12 +613,18 @@
         const clases = ['celda'];
         if (findes.has(d)) clases.push('finde');
         if (esAuto) clases.push('autocierre');
-        let tooltip = '';
+        let lineasTooltip = [];
         if (diasTocadosMap[t.id] && diasTocadosMap[t.id].has(d)) {
           clases.push('tocado');
-          const lineas = (diasTocadosInfo[t.id] && diasTocadosInfo[t.id][d]) || [];
-          tooltip = ` title="${esc(lineas.join('\n'))}"`;
+          lineasTooltip = lineasTooltip.concat((diasTocadosInfo[t.id] && diasTocadosInfo[t.id][d]) || []);
         }
+        const aj = t.dias_ajuste && t.dias_ajuste[d];
+        if (aj) {
+          clases.push('fijado');
+          lineasTooltip.push(`Horas fijadas a mano: calculadas ${formatHoras(aj.calculadas)} → ${formatHoras(aj.fijadas)}`
+            + (aj.motivo ? `: ${aj.motivo}` : ''));
+        }
+        const tooltip = lineasTooltip.length ? ` title="${esc(lineasTooltip.join('\n'))}"` : '';
         if (h === 0 && !esAuto) clases.push('cero');
         celdas += `<td class="${clases.join(' ')}" data-tid="${t.id}" data-dia="${d}"${tooltip}>${h > 0 ? formatHoras(h) : '·'}</td>`;
       }
@@ -658,6 +706,7 @@
     document.getElementById('dia-bloqueado').style.display = editable ? 'none' : 'block';
     document.getElementById('btn-abrir-manual').style.display = editable ? '' : 'none';
     document.getElementById('btn-abrir-ajuste').style.display = editable ? '' : 'none';
+    document.getElementById('btn-abrir-fijar').style.display = editable ? '' : 'none';
 
     renderListaDia(trabajadorId, dia, editable);
     document.getElementById('modal-dia').classList.add('visible');
@@ -678,8 +727,14 @@
         entrada = null;
       }
     });
-    document.getElementById('dia-horas').innerHTML =
-      fichajes.length === 0 ? '' : `Horas computadas este día: <b>${formatHoras(redondear2(horas))} h</b>`;
+    const ajDia = (resumenTrabajadores[trabajadorId] && resumenTrabajadores[trabajadorId].dias_ajuste
+      && resumenTrabajadores[trabajadorId].dias_ajuste[dia]) || null;
+    let lineaHoras = fichajes.length === 0 ? '' : `Horas computadas este día: <b>${formatHoras(redondear2(horas))} h</b>`;
+    if (ajDia) {
+      lineaHoras = `Horas del día: <b>${formatHoras(ajDia.fijadas)} h</b> <span style="color:#1565c0">(fijadas a mano; calculadas ${formatHoras(ajDia.calculadas)} h)</span>`
+        + (ajDia.motivo ? `<br><span style="font-size:0.78rem">📝 ${esc(ajDia.motivo)}</span>` : '');
+    }
+    document.getElementById('dia-horas').innerHTML = lineaHoras;
 
     if (fichajes.length === 0) {
       lista.innerHTML = editable
@@ -969,6 +1024,87 @@
       document.getElementById('modal-ajuste').classList.remove('visible');
       await recargarYReabrirDia();
     }, 900);
+  });
+
+  // ===================================================================
+  // FIJAR HORAS DEL DÍA (RPC fijar_horas_dia; los fichajes no se tocan)
+  // ===================================================================
+  document.getElementById('btn-abrir-fijar').addEventListener('click', () => {
+    if (!diaAbierto) return;
+    const t = resumenTrabajadores[diaAbierto.trabajadorId] || {};
+    const [year, month] = mesCargado.split('-').map(Number);
+    const fecha = new Date(year, month - 1, diaAbierto.dia);
+    document.getElementById('fijar-subtitulo').textContent =
+      `${t.nombre || ''} · ${fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+
+    const ajDia = (t.dias_ajuste && t.dias_ajuste[diaAbierto.dia]) || null;
+    const horasDia = (t.dias && t.dias[diaAbierto.dia]) || 0;
+    document.getElementById('fijar-calculadas').innerHTML = ajDia
+      ? `Ahora mismo: <b>${formatHoras(ajDia.fijadas)} h</b> fijadas (calculadas ${formatHoras(ajDia.calculadas)} h).`
+      : `Horas calculadas según fichajes: <b>${formatHoras(horasDia)} h</b>.`;
+
+    document.getElementById('fijar-horas').value = ajDia ? ajDia.fijadas : (horasDia || '');
+    document.getElementById('fijar-motivo').value = ajDia ? (ajDia.motivo || '') : '';
+    document.getElementById('btn-quitar-fijar').style.display = ajDia ? '' : 'none';
+    document.getElementById('error-fijar').style.display = 'none';
+    document.getElementById('ok-fijar').style.display = 'none';
+    document.getElementById('btn-guardar-fijar').disabled = false;
+    document.getElementById('btn-quitar-fijar').disabled = false;
+    document.getElementById('modal-fijar').classList.add('visible');
+  });
+
+  document.getElementById('btn-cancelar-fijar').addEventListener('click', () => {
+    document.getElementById('modal-fijar').classList.remove('visible');
+  });
+
+  function mostrarErrorFijar(txt) {
+    const e = document.getElementById('error-fijar');
+    e.textContent = txt; e.style.display = 'block';
+  }
+
+  async function llamarFijarHoras(horas, motivo, textoOk) {
+    const fechaStr = mesCargado + '-' + String(diaAbierto.dia).padStart(2, '0');
+
+    document.getElementById('btn-guardar-fijar').disabled = true;
+    document.getElementById('btn-quitar-fijar').disabled = true;
+    document.getElementById('error-fijar').style.display = 'none';
+
+    const { data, error } = await sb.rpc('fijar_horas_dia', {
+      p_trabajador_id: diaAbierto.trabajadorId,
+      p_obra_id: obraActualId,
+      p_fecha: fechaStr,
+      p_horas: horas,
+      p_motivo: motivo
+    });
+
+    if (error || !data || data.success !== true) {
+      document.getElementById('btn-guardar-fijar').disabled = false;
+      document.getElementById('btn-quitar-fijar').disabled = false;
+      mostrarErrorFijar(error ? error.message : ((data && data.error) || 'No se ha podido guardar.'));
+      return false;
+    }
+
+    document.getElementById('ok-fijar').textContent = textoOk;
+    document.getElementById('ok-fijar').style.display = 'block';
+    setTimeout(async () => {
+      document.getElementById('modal-fijar').classList.remove('visible');
+      await recargarYReabrirDia();
+    }, 900);
+    return true;
+  }
+
+  document.getElementById('btn-guardar-fijar').addEventListener('click', async () => {
+    if (!diaAbierto) return;
+    const horas  = parseFloat(document.getElementById('fijar-horas').value);
+    const motivo = document.getElementById('fijar-motivo').value.trim();
+    if (isNaN(horas) || horas < 0 || horas > 24) { mostrarErrorFijar('Pon un número de horas entre 0 y 24.'); return; }
+    if (motivo.length < 3) { mostrarErrorFijar('El motivo es obligatorio: es lo que justifica la decisión.'); return; }
+    await llamarFijarHoras(horas, motivo, 'Horas fijadas correctamente.');
+  });
+
+  document.getElementById('btn-quitar-fijar').addEventListener('click', async () => {
+    if (!diaAbierto) return;
+    await llamarFijarHoras(null, null, 'Ajuste quitado: el día vuelve al cálculo automático.');
   });
 
   // Recarga el resumen y, si había un día abierto, vuelve a mostrarlo actualizado
