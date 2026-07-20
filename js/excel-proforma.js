@@ -56,6 +56,7 @@
   const COLOR_TOTAL  = 'FFF2CC';
   const COLOR_FOOTER = 'FFE699';
   const COLOR_ALERTA = 'FFE0B2';
+  const COLOR_AJUSTE = 'D6E7FF'; // azul claro: día con horas fijadas a mano
   const COLOR_BLANCO = 'FFFFFF';
   const COLOR_BORDE  = 'BFBFBF';
 
@@ -85,7 +86,7 @@
 
   // ===== Función pública =====
 
-  async function generar({ obra, mes, fichajes, logoBase64 }) {
+  async function generar({ obra, mes, fichajes, logoBase64, ajustes }) {
     if (!window.ExcelJS) throw new Error('ExcelJS no está cargado.');
     if (!mes || !/^\d{4}-\d{2}$/.test(mes)) throw new Error('Mes inválido. Formato: YYYY-MM.');
     if (!Array.isArray(fichajes)) throw new Error('fichajes debe ser un array.');
@@ -114,7 +115,7 @@
         .forEach(nombreEmpresa => {
           const trabajadores = construirResumenTrabajadores(
             grupos[nombreEmpresa], diasMes,
-            { horaEntrada: obra && obra.hora_entrada_default, horaSalida: obra && obra.hora_salida_default }
+            { horaEntrada: obra && obra.hora_entrada_default, horaSalida: obra && obra.hora_salida_default, ajustes }
           );
           trabajadores.forEach(t => { totalAutocierres += (t.autocierres_mes || 0); });
           crearHojaEmpresa(workbook, {
@@ -143,6 +144,9 @@
   function construirResumenTrabajadores(fichajes, diasMes, opts) {
     const horaEntradaObra = opts && opts.horaEntrada ? opts.horaEntrada : null;
     const horaSalidaObra  = opts && opts.horaSalida  ? opts.horaSalida  : null;
+    // Ajustes de horas fijadas a mano (tabla ajustes_horas_dia):
+    // { trabajador_id: { dia: { horas, motivo } } }. Opcional.
+    const ajustes = (opts && opts.ajustes) || null;
     const mapa = new Map();
 
     fichajes.forEach(f => {
@@ -168,6 +172,7 @@
     trabajadores.forEach(t => {
       t.dias = {};
       t.dias_autocierre = {};
+      t.dias_ajuste = {};   // día -> { calculadas, fijadas, motivo }
       for (let d = 1; d <= diasMes; d++) {
         t.dias[d] = 0;
         t.dias_autocierre[d] = 0;
@@ -237,6 +242,25 @@
         t.dias[dia] = redondear2(netoDia);
         t.dias_autocierre[dia] = autocierresDia;
       });
+
+      // Horas fijadas a mano: sustituyen a las calculadas en ese día.
+      // Los fichajes reales no cambian; solo el número que se muestra,
+      // se suma y se exporta. Guardamos las calculadas para trazabilidad.
+      if (ajustes && ajustes[t.id]) {
+        Object.keys(ajustes[t.id]).forEach(diaStr => {
+          const dia = Number(diaStr);
+          if (dia < 1 || dia > diasMes) return;
+          const aj = ajustes[t.id][diaStr];
+          const fijadas = redondear2(Number(aj.horas));
+          if (isNaN(fijadas)) return;
+          t.dias_ajuste[dia] = {
+            calculadas: t.dias[dia] || 0,
+            fijadas: fijadas,
+            motivo: aj.motivo || ''
+          };
+          t.dias[dia] = fijadas;
+        });
+      }
 
       t.horas_mes = redondear2(Object.values(t.dias).reduce((a, b) => a + b, 0));
       t.total = t.precio_hora ? redondear2(t.horas_mes * Number(t.precio_hora)) : 0;
@@ -402,14 +426,26 @@
           const col = COL_DIAS_INI - 1 + d;
           const v = t.dias[d];
           const autocierre = t.dias_autocierre[d] > 0;
+          const ajuste = t.dias_ajuste && t.dias_ajuste[d];
           const cell = row.getCell(col);
           cell.value = v ? v : null;
           cell.numFmt = '0.00;-0.00;';
           cell.font = { name: FUENTE_EXCEL, size: 9 };
-          cell.fill = fillSolid(autocierre ? COLOR_ALERTA : dasFinde.has(d) ? COLOR_FINDE : bandColor);
+          cell.fill = fillSolid(ajuste ? COLOR_AJUSTE : autocierre ? COLOR_ALERTA : dasFinde.has(d) ? COLOR_FINDE : bandColor);
           cell.alignment = { horizontal: 'center', vertical: 'middle' };
           cell.border = borderThinGris();
-          if (autocierre) {
+          if (ajuste) {
+            cell.note = {
+              texts: [
+                { font: { bold: true, size: 10, name: FUENTE_EXCEL }, text: 'Horas fijadas a mano\n' },
+                { font: { size: 10, name: FUENTE_EXCEL },
+                  text: `Calculadas según fichajes: ${ajuste.calculadas} h → fijadas: ${ajuste.fijadas} h.`
+                    + (ajuste.motivo ? `\nMotivo: ${ajuste.motivo}` : '')
+                    + (autocierre ? '\n(El día tenía además una salida automática.)' : '') }
+              ],
+              margins: { insetmode: 'auto' }
+            };
+          } else if (autocierre) {
             cell.note = {
               texts: [
                 { font: { bold: true, size: 10, name: FUENTE_EXCEL }, text: 'Salida automática\n' },
