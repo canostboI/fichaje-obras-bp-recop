@@ -7,6 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/branding.js"></script>
   <script src="../js/auto-logout.js"></script>
+  <script src="../js/fechas.js"></script>
   <script src="../js/excel-proforma.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -59,6 +60,8 @@
     .cuadro { width: 13px; height: 13px; border-radius: 3px; display: inline-block; border: 1px solid #ddd; }
     .cuadro.finde { background: #ececec; }
     .cuadro.autocierre { background: #ffe0b2; }
+    .cuadro.tocado { background: #fff; position: relative; overflow: hidden; }
+    .cuadro.tocado::before { content: ''; position: absolute; top: 0; right: 0; border-top: 9px solid #d9b800; border-left: 9px solid transparent; }
 
     .seccion { background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 1.2rem; }
     .seccion-cab { padding: 0.9rem 1.2rem; border-bottom: 1px solid #e8e8e8; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
@@ -82,16 +85,19 @@
     table.mes th.dia { min-width: 32px; }
     table.mes th.dia .num { display: block; font-size: 0.72rem; color: #444; }
     table.mes th.dia .letra { display: block; font-size: 0.6rem; color: #aaa; }
-    table.mes td.celda { color: #222; }
+    table.mes td.celda { color: #222; cursor: pointer; }
+    table.mes td.celda:hover { background: #fff3d6; }
     table.mes td.celda.cero { color: #bbb; }
     table.mes th.finde, table.mes td.finde { background: #ececec; }
     table.mes td.autocierre { background: #ffe0b2; color: #a35200; font-weight: 700; }
+    table.mes td.celda.tocado { position: relative; }
+    table.mes td.celda.tocado::before { content: ''; position: absolute; top: 0; right: 0; border-top: 9px solid #d9b800; border-left: 9px solid transparent; }
     table.mes th.col-total, table.mes td.col-total {
       position: sticky; right: 0; z-index: 2; background: #f6f6f6;
       font-weight: 700; min-width: 56px; box-shadow: -2px 0 0 #ececec;
     }
     table.mes thead th.col-total { z-index: 3; }
-    table.mes tr.fila-total td { background: #f6f6f6; font-weight: 700; border-top: 2px solid #ddd; }
+    table.mes tr.fila-total td { background: #f6f6f6; font-weight: 700; border-top: 2px solid #ddd; cursor: default; }
     table.mes tr.fila-total td.col-nombre { background: #f6f6f6; }
     table.mes tr.fila-total td.col-total { background: #fff3e0; color: #e65100; }
 
@@ -100,11 +106,54 @@
     .nota-lectura { font-size: 0.8rem; color: #999; margin-bottom: 1rem; }
     #msg-error { color: #b71c1c; display: none; padding: 1rem; }
 
+    /* ── Modales (tema claro) ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 100; align-items: center; justify-content: center; padding: 14px; }
+    .modal-overlay.visible { display: flex; }
+    .modal { background: white; border-radius: 14px; padding: 24px; width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 30px rgba(0,0,0,0.25); }
+    .modal h2 { font-size: 1.05rem; font-weight: 700; margin-bottom: 4px; color: #222; }
+    .modal .subtitulo { font-size: 0.85rem; color: #777; margin-bottom: 16px; }
+    .campo { margin-bottom: 14px; }
+    .campo label { display: block; font-size: 0.72rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 5px; }
+    .campo input, .campo textarea, .campo select { width: 100%; background: #fafafa; border: 1px solid #ccc; border-radius: 8px; color: #222; font-size: 0.95rem; padding: 9px 11px; font-family: inherit; }
+    .campo textarea { resize: vertical; min-height: 64px; }
+    .campo input:focus, .campo textarea:focus, .campo select:focus { outline: none; border-color: var(--color-principal); }
+    .modal-acciones { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; flex-wrap: wrap; }
+    .btn-primario { background: #e65100; color: white; border: none; padding: 9px 16px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .btn-primario:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-secundario { background: transparent; color: #666; border: 1px solid #ccc; padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-family: inherit; }
+    .btn-secundario:hover { background: #f2f2f2; }
+    .btn-naranja { background: #e65100; color: white; border: none; padding: 5px 10px; border-radius: 7px; font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .btn-naranja:hover { opacity: 0.9; }
+    .error-modal { background: #fdecea; color: #b71c1c; padding: 9px 13px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 12px; display: none; }
+    .ok-modal { background: #e8f5e9; color: #2e7d32; padding: 9px 13px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 12px; display: none; }
+    .info-ajuste { background: #fffde7; border: 1px solid #f0e6a0; color: #6d6420; padding: 9px 13px; border-radius: 8px; font-size: 0.8rem; margin-bottom: 14px; line-height: 1.4; }
+    .aviso-bloqueado { background: #f2f2f2; border: 1px solid #ddd; color: #666; padding: 9px 13px; border-radius: 8px; font-size: 0.82rem; margin-bottom: 12px; line-height: 1.4; }
+
+    /* ── Lista de fichajes del día ── */
+    .lista-dia { border: 1px solid #e6e6e6; border-radius: 10px; overflow: hidden; margin-bottom: 14px; }
+    .fila-fichaje { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 13px; border-bottom: 1px solid #eee; }
+    .fila-fichaje:last-child { border-bottom: none; }
+    .fila-fichaje .izq { display: flex; flex-direction: column; gap: 3px; }
+    .fila-fichaje .tipo { font-size: 0.83rem; font-weight: 700; }
+    .fila-fichaje .tipo.entrada { color: #2e7d32; }
+    .fila-fichaje .tipo.salida  { color: #1565c0; }
+    .fila-fichaje .hora { font-size: 0.95rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .marcas { display: flex; gap: 5px; flex-wrap: wrap; }
+    .marca { font-size: 0.64rem; font-weight: 600; padding: 2px 7px; border-radius: 12px; }
+    .marca.manual     { background: #e3f2fd; color: #1565c0; }
+    .marca.autocierre { background: #ffe0b2; color: #a35200; }
+    .marca.corregido  { background: #ececec; color: #666; }
+    .motivo-mini { font-size: 0.66rem; color: #888; max-width: 220px; white-space: normal; line-height: 1.3; }
+    .dia-vacio { padding: 16px 13px; text-align: center; color: #888; font-size: 0.85rem; }
+    .resumen-horas-dia { font-size: 0.85rem; color: #666; margin-bottom: 14px; }
+    .resumen-horas-dia b { color: #222; }
+
     @media (max-width: 600px) {
       header { flex-direction: column; align-items: flex-start; }
       .header-right { width: 100%; }
       main { padding: 0 0.5rem; }
       table.mes th.col-nombre, table.mes td.col-nombre { min-width: 110px; max-width: 130px; }
+      .modal { padding: 18px; }
     }
   </style>
 </head>
@@ -141,10 +190,11 @@
       <div class="leyenda">
         <span><span class="cuadro finde"></span> Fin de semana</span>
         <span><span class="cuadro autocierre"></span> Día con cierre automático</span>
+        <span><span class="cuadro tocado"></span> Día con fichajes manuales o corregidos</span>
       </div>
     </div>
 
-    <p class="nota-lectura">Vista de consulta. Para correcciones de fichajes, contacta con el jefe de obra.</p>
+    <p class="nota-lectura">💡 Toca una celda para ver los fichajes de ese día. Puedes ajustar o corregir los de los <b>últimos 5 días</b>; para días anteriores, contacta con el jefe de obra.</p>
 
     <div id="zona-tablas">
       <div class="seccion"><div class="cargando">Cargando…</div></div>
@@ -154,6 +204,73 @@
   <p id="msg-error"></p>
 </main>
 
+<!-- Modal detalle del día -->
+<div class="modal-overlay" id="modal-dia">
+  <div class="modal">
+    <h2 id="dia-titulo">Fichajes del día</h2>
+    <div class="subtitulo" id="dia-subtitulo"></div>
+    <div class="resumen-horas-dia" id="dia-horas"></div>
+    <div class="aviso-bloqueado" id="dia-bloqueado" style="display:none">🔒 Este día está fuera de tu ventana de edición (últimos 5 días). Solo puedes consultarlo; para cambios, contacta con el jefe de obra.</div>
+    <div class="lista-dia" id="dia-lista"></div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cerrar-dia">Cerrar</button>
+      <button class="btn-secundario" id="btn-abrir-manual">➕ Fichaje suelto</button>
+      <button class="btn-primario" id="btn-abrir-ajuste">⚡ Ajustar día</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal corrección (mismo patrón que el jefe) -->
+<div class="modal-overlay" id="modal-correccion">
+  <div class="modal">
+    <h2>Corregir fichaje</h2>
+    <div class="subtitulo" id="correccion-subtitulo"></div>
+    <div class="error-modal" id="error-correccion"></div>
+    <div class="ok-modal" id="ok-correccion"></div>
+    <div class="campo"><label>Nueva hora</label><input type="time" id="f-hora"></div>
+    <div class="campo"><label>Motivo</label><textarea id="f-motivo" placeholder="Ej: El trabajador olvidó fichar la salida"></textarea></div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cancelar-correccion">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar-correccion">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal fichaje manual (trabajador y fecha ya fijados desde la celda) -->
+<div class="modal-overlay" id="modal-manual">
+  <div class="modal">
+    <h2>Fichaje manual</h2>
+    <div class="subtitulo" id="manual-subtitulo"></div>
+    <div class="error-modal" id="error-manual"></div>
+    <div class="ok-modal" id="ok-manual"></div>
+    <div class="campo"><label>Tipo de fichaje</label><select id="manual-tipo"><option value="entrada">Entrada</option><option value="salida">Salida</option></select></div>
+    <div class="campo"><label>Hora</label><input type="time" id="manual-hora"></div>
+    <div class="campo"><label>Motivo</label><textarea id="manual-motivo" placeholder="Ej: trabajador sin móvil / olvidó fichar"></textarea></div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cancelar-manual">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar-manual">Registrar fichaje</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Ajustar día: entrada + salida + motivo en un solo paso -->
+<div class="modal-overlay" id="modal-ajuste">
+  <div class="modal">
+    <h2>⚡ Ajustar día</h2>
+    <div class="subtitulo" id="ajuste-subtitulo"></div>
+    <div class="info-ajuste">Pon la entrada y la salida reales del día. El sistema corregirá los fichajes que ya existan o creará fichajes manuales si faltan. Todo queda registrado con tu nombre y el motivo.</div>
+    <div class="error-modal" id="error-ajuste"></div>
+    <div class="ok-modal" id="ok-ajuste"></div>
+    <div class="campo"><label>Hora de entrada</label><input type="time" id="ajuste-entrada"></div>
+    <div class="campo"><label>Hora de salida</label><input type="time" id="ajuste-salida"></div>
+    <div class="campo"><label>Motivo</label><textarea id="ajuste-motivo" placeholder="Ej: no pudo fichar a primera hora"></textarea></div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cancelar-ajuste">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar-ajuste">Guardar día</button>
+    </div>
+  </div>
+</div>
+
 <script>
   const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
@@ -161,7 +278,25 @@
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   AutoLogout.init(sb);
 
+  // Ventana de edición del encargado: hoy y los N días anteriores.
+  // Debe coincidir con el límite de las RPC corregir_fichaje y
+  // registrar_fichaje_manual (rama del encargado).
+  const DIAS_EDITABLES_ATRAS = 5;
+
   let obraActualId = null;
+
+  // Cache del mes cargado (para el detalle del día sin re-consultar)
+  let fichajesMesCache = [];
+  let mesCargado = null;            // 'YYYY-MM'
+  let resumenTrabajadores = {};     // trabajador_id -> { nombre, dni }
+  let horasObraActual = { entrada: null, salida: null };
+
+  // Estado de los modales
+  let diaAbierto = null;            // { trabajadorId, dia }
+  let fichajeCorrigiendoId = null;
+  let fichajeCorrigiendoHora = null;
+  let diasTocadosMap = {};          // trabajador_id -> Set(días con fichaje manual/corregido)
+  let diasTocadosInfo = {};         // trabajador_id -> { día: [líneas para el tooltip] }
 
   function esc(txt) {
     const d = document.createElement('div');
@@ -179,6 +314,38 @@
     return a.getFullYear() + '-' + String(a.getMonth() + 1).padStart(2, '0');
   }
 
+  // ===================================================================
+  // VENTANA DE EDICIÓN (hoy y los 5 días anteriores, en Europe/Madrid)
+  // ===================================================================
+  function hoyStr() {
+    if (window.Fechas && window.Fechas.hoyMadrid) return window.Fechas.hoyMadrid();
+    // Fallback si fechas.js no cargó: día local del navegador
+    const a = new Date();
+    return a.getFullYear() + '-' + String(a.getMonth() + 1).padStart(2, '0') + '-' + String(a.getDate()).padStart(2, '0');
+  }
+
+  function fechaDeCelda(dia) {
+    // 'YYYY-MM-DD' del día pintado en la tabla (mes cargado)
+    return mesCargado + '-' + String(dia).padStart(2, '0');
+  }
+
+  function limiteInferiorStr() {
+    // hoy - DIAS_EDITABLES_ATRAS, como 'YYYY-MM-DD'.
+    // Mediodía para esquivar cualquier lío de cambio de hora.
+    const hoy = hoyStr();
+    const d = new Date(hoy + 'T12:00:00');
+    d.setDate(d.getDate() - DIAS_EDITABLES_ATRAS);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function diaEditable(dia) {
+    const f = fechaDeCelda(dia);
+    return f >= limiteInferiorStr() && f <= hoyStr();
+  }
+
+  // ===================================================================
+  // INIT
+  // ===================================================================
   async function init() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) { window.location.href = '../index.html'; return; }
@@ -265,14 +432,14 @@
     const hasta = new Date(year, month, 1, 0, 0, 0, 0);
 
     let { data, error } = await sb.from('fichajes')
-      .select(`id, tipo, hora, cierre_automatico, trabajador_id,
+      .select(`id, tipo, hora, cierre_automatico, es_manual, corregido_por, motivo_correccion, trabajador_id,
         trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, empresa:empresa_id(nombre))`)
       .eq('obra_id', obraId).gte('hora', desde.toISOString()).lt('hora', hasta.toISOString())
       .order('hora', { ascending: true });
     if (!error) return data || [];
 
     const fallback = await sb.from('fichajes')
-      .select(`id, tipo, hora, cierre_automatico, trabajador_id,
+      .select(`id, tipo, hora, cierre_automatico, es_manual, corregido_por, motivo_correccion, trabajador_id,
         trabajador:trabajador_id(id, nombre, apellidos, dni, categoria)`)
       .eq('obra_id', obraId).gte('hora', desde.toISOString()).lt('hora', hasta.toISOString())
       .order('hora', { ascending: true });
@@ -281,7 +448,7 @@
   }
 
   // ===================================================================
-  // RENDER DEL RESUMEN MENSUAL (solo lectura)
+  // RENDER DEL RESUMEN MENSUAL
   // ===================================================================
   async function cargarResumen() {
     const zona = document.getElementById('zona-tablas');
@@ -309,6 +476,29 @@
       return;
     }
 
+    fichajesMesCache = fichajes || [];
+    mesCargado = mes;
+    resumenTrabajadores = {};
+
+    // Días "tocados": con algún fichaje manual o corregido → esquina amarilla
+    diasTocadosMap = {};
+    diasTocadosInfo = {};
+    fichajesMesCache.forEach(f => {
+      if (f.es_manual || f.corregido_por) {
+        const d = new Date(f.hora).getDate();
+        if (!diasTocadosMap[f.trabajador_id]) diasTocadosMap[f.trabajador_id] = new Set();
+        diasTocadosMap[f.trabajador_id].add(d);
+        const hd = new Date(f.hora);
+        const hhmm = `${String(hd.getHours()).padStart(2,'0')}:${String(hd.getMinutes()).padStart(2,'0')}`;
+        const etiqueta = f.es_manual ? 'manual' : 'corregido';
+        const linea = `${f.tipo === 'entrada' ? 'Entrada' : 'Salida'} ${hhmm} (${etiqueta})`
+          + (f.motivo_correccion ? `: ${f.motivo_correccion}` : '');
+        if (!diasTocadosInfo[f.trabajador_id]) diasTocadosInfo[f.trabajador_id] = {};
+        if (!diasTocadosInfo[f.trabajador_id][d]) diasTocadosInfo[f.trabajador_id][d] = [];
+        diasTocadosInfo[f.trabajador_id][d].push(linea);
+      }
+    });
+
     if (!fichajes || fichajes.length === 0) {
       zona.innerHTML = '<div class="seccion"><div class="vacio">No hay fichajes en ese mes para esta obra.</div></div>';
       return;
@@ -325,6 +515,7 @@
         .eq('id', obraActualId).single();
       if (obraInfo) horasObra = { entrada: obraInfo.hora_entrada_default, salida: obraInfo.hora_salida_default };
     } catch (e) { /* sin horas oficiales: el cálculo simplemente no aplica suelo/techo */ }
+    horasObraActual = horasObra;
 
     const grupos = window.ExcelProforma.agruparPorEmpresa(fichajes);
     const nombresEmpresa = Object.keys(grupos).sort((a, b) => a.localeCompare(b, 'es'));
@@ -337,7 +528,10 @@
         grupos[nombreEmpresa], diasMes,
         { horaEntrada: horasObra.entrada, horaSalida: horasObra.salida }
       );
-      trabajadores.forEach(t => { totalAutocierres += (t.autocierres_mes || 0); });
+      trabajadores.forEach(t => {
+        totalAutocierres += (t.autocierres_mes || 0);
+        resumenTrabajadores[t.id] = { nombre: t.nombre, dni: t.dni };
+      });
       html += renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes);
     });
 
@@ -377,8 +571,14 @@
         const clases = ['celda'];
         if (findes.has(d)) clases.push('finde');
         if (esAuto) clases.push('autocierre');
+        let tooltip = '';
+        if (diasTocadosMap[t.id] && diasTocadosMap[t.id].has(d)) {
+          clases.push('tocado');
+          const lineas = (diasTocadosInfo[t.id] && diasTocadosInfo[t.id][d]) || [];
+          tooltip = ` title="${esc(lineas.join('\n'))}"`;
+        }
         if (h === 0 && !esAuto) clases.push('cero');
-        celdas += `<td class="${clases.join(' ')}">${h > 0 ? formatHoras(h) : '·'}</td>`;
+        celdas += `<td class="${clases.join(' ')}" data-tid="${t.id}" data-dia="${d}"${tooltip}>${h > 0 ? formatHoras(h) : '·'}</td>`;
       }
       totalEmpresa += t.horas_mes;
       filas += `<tr>
@@ -425,6 +625,367 @@
     </div>`;
   }
 
+  // ===================================================================
+  // CLICK EN CELDA → DETALLE DEL DÍA (delegación de eventos)
+  // ===================================================================
+  document.getElementById('zona-tablas').addEventListener('click', (ev) => {
+    const td = ev.target.closest('td.celda');
+    if (!td) return;
+    const tid = td.dataset.tid;
+    const dia = Number(td.dataset.dia);
+    if (!tid || !dia) return;
+    abrirDetalleDia(tid, dia);
+  });
+
+  function fichajesDelDia(trabajadorId, dia) {
+    return fichajesMesCache
+      .filter(f => f.trabajador_id === trabajadorId && new Date(f.hora).getDate() === dia)
+      .sort((a, b) => new Date(a.hora) - new Date(b.hora));
+  }
+
+  function abrirDetalleDia(trabajadorId, dia) {
+    diaAbierto = { trabajadorId, dia };
+    const t = resumenTrabajadores[trabajadorId] || { nombre: 'Trabajador', dni: '' };
+    const [year, month] = mesCargado.split('-').map(Number);
+    const fecha = new Date(year, month - 1, dia);
+    const fechaTxt = fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+    document.getElementById('dia-titulo').textContent = t.nombre;
+    document.getElementById('dia-subtitulo').textContent = `${t.dni ? t.dni + ' · ' : ''}${fechaTxt}`;
+
+    // Ventana de edición: dentro → botones de acción; fuera → solo lectura
+    const editable = diaEditable(dia);
+    document.getElementById('dia-bloqueado').style.display = editable ? 'none' : 'block';
+    document.getElementById('btn-abrir-manual').style.display = editable ? '' : 'none';
+    document.getElementById('btn-abrir-ajuste').style.display = editable ? '' : 'none';
+
+    renderListaDia(trabajadorId, dia, editable);
+    document.getElementById('modal-dia').classList.add('visible');
+  }
+
+  function renderListaDia(trabajadorId, dia, editable) {
+    const lista = document.getElementById('dia-lista');
+    const fichajes = fichajesDelDia(trabajadorId, dia);
+
+    // Horas del día (mismo cálculo que el resumen: pares entrada→salida)
+    let entrada = null, horas = 0;
+    fichajes.forEach(f => {
+      const h = new Date(f.hora);
+      if (f.tipo === 'entrada') { if (!entrada) entrada = h; }
+      else if (f.tipo === 'salida' && entrada) {
+        const diff = (h - entrada) / 3600000;
+        if (diff > 0 && diff < 24) horas += diff;
+        entrada = null;
+      }
+    });
+    document.getElementById('dia-horas').innerHTML =
+      fichajes.length === 0 ? '' : `Horas computadas este día: <b>${formatHoras(redondear2(horas))} h</b>`;
+
+    if (fichajes.length === 0) {
+      lista.innerHTML = editable
+        ? '<div class="dia-vacio">No hay fichajes este día.<br>Puedes añadir uno manual con el botón de abajo.</div>'
+        : '<div class="dia-vacio">No hay fichajes este día.</div>';
+      return;
+    }
+
+    lista.innerHTML = fichajes.map(f => {
+      const d = new Date(f.hora);
+      const hhmm = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      const marcas = [];
+      if (f.es_manual) marcas.push('<span class="marca manual">manual</span>');
+      if (f.cierre_automatico) marcas.push('<span class="marca autocierre">autocierre</span>');
+      if (f.corregido_por) marcas.push('<span class="marca corregido">corregido</span>');
+      const motivoTxt = f.motivo_correccion
+        ? `<span class="motivo-mini">📝 ${esc(f.motivo_correccion)}</span>` : '';
+      const btnCorregir = editable
+        ? `<button class="btn-naranja btn-corregir" data-fid="${f.id}" data-hora="${esc(f.hora)}" data-tipo="${f.tipo}">✏ Corregir</button>`
+        : '';
+      return `<div class="fila-fichaje">
+        <div class="izq">
+          <span class="tipo ${f.tipo === 'entrada' ? 'entrada' : 'salida'}">${f.tipo === 'entrada' ? '📥 Entrada' : '📤 Salida'}</span>
+          <div class="marcas">${marcas.join('')}</div>
+          ${motivoTxt}
+        </div>
+        <span class="hora">${hhmm}</span>
+        ${btnCorregir}
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('dia-lista').addEventListener('click', (ev) => {
+    const btn = ev.target.closest('.btn-corregir');
+    if (!btn) return;
+    abrirCorreccion(btn.dataset.fid, btn.dataset.tipo, btn.dataset.hora);
+  });
+
+  document.getElementById('btn-cerrar-dia').addEventListener('click', () => {
+    document.getElementById('modal-dia').classList.remove('visible');
+    diaAbierto = null;
+  });
+
+  // ===================================================================
+  // CORRECCIÓN (mismo flujo y RPC que el jefe; la RPC valida la ventana)
+  // ===================================================================
+  function abrirCorreccion(id, tipo, hora) {
+    fichajeCorrigiendoId = id;
+    fichajeCorrigiendoHora = hora;
+    const t = diaAbierto ? (resumenTrabajadores[diaAbierto.trabajadorId] || {}) : {};
+    document.getElementById('correccion-subtitulo').textContent =
+      `${t.nombre || ''} — ${tipo === 'entrada' ? 'entrada' : 'salida'}`;
+    const d = new Date(hora);
+    document.getElementById('f-hora').value = isNaN(d.getTime()) ? '' : `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    document.getElementById('f-motivo').value = '';
+    document.getElementById('error-correccion').style.display = 'none';
+    document.getElementById('ok-correccion').style.display = 'none';
+    document.getElementById('btn-guardar-correccion').disabled = false;
+    document.getElementById('modal-correccion').classList.add('visible');
+  }
+
+  document.getElementById('btn-cancelar-correccion').addEventListener('click', () => {
+    document.getElementById('modal-correccion').classList.remove('visible');
+  });
+
+  document.getElementById('btn-guardar-correccion').addEventListener('click', async () => {
+    const nuevaHora = document.getElementById('f-hora').value;
+    const motivo    = document.getElementById('f-motivo').value.trim();
+    if (!nuevaHora) { mostrarErrorCorreccion('La hora es obligatoria.'); return; }
+    if (!motivo)    { mostrarErrorCorreccion('El motivo es obligatorio.'); return; }
+
+    const dOriginal = new Date(fichajeCorrigiendoHora);
+    if (isNaN(dOriginal.getTime())) { mostrarErrorCorreccion('La fecha original del fichaje no es válida.'); return; }
+    const [hh, mi] = nuevaHora.split(':').map(Number);
+    const horaLocal = new Date(dOriginal.getFullYear(), dOriginal.getMonth(), dOriginal.getDate(), hh, mi, 0, 0);
+    if (isNaN(horaLocal.getTime())) { mostrarErrorCorreccion('La hora no es válida.'); return; }
+
+    document.getElementById('btn-guardar-correccion').disabled = true;
+
+    const { data: rpcData, error } = await sb.rpc('corregir_fichaje', {
+      p_fichaje_id: fichajeCorrigiendoId, p_nueva_hora: horaLocal.toISOString(), p_motivo: motivo
+    });
+
+    if (error) { document.getElementById('btn-guardar-correccion').disabled = false; mostrarErrorCorreccion('Error al guardar: ' + error.message); return; }
+    if (!rpcData || rpcData.success !== true) {
+      document.getElementById('btn-guardar-correccion').disabled = false;
+      mostrarErrorCorreccion((rpcData && rpcData.error) ? rpcData.error : 'No se ha podido guardar la corrección.'); return;
+    }
+
+    document.getElementById('ok-correccion').textContent = 'Corrección guardada.';
+    document.getElementById('ok-correccion').style.display = 'block';
+    setTimeout(async () => {
+      document.getElementById('modal-correccion').classList.remove('visible');
+      await recargarYReabrirDia();
+    }, 900);
+  });
+
+  function mostrarErrorCorreccion(txt) {
+    const e = document.getElementById('error-correccion');
+    e.textContent = txt; e.style.display = 'block';
+  }
+
+  // ===================================================================
+  // FICHAJE MANUAL (trabajador y fecha fijados desde la celda)
+  // ===================================================================
+  document.getElementById('btn-abrir-manual').addEventListener('click', () => {
+    if (!diaAbierto) return;
+    const t = resumenTrabajadores[diaAbierto.trabajadorId] || {};
+    const [year, month] = mesCargado.split('-').map(Number);
+    const fecha = new Date(year, month - 1, diaAbierto.dia);
+    document.getElementById('manual-subtitulo').textContent =
+      `${t.nombre || ''} · ${fecha.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+    document.getElementById('error-manual').style.display = 'none';
+    document.getElementById('ok-manual').style.display = 'none';
+    document.getElementById('manual-tipo').value = 'entrada';
+    document.getElementById('manual-hora').value = '';
+    document.getElementById('manual-motivo').value = '';
+    document.getElementById('btn-guardar-manual').disabled = false;
+    document.getElementById('modal-manual').classList.add('visible');
+  });
+
+  document.getElementById('btn-cancelar-manual').addEventListener('click', () => {
+    document.getElementById('modal-manual').classList.remove('visible');
+  });
+
+  document.getElementById('btn-guardar-manual').addEventListener('click', async () => {
+    if (!diaAbierto) return;
+    const tipo   = document.getElementById('manual-tipo').value;
+    const hora   = document.getElementById('manual-hora').value;
+    const motivo = document.getElementById('manual-motivo').value.trim();
+
+    if (!tipo)   { mostrarErrorManual('Selecciona entrada o salida.'); return; }
+    if (!hora)   { mostrarErrorManual('La hora es obligatoria.'); return; }
+    if (!motivo) { mostrarErrorManual('El motivo es obligatorio.'); return; }
+
+    const [year, month] = mesCargado.split('-').map(Number);
+    const [hh, mi] = hora.split(':').map(Number);
+    const horaLocal = new Date(year, month - 1, diaAbierto.dia, hh, mi, 0, 0);
+    if (isNaN(horaLocal.getTime())) { mostrarErrorManual('La hora no es válida.'); return; }
+
+    document.getElementById('btn-guardar-manual').disabled = true;
+
+    const { data, error } = await sb.rpc('registrar_fichaje_manual', {
+      p_trabajador_id: diaAbierto.trabajadorId, p_obra_id: obraActualId,
+      p_tipo: tipo, p_hora: horaLocal.toISOString(), p_motivo: motivo
+    });
+
+    if (error) { document.getElementById('btn-guardar-manual').disabled = false; mostrarErrorManual('Error al registrar: ' + error.message); return; }
+    if (!data || data.success !== true) {
+      document.getElementById('btn-guardar-manual').disabled = false;
+      mostrarErrorManual((data && data.error) ? data.error : 'No se ha podido registrar el fichaje.'); return;
+    }
+
+    document.getElementById('ok-manual').textContent = 'Fichaje manual registrado correctamente.';
+    document.getElementById('ok-manual').style.display = 'block';
+    document.getElementById('error-manual').style.display = 'none';
+    setTimeout(async () => {
+      document.getElementById('modal-manual').classList.remove('visible');
+      await recargarYReabrirDia();
+    }, 900);
+  });
+
+  function mostrarErrorManual(txt) {
+    const e = document.getElementById('error-manual');
+    e.textContent = txt; e.style.display = 'block';
+  }
+
+  // ===================================================================
+  // AJUSTAR DÍA: entrada + salida + motivo en un solo paso.
+  // Corrige los fichajes que ya existen o crea manuales si faltan.
+  // Usa las mismas RPC de siempre: corregir_fichaje y registrar_fichaje_manual.
+  // ===================================================================
+  function hhmmDe(isoHora) {
+    const d = new Date(isoHora);
+    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }
+
+  document.getElementById('btn-abrir-ajuste').addEventListener('click', () => {
+    if (!diaAbierto) return;
+    const fichajes = fichajesDelDia(diaAbierto.trabajadorId, diaAbierto.dia);
+    const entradas = fichajes.filter(f => f.tipo === 'entrada');
+    const salidas  = fichajes.filter(f => f.tipo === 'salida');
+
+    if (entradas.length > 1 || salidas.length > 1) {
+      alert('Este día tiene varios tramos de entrada/salida. Para no liarla, corrige cada fichaje individualmente con el botón ✏ Corregir.');
+      return;
+    }
+
+    const t = resumenTrabajadores[diaAbierto.trabajadorId] || {};
+    const [year, month] = mesCargado.split('-').map(Number);
+    const fecha = new Date(year, month - 1, diaAbierto.dia);
+    document.getElementById('ajuste-subtitulo').textContent =
+      `${t.nombre || ''} · ${fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+
+    // Prellenar: hora real si existe fichaje; si no, la hora oficial de la obra
+    document.getElementById('ajuste-entrada').value =
+      entradas[0] ? hhmmDe(entradas[0].hora) : (horasObraActual.entrada ? horasObraActual.entrada.slice(0,5) : '');
+    document.getElementById('ajuste-salida').value =
+      salidas[0] ? hhmmDe(salidas[0].hora) : (horasObraActual.salida ? horasObraActual.salida.slice(0,5) : '');
+    document.getElementById('ajuste-motivo').value = '';
+    document.getElementById('error-ajuste').style.display = 'none';
+    document.getElementById('ok-ajuste').style.display = 'none';
+    document.getElementById('btn-guardar-ajuste').disabled = false;
+    document.getElementById('modal-ajuste').classList.add('visible');
+  });
+
+  document.getElementById('btn-cancelar-ajuste').addEventListener('click', () => {
+    document.getElementById('modal-ajuste').classList.remove('visible');
+  });
+
+  function mostrarErrorAjuste(txt) {
+    const e = document.getElementById('error-ajuste');
+    e.textContent = txt; e.style.display = 'block';
+  }
+
+  document.getElementById('btn-guardar-ajuste').addEventListener('click', async () => {
+    if (!diaAbierto) return;
+    const hEntrada = document.getElementById('ajuste-entrada').value;
+    const hSalida  = document.getElementById('ajuste-salida').value;
+    const motivo   = document.getElementById('ajuste-motivo').value.trim();
+
+    if (!hEntrada && !hSalida) { mostrarErrorAjuste('Pon al menos una hora (entrada o salida).'); return; }
+    if (hEntrada && hSalida && hSalida <= hEntrada) { mostrarErrorAjuste('La salida debe ser posterior a la entrada.'); return; }
+    if (!motivo) { mostrarErrorAjuste('El motivo es obligatorio: es lo que justifica el ajuste.'); return; }
+
+    const fichajes = fichajesDelDia(diaAbierto.trabajadorId, diaAbierto.dia);
+    const entradaExistente = fichajes.find(f => f.tipo === 'entrada') || null;
+    const salidaExistente  = fichajes.find(f => f.tipo === 'salida')  || null;
+
+    const [year, month] = mesCargado.split('-').map(Number);
+    const dia = diaAbierto.dia;
+    const aISO = (hhmm) => {
+      const [hh, mi] = hhmm.split(':').map(Number);
+      return new Date(year, month - 1, dia, hh, mi, 0, 0).toISOString();
+    };
+
+    // Plan de operaciones: primero la entrada, luego la salida (coherencia)
+    const ops = [];
+    if (hEntrada) {
+      if (entradaExistente) {
+        if (hhmmDe(entradaExistente.hora) !== hEntrada)
+          ops.push({ que: 'corregir', id: entradaExistente.id, hora: aISO(hEntrada), etiqueta: 'entrada' });
+      } else {
+        ops.push({ que: 'crear', tipo: 'entrada', hora: aISO(hEntrada), etiqueta: 'entrada' });
+      }
+    }
+    if (hSalida) {
+      if (salidaExistente) {
+        if (hhmmDe(salidaExistente.hora) !== hSalida)
+          ops.push({ que: 'corregir', id: salidaExistente.id, hora: aISO(hSalida), etiqueta: 'salida' });
+      } else {
+        ops.push({ que: 'crear', tipo: 'salida', hora: aISO(hSalida), etiqueta: 'salida' });
+      }
+    }
+
+    if (ops.length === 0) { mostrarErrorAjuste('No has cambiado nada respecto a lo que ya hay.'); return; }
+
+    document.getElementById('btn-guardar-ajuste').disabled = true;
+    document.getElementById('error-ajuste').style.display = 'none';
+
+    for (const op of ops) {
+      let resultado;
+      if (op.que === 'corregir') {
+        resultado = await sb.rpc('corregir_fichaje', {
+          p_fichaje_id: op.id, p_nueva_hora: op.hora, p_motivo: motivo
+        });
+      } else {
+        resultado = await sb.rpc('registrar_fichaje_manual', {
+          p_trabajador_id: diaAbierto.trabajadorId, p_obra_id: obraActualId,
+          p_tipo: op.tipo, p_hora: op.hora, p_motivo: motivo
+        });
+      }
+      const { data, error } = resultado;
+      if (error || !data || data.success !== true) {
+        document.getElementById('btn-guardar-ajuste').disabled = false;
+        const detalle = error ? error.message : ((data && data.error) || 'error desconocido');
+        mostrarErrorAjuste(`No se ha podido guardar la ${op.etiqueta}: ${detalle}. Los cambios anteriores de este ajuste sí se han guardado; revisa el día.`);
+        // Recargar en segundo plano para que la vista refleje lo que sí entró
+        cargarResumen();
+        return;
+      }
+    }
+
+    document.getElementById('ok-ajuste').textContent = 'Día ajustado correctamente.';
+    document.getElementById('ok-ajuste').style.display = 'block';
+    setTimeout(async () => {
+      document.getElementById('modal-ajuste').classList.remove('visible');
+      await recargarYReabrirDia();
+    }, 900);
+  });
+
+  // Recarga el resumen y, si había un día abierto, vuelve a mostrarlo actualizado
+  async function recargarYReabrirDia() {
+    const guardado = diaAbierto ? { ...diaAbierto } : null;
+    await cargarResumen();
+    if (guardado && resumenTrabajadores[guardado.trabajadorId]) {
+      abrirDetalleDia(guardado.trabajadorId, guardado.dia);
+    } else {
+      document.getElementById('modal-dia').classList.remove('visible');
+      diaAbierto = null;
+    }
+  }
+
+  // ===================================================================
+  // HELPERS
+  // ===================================================================
   function formatHoras(n) {
     return Number(n).toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
   }
