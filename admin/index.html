@@ -248,7 +248,7 @@ function rangoHoyLocal() {
 // ── Vigilante de crons ──────────────────────────────────────────────────────
 // Llama a salud_crons() y muestra banner ROJO si algún cron falló o lleva
 // demasiado sin correr. Si la comprobación misma falla, banner NARANJA
-// (el vigilante no debe fallar en silencio). Si todo está bien, no muestra nada.
+// (el vigilante no debe fallar en silencio). Si todo está bien, banner VERDE.
 async function cargarSaludCrons() {
   const el = document.getElementById('banner-crons');
   let data, error;
@@ -291,7 +291,15 @@ async function cargarSaludCrons() {
     }
   });
 
-  if (problemas.length === 0) { el.style.display = 'none'; return; }
+  if (problemas.length === 0) {
+    const activos = data.filter(c => c.activo).length;
+    el.style.display = 'block';
+    el.style.background = 'rgba(76,175,80,0.15)';
+    el.style.color = '#4caf50';
+    el.style.border = 'none';
+    el.textContent = `✅ Crons automáticos: los ${activos} activos corrieron correctamente en su horario.`;
+    return;
+  }
 
   el.style.display = 'block';
   el.style.background = 'rgba(244,67,54,0.15)';
