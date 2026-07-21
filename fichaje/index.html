@@ -570,6 +570,7 @@ const TEXTOS = {
     salida_ok:           'Salida registrada',
     pie:                 'Control de acceso',
     dni_invalido:        'Introduzca un DNI o NIE válido.',
+    dni_letra_mal:       'La letra no coincide con los números. Revise su DNI.',
     dni_no_encontrado:   'DNI no encontrado. Revise números y letra.',
     sin_conexion:        'Sin conexión a internet. Compruebe su WiFi o datos móviles.',
     fallo_red:           'No se pudo conectar con el servidor. Compruebe su conexión e inténtelo de nuevo.',
@@ -646,6 +647,7 @@ const TEXTOS = {
     salida_ok:           'تم تسجيل الخروج',
     pie:                 'مراقبة الدخول',
     dni_invalido:        'يرجى إدخال رقم هوية صحيح.',
+    dni_letra_mal:       'الحرف لا يتطابق مع الأرقام. يرجى مراجعة هويتك.',
     dni_no_encontrado:   'الهوية غير موجودة. تحقق من الأرقام والحرف.',
     sin_conexion:        'لا يوجد اتصال بالإنترنت. تحقق من الواي فاي أو بيانات الهاتف.',
     fallo_red:           'تعذّر الاتصال بالخادم. تحقق من اتصالك وأعد المحاولة.',
@@ -722,6 +724,7 @@ const TEXTOS = {
     salida_ok:           'Ieșire înregistrată',
     pie:                 'Control acces',
     dni_invalido:        'Introduceți un DNI sau NIE valid.',
+    dni_letra_mal:       'Litera nu corespunde cu cifrele. Verificați DNI-ul.',
     dni_no_encontrado:   'DNI negăsit. Verificați cifrele și litera.',
     sin_conexion:        'Fără conexiune la internet. Verificați WiFi sau datele mobile.',
     fallo_red:           'Nu s-a putut conecta la server. Verificați conexiunea și reîncercați.',
@@ -955,6 +958,24 @@ function aplicarFotoFondo(fotoUrl) {
 function normalizarDni(dni) {
   return (dni || '').trim().toUpperCase().replace(/\s+/g, '');
 }
+// Comprobación LOCAL de la letra de control.
+// Solo devuelve true (letra mal) cuando el texto tiene forma EXACTA de DNI
+// (8 dígitos + letra) o de NIE (X/Y/Z + 7 dígitos + letra) y la letra no cuadra.
+// Pasaportes, TIE u otros formatos → devuelve false (no se valida, pasa como hoy).
+function dniLetraIncorrecta(dni) {
+  const d = normalizarDni(dni);
+  const LETRAS = 'TRWAGMYFPDXBNJZSQVHLCKE';
+  const mDni = /^(\d{8})([A-Z])$/.exec(d);
+  if (mDni) {
+    return mDni[2] !== LETRAS[parseInt(mDni[1], 10) % 23];
+  }
+  const mNie = /^([XYZ])(\d{7})([A-Z])$/.exec(d);
+  if (mNie) {
+    const num = parseInt(({ X: '0', Y: '1', Z: '2' })[mNie[1]] + mNie[2], 10);
+    return mNie[3] !== LETRAS[num % 23];
+  }
+  return false;
+}
 function textoDniParcial(dni) {
   const limpio = normalizarDni(dni);
   if (limpio.length <= 5) return '****';
@@ -1172,6 +1193,7 @@ async function continuarDesdeDni() {
   ocultarErrorDni(); ocultarAvisoGps();
   const dni = normalizarDni(el.inputDni.value);
   if (dni.length < 5) { mostrarErrorDni(T('dni_invalido')); return; }
+  if (dniLetraIncorrecta(dni)) { mostrarErrorDni(T('dni_letra_mal')); return; }
 
   estado.dni = dni;
   el.cargandoTexto.textContent = T('obteniendo_ubic');
