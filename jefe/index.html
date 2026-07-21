@@ -566,8 +566,17 @@ document.getElementById('modal-foto-overlay').addEventListener('click', e => {
 });
 
 // ── 6.3: Modal autocierres recientes ──
+// Memoria del "Entendido": guarda en localStorage el creado_en del
+// autocierre más reciente mostrado. El modal solo reaparece si hay
+// autocierres creados DESPUÉS de esa marca (nuevos de verdad).
+const CLAVE_AUTOCIERRES_VISTOS = 'jefe_autocierres_vistos_hasta';
+let autocierresMaxCreado = null;
+
 function cerrarModalAutocierres() {
   document.getElementById('modal-autocierres-overlay').classList.remove('visible');
+  if (autocierresMaxCreado) {
+    try { localStorage.setItem(CLAVE_AUTOCIERRES_VISTOS, autocierresMaxCreado); } catch (_) {}
+  }
 }
 
 async function comprobarAutoierresRecientes(misObrasIds) {
@@ -575,14 +584,22 @@ async function comprobarAutoierresRecientes(misObrasIds) {
   const hace7dias = new Date();
   hace7dias.setDate(hace7dias.getDate() - 7);
   hace7dias.setHours(0, 0, 0, 0);
-  const { data, error } = await sb
+  const { data: todos, error } = await sb
     .from('fichajes')
-    .select('id, hora, trabajador:trabajador_id(nombre, apellidos), obra:obra_id(nombre)')
+    .select('id, hora, creado_en, trabajador:trabajador_id(nombre, apellidos), obra:obra_id(nombre)')
     .in('obra_id', misObrasIds)
     .eq('cierre_automatico', true)
     .gte('hora', hace7dias.toISOString())
     .order('hora', { ascending: false });
-  if (error || !data || data.length === 0) return;
+  if (error || !todos || todos.length === 0) return;
+  let vistoHasta = null;
+  try { vistoHasta = localStorage.getItem(CLAVE_AUTOCIERRES_VISTOS); } catch (_) {}
+  const data = vistoHasta
+    ? todos.filter(f => f.creado_en && f.creado_en > vistoHasta)
+    : todos;
+  if (data.length === 0) return;
+  autocierresMaxCreado = data.reduce((max, f) =>
+    (f.creado_en && (!max || f.creado_en > max)) ? f.creado_en : max, vistoHasta);
   const lista = document.getElementById('autocierres-lista');
   lista.innerHTML = data.map(f => {
     const t = f.trabajador || {};
