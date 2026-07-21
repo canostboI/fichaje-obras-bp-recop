@@ -143,6 +143,10 @@
   .banner-ronda.confirmado { background: rgba(76,175,80,0.1); border: 1px solid rgba(76,175,80,0.35); color: var(--verde); }
   .banner-ronda.alerta { background: rgba(244,67,54,0.12); border: 1px solid rgba(244,67,54,0.45); color: var(--rojo); font-weight: 600; }
   .banner-ronda.pendiente { background: rgba(139,144,158,0.08); border: 1px solid var(--borde); color: var(--texto2); }
+  .banner-ronda.pendiente { flex-wrap: wrap; }
+  .btn-sin-actividad-jefe { margin-left: auto; background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .btn-sin-actividad-jefe:hover:not(:disabled) { background: rgba(139,144,158,0.15); }
+  .btn-sin-actividad-jefe:disabled { opacity: 0.5; cursor: not-allowed; }
   .banner-ronda.oculto { display: none; }
 
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
@@ -864,7 +868,7 @@ async function cargarRondaEncargado() {
   const { desdeISO, hastaISO } = rangoHoyLocal();
   const { data, error } = await sb
     .from('rondas_encargado')
-    .select('momento, personas_en_obra, personas_sin_fichar, encargado:usuario_app_id(nombre)')
+    .select('momento, personas_en_obra, personas_sin_fichar, sin_actividad, encargado:usuario_app_id(nombre)')
     .eq('obra_id', obraActual)
     .gte('momento', desdeISO)
     .lte('momento', hastaISO)
@@ -872,10 +876,18 @@ async function cargarRondaEncargado() {
     .limit(1);
   if (error || !data || data.length === 0) {
     banner.className = 'banner-ronda pendiente';
-    banner.textContent = '⏳ Pendiente confirmación de presencia del encargado hoy';
+    banner.innerHTML = '⏳ Pendiente confirmación de presencia del encargado hoy ' +
+      '<button class="btn-sin-actividad-jefe" id="btn-sin-actividad-jefe">🌧 Hoy no se trabaja</button>';
+    document.getElementById('btn-sin-actividad-jefe').addEventListener('click', marcarSinActividadJefe);
     return;
   }
   const r = data[0];
+  if (r.sin_actividad) {
+    const quien = r.encargado?.nombre ? ` (marcado por ${r.encargado.nombre})` : '';
+    banner.className = 'banner-ronda pendiente';
+    banner.textContent = `🌧 Sin actividad hoy en esta obra${quien} — avisos de ronda silenciados`;
+    return;
+  }
   const hora = formatHora(r.momento);
   const nombre = r.encargado?.nombre ? ` ${r.encargado.nombre}` : '';
   const sinFichar = r.personas_sin_fichar != null ? r.personas_sin_fichar : 0;
@@ -888,6 +900,24 @@ async function cargarRondaEncargado() {
     banner.className = 'banner-ronda confirmado';
     banner.textContent = `✅ El encargado${nombre} ha confirmado presencia hoy a las ${hora}${personas}`;
   }
+}
+
+async function marcarSinActividadJefe() {
+  if (!obraActual) return;
+  const ok = confirm('¿Marcar HOY como día sin actividad en esta obra?\n\nSe silenciarán los avisos de ronda restantes del día (SMS al encargado).');
+  if (!ok) return;
+
+  const btn = document.getElementById('btn-sin-actividad-jefe');
+  if (btn) { btn.disabled = true; btn.textContent = 'Registrando…'; }
+
+  const { data, error } = await sb.rpc('marcar_dia_sin_actividad', { p_obra_id: obraActual });
+
+  if (error || !data || data.success === false) {
+    alert('Error al registrar: ' + (error ? error.message : (data && data.error) || 'desconocido'));
+    if (btn) { btn.disabled = false; btn.textContent = '🌧 Hoy no se trabaja'; }
+    return;
+  }
+  await cargarRondaEncargado();
 }
 
 async function cargarPresencia() {
