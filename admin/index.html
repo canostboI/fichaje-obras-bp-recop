@@ -121,6 +121,7 @@
     <span class="usuario" id="usuario-email"></span>
   </div>
   <div class="contenido">
+    <div id="banner-crons" style="display:none;margin-bottom:18px;padding:12px 16px;border-radius:10px;font-size:14px;font-weight:600;line-height:1.5;"></div>
     <div id="banner-ecoordina" style="display:none;margin-bottom:18px;padding:12px 16px;border-radius:10px;font-size:14px;font-weight:600;"></div>
     <div class="stats">
       <div class="stat"><div class="numero azul" id="stat-fichajes">—</div><div class="etiqueta">Fichajes hoy</div></div>
@@ -239,9 +240,67 @@ function rangoHoyLocal() {
     cargarAccesosDenegadosHoy(),
     cargarTablaRojos(),
     cargarIncidencias(),
-    cargarSyncEcoordina()
+    cargarSyncEcoordina(),
+    cargarSaludCrons()
   ]);
 })();
+
+// ── Vigilante de crons ──────────────────────────────────────────────────────
+// Llama a salud_crons() y muestra banner ROJO si algún cron falló o lleva
+// demasiado sin correr. Si la comprobación misma falla, banner NARANJA
+// (el vigilante no debe fallar en silencio). Si todo está bien, no muestra nada.
+async function cargarSaludCrons() {
+  const el = document.getElementById('banner-crons');
+  let data, error;
+  try {
+    ({ data, error } = await sb.rpc('salud_crons'));
+  } catch (e) {
+    error = e;
+  }
+
+  if (error) {
+    el.style.display = 'block';
+    el.style.background = 'rgba(255,152,0,0.15)'; el.style.color = '#ff9800';
+    el.textContent = '⚠️ No se pudo comprobar la salud de los crons: ' + (error.message || 'error desconocido');
+    return;
+  }
+  if (!data || data.length === 0) {
+    el.style.display = 'block';
+    el.style.background = 'rgba(255,152,0,0.15)'; el.style.color = '#ff9800';
+    el.textContent = '⚠️ Vigilante de crons: no se encontró ningún cron programado en la base de datos.';
+    return;
+  }
+
+  // Día de la semana en Madrid (0=domingo, 1=lunes, 6=sábado)
+  const diaMadrid = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Madrid' })).getDay();
+  const esFinDeSemanaOLunes = (diaMadrid === 0 || diaMadrid === 6 || diaMadrid === 1);
+
+  const problemas = [];
+  data.forEach(c => {
+    if (!c.activo) return; // crons desactivados a propósito no alarman
+    const esLaborable = (c.schedule || '').includes('1-5');
+    const umbral = esLaborable && esFinDeSemanaOLunes ? 80 : 26;
+
+    if (!c.ultima_ejecucion) {
+      problemas.push(`«${c.jobname}» nunca ha llegado a ejecutarse`);
+    } else if (c.estado === 'failed') {
+      const msg = (c.mensaje || '').slice(0, 120);
+      problemas.push(`«${c.jobname}» FALLÓ en su última ejecución${msg ? ' — ' + msg : ''}`);
+    } else if (Number(c.horas_desde_ultima) > umbral) {
+      problemas.push(`«${c.jobname}» lleva ${Math.round(c.horas_desde_ultima)}h sin correr (no corrió cuando tocaba)`);
+    }
+  });
+
+  if (problemas.length === 0) { el.style.display = 'none'; return; }
+
+  el.style.display = 'block';
+  el.style.background = 'rgba(244,67,54,0.15)';
+  el.style.color = '#f44336';
+  el.style.border = '1px solid rgba(244,67,54,0.4)';
+  el.innerHTML = '🚨 <strong>Problema en los crons automáticos:</strong><br>' +
+    problemas.map(p => '· ' + esc(p)).join('<br>') +
+    '<br><small style="opacity:0.85">Revisa cron.job_run_details en Supabase (JOIN con cron.job).</small>';
+}
 
 async function cargarSyncEcoordina() {
   const el = document.getElementById('banner-ecoordina');
