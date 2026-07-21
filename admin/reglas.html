@@ -54,6 +54,15 @@
   td.celda-check { text-align: center; }
   .vacio { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); }
+  .ayuda-reglas { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; margin-bottom: 16px; font-size: 13.5px; }
+  .ayuda-reglas summary { cursor: pointer; padding: 12px 16px; font-weight: 600; color: var(--texto); list-style: none; display: flex; align-items: center; gap: 8px; }
+  .ayuda-reglas summary::-webkit-details-marker { display: none; }
+  .ayuda-reglas summary::before { content: '▸'; color: var(--texto2); transition: transform 0.15s; }
+  .ayuda-reglas[open] summary::before { transform: rotate(90deg); }
+  .ayuda-reglas .cuerpo-ayuda { padding: 4px 20px 16px; color: var(--texto2); line-height: 1.7; }
+  .ayuda-reglas .cuerpo-ayuda strong { color: var(--texto); }
+  .ayuda-reglas .cuerpo-ayuda code { background: var(--bg3); border: 1px solid var(--borde); border-radius: 4px; padding: 1px 6px; color: var(--texto); font-size: 12.5px; }
+  .ayuda-reglas .aviso-rojo { color: var(--rojo); }
 </style>
   <script src="../js/auto-logout.js"></script>
 </head>
@@ -88,6 +97,19 @@
   <div class="contenido">
     <div id="msgOk" class="mensaje ok"></div>
     <div id="msgErr" class="mensaje err"></div>
+    <details class="ayuda-reglas">
+      <summary>Cómo funcionan las reglas</summary>
+      <div class="cuerpo-ayuda">
+        Cada regla dice: <em>"si el documento X está en el estado Y de e-Coordina, el resultado es verde / naranja / rojo"</em>.<br><br>
+        • <strong>Documento:</strong> el nombre debe coincidir <strong>exacto</strong> con el de e-Coordina (se ignoran mayúsculas y acentos). Usa <code>*</code> para decir "cualquier documento".<br>
+        • <strong>Estado e-Coordina:</strong> el estado tal como llega (ej. <em>Sin presentar</em>, <em>Caducado</em>, <em>Validación pendiente</em>).<br>
+        • <strong>Obligatorio:</strong> si no está marcado, la regla no bloquea aunque falte el documento.<br>
+        • <strong>Aplica a:</strong> 👷 Trabajador (documento personal) o 🏢 Empresa (se hereda a todos sus trabajadores).<br>
+        • <strong>Resultado:</strong> 🟢 deja entrar · 🟠 entra con aviso · 🔴 acceso denegado (salvo excepción del jefe).<br>
+        • Si un documento <strong>no encaja con ninguna regla, el sistema lo deja en 🟠 naranja</strong> por seguridad.<br><br>
+        <span class="aviso-rojo"><strong>El rojo bloquea de verdad en la puerta.</strong> Cambia estas reglas con cuidado.</span>
+      </div>
+    </details>
     <div class="seccion">
       <table id="tablaReglas">
         <thead>
@@ -182,6 +204,10 @@ async function guardarTodo() {
   ocultarMensajes();
   for (const r of reglas) {
     if (!r.nombre_documento.trim() || !r.estado_ecoordina.trim()) { mostrarError('Hay filas con Documento o Estado vacío. Rellénalo antes de guardar.'); return; }
+  }
+  if (eliminadas.length > 0) {
+    const n = eliminadas.length;
+    if (!confirm(`Vas a borrar ${n} regla${n === 1 ? '' : 's'}. Esta acción no se puede deshacer.\n\n¿Continuar?`)) { return; }
   }
   let errores = [];
   for (const id of eliminadas) { const { error } = await sb.from('reglas_documentales').delete().eq('id', id); if (error) errores.push('Borrar ' + id + ': ' + error.message); }
