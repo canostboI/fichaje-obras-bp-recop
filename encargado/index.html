@@ -263,6 +263,9 @@
     .panel-avisos .btn-visto { background: #ff9800; color: white; border: none; padding: 0.4rem 0.9rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; white-space: nowrap; }
     .panel-avisos .btn-visto:hover { background: #f57c00; }
     .panel-avisos .btn-visto:disabled { background: #ccc; cursor: not-allowed; }
+    .panel-avisos .aviso-botones { display: flex; gap: 8px; align-items: center; }
+    .panel-avisos .btn-corregir-aviso { background: #fff; color: #b26a00; border: 1px solid #ff9800; padding: 0.4rem 0.9rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; white-space: nowrap; }
+    .panel-avisos .btn-corregir-aviso:hover { background: #fff3e0; }
 
     .panel-bloqueos {
       background: #fff5f5; border: 1px solid #ffcdd2;
@@ -367,7 +370,7 @@
       .header-right { width: 100%; }
       .campo-fila { grid-template-columns: 1fr; }
       .panel-avisos .aviso-item { flex-direction: column; align-items: flex-start; }
-      .panel-avisos .btn-visto { align-self: flex-end; }
+      .panel-avisos .aviso-botones { align-self: flex-end; }
       .panel-bloqueos .bloqueo-item { flex-direction: column; align-items: flex-start; }
       .panel-bloqueos .btn-visto-rojo { align-self: flex-end; }
       .contador-numero { font-size: 4rem; }
@@ -1082,10 +1085,14 @@
         textoAviso = `<strong>📱 Posible móvil compartido</strong><br>
           <span class="aviso-fecha">${esc(formatFecha(inc.created_at))}</span> — ${esc(inc.detalle || '')}`;
       }
+      const btnCorregir = (inc.tipo === 'autocierre')
+        ? `<button class="btn-corregir-aviso" onclick="window.location.href='resumen-mes.html'">✏ Corregir</button>`
+        : '';
+
       html += `
         <div class="aviso-item" data-id="${inc.id}">
           <div class="aviso-info">${textoAviso}</div>
-          <button class="btn-visto" onclick="marcarVisto('${inc.id}')">✓ Visto</button>
+          <div class="aviso-botones">${btnCorregir}<button class="btn-visto" onclick="marcarVisto('${inc.id}')">✓ Visto</button></div>
         </div>`;
     });
 
