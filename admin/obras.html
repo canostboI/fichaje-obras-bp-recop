@@ -160,6 +160,8 @@
         <input type="number" id="f-longitud" placeholder="2.1234" step="0.0001">
       </div>
     </div>
+    <button type="button" class="btn-secundario" id="btn-ubicacion" style="margin-bottom:6px;">📍 Usar mi ubicación actual (estando en la obra)</button>
+    <div id="ubic-estado" style="display:none; font-size:12px; line-height:1.4; margin-bottom:14px;"></div>
     <div class="campo">
       <label>Radio GPS (metros)</label>
       <input type="number" id="f-radio" placeholder="100" min="10" max="1000">
@@ -395,6 +397,36 @@ function abrirEditarPorId(id) {
 }
 
 document.getElementById('btn-cancelar').onclick = () => { document.getElementById('modal-obra').classList.remove('visible'); };
+
+function capturarUbicacion() {
+  const estado = document.getElementById('ubic-estado');
+  estado.style.display = 'block';
+  estado.style.color = 'var(--texto2)';
+  estado.textContent = '📡 Obteniendo tu ubicación… acepta el permiso de GPS del navegador.';
+  if (!navigator.geolocation) {
+    estado.style.color = 'var(--rojo)';
+    estado.textContent = 'Este navegador no permite usar el GPS. Teclea las coordenadas a mano.';
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      document.getElementById('f-latitud').value  = pos.coords.latitude.toFixed(6);
+      document.getElementById('f-longitud').value = pos.coords.longitude.toFixed(6);
+      const prec = pos.coords.accuracy ? Math.round(pos.coords.accuracy) : null;
+      estado.style.color = 'var(--verde)';
+      estado.textContent = '✓ Coordenadas capturadas' + (prec ? ` (precisión ~${prec} m).` : '.') + ' Revisa que el radio GPS cubra toda la obra.';
+    },
+    (err) => {
+      estado.style.color = 'var(--rojo)';
+      if (err.code === 1)      estado.textContent = 'Permiso de GPS denegado. Actívalo en el navegador o teclea las coordenadas a mano.';
+      else if (err.code === 2) estado.textContent = 'Ubicación no disponible ahora mismo. Prueba de nuevo o teclea a mano.';
+      else if (err.code === 3) estado.textContent = 'El GPS ha tardado demasiado. Prueba de nuevo o teclea a mano.';
+      else                     estado.textContent = 'No se ha podido obtener la ubicación. Teclea las coordenadas a mano.';
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  );
+}
+document.getElementById('btn-ubicacion').onclick = capturarUbicacion;
 
 document.getElementById('btn-guardar').onclick = async () => {
   const numeroRaw   = document.getElementById('f-numero').value.trim();
@@ -671,7 +703,7 @@ async function quitarFotoActual() {
 document.getElementById('btn-cerrar-foto').onclick = () => { document.getElementById('modal-foto').classList.remove('visible'); };
 
 function mostrarError(msg) { const el = document.getElementById('error-modal'); el.textContent = msg; el.style.display = 'block'; }
-function ocultarError() { document.getElementById('error-modal').style.display = 'none'; }
+function ocultarError() { document.getElementById('error-modal').style.display = 'none'; document.getElementById('ubic-estado').style.display = 'none'; }
 function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
 
 function syncBadge(iso) {
