@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Informe de Rojos — Fichaje Obras</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --verde: #4caf50;
+    --naranja: #ff9800;
+    --rojo: #f44336;
+    --azul: #2196f3;
+    --bg: #111318;
+    --bg2: #1a1d24;
+    --bg3: #22262f;
+    --borde: #2e3340;
+    --texto: #e8eaf0;
+    --texto2: #8b909e;
+    --sidebar-w: 200px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
+
+  .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+  .sidebar-brand { padding: 18px 16px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: center; gap: 14px; }
+  .sidebar-brand img { height: 22px; width: auto; opacity: 0.9; }
+  .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
+  .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
+  .sidebar a:hover { background: var(--bg3); color: var(--texto); }
+  .sidebar a.activo { background: var(--bg3); color: var(--texto); font-weight: 600; }
+  .sidebar a .ico { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid var(--borde); }
+  .btn-salir { width: 100%; background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 8px; transition: background 0.15s, color 0.15s; }
+  .btn-salir:hover { background: var(--bg3); color: var(--texto); }
+
+  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+  .topbar { padding: 20px 28px 0; display: flex; align-items: center; justify-content: space-between; }
+  .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+  .topbar .usuario { font-size: 13px; color: var(--texto2); }
+  .contenido { padding: 24px 28px; }
+
+  /* Barra de controles (no se imprime) */
+  .controles { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 18px 20px; margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+  .campo { display: flex; flex-direction: column; gap: 6px; }
+  .campo label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--texto2); }
+  .campo select, .campo input { background: var(--bg3); border: 1px solid var(--borde); color: var(--texto); padding: 9px 12px; border-radius: 8px; font-size: 14px; font-family: inherit; }
+  .campo select { min-width: 220px; }
+  .btn-generar { background: var(--rojo); border: none; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .btn-generar:hover { background: #d63a2f; }
+  .btn-imprimir { background: transparent; border: 1px solid var(--borde); color: var(--texto); padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .btn-imprimir:hover { background: var(--bg3); }
+  .btn-imprimir:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 15px; }
+  .aviso-error { padding: 16px 20px; background: rgba(244,67,54,0.12); border: 1px solid var(--rojo); border-radius: 10px; color: var(--texto); font-size: 14px; margin-bottom: 20px; }
+
+  /* ── El informe en sí (se imprime) ── */
+  .informe { background: #fff; color: #1a1a1a; border-radius: 10px; padding: 40px 44px; max-width: 820px; }
+
+  .inf-cabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; border-bottom: 3px solid #1a1a1a; padding-bottom: 20px; margin-bottom: 28px; }
+  .inf-cabecera .logo-marca { height: 34px; width: auto; }
+  .inf-titulo { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #666; }
+  .inf-obra { font-size: 26px; font-weight: 800; margin-top: 4px; color: #1a1a1a; }
+  .inf-meta { font-size: 13px; color: #555; margin-top: 8px; line-height: 1.5; }
+  .inf-cabecera .lado-derecho { text-align: right; }
+
+  .inf-titular { background: #f6f2f2; border-left: 5px solid var(--rojo); padding: 22px 26px; border-radius: 6px; margin-bottom: 32px; }
+  .inf-titular .cifra { font-size: 44px; font-weight: 800; color: var(--rojo); line-height: 1; }
+  .inf-titular .frase { font-size: 16px; color: #333; margin-top: 10px; line-height: 1.5; }
+
+  .inf-seccion { margin-bottom: 30px; }
+  .inf-seccion h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #1a1a1a; border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-bottom: 4px; }
+  .inf-seccion .subtitulo { font-size: 12px; color: #888; margin-bottom: 12px; }
+
+  table.inf-tabla { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.inf-tabla th { text-align: left; padding: 9px 12px; font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #ddd; }
+  table.inf-tabla th.num, table.inf-tabla td.num { text-align: right; }
+  table.inf-tabla td { padding: 10px 12px; border-bottom: 1px solid #eee; color: #222; }
+  table.inf-tabla tr:last-child td { border-bottom: none; }
+  table.inf-tabla td.destacado { font-weight: 700; }
+  table.inf-tabla tr.fila-suave td { color: #999; font-style: italic; }
+
+  .inf-genericos { background: #f8f8f8; border: 1px dashed #ccc; border-radius: 6px; padding: 16px 20px; font-size: 13px; color: #555; line-height: 1.6; }
+  .inf-genericos strong { color: #333; }
+
+  .inf-pie { margin-top: 36px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 11px; color: #999; line-height: 1.5; }
+
+  .inf-vacio { text-align: center; padding: 40px 20px; color: #999; font-size: 15px; }
+
+  /* ── Impresión ── */
+  @media print {
+    body { display: block; background: #fff; }
+    .sidebar, .topbar, .controles, .btn-imprimir, .no-print { display: none !important; }
+    .main { margin-left: 0; }
+    .contenido { padding: 0; }
+    .informe { max-width: none; padding: 0; border-radius: 0; }
+    @page { margin: 1.4cm; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-brand">
+    <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
+    <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
+  </div>
+  <div class="sidebar-section">Principal</div>
+  <a href="index.html"><span class="ico">📊</span> Dashboard</a>
+  <div class="sidebar-section">Gestión</div>
+  <a href="obras.html"><span class="ico">🏗</span> Obras</a>
+  <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
+  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
+  <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
+  <a href="incidencias.html"><span class="ico">⚠️</span> Incidencias</a>
+  <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
+  <a href="informe-rojos.html" class="activo"><span class="ico">📕</span> Informe de rojos</a>
+  <a href="importar-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
+  <div class="sidebar-bottom">
+    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>Informe de rojos</h1>
+    <span class="usuario" id="usuario-email"></span>
+  </div>
+  <div class="contenido">
+
+    <div class="controles no-print">
+      <div class="campo">
+        <label for="sel-obra">Obra</label>
+        <select id="sel-obra"><option value="">Cargando obras…</option></select>
+      </div>
+      <div class="campo">
+        <label for="inp-desde">Desde (opcional)</label>
+        <input type="date" id="inp-desde">
+      </div>
+      <div class="campo">
+        <label for="inp-hasta">Hasta (opcional)</label>
+        <input type="date" id="inp-hasta">
+      </div>
+      <button class="btn-generar" id="btn-generar">Generar informe</button>
+      <button class="btn-imprimir" id="btn-imprimir" disabled>🖨 Imprimir / PDF</button>
+    </div>
+
+    <div id="zona-informe">
+      <div class="cargando">Elige una obra y pulsa «Generar informe».</div>
+    </div>
+
+  </div>
+</div>
+
+<script src="../js/auto-logout.js"></script>
+<script>
+const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const LOGOS = {
+  bosch_pascual: '../assets/logos/bosch_pascual_logo_white.svg',
+  recop: '../assets/logos/recop_logo_white.svg'
+};
+
+function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt == null ? '' : txt); return d.innerHTML; }
+
+function fmtFecha(iso) {
+  if (!iso) return null;
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
+function fmtHoy() {
+  return new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
+// ── Carga de obras en el selector ──
+async function cargarObras() {
+  const sel = document.getElementById('sel-obra');
+  const { data, error } = await sb.from('obras').select('id, nombre, activa').order('nombre');
+  if (error) {
+    sel.innerHTML = '<option value="">Error al cargar obras</option>';
+    return;
+  }
+  if (!data || !data.length) {
+    sel.innerHTML = '<option value="">No hay obras</option>';
+    return;
+  }
+  sel.innerHTML = '<option value="">— Elige una obra —</option>' +
+    data.map(o => `<option value="${esc(o.id)}">${esc(o.nombre)}${o.activa ? '' : ' (inactiva)'}</option>`).join('');
+}
+
+// ── Generar el informe ──
+async function generar() {
+  const obraId = document.getElementById('sel-obra').value;
+  const desde = document.getElementById('inp-desde').value || null;
+  const hasta = document.getElementById('inp-hasta').value || null;
+  const zona = document.getElementById('zona-informe');
+  const btnImp = document.getElementById('btn-imprimir');
+
+  btnImp.disabled = true;
+
+  if (!obraId) {
+    zona.innerHTML = '<div class="aviso-error">Elige una obra antes de generar el informe.</div>';
+    return;
+  }
+  if (desde && hasta && desde > hasta) {
+    zona.innerHTML = '<div class="aviso-error">La fecha «Desde» es posterior a «Hasta». Revísalas.</div>';
+    return;
+  }
+
+  zona.innerHTML = '<div class="cargando">Generando informe…</div>';
+
+  const { data, error } = await sb.rpc('informe_rojos', {
+    p_obra_id: obraId,
+    p_desde: desde,
+    p_hasta: hasta
+  });
+
+  if (error) {
+    zona.innerHTML = `<div class="aviso-error">No se pudo generar el informe: ${esc(error.message)}</div>`;
+    return;
+  }
+
+  pintarInforme(data, { desde, hasta });
+  btnImp.disabled = false;
+}
+
+// ── Pintar el informe con los datos de la RPC ──
+function pintarInforme(d, rango) {
+  const zona = document.getElementById('zona-informe');
+  const logo = LOGOS[d.obra_marca] || LOGOS.bosch_pascual;
+
+  // Texto del periodo
+  let periodoTxt;
+  const fd = fmtFecha(rango.desde);
+  const fh = fmtFecha(rango.hasta);
+  if (fd && fh) periodoTxt = `Del ${fd} al ${fh}`;
+  else if (fd) periodoTxt = `Desde ${fd}`;
+  else if (fh) periodoTxt = `Hasta ${fh}`;
+  else periodoTxt = 'Todo el histórico registrado';
+
+  const total = d.total_intentos || 0;
+  const personas = d.total_personas || 0;
+
+  // Caso sin datos
+  if (total === 0) {
+    zona.innerHTML = `
+      <div class="informe">
+        ${cabeceraHTML(logo, d.obra_nombre, periodoTxt)}
+        <div class="inf-vacio">No se registraron accesos denegados en esta obra durante el periodo seleccionado.</div>
+        ${pieHTML()}
+      </div>`;
+    return;
+  }
+
+  // Titular
+  const titular = `
+    <div class="inf-titular">
+      <div class="cifra">${total}</div>
+      <div class="frase">intentos de acceso frenados por el sistema, de <strong>${personas}</strong> ${personas === 1 ? 'persona' : 'personas'} distintas sin la documentación en regla.</div>
+    </div>`;
+
+  // Tabla de categorías
+  const cats = Array.isArray(d.categorias) ? d.categorias : [];
+  let categoriasHTML;
+  if (cats.length) {
+    categoriasHTML = `
+      <div class="inf-seccion">
+        <h2>Motivos del bloqueo</h2>
+        <div class="subtitulo">Qué documentación faltaba, sobre los intentos con desglose registrado.</div>
+        <table class="inf-tabla">
+          <thead><tr><th>Motivo</th><th class="num">Intentos</th><th class="num">Personas</th></tr></thead>
+          <tbody>
+            ${cats.map(c => `
+              <tr>
+                <td class="destacado">${esc(c.categoria)}</td>
+                <td class="num">${c.veces}</td>
+                <td class="num">${c.personas}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } else {
+    categoriasHTML = '';
+  }
+
+  // Ranking de empresas
+  const emps = Array.isArray(d.empresas) ? d.empresas : [];
+  let empresasHTML = '';
+  if (emps.length) {
+    empresasHTML = `
+      <div class="inf-seccion">
+        <h2>Empresas con más accesos denegados</h2>
+        <div class="subtitulo">Ordenadas por número de intentos frenados.</div>
+        <table class="inf-tabla">
+          <thead><tr><th>Empresa</th><th class="num">Intentos</th><th class="num">Personas</th></tr></thead>
+          <tbody>
+            ${emps.map(e => {
+              const suave = e.empresa_nombre === 'Sin empresa asignada';
+              return `
+              <tr class="${suave ? 'fila-suave' : ''}">
+                <td class="${suave ? '' : 'destacado'}">${esc(e.empresa_nombre)}</td>
+                <td class="num">${e.veces}</td>
+                <td class="num">${e.personas}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  // Genéricos (sin desglose)
+  const gen = d.genericos_intentos || 0;
+  let genericosHTML = '';
+  if (gen > 0) {
+    genericosHTML = `
+      <div class="inf-seccion">
+        <h2>Frenados sin desglose</h2>
+        <div class="inf-genericos">
+          <strong>${gen}</strong> de los ${total} intentos (de ${d.genericos_personas} personas) se registraron antes de que el sistema guardara el motivo detallado. Cuentan como accesos denegados, pero no aparecen en el desglose por motivo de arriba.
+        </div>
+      </div>`;
+  }
+
+  zona.innerHTML = `
+    <div class="informe">
+      ${cabeceraHTML(logo, d.obra_nombre, periodoTxt)}
+      ${titular}
+      ${categoriasHTML}
+      ${empresasHTML}
+      ${genericosHTML}
+      ${pieHTML()}
+    </div>`;
+}
+
+function cabeceraHTML(logo, obraNombre, periodoTxt) {
+  return `
+    <div class="inf-cabecera">
+      <div>
+        <div class="inf-titulo">Informe de accesos denegados</div>
+        <div class="inf-obra">${esc(obraNombre || 'Obra')}</div>
+        <div class="inf-meta">${esc(periodoTxt)}</div>
+      </div>
+      <div class="lado-derecho">
+        <img class="logo-marca" src="${logo}" alt="" onerror="this.style.display='none'">
+        <div class="inf-meta">Generado el ${fmtHoy()}</div>
+      </div>
+    </div>`;
+}
+
+function pieHTML() {
+  return `
+    <div class="inf-pie">
+      Datos reales registrados de forma automática por el sistema de control de acceso, sin intervención manual. Cada «intento frenado» corresponde a un trabajador que escaneó el QR de la obra e introdujo su DNI, y al que el sistema denegó el paso por no tener la documentación en regla en ese momento.
+    </div>`;
+}
+
+// ── Init: comprobar sesión de admin ──
+(async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '../'; return; }
+  const { data: usuario } = await sb.from('usuarios_app').select('rol, nombre').eq('auth_user_id', session.user.id).single();
+  if (!usuario || usuario.rol !== 'admin') { window.location.href = '../'; return; }
+  document.getElementById('usuario-email').textContent = usuario.nombre || session.user.email;
+
+  if (window.AutoLogout) AutoLogout.init(sb);
+
+  await cargarObras();
+
+  document.getElementById('btn-generar').addEventListener('click', generar);
+  document.getElementById('btn-imprimir').addEventListener('click', () => window.print());
+  document.getElementById('btn-salir').addEventListener('click', async () => {
+    await sb.auth.signOut();
+    window.location.href = '../';
+  });
+})();
+</script>
+</body>
+</html>
