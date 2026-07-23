@@ -180,7 +180,7 @@ function fmtHoy() {
 // ── Carga de obras en el selector ──
 async function cargarObras() {
   const sel = document.getElementById('sel-obra');
-  const { data, error } = await sb.from('obras').select('id, nombre, activa').order('nombre');
+  const { data, error } = await sb.from('obras').select('id, nombre, estado').neq('estado', 'oculta').order('nombre');
   if (error) {
     sel.innerHTML = '<option value="">Error al cargar obras</option>';
     return;
@@ -190,7 +190,7 @@ async function cargarObras() {
     return;
   }
   sel.innerHTML = '<option value="">— Elige una obra —</option>' +
-    data.map(o => `<option value="${esc(o.id)}">${esc(o.nombre)}${o.activa ? '' : ' (inactiva)'}</option>`).join('');
+    data.map(o => `<option value="${esc(o.id)}">${esc(o.nombre)}${(o.estado && o.estado !== 'activa') ? ` (${esc(o.estado)})` : ''}</option>`).join('');
 }
 
 // ── Generar el informe ──
