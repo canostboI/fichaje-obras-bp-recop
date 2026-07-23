@@ -186,9 +186,11 @@
     </div>
     <div class="campo">
       <label>Estado</label>
-      <select id="f-activa">
-        <option value="true">Activa</option>
-        <option value="false">Inactiva</option>
+      <select id="f-estado">
+        <option value="activa">Activa (se ficha · sincroniza · avisos de ronda)</option>
+        <option value="pausada">Pausada (se ficha · sincroniza · sin avisos de ronda)</option>
+        <option value="terminada">Terminada (no se ficha · histórico consultable)</option>
+        <option value="oculta">Oculta (no se ficha · fuera de los listados · solo pruebas)</option>
       </select>
     </div>
     <div class="modal-acciones">
@@ -326,7 +328,7 @@ document.getElementById('btn-salir').onclick = async () => { await sb.auth.signO
 
 async function cargarObras() {
   const { data, error } = await sb.from('obras')
-    .select('id, numero_obra, nombre, direccion, latitud, longitud, empresa_marca, radio_gps, hora_entrada_default, hora_salida_default, activa, foto_url, ecoordina_centro, ultima_sync_ecoordina')
+    .select('id, numero_obra, nombre, direccion, latitud, longitud, empresa_marca, radio_gps, hora_entrada_default, hora_salida_default, activa, estado, foto_url, ecoordina_centro, ultima_sync_ecoordina')
     .order('nombre');
   if (error) { document.getElementById('tabla-obras').innerHTML = '<div class="vacio">Error al cargar obras</div>'; return; }
   todasObras = data || [];
@@ -342,7 +344,7 @@ async function cargarObras() {
         <td>${esc(o.empresa_marca || '—')}</td>
         <td>${esc(o.radio_gps || '—')}m</td>
         <td>${hora(o.hora_entrada_default)} – ${hora(o.hora_salida_default)}</td>
-        <td><span class="pill ${o.activa ? 'verde' : 'gris'}">${o.activa ? 'Activa' : 'Inactiva'}</span></td>
+        <td>${estadoPill(o.estado)}</td>
         <td>${syncBadge(o.ultima_sync_ecoordina)}</td>
         <td><div class="acciones">
           <button class="btn-secundario" onclick="abrirEquipoPorId('${o.id}')">👥 Equipo</button>
@@ -372,7 +374,7 @@ document.getElementById('btn-nueva').onclick = () => {
   document.getElementById('f-entrada').value = '08:00';
   document.getElementById('f-salida').value = '18:00';
   document.getElementById('f-empresa').value = 'bosch_pascual';
-  document.getElementById('f-activa').value = 'true';
+  document.getElementById('f-estado').value = 'activa';
   ocultarError();
   document.getElementById('modal-obra').classList.add('visible');
 };
@@ -392,7 +394,7 @@ function abrirEditarPorId(id) {
   document.getElementById('f-entrada').value = (o.hora_entrada_default || '08:00:00').substring(0, 5);
   document.getElementById('f-salida').value = (o.hora_salida_default || '18:00:00').substring(0, 5);
   document.getElementById('f-empresa').value = o.empresa_marca || 'bosch_pascual';
-  document.getElementById('f-activa').value = String(o.activa);
+  document.getElementById('f-estado').value = o.estado || (o.activa ? 'activa' : 'terminada');
   ocultarError();
   document.getElementById('modal-obra').classList.add('visible');
 }
@@ -439,7 +441,7 @@ document.getElementById('btn-guardar').onclick = async () => {
   const entradaRaw  = document.getElementById('f-entrada').value;
   const salidaRaw   = document.getElementById('f-salida').value;
   const empresa_marca = document.getElementById('f-empresa').value;
-  const activa      = document.getElementById('f-activa').value === 'true';
+  const estado      = document.getElementById('f-estado').value;
   const ecoordinaCentroRaw = document.getElementById('f-ecoordina-centro').value.trim();
 
   if (!nombre)                           { mostrarError('El nombre es obligatorio.'); return; }
@@ -452,7 +454,7 @@ document.getElementById('btn-guardar').onclick = async () => {
     nombre, direccion,
     latitud: Number(latitud.toFixed(4)), longitud: Number(longitud.toFixed(4)),
     radio_gps, hora_entrada_default: entradaRaw + ':00', hora_salida_default: salidaRaw + ':00',
-    empresa_marca, activa,
+    empresa_marca, estado,
     ecoordina_centro: ecoordinaCentroRaw === '' ? null : ecoordinaCentroRaw
   };
 
@@ -706,6 +708,17 @@ document.getElementById('btn-cerrar-foto').onclick = () => { document.getElement
 function mostrarError(msg) { const el = document.getElementById('error-modal'); el.textContent = msg; el.style.display = 'block'; }
 function ocultarError() { document.getElementById('error-modal').style.display = 'none'; document.getElementById('ubic-estado').style.display = 'none'; }
 function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
+
+function estadoPill(estado) {
+  const mapa = {
+    activa:    { clase: 'verde',   texto: 'Activa' },
+    pausada:   { clase: 'naranja', texto: 'Pausada' },
+    terminada: { clase: 'azul',    texto: 'Terminada' },
+    oculta:    { clase: 'gris',    texto: 'Oculta' }
+  };
+  const e = mapa[estado] || { clase: 'gris', texto: esc(estado || '—') };
+  return `<span class="pill ${e.clase}">${e.texto}</span>`;
+}
 
 function syncBadge(iso) {
   if (!iso) return '<span class="pill gris" title="Nunca sincronizada con e-Coordina">Nunca</span>';
