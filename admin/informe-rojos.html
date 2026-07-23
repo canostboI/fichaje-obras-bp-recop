@@ -67,7 +67,7 @@
 
   .inf-titular { background: #f6f2f2; border-left: 5px solid var(--rojo); padding: 22px 26px; border-radius: 6px; margin-bottom: 32px; }
   .inf-titular .cifra { font-size: 44px; font-weight: 800; color: var(--rojo); line-height: 1; }
-  .inf-titular .frase { font-size: 16px; color: #333; margin-top: 10px; line-height: 1.5; }
+  .inf-titular .frase { font-size: 16px; color: #333; margin-top: 10px; line-height: 1.5; max-width: 60ch; text-wrap: pretty; }
 
   .inf-seccion { margin-bottom: 30px; }
   .inf-seccion h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #1a1a1a; border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-bottom: 4px; }
@@ -295,7 +295,7 @@ function pintarInforme(d, rango) {
     empresasHTML = `
       <div class="inf-seccion">
         <h2>Empresas con más accesos denegados</h2>
-        <div class="subtitulo">Ordenadas por número de intentos frenados.</div>
+        <div class="subtitulo">Ordenadas por número de intentos frenados. Aquí se cuentan todos los intentos, incluidos los que no tienen desglose por motivo.</div>
         <table class="inf-tabla">
           <thead><tr><th>Empresa</th><th class="num">Intentos</th><th class="num">Personas</th></tr></thead>
           <tbody>
