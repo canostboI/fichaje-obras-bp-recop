@@ -175,9 +175,14 @@ let datosActuales = [];   // incidencias del periodo actual (para resumen e info
 document.getElementById('btn-salir').onclick = async () => { await sb.auth.signOut(); window.location.href = '../'; };
 
 async function cargarObras() {
-  const { data } = await sb.from('obras').select('id, nombre').eq('activa', true);
+  const { data } = await sb.from('obras').select('id, nombre, estado').neq('estado', 'oculta').order('nombre');
   const select = document.getElementById('filtro-obra');
-  (data || []).forEach(o => { const opt = document.createElement('option'); opt.value = o.id; opt.textContent = o.nombre; select.appendChild(opt); });
+  (data || []).forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o.id;
+    opt.textContent = (o.estado && o.estado !== 'activa') ? `${o.nombre} (${o.estado})` : o.nombre;
+    select.appendChild(opt);
+  });
 }
 
 async function cargarTipos() {
