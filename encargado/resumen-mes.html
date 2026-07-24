@@ -550,12 +550,12 @@
     } catch (e) { /* si la tabla no responde, el resumen sale con las horas calculadas */ }
 
     // Horas oficiales de la obra (suelo/techo del cómputo de horas).
-    let horasObra = { entrada: null, salida: null };
+    let horasObra = { entrada: null, salida: null, descanso: null };
     try {
       const { data: obraInfo } = await sb.from('obras')
-        .select('hora_entrada_default, hora_salida_default')
+        .select('hora_entrada_default, hora_salida_default, minutos_descanso')
         .eq('id', obraActualId).single();
-      if (obraInfo) horasObra = { entrada: obraInfo.hora_entrada_default, salida: obraInfo.hora_salida_default };
+      if (obraInfo) horasObra = { entrada: obraInfo.hora_entrada_default, salida: obraInfo.hora_salida_default, descanso: obraInfo.minutos_descanso };
     } catch (e) { /* sin horas oficiales: el cálculo simplemente no aplica suelo/techo */ }
     horasObraActual = horasObra;
 
@@ -568,7 +568,7 @@
     nombresEmpresa.forEach(nombreEmpresa => {
       const trabajadores = window.ExcelProforma.construirResumenTrabajadores(
         grupos[nombreEmpresa], diasMes,
-        { horaEntrada: horasObra.entrada, horaSalida: horasObra.salida, ajustes: ajustesMesMap }
+        { horaEntrada: horasObra.entrada, horaSalida: horasObra.salida, ajustes: ajustesMesMap, minutosDescanso: horasObra.descanso }
       );
       trabajadores.forEach(t => {
         totalAutocierres += (t.autocierres_mes || 0);
