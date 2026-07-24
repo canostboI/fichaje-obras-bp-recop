@@ -104,6 +104,23 @@
     border-color: var(--color-principal);
   }
 
+  input[type="text"].sr-input {
+    text-align: left;
+    text-transform: none;
+    letter-spacing: normal;
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+  .sr-intro {
+    font-size: 15px;
+    color: #555;
+    line-height: 1.5;
+    margin: 4px 0 18px;
+    text-align: left;
+  }
+  #sr-ok-titulo { font-size: 22px; font-weight: 700; margin-bottom: 12px; color: #333; }
+  #sr-ok-texto  { font-size: 15px; color: #555; line-height: 1.55; }
+
   .ultimo-dni {
     text-align: center;
     margin-top: 12px;
@@ -495,6 +512,27 @@
     <button type="button" class="secundario" id="btn-nuevo-fichaje" style="margin-top:10px;">Nuevo fichaje</button>
   </div>
 
+  <div class="tarjeta oculto" id="paso-sin-registrar">
+    <div id="sr-form">
+      <div class="estado-box estado-rojo" id="sr-titulo"></div>
+      <p class="sr-intro" id="sr-intro"></p>
+      <label for="sr-nombre" id="label-sr-nombre">Nombre y apellidos</label>
+      <input type="text" class="sr-input" id="sr-nombre" autocomplete="off" maxlength="120">
+      <label for="sr-empresa" id="label-sr-empresa">Empresa</label>
+      <input type="text" class="sr-input" id="sr-empresa" autocomplete="off" maxlength="120">
+      <button type="button" class="principal" id="btn-sr-registrar">Registrar mi presencia</button>
+      <div class="error-banner oculto" id="error-sin-registrar"></div>
+      <button type="button" class="secundario" id="btn-sr-volver" style="margin-top:10px;">Volver</button>
+    </div>
+    <div id="sr-ok" class="oculto">
+      <div class="confirmacion-final">
+        <div id="sr-ok-titulo"></div>
+        <div id="sr-ok-texto"></div>
+      </div>
+      <button type="button" class="secundario" id="btn-sr-nuevo" style="margin-top:16px;">Nuevo fichaje</button>
+    </div>
+  </div>
+
   <div class="pie" id="pie-marca">Control de acceso</div>
 </div>
 
@@ -545,7 +583,22 @@ const el = {
   finalHora:          document.getElementById('final-hora'),
   finalMotivos:       document.getElementById('final-motivos'),
   finalOlvido:        document.getElementById('final-olvido'),
-  btnNuevo:           document.getElementById('btn-nuevo-fichaje')
+  btnNuevo:           document.getElementById('btn-nuevo-fichaje'),
+  pasoSinRegistrar:   document.getElementById('paso-sin-registrar'),
+  srForm:             document.getElementById('sr-form'),
+  srOk:               document.getElementById('sr-ok'),
+  srTitulo:           document.getElementById('sr-titulo'),
+  srIntro:            document.getElementById('sr-intro'),
+  labelSrNombre:      document.getElementById('label-sr-nombre'),
+  srNombre:           document.getElementById('sr-nombre'),
+  labelSrEmpresa:     document.getElementById('label-sr-empresa'),
+  srEmpresa:          document.getElementById('sr-empresa'),
+  btnSrRegistrar:     document.getElementById('btn-sr-registrar'),
+  errorSinRegistrar:  document.getElementById('error-sin-registrar'),
+  btnSrVolver:        document.getElementById('btn-sr-volver'),
+  srOkTitulo:         document.getElementById('sr-ok-titulo'),
+  srOkTexto:          document.getElementById('sr-ok-texto'),
+  btnSrNuevo:         document.getElementById('btn-sr-nuevo')
 };
 
 // =====================================================================
@@ -588,6 +641,18 @@ const TEXTOS = {
     dni_invalido:        'Introduzca un DNI o NIE válido.',
     dni_letra_mal:       'La letra no coincide con los números. Revise su DNI.',
     dni_no_encontrado:   'DNI no encontrado. Revise números y letra.',
+    sr_titulo:           '✗ No constas en el sistema',
+    sr_intro:            'No te encontramos con ese DNI. Revisa los números y la letra. Si el DNI es correcto y estás en la obra, deja tu nombre y empresa para que quede constancia y avisemos al encargado.',
+    sr_label_nombre:     'Nombre y apellidos',
+    sr_label_empresa:    'Empresa',
+    sr_placeholder_nombre: 'Nombre y apellidos',
+    sr_placeholder_empresa: 'Nombre de tu empresa',
+    sr_registrar:        'Registrar mi presencia',
+    sr_registrado_titulo:'Presencia registrada',
+    sr_registrado_texto: 'Hemos dejado constancia y avisaremos al encargado. No puedes empezar a trabajar hasta que tu documentación esté en regla.',
+    sr_error:            'No se pudo registrar. Inténtelo de nuevo.',
+    sr_fuera_zona:       'Estás fuera de la zona de la obra. Acércate a la entrada e inténtalo de nuevo.',
+    sr_sin_gps:          'No hemos podido obtener tu ubicación. Vuelve atrás y permite el GPS.',
     sin_conexion:        'Sin conexión a internet. Compruebe su WiFi o datos móviles.',
     fallo_red:           'No se pudo conectar con el servidor. Compruebe su conexión e inténtelo de nuevo.',
     timeout_red:         'La conexión tardó demasiado. Inténtelo de nuevo.',
@@ -666,6 +731,18 @@ const TEXTOS = {
     dni_invalido:        'يرجى إدخال رقم هوية صحيح.',
     dni_letra_mal:       'الحرف لا يتطابق مع الأرقام. يرجى مراجعة هويتك.',
     dni_no_encontrado:   'الهوية غير موجودة. تحقق من الأرقام والحرف.',
+    sr_titulo:           '✗ لست مسجّلاً في النظام',
+    sr_intro:            'لم نعثر عليك بهذا الرقم. تحقق من الأرقام والحرف. إذا كان الرقم صحيحاً وأنت في الورشة، اترك اسمك واسم شركتك ليبقى دليل على حضورك ونبلغ المشرف.',
+    sr_label_nombre:     'الاسم واللقب',
+    sr_label_empresa:    'الشركة',
+    sr_placeholder_nombre: 'الاسم واللقب',
+    sr_placeholder_empresa: 'اسم شركتك',
+    sr_registrar:        'تسجيل حضوري',
+    sr_registrado_titulo:'تم تسجيل الحضور',
+    sr_registrado_texto: 'تم توثيق حضورك وسنبلغ المشرف. لا يمكنك البدء بالعمل حتى تكون وثائقك سليمة.',
+    sr_error:            'تعذّر التسجيل. حاول مرة أخرى.',
+    sr_fuera_zona:       'أنت خارج نطاق الورشة. اقترب من المدخل وحاول مرة أخرى.',
+    sr_sin_gps:          'تعذّر تحديد موقعك. ارجع واسمح بالوصول إلى الموقع.',
     sin_conexion:        'لا يوجد اتصال بالإنترنت. تحقق من الواي فاي أو بيانات الهاتف.',
     fallo_red:           'تعذّر الاتصال بالخادم. تحقق من اتصالك وأعد المحاولة.',
     timeout_red:         'استغرق الاتصال وقتاً طويلاً. أعد المحاولة.',
@@ -744,6 +821,18 @@ const TEXTOS = {
     dni_invalido:        'Introduceți un DNI sau NIE valid.',
     dni_letra_mal:       'Litera nu corespunde cu cifrele. Verificați DNI-ul.',
     dni_no_encontrado:   'DNI negăsit. Verificați cifrele și litera.',
+    sr_titulo:           '✗ Nu figurezi în sistem',
+    sr_intro:            'Nu te-am găsit cu acest act. Verifică cifrele și litera. Dacă actul este corect și ești pe șantier, lasă numele și firma ta pentru a rămâne o dovadă și a anunța șeful de echipă.',
+    sr_label_nombre:     'Nume și prenume',
+    sr_label_empresa:    'Firma',
+    sr_placeholder_nombre: 'Nume și prenume',
+    sr_placeholder_empresa: 'Numele firmei tale',
+    sr_registrar:        'Înregistrează prezența',
+    sr_registrado_titulo:'Prezență înregistrată',
+    sr_registrado_texto: 'Am consemnat prezența și vom anunța șeful de echipă. Nu poți începe lucrul până când documentele tale nu sunt în regulă.',
+    sr_error:            'Înregistrarea nu a reușit. Încearcă din nou.',
+    sr_fuera_zona:       'Ești în afara zonei șantierului. Apropie-te de intrare și încearcă din nou.',
+    sr_sin_gps:          'Nu am putut obține locația ta. Întoarce-te și permite accesul la locație.',
     sin_conexion:        'Fără conexiune la internet. Verificați WiFi sau datele mobile.',
     fallo_red:           'Nu s-a putut conecta la server. Verificați conexiunea și reîncercați.',
     timeout_red:         'Conexiunea a durat prea mult. Reîncercați.',
@@ -884,6 +973,15 @@ function aplicarIdioma(lang) {
   el.btnVolver.textContent                                    = t.volver;
   el.btnNuevo.textContent                                     = t.nuevo_fichaje;
   el.btnBorrarDni.textContent                                 = t.borrar;
+  el.srTitulo.textContent       = t.sr_titulo;
+  el.srIntro.textContent        = t.sr_intro;
+  el.labelSrNombre.textContent  = t.sr_label_nombre;
+  el.labelSrEmpresa.textContent = t.sr_label_empresa;
+  el.srNombre.placeholder       = t.sr_placeholder_nombre;
+  el.srEmpresa.placeholder      = t.sr_placeholder_empresa;
+  el.btnSrRegistrar.textContent = t.sr_registrar;
+  el.btnSrVolver.textContent    = t.volver;
+  el.btnSrNuevo.textContent     = t.nuevo_fichaje;
 
   if (!el.pieMarca.dataset.brandingAplicado) {
     el.pieMarca.textContent = t.pie;
@@ -1067,6 +1165,76 @@ function mostrarErrorDni(texto) {
 }
 function ocultarErrorDni() { el.errorDni.classList.add('oculto'); }
 
+function mostrarErrorSinRegistrar(texto) {
+  el.errorSinRegistrar.textContent = texto;
+  el.errorSinRegistrar.classList.remove('oculto');
+}
+function ocultarErrorSinRegistrar() { el.errorSinRegistrar.classList.add('oculto'); }
+
+function irASinRegistrar() {
+  el.srForm.classList.remove('oculto');
+  el.srOk.classList.add('oculto');
+  el.srNombre.value = '';
+  el.srEmpresa.value = '';
+  ocultarErrorSinRegistrar();
+  el.srTitulo.textContent       = T('sr_titulo');
+  el.srIntro.textContent        = T('sr_intro');
+  el.labelSrNombre.textContent  = T('sr_label_nombre');
+  el.labelSrEmpresa.textContent = T('sr_label_empresa');
+  el.srNombre.placeholder       = T('sr_placeholder_nombre');
+  el.srEmpresa.placeholder      = T('sr_placeholder_empresa');
+  el.btnSrRegistrar.textContent = T('sr_registrar');
+  el.btnSrVolver.textContent    = T('volver');
+  el.btnSrNuevo.textContent     = T('nuevo_fichaje');
+  irA(el.pasoSinRegistrar);
+}
+
+async function registrarSinRegistrar() {
+  ocultarErrorSinRegistrar();
+  if (!estado.dni || !estado.obraId) { irA(el.pasoDni); el.inputDni.focus(); return; }
+  if (!estado.ubicacion) { mostrarErrorSinRegistrar(T('sr_sin_gps')); return; }
+
+  const nombre  = (el.srNombre.value  || '').trim();
+  const empresa = (el.srEmpresa.value || '').trim();
+
+  el.btnSrRegistrar.disabled = true;
+  try {
+    const { data, error } = await sb.rpc('registrar_presente_sin_registrar', {
+      p_dni:      estado.dni,
+      p_obra_id:  estado.obraId,
+      p_nombre:   nombre,
+      p_empresa:  empresa,
+      p_latitud:  estado.ubicacion.lat,
+      p_longitud: estado.ubicacion.lng
+    });
+    el.btnSrRegistrar.disabled = false;
+
+    if (error) {
+      mostrarErrorSinRegistrar(interpretarError(error).mensajeUsuario);
+      console.error('[fichaje] registrar_presente_sin_registrar:', error);
+      return;
+    }
+    if (!data || !data.success) {
+      const motivo = data && data.motivo;
+      if      (motivo === 'fuera_de_zona') mostrarErrorSinRegistrar(T('sr_fuera_zona'));
+      else if (motivo === 'sin_gps')       mostrarErrorSinRegistrar(T('sr_sin_gps'));
+      else if (motivo === 'dni_invalido')  mostrarErrorSinRegistrar(T('dni_invalido'));
+      else                                 mostrarErrorSinRegistrar(T('sr_error'));
+      console.warn('[fichaje] presente_sin_registrar rechazado:', data);
+      return;
+    }
+
+    el.srOkTitulo.textContent = T('sr_registrado_titulo');
+    el.srOkTexto.textContent  = T('sr_registrado_texto');
+    el.srForm.classList.add('oculto');
+    el.srOk.classList.remove('oculto');
+  } catch (err) {
+    el.btnSrRegistrar.disabled = false;
+    mostrarErrorSinRegistrar(interpretarError(err).mensajeUsuario);
+    console.error('[fichaje] presente_sin_registrar excepción:', err);
+  }
+}
+
 function mostrarAvisoGps(codigo) {
   ultimoCodigoGps = codigo;
   el.avisoGps.classList.remove('oculto');
@@ -1101,7 +1269,7 @@ function mostrarErrorResultado(texto) {
 function ocultarErrorResultado() { el.errorResultado.classList.add('oculto'); }
 
 function irA(paso) {
-  [el.pasoDni, el.pasoCargando, el.pasoResultado, el.pasoFinal]
+  [el.pasoDni, el.pasoCargando, el.pasoResultado, el.pasoFinal, el.pasoSinRegistrar]
     .forEach(p => p.classList.add('oculto'));
   paso.classList.remove('oculto');
 }
@@ -1206,6 +1374,15 @@ el.btnNuevo.addEventListener('click', () => {
 });
 el.btnEntrada.addEventListener('click', () => ejecutarFichaje('entrada'));
 el.btnSalida.addEventListener('click',  () => ejecutarFichaje('salida'));
+el.btnSrRegistrar.addEventListener('click', registrarSinRegistrar);
+el.btnSrVolver.addEventListener('click', () => { irA(el.pasoDni); el.inputDni.focus(); });
+el.btnSrNuevo.addEventListener('click', () => {
+  estado.dni = null; estado.validacion = null; estado.ubicacion = null;
+  el.inputDni.value = '';
+  ocultarAvisoGps();
+  irA(el.pasoDni);
+  el.inputDni.focus();
+});
 
 async function continuarDesdeDni() {
   ocultarErrorDni(); ocultarAvisoGps();
@@ -1302,8 +1479,7 @@ function configurarBotonesFichaje(estadoDoc, tipoSugerido) {
 
 function mostrarResultadoValidacion(v) {
   if (!v.encontrado) {
-    irA(el.pasoDni);
-    mostrarErrorDni(v.mensaje || T('dni_no_encontrado'));
+    irASinRegistrar();
     return;
   }
   ocultarErrorResultado();
