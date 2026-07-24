@@ -115,7 +115,7 @@
         .forEach(nombreEmpresa => {
           const trabajadores = construirResumenTrabajadores(
             grupos[nombreEmpresa], diasMes,
-            { horaEntrada: obra && obra.hora_entrada_default, horaSalida: obra && obra.hora_salida_default, ajustes }
+            { horaEntrada: obra && obra.hora_entrada_default, horaSalida: obra && obra.hora_salida_default, ajustes, minutosDescanso: obra && obra.minutos_descanso }
           );
           trabajadores.forEach(t => { totalAutocierres += (t.autocierres_mes || 0); });
           crearHojaEmpresa(workbook, {
@@ -144,6 +144,9 @@
   function construirResumenTrabajadores(fichajes, diasMes, opts) {
     const horaEntradaObra = opts && opts.horaEntrada ? opts.horaEntrada : null;
     const horaSalidaObra  = opts && opts.horaSalida  ? opts.horaSalida  : null;
+    // Descanso de la obra en jornada completa. null/undefined → 90 (histórico).
+    // Se usa != null para respetar el 0 (jornada intensiva sin comida).
+    const minutosDescanso = (opts && opts.minutosDescanso != null) ? opts.minutosDescanso : 90;
     // Ajustes de horas fijadas a mano (tabla ajustes_horas_dia):
     // { trabajador_id: { dia: { horas, motivo } } }. Opcional.
     const ajustes = (opts && opts.ajustes) || null;
@@ -235,7 +238,7 @@
 
           const bruto = (fin - inicio) / 3600000;
           if (bruto > 0 && bruto < 24) {
-            netoDia = Math.max(0, bruto - descansoMin(bruto) / 60);
+            netoDia = Math.max(0, bruto - descansoMin(bruto, minutosDescanso) / 60);
           }
         }
 
@@ -804,10 +807,14 @@
     return new Date(fechaRef.getFullYear(), fechaRef.getMonth(), fechaRef.getDate(), h, m, 0, 0);
   }
 
-  function descansoMin(brutoH) {
+  function descansoMin(brutoH, descansoLargo) {
+    // descansoLargo = minutos de descanso en jornada completa (≥7h).
+    // Por defecto 90 (comportamiento histórico). La media jornada resta 30
+    // pero nunca más que el descanso de la obra (si es 0, no resta nada).
+    const largo = (descansoLargo == null) ? 90 : descansoLargo;
     if (brutoH <= 4) return 0;
-    if (brutoH < 7) return 30;
-    return 90;
+    if (brutoH < 7) return Math.min(30, largo);
+    return largo;
   }
 
   // API pública.
