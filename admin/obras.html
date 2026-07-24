@@ -574,14 +574,14 @@ async function cargarEquipo() {
   document.getElementById('equipo-lista').innerHTML = '<div class="cargando">Cargando…</div>';
   // CAMBIO 6.2: añadido auth_user_id al select para detectar usuarios sin vincular
   const { data, error } = await sb.from('usuarios_obra')
-    .select('id, rol_en_obra, usuario_app:usuario_app_id(id, nombre, email, auth_user_id, telefono)')
+    .select('id, rol_en_obra, usuario_app:usuario_app_id(id, nombre, email, auth_user_id, telefono, activo)')
     .eq('obra_id', obraEquipoId);
   if (error) { document.getElementById('equipo-lista').innerHTML = '<div class="equipo-vacio">Error al cargar el equipo.</div>'; return; }
   if (!data || data.length === 0) { document.getElementById('equipo-lista').innerHTML = '<div class="equipo-vacio">Esta obra no tiene equipo asignado todavía.</div>'; return; }
   document.getElementById('equipo-lista').innerHTML = data.map(item => `
     <div class="equipo-item">
       <div class="equipo-item-info">
-        <span class="equipo-item-nombre">${esc(item.usuario_app?.nombre || '—')}</span>
+        <span class="equipo-item-nombre">${esc(item.usuario_app?.nombre || '—')}${item.usuario_app?.activo === false ? ' <span class="pill gris">De baja</span>' : ''}</span>
         <span class="equipo-item-email">
           ${esc(item.usuario_app?.email || '')} · <span class="pill ${item.rol_en_obra === 'jefe_obra' ? 'azul' : 'naranja'}">${item.rol_en_obra === 'jefe_obra' ? 'Jefe de obra' : 'Encargado'}</span>
           ${!item.usuario_app?.auth_user_id ? ' <span class="pill naranja">⚠️ Sin vincular</span>' : ''}
@@ -593,7 +593,12 @@ async function cargarEquipo() {
             onclick="editarTelefono('${item.usuario_app?.id}', '${esc(item.usuario_app?.telefono || '')}')">Editar</button>
         </span>
       </div>
-      <button class="btn-peligro" onclick="quitarDelEquipo('${item.id}')">Quitar</button>
+      <div style="display:flex; gap:6px;">
+        ${item.usuario_app?.activo === false
+          ? `<button class="btn-secundario" onclick="reactivarUsuario('${item.usuario_app?.id}', '${esc(item.usuario_app?.nombre || '')}')">Reactivar</button>`
+          : `<button class="btn-peligro" onclick="darDeBaja('${item.usuario_app?.id}', '${esc(item.usuario_app?.nombre || '')}')">Dar de baja</button>`}
+        <button class="btn-peligro" onclick="quitarDelEquipo('${item.id}')">Quitar</button>
+      </div>
     </div>`).join('');
 }
 
@@ -641,6 +646,42 @@ async function editarEmail(usuarioAppId, actual) {
   if (!data || data.length === 0) { mostrarErrorEquipo('Este usuario ya creó su contraseña: su email no puede cambiarse desde aquí.'); await cargarEquipo(); return; }
   mostrarOkEquipo('✓ Email actualizado. Dile que entre en la web y pulse "¿Primera vez? Crea tu contraseña" con este email.');
   await cargarEquipo();
+}
+
+async function darDeBaja(usuarioAppId, nombre) {
+  if (!usuarioAppId) return;
+  const ok = confirm(
+    `⚠️ BAJA TOTAL de "${nombre}".\n\n` +
+    'No es quitarlo de esta obra: se desactiva del TODO.\n' +
+    '• No podrá entrar en la app (aunque tenga la sesión abierta).\n' +
+    '• Dejará de recibir SMS y emails de avisos.\n' +
+    '• Desaparecerá del selector de "Añadir usuario existente".\n\n' +
+    'Se puede deshacer con el botón "Reactivar".\n\n¿Dar de baja?'
+  );
+  if (!ok) return;
+  ocultarMensajesEquipo();
+  const { error } = await sb.from('usuarios_app')
+    .update({ activo: false })
+    .eq('id', usuarioAppId);
+  if (error) { mostrarErrorEquipo('Error al dar de baja: ' + error.message); return; }
+  mostrarOkEquipo(`✓ "${nombre}" dado de baja. Opcional (higiene): borrar también su cuenta en Supabase → Authentication.`);
+  await cargarEquipo();
+  await cargarUsuarios();
+  rellenarSelectUsuarios();
+}
+
+async function reactivarUsuario(usuarioAppId, nombre) {
+  if (!usuarioAppId) return;
+  if (!confirm(`Reactivar a "${nombre}": vuelve a poder entrar en la app y a recibir avisos.\n\n¿Reactivar?`)) return;
+  ocultarMensajesEquipo();
+  const { error } = await sb.from('usuarios_app')
+    .update({ activo: true })
+    .eq('id', usuarioAppId);
+  if (error) { mostrarErrorEquipo('Error al reactivar: ' + error.message); return; }
+  mostrarOkEquipo(`✓ "${nombre}" reactivado.`);
+  await cargarEquipo();
+  await cargarUsuarios();
+  rellenarSelectUsuarios();
 }
 
 function rellenarSelectUsuarios() {
