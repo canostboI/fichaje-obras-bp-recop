@@ -61,6 +61,21 @@
   .modal-acciones { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
   .error-modal { background: rgba(244,67,54,0.1); color: var(--rojo); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; display: none; }
   .ok-modal { background: rgba(76,175,80,0.1); color: var(--verde); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; display: none; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 18px; border-bottom: 1px solid var(--borde); }
+  .tab { background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--texto2); padding: 10px 6px; margin-bottom: -1px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .tab:hover { color: var(--texto); }
+  .tab.activo { color: var(--texto); border-bottom-color: var(--azul); }
+  .dir-ayuda { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 12px 16px; font-size: 13px; color: var(--texto2); line-height: 1.5; margin-bottom: 14px; }
+  .dir-ayuda strong { color: var(--texto); font-weight: 600; }
+  .dir-obras { display: flex; flex-direction: column; gap: 4px; }
+  .dir-obra-linea { font-size: 13px; }
+  .dir-sin-obra { color: var(--texto2); font-style: italic; font-size: 13px; }
+  .dir-contacto { font-size: 13px; line-height: 1.6; }
+  .dir-contacto .lab { color: var(--texto2); }
+  .btn-mini { background: transparent; color: var(--texto2); border: 1px solid var(--borde); padding: 2px 8px; font-size: 11px; border-radius: 6px; cursor: pointer; font-family: inherit; margin-left: 6px; }
+  .btn-mini:hover { background: var(--bg3); color: var(--texto); }
+  .btn-mini.peligro { color: var(--rojo); border-color: rgba(244,67,54,0.4); }
+  .btn-mini.peligro:hover { background: rgba(244,67,54,0.12); color: var(--rojo); }
   .modal-qr { text-align: center; }
   .url-qr { font-size: 12px; color: var(--texto2); word-break: break-all; margin: 14px 0; padding: 10px; background: var(--bg3); border-radius: 8px; }
   #qr-canvas { margin: 16px auto; display: block; border-radius: 8px; background: white; padding: 8px; }
@@ -122,8 +137,30 @@
     <button class="btn-primario" id="btn-nueva">+ Nueva obra</button>
   </div>
   <div class="contenido">
-    <div class="seccion">
-      <div id="tabla-obras"><div class="cargando">Cargando…</div></div>
+    <div class="tabs">
+      <button class="tab activo" id="tab-obras" data-vista="obras">🏗 Obras</button>
+      <button class="tab" id="tab-directorio" data-vista="directorio">👥 Directorio de usuarios</button>
+    </div>
+
+    <div id="vista-obras">
+      <div class="seccion">
+        <div id="tabla-obras"><div class="cargando">Cargando…</div></div>
+      </div>
+    </div>
+
+    <div id="vista-directorio" style="display:none;">
+      <div class="error-modal" id="error-directorio" style="margin-bottom:14px;"></div>
+      <div class="ok-modal" id="ok-directorio" style="margin-bottom:14px;"></div>
+      <div class="dir-ayuda">
+        Todas las personas con cuenta en el sistema. Aquí puedes editar su
+        teléfono, corregir el email de quien aún no ha creado su contraseña, y
+        darlas de baja o reactivarlas. <strong>Asignar a una obra o quitar de
+        una obra se hace desde el 👥 Equipo de cada obra</strong> (en la pestaña
+        Obras).
+      </div>
+      <div class="seccion">
+        <div id="tabla-directorio"><div class="cargando">Cargando…</div></div>
+      </div>
     </div>
   </div>
 </div>
@@ -323,6 +360,7 @@ let fotoArchivo    = null;
 let todosUsuarios  = [];
 let todasObras     = [];
 let qrActual       = null;
+let vistaActual    = 'obras';
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -334,6 +372,103 @@ let qrActual       = null;
 })();
 
 document.getElementById('btn-salir').onclick = async () => { await sb.auth.signOut(); window.location.href = '../'; };
+
+// --- Pestañas Obras / Directorio ---
+let directorioCargado = false;
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => cambiarVista(t.dataset.vista);
+});
+async function cambiarVista(vista) {
+  vistaActual = vista;
+  document.getElementById('tab-obras').classList.toggle('activo', vista === 'obras');
+  document.getElementById('tab-directorio').classList.toggle('activo', vista === 'directorio');
+  document.getElementById('vista-obras').style.display = vista === 'obras' ? '' : 'none';
+  document.getElementById('vista-directorio').style.display = vista === 'directorio' ? '' : 'none';
+  if (vista === 'directorio' && !directorioCargado) { directorioCargado = true; await cargarDirectorio(); }
+}
+
+async function cargarDirectorio() {
+  const cont = document.getElementById('tabla-directorio');
+  const { data: personas, error: e1 } = await sb.from('usuarios_app')
+    .select('id, nombre, email, telefono, activo, auth_user_id, rol')
+    .order('nombre');
+  if (e1) { cont.innerHTML = '<div class="vacio">Error al cargar el directorio.</div>'; return; }
+  const { data: asigs } = await sb.from('usuarios_obra')
+    .select('usuario_app_id, rol_en_obra, obra:obra_id(nombre)');
+
+  // Mapa persona -> lista de obras/rol
+  const porPersona = {};
+  (asigs || []).forEach(a => {
+    (porPersona[a.usuario_app_id] = porPersona[a.usuario_app_id] || []).push({
+      obra: a.obra?.nombre || '—',
+      rol: a.rol_en_obra
+    });
+  });
+
+  if (!personas || personas.length === 0) {
+    cont.innerHTML = '<div class="vacio">No hay usuarios todavía.</div>'; return;
+  }
+
+  const filas = personas.map(p => {
+    const baja = p.activo === false;
+    const sinVincular = !p.auth_user_id;
+    const esAdmin = p.rol === 'admin';
+
+    // Estado (pills)
+    let estado = baja
+      ? '<span class="pill gris">De baja</span>'
+      : '<span class="pill verde">Activo</span>';
+    if (sinVincular) estado += ' <span class="pill naranja">⚠️ Sin vincular</span>';
+
+    // Rol de sistema
+    const rolSistema = esAdmin
+      ? '<span class="pill azul">Admin</span>'
+      : '';
+
+    // Obras y rol en cada una
+    const obras = porPersona[p.id] || [];
+    let obrasHtml;
+    if (obras.length === 0) {
+      obrasHtml = '<span class="dir-sin-obra">Sin obra asignada</span>';
+    } else {
+      obrasHtml = '<div class="dir-obras">' + obras.map(o =>
+        `<span class="dir-obra-linea">${esc(o.obra)} · <span class="pill ${o.rol === 'jefe_obra' ? 'azul' : 'naranja'}">${o.rol === 'jefe_obra' ? 'Jefe de obra' : 'Encargado'}</span></span>`
+      ).join('') + '</div>';
+    }
+
+    // Contacto
+    const tel = p.telefono ? esc(p.telefono) : '<em class="dir-sin-obra">sin teléfono</em>';
+    const emailTxt = esc(p.email || '—');
+
+    // Acciones (mismas funciones que el modal Equipo)
+    const btnTel = `<button class="btn-mini" onclick="editarTelefono('${p.id}', '${esc(p.telefono || '')}')">Editar tel.</button>`;
+    const btnEmail = sinVincular
+      ? `<button class="btn-mini" onclick="editarEmail('${p.id}', '${emailTxt.replace(/'/g, "\\'")}')">Editar email</button>`
+      : '';
+    const btnBaja = baja
+      ? `<button class="btn-mini" onclick="reactivarUsuario('${p.id}', '${esc(p.nombre || '')}')">Reactivar</button>`
+      : `<button class="btn-mini peligro" onclick="darDeBaja('${p.id}', '${esc(p.nombre || '')}')">Dar de baja</button>`;
+
+    return `<tr>
+      <td>${esc(p.nombre || '—')} ${rolSistema}</td>
+      <td>${estado}</td>
+      <td class="dir-contacto">
+        <div><span class="lab">✉️</span> ${emailTxt} ${btnEmail}</div>
+        <div><span class="lab">📞</span> ${tel} ${btnTel}</div>
+      </td>
+      <td>${obrasHtml}</td>
+      <td>${btnBaja}</td>
+    </tr>`;
+  }).join('');
+
+  cont.innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Persona</th><th>Estado</th><th>Contacto</th><th>Obras y rol</th><th></th>
+      </tr></thead>
+      <tbody>${filas}</tbody>
+    </table>`;
+}
 
 async function cargarObras() {
   const { data, error } = await sb.from('obras')
@@ -571,6 +706,12 @@ async function abrirEquipoPorId(id) {
 }
 
 async function cargarEquipo() {
+  // Si el modal Equipo NO está abierto, la acción viene del Directorio:
+  // refrescamos esa vista en lugar de la lista del modal (oculta).
+  if (!document.getElementById('modal-equipo').classList.contains('visible')) {
+    if (vistaActual === 'directorio') await cargarDirectorio();
+    return;
+  }
   document.getElementById('equipo-lista').innerHTML = '<div class="cargando">Cargando…</div>';
   // CAMBIO 6.2: añadido auth_user_id al select para detectar usuarios sin vincular
   const { data, error } = await sb.from('usuarios_obra')
@@ -736,9 +877,26 @@ async function quitarDelEquipo(usuariosObraId) {
 
 document.getElementById('btn-cerrar-equipo').onclick = () => { document.getElementById('modal-equipo').classList.remove('visible'); };
 function limpiarFormularioNuevoUsuario() { document.getElementById('nu-nombre').value = ''; document.getElementById('nu-email').value = ''; document.getElementById('nu-telefono').value = ''; document.getElementById('nu-rol').value = 'jefe_obra'; }
-function mostrarErrorEquipo(msg) { const el = document.getElementById('error-equipo'); el.textContent = msg; el.style.display = 'block'; }
-function mostrarOkEquipo(msg) { const el = document.getElementById('ok-equipo'); el.textContent = msg; el.style.display = 'block'; }
-function ocultarMensajesEquipo() { document.getElementById('error-equipo').style.display = 'none'; document.getElementById('ok-equipo').style.display = 'none'; }
+function ctxDirectorio() {
+  return vistaActual === 'directorio' && !document.getElementById('modal-equipo').classList.contains('visible');
+}
+function mostrarErrorEquipo(msg) {
+  const id = ctxDirectorio() ? 'error-directorio' : 'error-equipo';
+  const okId = ctxDirectorio() ? 'ok-directorio' : 'ok-equipo';
+  const el = document.getElementById(id); el.textContent = msg; el.style.display = 'block';
+  document.getElementById(okId).style.display = 'none';
+}
+function mostrarOkEquipo(msg) {
+  const id = ctxDirectorio() ? 'ok-directorio' : 'ok-equipo';
+  const errId = ctxDirectorio() ? 'error-directorio' : 'error-equipo';
+  const el = document.getElementById(id); el.textContent = msg; el.style.display = 'block';
+  document.getElementById(errId).style.display = 'none';
+}
+function ocultarMensajesEquipo() {
+  ['error-equipo','ok-equipo','error-directorio','ok-directorio'].forEach(i => {
+    const el = document.getElementById(i); if (el) el.style.display = 'none';
+  });
+}
 
 function abrirFotoPorId(id) {
   const o = todasObras.find(x => x.id === id);
