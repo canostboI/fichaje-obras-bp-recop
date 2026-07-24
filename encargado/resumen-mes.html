@@ -159,6 +159,8 @@
       table.mes th.col-nombre, table.mes td.col-nombre { min-width: 110px; max-width: 130px; }
       .modal { padding: 18px; }
     }
+    table.mes th.intensiva { box-shadow: inset 0 -3px 0 #ff9800; }
+    table.mes th.intensiva .num::after { content: " ☀"; }
   </style>
 </head>
 <body>
@@ -316,6 +318,8 @@
   let resumenTrabajadores = {};     // trabajador_id -> { nombre, dni, dias, dias_ajuste }
   let ajustesMesMap = {};           // trabajador_id -> { dia: { horas, motivo } }
   let horasObraActual = { entrada: null, salida: null };
+  let diasIntensivaSetEnc = new Set();
+  let horarioIntensivaEnc = { entrada: null, salida: null, descanso: null };
 
   // Estado de los modales
   let diaAbierto = null;            // { trabajadorId, dia }
@@ -549,14 +553,25 @@
       });
     } catch (e) { /* si la tabla no responde, el resumen sale con las horas calculadas */ }
 
-    // Horas oficiales de la obra (suelo/techo del cómputo de horas).
+    // Horas oficiales de la obra (suelo/techo del cómputo de horas) + horario intensiva.
     let horasObra = { entrada: null, salida: null, descanso: null };
+    horarioIntensivaEnc = { entrada: null, salida: null, descanso: null };
+    diasIntensivaSetEnc = new Set();
     try {
       const { data: obraInfo } = await sb.from('obras')
-        .select('hora_entrada_default, hora_salida_default, minutos_descanso')
+        .select('hora_entrada_default, hora_salida_default, minutos_descanso, hora_entrada_intensiva, hora_salida_intensiva, minutos_descanso_intensiva')
         .eq('id', obraActualId).single();
-      if (obraInfo) horasObra = { entrada: obraInfo.hora_entrada_default, salida: obraInfo.hora_salida_default, descanso: obraInfo.minutos_descanso };
+      if (obraInfo) {
+        horasObra = { entrada: obraInfo.hora_entrada_default, salida: obraInfo.hora_salida_default, descanso: obraInfo.minutos_descanso };
+        horarioIntensivaEnc = { entrada: obraInfo.hora_entrada_intensiva, salida: obraInfo.hora_salida_intensiva, descanso: obraInfo.minutos_descanso_intensiva };
+      }
     } catch (e) { /* sin horas oficiales: el cálculo simplemente no aplica suelo/techo */ }
+    try {
+      const { data: dias } = await sb.from('dias_intensiva_obra')
+        .select('fecha').eq('obra_id', obraActualId)
+        .gte('fecha', `${mes}-01`).lte('fecha', `${mes}-${String(diasMes).padStart(2,'0')}`);
+      (dias || []).forEach(r => diasIntensivaSetEnc.add(r.fecha));
+    } catch (e) { /* sin días intensiva */ }
     horasObraActual = horasObra;
 
     const grupos = window.ExcelProforma.agruparPorEmpresa(fichajes);
@@ -568,7 +583,9 @@
     nombresEmpresa.forEach(nombreEmpresa => {
       const trabajadores = window.ExcelProforma.construirResumenTrabajadores(
         grupos[nombreEmpresa], diasMes,
-        { horaEntrada: horasObra.entrada, horaSalida: horasObra.salida, ajustes: ajustesMesMap, minutosDescanso: horasObra.descanso }
+        { horaEntrada: horasObra.entrada, horaSalida: horasObra.salida, ajustes: ajustesMesMap, minutosDescanso: horasObra.descanso,
+          horaEntradaIntensiva: horarioIntensivaEnc.entrada, horaSalidaIntensiva: horarioIntensivaEnc.salida, minutosDescansoIntensiva: horarioIntensivaEnc.descanso,
+          diasIntensiva: diasIntensivaSetEnc }
       );
       trabajadores.forEach(t => {
         totalAutocierres += (t.autocierres_mes || 0);
@@ -596,7 +613,9 @@
     let thDias = '';
     for (let d = 1; d <= diasMes; d++) {
       const letra = letras[new Date(year, month - 1, d).getDay()];
-      thDias += `<th class="dia${findes.has(d) ? ' finde' : ''}"><span class="num">${d}</span><span class="letra">${letra}</span></th>`;
+      const fechaKeyD = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const claseInt = diasIntensivaSetEnc.has(fechaKeyD) ? ' intensiva' : '';
+      thDias += `<th class="dia${findes.has(d) ? ' finde' : ''}${claseInt}"${claseInt ? ' title="Jornada intensiva"' : ''}><span class="num">${d}</span><span class="letra">${letra}</span></th>`;
     }
 
     let filas = '';
