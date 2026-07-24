@@ -161,6 +161,23 @@
     table.mes th.col-nombre, table.mes td.col-nombre { min-width: 120px; max-width: 140px; }
     .modal { padding: 20px; }
   }
+  /* Jornada intensiva */
+  .panel-intensiva { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; margin-bottom: 16px; padding: 0 14px; }
+  .panel-intensiva > summary { cursor: pointer; padding: 12px 0; font-weight: 600; font-size: 14px; list-style: none; }
+  .panel-intensiva > summary::-webkit-details-marker { display: none; }
+  .pi-cuerpo { padding: 4px 0 14px; display: flex; flex-direction: column; gap: 12px; }
+  .pi-cols { display: flex; gap: 24px; flex-wrap: wrap; }
+  .pi-col { min-width: 220px; }
+  .pi-tit { font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--texto2); margin-bottom: 6px; font-weight: 700; }
+  .pi-linea { font-size: 14px; margin-bottom: 4px; }
+  .pi-nota { font-size: 12px; color: var(--texto2); margin-top: 4px; }
+  .pi-fila { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+  .pi-fila label, .pi-marcar label { font-size: 13px; color: var(--texto2); display: flex; align-items: center; gap: 6px; }
+  .pi-fila input, .pi-marcar input { background: var(--bg3); border: 1px solid var(--borde); border-radius: 6px; color: var(--texto); padding: 6px 8px; font-family: inherit; font-size: 14px; color-scheme: dark; }
+  .pi-marcar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; font-size: 14px; }
+  .pi-estado { font-size: 13px; color: var(--texto2); }
+  table.mes th.intensiva { box-shadow: inset 0 -3px 0 #ff9800; }
+  table.mes th.intensiva .num::after { content: " ☀"; }
 </style>
 </head>
 <body>
@@ -197,6 +214,37 @@
       <button class="btn-primario" id="btn-exportar-excel">📥 Excel proforma</button>
       <span class="msg-info" id="msg-info"></span>
     </div>
+
+    <details class="panel-intensiva" id="panel-intensiva">
+      <summary>☀️ Jornada intensiva (horario de verano)</summary>
+      <div class="pi-cuerpo">
+        <div class="pi-cols">
+          <div class="pi-col">
+            <div class="pi-tit">Jornada normal</div>
+            <div class="pi-linea">Entrada <b id="int-normal-entrada">—</b> · Salida <b id="int-normal-salida">—</b></div>
+            <div class="pi-linea">Descanso que se resta: <b id="int-normal-descanso">—</b> min</div>
+            <div class="pi-nota">Se configura en Obras (admin).</div>
+          </div>
+          <div class="pi-col">
+            <div class="pi-tit">Jornada intensiva</div>
+            <div class="pi-fila">
+              <label>Entrada <input type="time" id="int-entrada"></label>
+              <label>Salida <input type="time" id="int-salida"></label>
+              <label>Descanso <input type="number" id="int-descanso" min="0" max="480" step="5" style="width:70px"> min</label>
+            </div>
+            <button class="btn-secundario" id="btn-guardar-intensiva">Guardar horario de verano</button>
+          </div>
+        </div>
+        <div class="pi-marcar">
+          <span>Marcar días:</span>
+          <label>del <input type="number" id="int-desde" min="1" max="31" style="width:60px"></label>
+          <label>al <input type="number" id="int-hasta" min="1" max="31" style="width:60px"></label>
+          <button class="btn-primario" id="btn-marcar-intensiva">☀️ Marcar intensiva</button>
+          <button class="btn-secundario" id="btn-quitar-intensiva">Quitar</button>
+        </div>
+        <div class="pi-estado"><b id="int-count">0</b> día(s) marcados como intensiva este mes. <span class="msg-info" id="int-msg"></span></div>
+      </div>
+    </details>
 
     <div class="leyenda">
       <span><span class="cuadro finde"></span> Fin de semana</span>
@@ -338,6 +386,9 @@ let fichajeCorrigiendoHora = null;
 let diasTocadosMap = {};          // trabajador_id -> Set(días con fichaje manual/corregido)
 let diasTocadosInfo = {};         // trabajador_id -> { día: [líneas para el tooltip] }
 let horasObraActual = { entrada: null, salida: null };
+let diasIntensivaSet = new Set();
+let horarioNormal = { entrada: null, salida: null, descanso: null };
+let horarioIntensiva = { entrada: null, salida: null, descanso: null };
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -389,6 +440,9 @@ let horasObraActual = { entrada: null, salida: null };
     await cargarResumen();
   });
   document.getElementById('btn-exportar-excel').addEventListener('click', exportarExcelProforma);
+  document.getElementById('btn-guardar-intensiva').addEventListener('click', guardarHorarioIntensiva);
+  document.getElementById('btn-marcar-intensiva').addEventListener('click', () => marcarIntensiva(true));
+  document.getElementById('btn-quitar-intensiva').addEventListener('click', () => marcarIntensiva(false));
 })();
 
 function aplicarBrandingObra(empresaMarca) {
@@ -486,7 +540,7 @@ async function exportarExcelProforma() {
 
     // Datos completos de la obra (el generador necesita nombre, nº y horas oficiales).
     const { data: obra, error: errObra } = await sb.from('obras')
-      .select('id, nombre, numero_obra, empresa_marca, hora_entrada_default, hora_salida_default, minutos_descanso')
+      .select('id, nombre, numero_obra, empresa_marca, hora_entrada_default, hora_salida_default, minutos_descanso, hora_entrada_intensiva, hora_salida_intensiva, minutos_descanso_intensiva')
       .eq('id', obraActual).single();
     if (errObra) throw errObra;
 
@@ -515,7 +569,7 @@ async function exportarExcelProforma() {
       }
     } catch (e) { logoBase64 = null; }
 
-    const { buffer, autocierres } = await window.ExcelProforma.generar({ obra, mes, fichajes, logoBase64, ajustes });
+    const { buffer, autocierres } = await window.ExcelProforma.generar({ obra, mes, fichajes, logoBase64, ajustes, diasIntensiva: diasIntensivaSet });
 
     if (autocierres > 0) {
       const seguir = window.confirm(
@@ -562,6 +616,89 @@ function limpiarNombreArchivo(txt) {
 // =====================================================================
 // RENDER DEL RESUMEN MENSUAL
 // =====================================================================
+async function cargarIntensiva(mes) {
+  diasIntensivaSet = new Set();
+  horarioNormal = { entrada: null, salida: null, descanso: null };
+  horarioIntensiva = { entrada: null, salida: null, descanso: null };
+  if (obraActual && /^\d{4}-\d{2}$/.test(mes)) {
+    try {
+      const { data: o } = await sb.from('obras')
+        .select('hora_entrada_default, hora_salida_default, minutos_descanso, hora_entrada_intensiva, hora_salida_intensiva, minutos_descanso_intensiva')
+        .eq('id', obraActual).single();
+      if (o) {
+        horarioNormal = { entrada: o.hora_entrada_default, salida: o.hora_salida_default, descanso: o.minutos_descanso };
+        horarioIntensiva = { entrada: o.hora_entrada_intensiva, salida: o.hora_salida_intensiva, descanso: o.minutos_descanso_intensiva };
+      }
+    } catch (e) { /* sin horario definido: se usa el normal */ }
+    try {
+      const [y, m] = mes.split('-').map(Number);
+      const ultimo = new Date(y, m, 0).getDate();
+      const { data: dias } = await sb.from('dias_intensiva_obra')
+        .select('fecha').eq('obra_id', obraActual)
+        .gte('fecha', `${mes}-01`).lte('fecha', `${mes}-${String(ultimo).padStart(2,'0')}`);
+      (dias || []).forEach(r => diasIntensivaSet.add(r.fecha));
+    } catch (e) { /* sin días intensiva */ }
+  }
+  pintarPanelIntensiva(mes);
+}
+
+function pintarPanelIntensiva(mes) {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  const val = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  set('int-normal-entrada', (horarioNormal.entrada ? String(horarioNormal.entrada).slice(0,5) : '—'));
+  set('int-normal-salida',  (horarioNormal.salida  ? String(horarioNormal.salida).slice(0,5)  : '—'));
+  set('int-normal-descanso', (horarioNormal.descanso != null ? horarioNormal.descanso : 90));
+  val('int-entrada', (horarioIntensiva.entrada ? String(horarioIntensiva.entrada).slice(0,5) : '07:00'));
+  val('int-salida',  (horarioIntensiva.salida  ? String(horarioIntensiva.salida).slice(0,5)  : '15:00'));
+  val('int-descanso', (horarioIntensiva.descanso != null ? horarioIntensiva.descanso : 0));
+  set('int-count', diasIntensivaSet.size);
+  set('int-msg', '');
+  if (/^\d{4}-\d{2}$/.test(mes)) {
+    const [y, m] = mes.split('-').map(Number);
+    const ultimo = new Date(y, m, 0).getDate();
+    const de = document.getElementById('int-desde'), ha = document.getElementById('int-hasta');
+    if (de) { de.max = ultimo; if (!de.value) de.value = 1; }
+    if (ha) { ha.max = ultimo; if (!ha.value) ha.value = ultimo; }
+  }
+}
+
+async function guardarHorarioIntensiva() {
+  const im = document.getElementById('int-msg');
+  if (!obraActual) { im.textContent = 'No hay obra seleccionada.'; return; }
+  const entrada = document.getElementById('int-entrada').value;
+  const salida  = document.getElementById('int-salida').value;
+  const descanso = parseInt(document.getElementById('int-descanso').value, 10);
+  if (isNaN(descanso) || descanso < 0 || descanso > 480) { im.textContent = 'El descanso debe estar entre 0 y 480 min.'; return; }
+  im.textContent = 'Guardando…';
+  const { error } = await sb.rpc('guardar_horario_intensiva', {
+    p_obra_id: obraActual, p_entrada: entrada, p_salida: salida, p_descanso: descanso
+  });
+  if (error) { im.textContent = 'Error: ' + error.message; return; }
+  await cargarResumen();
+  const im2 = document.getElementById('int-msg'); if (im2) im2.textContent = '✓ Horario de verano guardado.';
+}
+
+async function marcarIntensiva(marcar) {
+  const im = document.getElementById('int-msg');
+  const mes = document.getElementById('filtro-mes').value;
+  if (!obraActual) { im.textContent = 'No hay obra seleccionada.'; return; }
+  if (!/^\d{4}-\d{2}$/.test(mes)) { im.textContent = 'Selecciona un mes.'; return; }
+  const desde = parseInt(document.getElementById('int-desde').value, 10);
+  const hasta = parseInt(document.getElementById('int-hasta').value, 10);
+  if (isNaN(desde) || isNaN(hasta) || desde < 1 || hasta < desde) { im.textContent = 'Rango de días no válido.'; return; }
+  const [y, m] = mes.split('-').map(Number);
+  const ultimo = new Date(y, m, 0).getDate();
+  const fin = Math.min(hasta, ultimo);
+  const fechas = [];
+  for (let d = Math.max(1, desde); d <= fin; d++) fechas.push(`${mes}-${String(d).padStart(2,'0')}`);
+  im.textContent = marcar ? 'Marcando…' : 'Quitando…';
+  const { error } = await sb.rpc('marcar_dias_intensiva', {
+    p_obra_id: obraActual, p_fechas: fechas, p_intensiva: marcar
+  });
+  if (error) { im.textContent = 'Error: ' + error.message; return; }
+  await cargarResumen();
+}
+
 async function cargarResumen() {
   const zona = document.getElementById('zona-tablas');
   const msg  = document.getElementById('msg-info');
@@ -575,6 +712,8 @@ async function cargarResumen() {
     msg.textContent = 'No se ha cargado la versión actualizada de js/excel-proforma.js. Recarga la página.';
     return;
   }
+
+  await cargarIntensiva(mes);
 
   zona.innerHTML = '<div class="seccion"><div class="cargando">Cargando…</div></div>';
 
@@ -641,7 +780,9 @@ async function cargarResumen() {
   nombresEmpresa.forEach(nombreEmpresa => {
     const trabajadores = window.ExcelProforma.construirResumenTrabajadores(
       grupos[nombreEmpresa], diasMes,
-      { horaEntrada: horasObra.entrada, horaSalida: horasObra.salida, ajustes: ajustesMesMap, minutosDescanso: horasObra.descanso }
+      { horaEntrada: horasObra.entrada, horaSalida: horasObra.salida, ajustes: ajustesMesMap, minutosDescanso: horasObra.descanso,
+        horaEntradaIntensiva: horarioIntensiva.entrada, horaSalidaIntensiva: horarioIntensiva.salida, minutosDescansoIntensiva: horarioIntensiva.descanso,
+        diasIntensiva: diasIntensivaSet }
     );
     trabajadores.forEach(t => {
       totalAutocierres += (t.autocierres_mes || 0);
@@ -669,7 +810,9 @@ function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
   let thDias = '';
   for (let d = 1; d <= diasMes; d++) {
     const letra = letras[new Date(year, month - 1, d).getDay()];
-    thDias += `<th class="dia${findes.has(d) ? ' finde' : ''}"><span class="num">${d}</span><span class="letra">${letra}</span></th>`;
+    const fechaKeyD = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const claseInt = diasIntensivaSet.has(fechaKeyD) ? ' intensiva' : '';
+    thDias += `<th class="dia${findes.has(d) ? ' finde' : ''}${claseInt}"${claseInt ? ' title="Jornada intensiva"' : ''}><span class="num">${d}</span><span class="letra">${letra}</span></th>`;
   }
 
   let filas = '';
