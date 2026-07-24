@@ -246,8 +246,15 @@ function pintarInforme(d, rango) {
   const total = d.total_intentos || 0;
   const personas = d.total_personas || 0;
 
-  // Caso sin datos
-  if (total === 0) {
+  // Presentes sin registrar (personas sin ficha)
+  const sr = d.sin_registrar || {};
+  const srPersonas = Array.isArray(sr.personas) ? sr.personas : [];
+  const srEmpresas = Array.isArray(sr.empresas) ? sr.empresas : [];
+  const srTotalPersonas = sr.total_personas || 0;
+  const srTotalIntentos = sr.total_intentos || 0;
+
+  // Caso sin datos (ni rojos documentales ni presentes sin registrar)
+  if (total === 0 && srTotalPersonas === 0) {
     zona.innerHTML = `
       <div class="informe">
         ${cabeceraHTML(logo, d.obra_nombre, periodoTxt)}
@@ -257,12 +264,15 @@ function pintarInforme(d, rango) {
     return;
   }
 
-  // Titular
-  const titular = `
+  // Titular (solo si hay rojos documentales)
+  let titular = '';
+  if (total > 0) {
+    titular = `
     <div class="inf-titular">
       <div class="cifra">${total}</div>
       <div class="frase">intentos de acceso frenados por el sistema, de <strong>${personas}</strong> ${personas === 1 ? 'persona' : 'personas'} distintas sin la documentación en regla.</div>
     </div>`;
+  }
 
   // Tabla de categorías
   const cats = Array.isArray(d.categorias) ? d.categorias : [];
@@ -326,12 +336,48 @@ function pintarInforme(d, rango) {
       </div>`;
   }
 
+  // Sección presentes sin registrar
+  let sinRegHTML = '';
+  if (srPersonas.length) {
+    sinRegHTML = `
+      <div class="inf-seccion">
+        <h2>Presentes sin registrar</h2>
+        <div class="subtitulo">Personas que estaban físicamente en la obra e intentaron fichar sin constar en el sistema (empresa no dada de alta, contrato sin firmar, etc.). El nombre y la empresa son datos declarados por la propia persona, sin verificar. Total: ${srTotalPersonas} ${srTotalPersonas === 1 ? 'persona' : 'personas'} · ${srTotalIntentos} ${srTotalIntentos === 1 ? 'intento' : 'intentos'}.</div>
+        <table class="inf-tabla">
+          <thead><tr><th>Persona (declarada)</th><th>Empresa declarada</th><th>DNI</th><th class="num">Intentos</th></tr></thead>
+          <tbody>
+            ${srPersonas.map(p => `
+              <tr>
+                <td class="destacado">${esc(p.nombre || '(no facilitado)')}</td>
+                <td>${esc(p.empresa || '(no facilitada)')}</td>
+                <td>${esc(p.dni || '')}</td>
+                <td class="num">${p.intentos || 1}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+        ${srEmpresas.length ? `
+        <div class="subtitulo" style="margin-top:14px;">Por empresa declarada:</div>
+        <table class="inf-tabla">
+          <thead><tr><th>Empresa declarada</th><th class="num">Personas</th><th class="num">Intentos</th></tr></thead>
+          <tbody>
+            ${srEmpresas.map(e => `
+              <tr>
+                <td class="destacado">${esc(e.empresa_nombre)}</td>
+                <td class="num">${e.personas}</td>
+                <td class="num">${e.intentos}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>` : ''}
+      </div>`;
+  }
+
   zona.innerHTML = `
     <div class="informe">
       ${cabeceraHTML(logo, d.obra_nombre, periodoTxt)}
       ${titular}
       ${categoriasHTML}
       ${empresasHTML}
+      ${sinRegHTML}
       ${genericosHTML}
       ${pieHTML()}
     </div>`;
