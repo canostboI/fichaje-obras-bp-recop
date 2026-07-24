@@ -165,6 +165,8 @@
   .panel-intensiva { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; margin-bottom: 16px; padding: 0 14px; }
   .panel-intensiva > summary { cursor: pointer; padding: 12px 0; font-weight: 600; font-size: 14px; list-style: none; }
   .panel-intensiva > summary::-webkit-details-marker { display: none; }
+  .panel-intensiva > summary::after { content: "\25B8"; float: right; color: var(--texto2); transition: transform 0.15s ease; }
+  .panel-intensiva[open] > summary::after { transform: rotate(90deg); }
   .pi-cuerpo { padding: 4px 0 14px; display: flex; flex-direction: column; gap: 12px; }
   .pi-cols { display: flex; gap: 24px; flex-wrap: wrap; }
   .pi-col { min-width: 220px; }
@@ -221,9 +223,13 @@
         <div class="pi-cols">
           <div class="pi-col">
             <div class="pi-tit">Jornada normal</div>
-            <div class="pi-linea">Entrada <b id="int-normal-entrada">—</b> · Salida <b id="int-normal-salida">—</b></div>
-            <div class="pi-linea">Descanso que se resta: <b id="int-normal-descanso">—</b> min</div>
-            <div class="pi-nota">Se configura en Obras (admin).</div>
+            <div class="pi-fila">
+              <label>Entrada <input type="time" id="norm-entrada"></label>
+              <label>Salida <input type="time" id="norm-salida"></label>
+              <label>Descanso <input type="number" id="norm-descanso" min="0" max="480" step="5" style="width:70px"> min</label>
+            </div>
+            <button class="btn-secundario" id="btn-guardar-normal">Guardar horario normal</button>
+            <span class="msg-info" id="norm-msg"></span>
           </div>
           <div class="pi-col">
             <div class="pi-tit">Jornada intensiva</div>
@@ -440,6 +446,7 @@ let horarioIntensiva = { entrada: null, salida: null, descanso: null };
     await cargarResumen();
   });
   document.getElementById('btn-exportar-excel').addEventListener('click', exportarExcelProforma);
+  document.getElementById('btn-guardar-normal').addEventListener('click', guardarHorarioNormal);
   document.getElementById('btn-guardar-intensiva').addEventListener('click', guardarHorarioIntensiva);
   document.getElementById('btn-marcar-intensiva').addEventListener('click', () => marcarIntensiva(true));
   document.getElementById('btn-quitar-intensiva').addEventListener('click', () => marcarIntensiva(false));
@@ -645,9 +652,10 @@ async function cargarIntensiva(mes) {
 function pintarPanelIntensiva(mes) {
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   const val = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-  set('int-normal-entrada', (horarioNormal.entrada ? String(horarioNormal.entrada).slice(0,5) : '—'));
-  set('int-normal-salida',  (horarioNormal.salida  ? String(horarioNormal.salida).slice(0,5)  : '—'));
-  set('int-normal-descanso', (horarioNormal.descanso != null ? horarioNormal.descanso : 90));
+  val('norm-entrada', (horarioNormal.entrada ? String(horarioNormal.entrada).slice(0,5) : '08:00'));
+  val('norm-salida',  (horarioNormal.salida  ? String(horarioNormal.salida).slice(0,5)  : '18:00'));
+  val('norm-descanso', (horarioNormal.descanso != null ? horarioNormal.descanso : 90));
+  set('norm-msg', '');
   val('int-entrada', (horarioIntensiva.entrada ? String(horarioIntensiva.entrada).slice(0,5) : '07:00'));
   val('int-salida',  (horarioIntensiva.salida  ? String(horarioIntensiva.salida).slice(0,5)  : '15:00'));
   val('int-descanso', (horarioIntensiva.descanso != null ? horarioIntensiva.descanso : 0));
@@ -660,6 +668,23 @@ function pintarPanelIntensiva(mes) {
     if (de) { de.max = ultimo; if (!de.value) de.value = 1; }
     if (ha) { ha.max = ultimo; if (!ha.value) ha.value = ultimo; }
   }
+}
+
+async function guardarHorarioNormal() {
+  const nm = document.getElementById('norm-msg');
+  if (!obraActual) { nm.textContent = 'No hay obra seleccionada.'; return; }
+  const entrada = document.getElementById('norm-entrada').value;
+  const salida  = document.getElementById('norm-salida').value;
+  const descanso = parseInt(document.getElementById('norm-descanso').value, 10);
+  if (!entrada || !salida) { nm.textContent = 'Hace falta hora de entrada y de salida.'; return; }
+  if (isNaN(descanso) || descanso < 0 || descanso > 480) { nm.textContent = 'El descanso debe estar entre 0 y 480 min.'; return; }
+  nm.textContent = 'Guardando…';
+  const { error } = await sb.rpc('guardar_horario_normal', {
+    p_obra_id: obraActual, p_entrada: entrada, p_salida: salida, p_descanso: descanso
+  });
+  if (error) { nm.textContent = 'Error: ' + error.message; return; }
+  await cargarResumen();
+  const nm2 = document.getElementById('norm-msg'); if (nm2) nm2.textContent = '✓ Horario normal guardado.';
 }
 
 async function guardarHorarioIntensiva() {
