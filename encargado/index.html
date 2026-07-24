@@ -891,7 +891,7 @@
 
     const { desdeISO, hastaISO } = rangoHoyLocal();
 
-    // Contador = personas distintas, no intentos (igual que P-01 en jefe)
+    // Contador documental (personas distintas) — alimenta el prellenado de la ronda
     const { data: dataHistorico } = await sb
       .from('incidencias')
       .select('trabajador_id')
@@ -899,11 +899,26 @@
       .eq('tipo', 'bloqueo_rojo')
       .gte('created_at', desdeISO)
       .lte('created_at', hastaISO);
-    const personasDistintas = new Set((dataHistorico || []).map(i => i.trabajador_id).filter(Boolean)).size;
-    rojosHoyCache = personasDistintas;
-    const statRojos = document.getElementById('stat-rojos');
-    if (statRojos) statRojos.textContent = personasDistintas;
+    const docDistintas = new Set((dataHistorico || []).map(i => i.trabajador_id).filter(Boolean));
+    rojosHoyCache = docDistintas.size;
 
+    // ...y presentes sin registrar de hoy (personas sin ficha), solo para el contador visible
+    const { data: dataSRhist } = await sb
+      .from('incidencias')
+      .select('detalle')
+      .eq('obra_id', obraActualId)
+      .eq('tipo', 'presente_sin_registrar')
+      .gte('created_at', desdeISO)
+      .lte('created_at', hastaISO);
+    const conSR = new Set(docDistintas);
+    (dataSRhist || []).forEach(i => {
+      const d = parseDetalleSR(i.detalle);
+      if (d && d.dni) conSR.add('SR:' + d.dni);
+    });
+    const statRojos = document.getElementById('stat-rojos');
+    if (statRojos) statRojos.textContent = conSR.size;
+
+    // Lista de pendientes (estado 'nueva'): bloqueos documentales
     const { data, error } = await sb
       .from('incidencias')
       .select('id, detalle, created_at, trabajador_id, trabajadores(nombre, apellidos, dni)')
@@ -914,11 +929,8 @@
       .lte('created_at', hastaISO)
       .order('created_at', { ascending: false });
 
-    if (error) { panel.style.display = 'none'; return; }
-    if (!data || data.length === 0) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
-
     const porTrabajador = {};
-    data.forEach(inc => {
+    if (!error) (data || []).forEach(inc => {
       const tid = inc.trabajador_id || 'desconocido';
       if (!porTrabajador[tid]) {
         porTrabajador[tid] = { incidencia_id: inc.id, trabajador: inc.trabajadores, ultimo_intento: inc.created_at, intentos: 1 };
@@ -926,13 +938,47 @@
         porTrabajador[tid].intentos++;
       }
     });
-
     const grupos = Object.values(porTrabajador);
-    const totalIntentos = grupos.reduce((s, g) => s + g.intentos, 0);
-    const totalPersonas = grupos.length;
+
+    // ...y presentes sin registrar pendientes (estado 'nueva')
+    const { data: dataSR } = await sb
+      .from('incidencias')
+      .select('id, detalle, created_at')
+      .eq('obra_id', obraActualId)
+      .eq('tipo', 'presente_sin_registrar')
+      .eq('estado', 'nueva')
+      .gte('created_at', desdeISO)
+      .lte('created_at', hastaISO)
+      .order('created_at', { ascending: false });
+    const gruposSR = (dataSR || []).map(inc => {
+      const d = parseDetalleSR(inc.detalle) || {};
+      return { incidencia_id: inc.id, nombre: d.nombre || '', empresa: d.empresa || '', dni: d.dni || '', intentos: d.intentos || 1, ultimo_intento: inc.created_at };
+    });
+
+    if (grupos.length === 0 && gruposSR.length === 0) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
+
+    const totalPersonas = grupos.length + gruposSR.length;
+    const totalIntentos = grupos.reduce((s, g) => s + g.intentos, 0) + gruposSR.reduce((s, g) => s + g.intentos, 0);
 
     let html = `<h2>🚫 Accesos denegados hoy (${totalPersonas} ${totalPersonas === 1 ? 'persona' : 'personas'} · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'})</h2>`;
-    html += `<p class="bloqueo-subtitulo">Trabajadores bloqueados por documentación en rojo que han intentado fichar hoy.</p>`;
+    html += `<p class="bloqueo-subtitulo">Personas que han intentado fichar hoy y no han podido: rojos por documentación y personas sin registrar.</p>`;
+
+    gruposSR.forEach(g => {
+      const nombre = g.nombre || '(nombre no facilitado)';
+      const empresa = g.empresa ? ` · ${g.empresa}` : '';
+      const dni = g.dni || '';
+      const horaUltimo = formatHora(g.ultimo_intento);
+      const intentosTexto = g.intentos === 1 ? '1 intento' : `${g.intentos} intentos`;
+      html += `
+        <div class="bloqueo-item" data-id="${g.incidencia_id}">
+          <div class="bloqueo-info">
+            <strong>🆕 ${esc(nombre)}</strong>
+            <div class="bloqueo-dni">Sin registrar${esc(empresa)}${dni ? ' — ' + esc(dni) : ''}</div>
+            <div class="bloqueo-hora">Último intento: ${esc(horaUltimo)} · ${esc(intentosTexto)}</div>
+          </div>
+          <button class="btn-visto-rojo" onclick="marcarVistoBloqueo('${g.incidencia_id}', this)">✓ Visto</button>
+        </div>`;
+    });
 
     grupos.forEach(g => {
       const t = g.trabajador;
@@ -1001,21 +1047,34 @@
       contenido.innerHTML = `<p class="loading">No se pudo cargar el detalle: ${esc(error.message)}</p>`;
       return;
     }
-    pintarDetalleAccesos(data || []);
+    const { data: dataSR } = await sb
+      .from('incidencias')
+      .select('id, detalle, estado, created_at')
+      .eq('obra_id', obraActualId)
+      .eq('tipo', 'presente_sin_registrar')
+      .gte('created_at', desdeISO)
+      .lte('created_at', hastaISO)
+      .order('created_at', { ascending: false });
+    const gruposSR = (dataSR || []).map(inc => {
+      const d = parseDetalleSR(inc.detalle) || {};
+      return { nombre: d.nombre || '', empresa: d.empresa || '', dni: d.dni || '', intentos: d.intentos || 1, ultimo_intento: inc.created_at, pendiente: (inc.estado || 'nueva') === 'nueva' };
+    });
+    pintarDetalleAccesos(data || [], gruposSR);
   }
 
-  function pintarDetalleAccesos(incidencias) {
+  function pintarDetalleAccesos(incidencias, gruposSR) {
     const contenido = document.getElementById('modal-accesos-contenido');
     const resumen = document.getElementById('modal-accesos-resumen');
+    const srList = gruposSR || [];
 
-    if (!incidencias || incidencias.length === 0) {
+    if ((!incidencias || incidencias.length === 0) && srList.length === 0) {
       resumen.style.display = 'none';
       contenido.innerHTML = '<p class="loading">Hoy no hay accesos denegados en esta obra.</p>';
       return;
     }
 
     const porTrabajador = {};
-    incidencias.forEach(inc => {
+    (incidencias || []).forEach(inc => {
       const t = inc.trabajadores || null;
       const key = t?.id || inc.trabajador_id || ('sin_trabajador_' + (inc.detalle || ''));
       if (!porTrabajador[key]) {
@@ -1029,14 +1088,31 @@
     });
 
     const grupos = Object.values(porTrabajador).sort((a, b) => new Date(b.ultimo) - new Date(a.ultimo));
-    const totalIntentos = incidencias.length;
-    const totalPersonas = grupos.length;
-    const totalPendientes = grupos.reduce((s, g) => s + g.pendientes, 0);
+    const totalIntentos = (incidencias || []).length + srList.reduce((s, g) => s + g.intentos, 0);
+    const totalPersonas = grupos.length + srList.length;
+    const totalPendientes = grupos.reduce((s, g) => s + g.pendientes, 0) + srList.filter(g => g.pendiente).length;
 
     resumen.style.display = 'block';
     resumen.textContent = `${totalPersonas} ${totalPersonas === 1 ? 'persona' : 'personas'} · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'} hoy · ${totalPendientes} pendiente${totalPendientes === 1 ? '' : 's'} de revisar`;
 
-    contenido.innerHTML = grupos.map(g => {
+    const htmlSR = srList.map(g => {
+      const nombre = g.nombre || 'Persona no identificada';
+      const empresa = g.empresa ? ` · ${esc(g.empresa)}` : '';
+      const dni = g.dni ? `DNI: ${g.dni}` : 'DNI no disponible';
+      return `
+        <div class="acceso-item">
+          <div class="acceso-top">
+            <div>
+              <div class="acceso-nombre">🆕 ${esc(nombre)}</div>
+              <div class="acceso-meta">${esc(dni)}${empresa} · Último intento: ${esc(formatHora(g.ultimo_intento))}</div>
+            </div>
+            <div class="acceso-contador">${g.intentos} ${g.intentos === 1 ? 'intento' : 'intentos'}</div>
+          </div>
+          <div class="acceso-detalle">Sin registrar · dato declarado sin verificar</div>
+        </div>`;
+    }).join('');
+
+    const htmlDoc = grupos.map(g => {
       const t = g.trabajador || {};
       const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || 'Trabajador no identificado';
       const dni = t.dni ? `DNI: ${t.dni}` : 'DNI no disponible';
@@ -1056,6 +1132,8 @@
           <div class="acceso-detalle">${esc(estadoTxt)}${detalles ? '<br>' + detalles : ''}</div>
         </div>`;
     }).join('');
+
+    contenido.innerHTML = htmlSR + htmlDoc;
   }
 
   function cerrarModalAccesos() {
@@ -1940,6 +2018,11 @@
     el.textContent = texto;
     el.style.display = 'block';
     document.getElementById('msg-manual-ok').style.display = 'none';
+  }
+
+  function parseDetalleSR(detalle) {
+    if (!detalle) return null;
+    try { return JSON.parse(detalle); } catch (e) { return null; }
   }
 
   function esc(txt) {
