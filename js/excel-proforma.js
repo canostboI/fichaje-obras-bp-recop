@@ -86,7 +86,7 @@
 
   // ===== Función pública =====
 
-  async function generar({ obra, mes, fichajes, logoBase64, ajustes }) {
+  async function generar({ obra, mes, fichajes, logoBase64, ajustes, diasIntensiva }) {
     if (!window.ExcelJS) throw new Error('ExcelJS no está cargado.');
     if (!mes || !/^\d{4}-\d{2}$/.test(mes)) throw new Error('Mes inválido. Formato: YYYY-MM.');
     if (!Array.isArray(fichajes)) throw new Error('fichajes debe ser un array.');
@@ -115,7 +115,9 @@
         .forEach(nombreEmpresa => {
           const trabajadores = construirResumenTrabajadores(
             grupos[nombreEmpresa], diasMes,
-            { horaEntrada: obra && obra.hora_entrada_default, horaSalida: obra && obra.hora_salida_default, ajustes, minutosDescanso: obra && obra.minutos_descanso }
+            { horaEntrada: obra && obra.hora_entrada_default, horaSalida: obra && obra.hora_salida_default, ajustes, minutosDescanso: obra && obra.minutos_descanso,
+              horaEntradaIntensiva: obra && obra.hora_entrada_intensiva, horaSalidaIntensiva: obra && obra.hora_salida_intensiva, minutosDescansoIntensiva: obra && obra.minutos_descanso_intensiva,
+              diasIntensiva }
           );
           trabajadores.forEach(t => { totalAutocierres += (t.autocierres_mes || 0); });
           crearHojaEmpresa(workbook, {
@@ -147,6 +149,14 @@
     // Descanso de la obra en jornada completa. null/undefined → 90 (histórico).
     // Se usa != null para respetar el 0 (jornada intensiva sin comida).
     const minutosDescanso = (opts && opts.minutosDescanso != null) ? opts.minutosDescanso : 90;
+    // Jornada intensiva (horario de verano). Si un día está en diasIntensiva,
+    // se usa este horario en vez del normal. minutosDescansoIntensiva suele ser 0.
+    const horaEntradaIntensiva = opts && opts.horaEntradaIntensiva ? opts.horaEntradaIntensiva : null;
+    const horaSalidaIntensiva  = opts && opts.horaSalidaIntensiva  ? opts.horaSalidaIntensiva  : null;
+    const minutosDescansoIntensiva = (opts && opts.minutosDescansoIntensiva != null) ? opts.minutosDescansoIntensiva : null;
+    const diasIntensiva = (opts && opts.diasIntensiva)
+      ? (opts.diasIntensiva instanceof Set ? opts.diasIntensiva : new Set(opts.diasIntensiva))
+      : new Set();
     // Ajustes de horas fijadas a mano (tabla ajustes_horas_dia):
     // { trabajador_id: { dia: { horas, motivo } } }. Opcional.
     const ajustes = (opts && opts.ajustes) || null;
@@ -208,6 +218,15 @@
 
         let netoDia = 0;
         if (primeraEntrada && ultimaSalida && ultimaSalida > primeraEntrada) {
+          // ¿Este día fue jornada intensiva en esta obra? Si sí, se usa el
+          // horario de verano (otra entrada/salida y, normalmente, sin comida).
+          const fechaKey = fechaISOLocal(primeraEntrada);
+          const esIntensiva = diasIntensiva.has(fechaKey);
+          const entradaDia  = esIntensiva ? (horaEntradaIntensiva || horaEntradaObra) : horaEntradaObra;
+          const salidaDia   = esIntensiva ? (horaSalidaIntensiva  || horaSalidaObra)  : horaSalidaObra;
+          const descansoDia = esIntensiva
+            ? (minutosDescansoIntensiva != null ? minutosDescansoIntensiva : 0)
+            : minutosDescanso;
           // Compensación (9/7/2026): los minutos trabajados ANTES de la hora
           // oficial de entrada compensan, hasta un máximo de 15 min, los que
           // falten para llegar a la hora oficial de salida. Ej.: entra 7:42 y
@@ -215,8 +234,8 @@
           // (topados a 15) cubren los 11 que faltan → cobra jornada completa.
           // Se aplica sobre la hora REAL de salida, antes del redondeo, para
           // que el resultado siga cayendo en cuartos limpios.
-          const sueloReal = limiteDelDia(primeraEntrada, horaEntradaObra);
-          const techoReal = limiteDelDia(primeraEntrada, horaSalidaObra);
+          const sueloReal = limiteDelDia(primeraEntrada, entradaDia);
+          const techoReal = limiteDelDia(primeraEntrada, salidaDia);
           let salidaEfectiva = ultimaSalida;
           if (sueloReal && techoReal &&
               primeraEntrada < sueloReal && ultimaSalida < techoReal) {
@@ -229,16 +248,16 @@
           let fin    = redondearSalida(salidaEfectiva);
 
           // Suelo: no se paga antes de la hora oficial de entrada de la obra.
-          const suelo = limiteDelDia(primeraEntrada, horaEntradaObra);
+          const suelo = limiteDelDia(primeraEntrada, entradaDia);
           if (suelo && inicio < suelo) inicio = suelo;
 
           // Techo: no se pagan horas después de la hora oficial de salida.
-          const techo = limiteDelDia(primeraEntrada, horaSalidaObra);
+          const techo = limiteDelDia(primeraEntrada, salidaDia);
           if (techo && fin > techo) fin = techo;
 
           const bruto = (fin - inicio) / 3600000;
           if (bruto > 0 && bruto < 24) {
-            netoDia = Math.max(0, bruto - descansoMin(bruto, minutosDescanso) / 60);
+            netoDia = Math.max(0, bruto - descansoMin(bruto, descansoDia) / 60);
           }
         }
 
@@ -805,6 +824,13 @@
     const m = Number(partes[1] || 0);
     if (isNaN(h)) return null;
     return new Date(fechaRef.getFullYear(), fechaRef.getMonth(), fechaRef.getDate(), h, m, 0, 0);
+  }
+
+  function fechaISOLocal(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${dd}`;
   }
 
   function descansoMin(brutoH, descansoLargo) {
