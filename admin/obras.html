@@ -361,12 +361,14 @@ let todosUsuarios  = [];
 let todasObras     = [];
 let qrActual       = null;
 let vistaActual    = 'obras';
+let miUsuarioAppId = null;
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '../'; return; }
-  const { data: u } = await sb.from('usuarios_app').select('rol').eq('auth_user_id', session.user.id).single();
+  const { data: u } = await sb.from('usuarios_app').select('id, rol').eq('auth_user_id', session.user.id).single();
   if (!u || u.rol !== 'admin') { window.location.href = '../'; return; }
+  miUsuarioAppId = u.id;
   await cargarObras();
   await cargarUsuarios();
 })();
@@ -445,9 +447,11 @@ async function cargarDirectorio() {
     const btnEmail = sinVincular
       ? `<button class="btn-mini" onclick="editarEmail('${p.id}', '${emailTxt.replace(/'/g, "\\'")}')">Editar email</button>`
       : '';
-    const btnBaja = baja
-      ? `<button class="btn-mini" onclick="reactivarUsuario('${p.id}', '${esc(p.nombre || '')}')">Reactivar</button>`
-      : `<button class="btn-mini peligro" onclick="darDeBaja('${p.id}', '${esc(p.nombre || '')}')">Dar de baja</button>`;
+    const btnBaja = (p.id === miUsuarioAppId)
+      ? '<span class="dir-sin-obra">—</span>'
+      : (baja
+        ? `<button class="btn-mini" onclick="reactivarUsuario('${p.id}', '${esc(p.nombre || '')}')">Reactivar</button>`
+        : `<button class="btn-mini peligro" onclick="darDeBaja('${p.id}', '${esc(p.nombre || '')}')">Dar de baja</button>`);
 
     return `<tr>
       <td>${esc(p.nombre || '—')} ${rolSistema}</td>
