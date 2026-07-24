@@ -243,6 +243,19 @@
   }
   .motivos li { margin: 4px 0; }
 
+  .aviso-olvido {
+    background: #fdecea;
+    border: 2px solid var(--rojo);
+    color: var(--rojo);
+    padding: 14px 16px;
+    margin: 14px 0 0;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: left;
+  }
+
   .aviso-autocierre {
     background: #fff4e6;
     border: 2px solid var(--naranja);
@@ -477,6 +490,7 @@
       <div class="nombre" id="final-nombre"></div>
       <div class="hora" id="final-hora"></div>
       <div id="final-motivos" class="motivos oculto" style="text-align:left;"></div>
+      <div id="final-olvido" class="aviso-olvido oculto"></div>
     </div>
     <button type="button" class="secundario" id="btn-nuevo-fichaje" style="margin-top:10px;">Nuevo fichaje</button>
   </div>
@@ -530,6 +544,7 @@ const el = {
   finalNombre:        document.getElementById('final-nombre'),
   finalHora:          document.getElementById('final-hora'),
   finalMotivos:       document.getElementById('final-motivos'),
+  finalOlvido:        document.getElementById('final-olvido'),
   btnNuevo:           document.getElementById('btn-nuevo-fichaje')
 };
 
@@ -568,6 +583,7 @@ const TEXTOS = {
     volver:              'Volver',
     entrada_ok:          'Entrada registrada',
     salida_ok:           'Salida registrada',
+    olvido_salida:       'En tu última jornada olvidaste fichar la salida y el sistema tuvo que cerrarla automáticamente. El registro de entrada y salida es obligatorio y sirve para calcular bien tus horas. Ficha siempre la salida antes de irte. Los olvidos repetidos pueden dar lugar a medidas disciplinarias.',
     pie:                 'Control de acceso',
     dni_invalido:        'Introduzca un DNI o NIE válido.',
     dni_letra_mal:       'La letra no coincide con los números. Revise su DNI.',
@@ -645,6 +661,7 @@ const TEXTOS = {
     volver:              'رجوع',
     entrada_ok:          'تم تسجيل الدخول',
     salida_ok:           'تم تسجيل الخروج',
+    olvido_salida:       'في آخر يوم عمل نسيت تسجيل الخروج، فاضطر النظام إلى إغلاق يوم عملك تلقائيًا. تسجيل الدخول والخروج إلزامي ويُستخدم لحساب ساعات عملك بشكل صحيح. سجّل الخروج دائمًا قبل مغادرة الموقع. قد يؤدي تكرار النسيان إلى اتخاذ إجراءات تأديبية.',
     pie:                 'مراقبة الدخول',
     dni_invalido:        'يرجى إدخال رقم هوية صحيح.',
     dni_letra_mal:       'الحرف لا يتطابق مع الأرقام. يرجى مراجعة هويتك.',
@@ -722,6 +739,7 @@ const TEXTOS = {
     volver:              'Înapoi',
     entrada_ok:          'Intrare înregistrată',
     salida_ok:           'Ieșire înregistrată',
+    olvido_salida:       'La ultima ta tură ai uitat să înregistrezi ieșirea, iar sistemul a fost nevoit să o închidă automat. Înregistrarea intrării și ieșirii este obligatorie și servește la calcularea corectă a orelor tale. Înregistrează întotdeauna ieșirea înainte de a pleca. Uitările repetate pot duce la măsuri disciplinare.',
     pie:                 'Control acces',
     dni_invalido:        'Introduceți un DNI sau NIE valid.',
     dni_letra_mal:       'Litera nu corespunde cu cifrele. Verificați DNI-ul.',
@@ -1380,6 +1398,13 @@ function mostrarConfirmacionFinal(r) {
     pintarMotivos(el.finalMotivos, r.motivos, false);
   } else {
     el.finalMotivos.classList.add('oculto');
+  }
+
+  if (r.aviso_olvido_salida) {
+    el.finalOlvido.textContent = T('olvido_salida');
+    el.finalOlvido.classList.remove('oculto');
+  } else {
+    el.finalOlvido.classList.add('oculto');
   }
 
   const historial = registrarHistorialDni(estado.dni);
