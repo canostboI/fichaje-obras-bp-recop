@@ -585,6 +585,7 @@ async function cargarEquipo() {
         <span class="equipo-item-email">
           ${esc(item.usuario_app?.email || '')} · <span class="pill ${item.rol_en_obra === 'jefe_obra' ? 'azul' : 'naranja'}">${item.rol_en_obra === 'jefe_obra' ? 'Jefe de obra' : 'Encargado'}</span>
           ${!item.usuario_app?.auth_user_id ? ' <span class="pill naranja">⚠️ Sin vincular</span>' : ''}
+          ${!item.usuario_app?.auth_user_id ? ` <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;" onclick="editarEmail('${item.usuario_app?.id}', '${esc(item.usuario_app?.email || '')}')">Editar email</button>` : ''}
         </span>
         <span class="equipo-item-email">
           📞 ${item.usuario_app?.telefono ? esc(item.usuario_app.telefono) : '<em>sin teléfono</em>'}
@@ -614,6 +615,31 @@ async function editarTelefono(usuarioAppId, actual) {
     .eq('id', usuarioAppId);
   if (error) { mostrarErrorEquipo('Error al guardar el teléfono: ' + error.message); return; }
   mostrarOkEquipo('✓ Teléfono actualizado.');
+  await cargarEquipo();
+}
+
+async function editarEmail(usuarioAppId, actual) {
+  if (!usuarioAppId) return;
+  const nuevo = prompt(
+    'Corrige el email de acceso de este usuario.\n' +
+    'Debe ser su email real: es la llave con la que creará su contraseña y entrará en la app.\n\n' +
+    '(Solo se puede editar mientras el usuario todavía NO ha creado su contraseña.)',
+    actual || ''
+  );
+  if (nuevo === null) return; // cancelado
+  const limpio = nuevo.trim().toLowerCase();
+  if (limpio === '') { mostrarErrorEquipo('El email no puede quedar vacío: es la llave de acceso del usuario.'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(limpio)) { mostrarErrorEquipo('El email no tiene un formato válido.'); return; }
+  ocultarMensajesEquipo();
+  // Barandilla: solo actualiza si sigue SIN vincular (auth_user_id null).
+  const { data, error } = await sb.from('usuarios_app')
+    .update({ email: limpio })
+    .eq('id', usuarioAppId)
+    .is('auth_user_id', null)
+    .select('id');
+  if (error) { mostrarErrorEquipo(error.code === '23505' ? 'Ya existe otro usuario con ese email.' : 'Error al guardar el email: ' + error.message); return; }
+  if (!data || data.length === 0) { mostrarErrorEquipo('Este usuario ya creó su contraseña: su email no puede cambiarse desde aquí.'); await cargarEquipo(); return; }
+  mostrarOkEquipo('✓ Email actualizado. Dile que entre en la web y pulse "¿Primera vez? Crea tu contraseña" con este email.');
   await cargarEquipo();
 }
 
