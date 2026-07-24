@@ -162,6 +162,7 @@
       </div>
     </div>
     <button type="button" class="btn-secundario" id="btn-ubicacion" style="margin-bottom:6px;">📍 Usar mi ubicación actual (estando en la obra)</button>
+    <button type="button" class="btn-secundario" id="btn-vermapa" style="margin-bottom:6px; margin-left:6px;">🗺️ Ver en el mapa</button>
     <div id="ubic-estado" style="display:none; font-size:12px; line-height:1.4; margin-bottom:14px;"></div>
     <div class="campo">
       <label>Radio GPS (metros)</label>
@@ -175,6 +176,13 @@
       <div class="campo">
         <label>Hora salida</label>
         <input type="time" id="f-salida">
+      </div>
+    </div>
+    <div class="campo">
+      <label>Descanso (minutos)</label>
+      <input type="number" id="f-descanso" placeholder="90" min="0" max="480" step="5">
+      <div style="font-size:12px;color:#8b909e;margin-top:4px;">
+        Minutos de comida que se descuentan de la jornada. 90 por defecto; para la intensiva de verano (sin comer), 0. <em>De momento se guarda pero el resumen mensual aún descuenta el descanso automático; aplicarlo al cálculo es el paso siguiente.</em>
       </div>
     </div>
     <div class="campo">
@@ -328,7 +336,7 @@ document.getElementById('btn-salir').onclick = async () => { await sb.auth.signO
 
 async function cargarObras() {
   const { data, error } = await sb.from('obras')
-    .select('id, numero_obra, nombre, direccion, latitud, longitud, empresa_marca, radio_gps, hora_entrada_default, hora_salida_default, activa, estado, foto_url, ecoordina_centro, ultima_sync_ecoordina')
+    .select('id, numero_obra, nombre, direccion, latitud, longitud, empresa_marca, radio_gps, hora_entrada_default, hora_salida_default, activa, estado, foto_url, ecoordina_centro, ultima_sync_ecoordina, minutos_descanso')
     .order('nombre');
   if (error) { document.getElementById('tabla-obras').innerHTML = '<div class="vacio">Error al cargar obras</div>'; return; }
   todasObras = data || [];
@@ -371,6 +379,7 @@ document.getElementById('btn-nueva').onclick = () => {
   document.getElementById('f-latitud').value = '';
   document.getElementById('f-longitud').value = '';
   document.getElementById('f-radio').value = '100';
+  document.getElementById('f-descanso').value = '90';
   document.getElementById('f-entrada').value = '08:00';
   document.getElementById('f-salida').value = '18:00';
   document.getElementById('f-empresa').value = 'bosch_pascual';
@@ -391,6 +400,7 @@ function abrirEditarPorId(id) {
   document.getElementById('f-latitud').value = o.latitud || '';
   document.getElementById('f-longitud').value = o.longitud || '';
   document.getElementById('f-radio').value = o.radio_gps || 100;
+  document.getElementById('f-descanso').value = (o.minutos_descanso ?? 90);
   document.getElementById('f-entrada').value = (o.hora_entrada_default || '08:00:00').substring(0, 5);
   document.getElementById('f-salida').value = (o.hora_salida_default || '18:00:00').substring(0, 5);
   document.getElementById('f-empresa').value = o.empresa_marca || 'bosch_pascual';
@@ -431,6 +441,19 @@ function capturarUbicacion() {
 }
 document.getElementById('btn-ubicacion').onclick = capturarUbicacion;
 
+document.getElementById('btn-vermapa').onclick = () => {
+  const lat = parseFloat(document.getElementById('f-latitud').value);
+  const lng = parseFloat(document.getElementById('f-longitud').value);
+  const estado = document.getElementById('ubic-estado');
+  if (isNaN(lat) || isNaN(lng)) {
+    estado.style.display = 'block';
+    estado.style.color = 'var(--rojo)';
+    estado.textContent = 'Escribe primero la latitud y la longitud para verlas en el mapa.';
+    return;
+  }
+  window.open('https://www.openstreetmap.org/?mlat=' + lat + '&mlon=' + lng + '#map=17/' + lat + '/' + lng, '_blank');
+};
+
 document.getElementById('btn-guardar').onclick = async () => {
   const numeroRaw   = document.getElementById('f-numero').value.trim();
   const nombre      = document.getElementById('f-nombre').value.trim();
@@ -438,6 +461,7 @@ document.getElementById('btn-guardar').onclick = async () => {
   const latitud     = parseFloat(document.getElementById('f-latitud').value);
   const longitud    = parseFloat(document.getElementById('f-longitud').value);
   const radio_gps   = parseInt(document.getElementById('f-radio').value, 10);
+  const minutos_descanso = parseInt(document.getElementById('f-descanso').value, 10);
   const entradaRaw  = document.getElementById('f-entrada').value;
   const salidaRaw   = document.getElementById('f-salida').value;
   const empresa_marca = document.getElementById('f-empresa').value;
@@ -446,14 +470,33 @@ document.getElementById('btn-guardar').onclick = async () => {
 
   if (!nombre)                           { mostrarError('El nombre es obligatorio.'); return; }
   if (isNaN(latitud) || isNaN(longitud)) { mostrarError('Las coordenadas son obligatorias.'); return; }
+  if (latitud < -90 || latitud > 90 || longitud < -180 || longitud > 180) {
+    mostrarError('Las coordenadas no son válidas (latitud entre −90 y 90, longitud entre −180 y 180).'); return;
+  }
   if (isNaN(radio_gps))                  { mostrarError('El radio GPS es obligatorio.'); return; }
+  if (isNaN(minutos_descanso) || minutos_descanso < 0 || minutos_descanso > 480) {
+    mostrarError('El descanso debe ser un número de minutos entre 0 y 480.'); return;
+  }
   if (!entradaRaw || !salidaRaw)         { mostrarError('El horario es obligatorio.'); return; }
+
+  // Aviso suave: coordenadas fuera de España (caso típico de signo cambiado
+  // o latitud/longitud intercambiadas). No bloquea: solo pide confirmación.
+  if (latitud < 27 || latitud > 44 || longitud < -19 || longitud > 5) {
+    const ok = confirm(
+      '⚠️ Estas coordenadas caen FUERA de España:\n\n' +
+      'Latitud: ' + latitud + '\nLongitud: ' + longitud + '\n\n' +
+      '¿Puede que hayas cambiado un signo, o intercambiado latitud y longitud?\n' +
+      'Compruébalo con "🗺️ Ver en el mapa".\n\n' +
+      '¿Guardar de todos modos?'
+    );
+    if (!ok) return;
+  }
 
   const payload = {
     numero_obra: numeroRaw === '' ? null : numeroRaw,
     nombre, direccion,
     latitud: Number(latitud.toFixed(4)), longitud: Number(longitud.toFixed(4)),
-    radio_gps, hora_entrada_default: entradaRaw + ':00', hora_salida_default: salidaRaw + ':00',
+    radio_gps, minutos_descanso, hora_entrada_default: entradaRaw + ':00', hora_salida_default: salidaRaw + ':00',
     empresa_marca, estado,
     ecoordina_centro: ecoordinaCentroRaw === '' ? null : ecoordinaCentroRaw
   };
