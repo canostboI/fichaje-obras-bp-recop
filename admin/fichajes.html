@@ -260,7 +260,16 @@ async function exportarExcelMensual() {
         });
       }
     } catch (e) { logoBase64 = null; }
-    const { buffer, autocierres } = await window.ExcelProforma.generar({ obra, mes, fichajes, logoBase64 });
+    let diasIntensivaSet = new Set();
+    try {
+      const [yy, mm] = mes.split('-').map(Number);
+      const ultimoDia = new Date(yy, mm, 0).getDate();
+      const { data: diasInt } = await sb.from('dias_intensiva_obra')
+        .select('fecha').eq('obra_id', obra.id)
+        .gte('fecha', `${mes}-01`).lte('fecha', `${mes}-${String(ultimoDia).padStart(2,'0')}`);
+      (diasInt || []).forEach(r => diasIntensivaSet.add(r.fecha));
+    } catch (e) { /* sin días intensiva */ }
+    const { buffer, autocierres } = await window.ExcelProforma.generar({ obra, mes, fichajes, logoBase64, diasIntensiva: diasIntensivaSet });
     if (autocierres > 0) {
       const seguir = window.confirm(`Atención: se han detectado ${autocierres} ${autocierres === 1 ? 'salida' : 'salidas'} con cierre automático en este mes.\n\nConviene revisarlas con el encargado o el trabajador antes de enviar el Excel. En el archivo, esos días aparecen marcados en naranja claro.\n\n¿Quieres exportar igualmente?`);
       if (!seguir) { msg.className = 'msg-export aviso'; msg.textContent = 'Exportación cancelada.'; btn.disabled = false; btn.textContent = 'Exportar Excel'; return; }
@@ -277,7 +286,7 @@ async function exportarExcelMensual() {
 }
 
 async function obtenerObra(obraId) {
-  const { data, error } = await sb.from('obras').select('id, nombre, numero_obra, empresa_marca, hora_entrada_default, hora_salida_default').eq('id', obraId).single();
+  const { data, error } = await sb.from('obras').select('id, nombre, numero_obra, empresa_marca, hora_entrada_default, hora_salida_default, minutos_descanso, hora_entrada_intensiva, hora_salida_intensiva, minutos_descanso_intensiva').eq('id', obraId).single();
   if (error) throw error;
   return data;
 }
