@@ -44,6 +44,7 @@
   .pill.gris { background: rgba(139,144,158,0.15); color: var(--texto2); }
   .pill.azul { background: rgba(33,150,243,0.15); color: var(--azul); }
   .pill.naranja { background: rgba(255,152,0,0.15); color: var(--naranja); }
+  .pill.roja { background: rgba(244,67,54,0.15); color: var(--rojo); }
   .num-obra { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: var(--texto2); }
   .acciones { display: flex; gap: 8px; flex-wrap: wrap; }
   .vacio { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
@@ -353,7 +354,7 @@ async function cargarObras() {
         <td>${esc(o.radio_gps || '—')}m</td>
         <td>${hora(o.hora_entrada_default)} – ${hora(o.hora_salida_default)}</td>
         <td>${estadoPill(o.estado)}</td>
-        <td>${syncBadge(o.ultima_sync_ecoordina)}</td>
+        <td>${syncBadge(o.ultima_sync_ecoordina, o.ecoordina_centro)}</td>
         <td><div class="acciones">
           <button class="btn-secundario" onclick="abrirEquipoPorId('${o.id}')">👥 Equipo</button>
           <button class="btn-secundario" onclick="abrirQRPorId('${o.id}')">QR</button>
@@ -763,15 +764,26 @@ function estadoPill(estado) {
   return `<span class="pill ${e.clase}">${e.texto}</span>`;
 }
 
-function syncBadge(iso) {
-  if (!iso) return '<span class="pill gris" title="Nunca sincronizada con e-Coordina">Nunca</span>';
+function syncBadge(iso, centro) {
+  const tieneCentro = !!(centro && String(centro).trim());
+  // Obra que NO usa e-Coordina: no es un fallo, no hay que alarmar.
+  if (!tieneCentro)
+    return '<span class="pill gris" title="Esta obra no está vinculada a e-Coordina">—</span>';
+  // Tiene centro pero NUNCA ha sincronizado: casi siempre = texto mal copiado.
+  if (!iso)
+    return '<span class="pill roja" title="Tiene centro de e-Coordina pero NUNCA ha sincronizado. Si sigue así tras la próxima sync nocturna, revisa que el texto del centro coincida EXACTO con e-Coordina.">⚠ Nunca</span>';
   const d = new Date(iso);
-  const hoy = new Date();
-  const hora = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-  if (d.toDateString() === hoy.toDateString())
-    return `<span class="pill verde" title="Sincronizada hoy a las ${hora}">Al día</span>`;
-  const fecha = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
-  return `<span class="pill naranja" title="Última sincronización: ${fecha} ${hora}">Desde ${fecha}</span>`;
+  const ahora = new Date();
+  const horaTxt = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const fechaTxt = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  const dias = (ahora - d) / 86400000;
+  if (d.toDateString() === ahora.toDateString())
+    return `<span class="pill verde" title="Sincronizada hoy a las ${horaTxt}">Al día</span>`;
+  // Hasta 3 días tolera el fin de semana (la sync es L-V).
+  if (dias <= 3)
+    return `<span class="pill verde" title="Última sincronización: ${fechaTxt} ${horaTxt}">Al día</span>`;
+  // Más de 3 días: la sync lleva días sin funcionar para esta obra.
+  return `<span class="pill naranja" title="Sin sincronizar desde ${fechaTxt} ${horaTxt}. Revisa que el texto del centro coincida EXACTO con e-Coordina.">⚠ Desde ${fechaTxt}</span>`;
 }
 function hora(t) { if (!t) return '—'; return String(t).substring(0, 5); }
 function limpiarNombreArchivo(txt) { return String(txt || 'obra').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
