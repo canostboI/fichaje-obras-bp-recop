@@ -8,7 +8,9 @@
   <script src="../js/branding.js"></script>
   <script src="../js/auto-logout.js"></script>
   <script src="../js/fechas.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="../js/excel-proforma.js"></script>
+  <script src="../js/listado-dia.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: sans-serif; background: #f4f4f4; color: #222; }
@@ -51,6 +53,9 @@
     }
     .filtros { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
     .btn-mes { background: var(--color-principal); color: white; border: none; padding: 0.55rem 0.9rem; border-radius: 6px; font-size: 0.9rem; cursor: pointer; font-family: inherit; }
+    .sep-controles { display: inline-block; width: 1px; height: 20px; vertical-align: middle; background: #ccc; margin: 0 6px; }
+    .lbl-dia { font-size: 0.85rem; color: #555; }
+    #filtro-dia:disabled { opacity: .5; cursor: not-allowed; }
     .msg-info { font-size: 0.85rem; color: #777; }
     .msg-info.err { color: #b71c1c; }
     .msg-info.aviso { color: #e65100; }
@@ -191,6 +196,10 @@
       <div class="filtros">
         <input type="month" id="filtro-mes">
         <button class="btn-mes" id="btn-mes-actual">Mes actual</button>
+        <span class="sep-controles"></span>
+        <label for="filtro-dia" class="lbl-dia">Día:</label>
+        <input type="date" id="filtro-dia">
+        <button class="btn-mes" id="btn-listado-dia">📥 Descargar día</button>
         <span class="msg-info" id="msg-info"></span>
       </div>
       <div class="leyenda">
@@ -311,6 +320,7 @@
   const DIAS_EDITABLES_ATRAS = 5;
 
   let obraActualId = null;
+  let miNombreUsuario = '';         // para el pie del listado diario
 
   // Cache del mes cargado (para el detalle del día sin re-consultar)
   let fichajesMesCache = [];
@@ -382,7 +392,7 @@
 
     const { data: usuario, error } = await sb
       .from('usuarios_app')
-      .select('id, rol')
+      .select('id, rol, nombre')
       .eq('auth_user_id', session.user.id)
       .single();
 
@@ -390,6 +400,8 @@
       mostrarError('Acceso denegado. No tienes rol de encargado.');
       return;
     }
+
+    miNombreUsuario = (usuario.nombre || session.user.email || '—') + ' (encargado)';
 
     const { data: asignaciones } = await sb
       .from('usuarios_obra')
@@ -443,6 +455,7 @@
   }
 
   document.getElementById('filtro-mes').addEventListener('change', cargarResumen);
+  document.getElementById('btn-listado-dia').addEventListener('click', descargarListadoDia);
   document.getElementById('btn-mes-actual').addEventListener('click', async () => {
     document.getElementById('filtro-mes').value = mesActual();
     await cargarResumen();
@@ -508,6 +521,7 @@
 
     fichajesMesCache = fichajes || [];
     mesCargado = mes;
+    ajustarSelectorDia(mes);
     resumenTrabajadores = {};
 
     // Días "tocados": con algún fichaje manual o corregido → esquina amarilla
@@ -1136,6 +1150,162 @@
       document.getElementById('modal-dia').classList.remove('visible');
       diaAbierto = null;
     }
+  }
+
+  // ===================================================================
+  // LISTADO DIARIO EXPORTABLE (N-2)
+  // Quién estuvo en obra un día concreto: el día ENTERO, no solo los que
+  // siguen dentro. Reutiliza la caché del mes y el resumen ya calculado
+  // por js/excel-proforma.js — aquí NO se calculan horas.
+  // ===================================================================
+
+  // El listado bebe de la caché del MES en pantalla. Si se pudiera elegir un
+  // día de otro mes saldría vacío sin avisar, así que el selector se acota.
+  function ajustarSelectorDia(mes) {
+    const input = document.getElementById('filtro-dia');
+    if (!input || !/^\d{4}-\d{2}$/.test(mes)) return;
+    const [y, m] = mes.split('-').map(Number);
+    const ultimo = new Date(y, m, 0).getDate();
+    const primerDia = `${mes}-01`;
+    const ultimoDia = `${mes}-${String(ultimo).padStart(2, '0')}`;
+    input.min = primerDia;
+    input.max = ultimoDia;
+
+    const actual = input.value;
+    if (!actual || actual < primerDia || actual > ultimoDia) {
+      const hoy = new Date();
+      const hoyISO = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+      input.value = (hoyISO >= primerDia && hoyISO <= ultimoDia) ? hoyISO : primerDia;
+    }
+  }
+
+  // Denegados y presentes sin registrar de ese día (no están en la caché:
+  // viven en `incidencias`). Una consulta acotada a obra + día.
+  async function obtenerIncidenciasDia(obraId, fecha) {
+    const [y, m, d] = fecha.split('-').map(Number);
+    const desde = new Date(y, m - 1, d, 0, 0, 0, 0);
+    const hasta = new Date(y, m - 1, d + 1, 0, 0, 0, 0);
+
+    let data;
+    try {
+      const res = await sb.from('incidencias')
+        .select('tipo, detalle, created_at, trabajador:trabajador_id(nombre, apellidos, empresa:empresa_id(nombre))')
+        .eq('obra_id', obraId)
+        .in('tipo', ['bloqueo_rojo', 'presente_sin_registrar'])
+        .gte('created_at', desde.toISOString())
+        .lt('created_at', hasta.toISOString())
+        .order('created_at', { ascending: true });
+      if (res.error) throw res.error;
+      data = res.data;
+    } catch (e) {
+      // Sin incidencias legibles el listado sigue siendo útil: se avisa arriba.
+      console.error('No se pudieron leer las incidencias del día:', e);
+      return { denegados: [], sinRegistrar: [], fallo: true };
+    }
+
+    const denegados = [];
+    const sinRegistrar = [];
+
+    (data || []).forEach(inc => {
+      const h = new Date(inc.created_at);
+      const hora = String(h.getHours()).padStart(2, '0') + ':' + String(h.getMinutes()).padStart(2, '0');
+
+      if (inc.tipo === 'bloqueo_rojo') {
+        const t = inc.trabajador || {};
+        denegados.push({
+          nombre: [t.nombre, t.apellidos].filter(Boolean).join(' ').trim() || '(sin nombre)',
+          empresa: (t.empresa && t.empresa.nombre) ? t.empresa.nombre : '—',
+          hora
+        });
+      } else {
+        // `detalle` puede venir como objeto (jsonb) o como texto.
+        let det = inc.detalle;
+        if (typeof det === 'string') { try { det = JSON.parse(det); } catch (e) { det = {}; } }
+        det = det || {};
+        sinRegistrar.push({
+          nombre: det.nombre || '(no declarado)',
+          empresa: det.empresa || '(no declarada)',
+          dni: det.dni || '—',
+          intentos: det.intentos != null ? det.intentos : 1
+        });
+      }
+    });
+
+    return { denegados, sinRegistrar };
+  }
+
+  async function descargarListadoDia() {
+    const btn = document.getElementById('btn-listado-dia');
+    const msg = document.getElementById('msg-info');
+    const fecha = document.getElementById('filtro-dia').value;
+    const mes = document.getElementById('filtro-mes').value;
+    msg.className = 'msg-info'; msg.textContent = '';
+
+    if (!obraActualId) { msg.className = 'msg-info err'; msg.textContent = 'No hay obra seleccionada.'; return; }
+    if (!fecha) { msg.className = 'msg-info err'; msg.textContent = 'Elige un día.'; return; }
+    if (!window.ExcelJS) { msg.className = 'msg-info err'; msg.textContent = 'No se ha cargado ExcelJS. Recarga la página.'; return; }
+    if (!window.ListadoDia || !window.ListadoDia.generar) {
+      msg.className = 'msg-info err'; msg.textContent = 'No se ha cargado js/listado-dia.js. Recarga la página.'; return;
+    }
+    // Guarda: el listado sale de la caché del mes en pantalla.
+    if (mesCargado !== mes || fecha.slice(0, 7) !== mes) {
+      msg.className = 'msg-info err';
+      msg.textContent = 'El día elegido no pertenece al mes cargado. Carga ese mes primero.';
+      return;
+    }
+
+    btn.disabled = true; const textoOriginal = btn.textContent; btn.textContent = 'Generando…';
+
+    try {
+      const personas = window.ListadoDia.construirPersonas({
+        fichajes: fichajesMesCache,
+        fecha,
+        resumen: resumenTrabajadores
+      });
+
+      const { denegados, sinRegistrar, fallo } = await obtenerIncidenciasDia(obraActualId, fecha);
+
+      const { data: obra, error: errObra } = await sb.from('obras')
+        .select('id, nombre, numero_obra, empresa_marca')
+        .eq('id', obraActualId).single();
+      if (errObra) throw errObra;
+
+      const { buffer } = await window.ListadoDia.generar({
+        obra, fecha, personas, denegados, sinRegistrar, usuario: miNombreUsuario
+      });
+
+      const nombreArchivo = `listado_dia_${limpiarNombreArchivo(obra?.nombre || 'obra')}_${fecha}.xlsx`;
+      descargarBuffer(buffer, nombreArchivo);
+
+      if (fallo) {
+        msg.className = 'msg-info aviso';
+        msg.textContent = 'Listado generado, pero NO se pudieron leer las incidencias: faltan los denegados y los presentes sin registrar.';
+      } else if (personas.length === 0) {
+        msg.className = 'msg-info aviso';
+        msg.textContent = 'Listado generado, pero ese día no hay ningún fichaje en esta obra.';
+      } else {
+        msg.className = 'msg-info';
+        msg.textContent = `Listado generado: ${personas.length} ${personas.length === 1 ? 'persona' : 'personas'} en obra.`;
+      }
+    } catch (err) {
+      console.error(err);
+      msg.className = 'msg-info err'; msg.textContent = 'Error al generar el listado: ' + (err.message || err);
+    }
+
+    btn.disabled = false; btn.textContent = textoOriginal;
+  }
+
+  function descargarBuffer(buffer, filename) {
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+  }
+
+  function limpiarNombreArchivo(txt) {
+    return String(txt || 'archivo').toLowerCase().normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   }
 
   // ===================================================================
