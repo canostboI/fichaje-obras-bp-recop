@@ -67,6 +67,9 @@
   .resumen-col:last-child { border-right: none; }
   .resumen-col h3 { font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 20px 8px; }
 
+  .seccion-cab { gap: 12px; }
+  .seccion-cab h2 { flex: 1; }
+
   /* ====== PESTAÑAS ALERTAS / REGISTRO ====== */
   .pestanas { display: flex; gap: 6px; margin-bottom: 12px; border-bottom: 1px solid var(--borde); }
   .pestana { background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--texto2); padding: 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 8px; }
@@ -172,6 +175,7 @@
       <div class="seccion-cab">
         <h2 id="titulo-listado">Alertas — requieren revisión</h2>
         <span class="badge" id="badge-total">—</span>
+        <button class="btn-accion oculto" id="btn-marcar-todas">✓ Marcar todas como revisadas</button>
       </div>
       <div class="aviso-familia" id="aviso-familia"></div>
       <div id="tabla-incidencias"><div class="cargando">Cargando…</div></div>
@@ -194,6 +198,9 @@ AutoLogout.init(sb);
 const TIPOS_DENEGACION = ['bloqueo_rojo', 'fuera_de_zona'];
 let datosInforme = [];
 
+// Filas actualmente pintadas en el listado (para el marcado masivo)
+let filasListado = [];
+
 // Pestaña activa del listado: 'alerta' (accionable) o 'rastro' (solo registro)
 let familiaActiva = window.IncidenciasFamilias.ALERTA;
 
@@ -202,7 +209,9 @@ let familiaActiva = window.IncidenciasFamilias.ALERTA;
   if (!session) { window.location.href = '../'; return; }
   const { data: u } = await sb.from('usuarios_app').select('rol').eq('auth_user_id', session.user.id).single();
   if (!u || u.rol !== 'admin') { window.location.href = '../'; return; }
-  aplicarRango('mes');
+  // Arranca en 7 días: una bandeja es "qué ha pasado últimamente".
+  // Para el informe mensual, los botones "Este mes" / "Mes anterior".
+  aplicarRango('7dias');
   await cargarObras();
   cargarTipos();
   aplicarAspectoFamilia();
@@ -288,6 +297,7 @@ document.querySelectorAll('.btn-rapido').forEach(b => {
   b.onclick = () => { aplicarRango(b.dataset.rango); buscar(); };
 });
 document.getElementById('btn-buscar').onclick = buscar;
+document.getElementById('btn-marcar-todas').onclick = marcarTodas;
 // Tipo y estado solo afectan al listado de abajo, no al informe de arriba
 document.getElementById('filtro-tipo').onchange   = cargarListado;
 document.getElementById('filtro-estado').onchange = cargarListado;
@@ -382,6 +392,49 @@ async function actualizarContadorAlertas() {
   if (error) { el.textContent = '—'; el.classList.remove('cero'); return; }
   el.textContent = count || 0;
   el.classList.toggle('cero', !count);
+}
+
+// ===== Marcado masivo de las alertas EN PANTALLA =====
+// Se marcan solo las filas que el admin está viendo, no todo el periodo.
+function nuevasEnPantalla() {
+  return filasListado.filter(i => i.estado === 'nueva');
+}
+
+function actualizarBotonMasivo() {
+  const btn = document.getElementById('btn-marcar-todas');
+  const n = (familiaActiva === window.IncidenciasFamilias.ALERTA) ? nuevasEnPantalla().length : 0;
+  btn.classList.toggle('oculto', n === 0);
+  btn.disabled = false;
+  btn.textContent = '✓ Marcar las ' + n + ' como revisadas';
+}
+
+async function marcarTodas() {
+  const pendientes = nuevasEnPantalla();
+  if (pendientes.length === 0) return;
+
+  if (!confirm('¿Marcar como revisadas las ' + pendientes.length + ' alertas que tienes en pantalla?\n\n' +
+               'No se puede deshacer desde aquí.')) return;
+
+  const btn = document.getElementById('btn-marcar-todas');
+  btn.disabled = true;
+
+  let hechas = 0, fallos = 0;
+
+  // De 8 en 8: ni una a una (lento) ni 78 de golpe (avalancha de peticiones)
+  for (let i = 0; i < pendientes.length; i += 8) {
+    const lote = pendientes.slice(i, i + 8);
+    btn.textContent = 'Marcando… ' + hechas + '/' + pendientes.length;
+
+    const res = await Promise.all(lote.map(inc =>
+      sb.rpc('marcar_incidencia_vista', { p_incidencia_id: inc.id })
+    ));
+    res.forEach(r => {
+      if (r.error || !r.data || r.data.success === false) fallos++; else hechas++;
+    });
+  }
+
+  if (fallos > 0) alert('Marcadas ' + hechas + '. No se pudieron marcar ' + fallos + '.');
+  await cargarListado();
 }
 
 // ===== Marcar una alerta como revisada =====
@@ -490,6 +543,9 @@ function pintarListado(data) {
   const F = window.IncidenciasFamilias;
   const esAlerta = familiaActiva === F.ALERTA;
   const cont = document.getElementById('tabla-incidencias');
+
+  filasListado = data || [];
+  actualizarBotonMasivo();
 
   if (!data || data.length === 0) {
     document.getElementById('badge-total').textContent = '0 incidencias';
