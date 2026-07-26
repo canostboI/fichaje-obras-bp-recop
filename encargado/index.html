@@ -299,6 +299,14 @@
     .acceso-meta, .acceso-detalle { color: #666; font-size: 0.86rem; line-height: 1.45; margin-top: 0.25rem; }
     .acceso-contador { color: #e53935; font-weight: 800; white-space: nowrap; }
     .acceso-contador.naranja { color: #ff9800; }
+    /* N-4: motivos del bloqueo, separando lo que deniega de lo que solo avisa */
+    .acceso-motivos { margin-top: 0.5rem; }
+    .acceso-bloque-titulo { font-size: 0.82rem; font-weight: 800; margin-top: 0.5rem; }
+    .acceso-bloque-titulo.rojo { color: #c62828; }
+    .acceso-bloque-titulo.naranja { color: #ef6c00; }
+    .acceso-motivo { font-size: 0.86rem; color: #444; line-height: 1.45; padding-left: 0.9rem; }
+    .acceso-motivo.naranja { color: #777; }
+    .acceso-sin-motivo { font-size: 0.86rem; color: #999; font-style: italic; margin-top: 0.45rem; }
 
     .card-ronda { background: white; border-radius: 10px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
     .card-ronda h2 { font-size: 1.1rem; margin-bottom: 0.4rem; color: #333; }
@@ -1062,6 +1070,60 @@
     pintarDetalleAccesos(data || [], gruposSR);
   }
 
+  // --- N-4: causa del rojo para el encargado ---------------------------
+  // `incidencias.detalle` de un bloqueo trae, desde el 15/6/2026, un array
+  // JSON con los motivos tal cual los escribió el semáforo, cada uno con
+  // su sufijo "→ rojo" / "→ naranja". Antes de esa fecha era un texto
+  // genérico sin información. Aquí se separan: lo que DENIEGA arriba, lo
+  // que solo AVISA abajo. No se consulta nada nuevo a la BD.
+  function clasificarMotivosBloqueo(detalles) {
+    const rojos = new Set();
+    const naranjas = new Set();
+
+    (detalles || []).forEach(d => {
+      let lista = null;
+      try {
+        const p = JSON.parse(d);
+        if (Array.isArray(p)) lista = p;
+      } catch (e) { /* no es JSON: detalle genérico antiguo */ }
+      if (!lista) return;
+
+      lista.forEach(m => {
+        const txt = limpiarMotivo(m);
+        if (!txt) return;
+        // Sin sufijo (p. ej. "Sin libro de subcontratación") = causa del bloqueo.
+        if (/→\s*naranja\s*$/i.test(String(m))) naranjas.add(txt);
+        else rojos.add(txt);
+      });
+    });
+
+    return { rojos: Array.from(rojos), naranjas: Array.from(naranjas) };
+  }
+
+  function pintarMotivosBloqueo(cls) {
+    let html = '';
+
+    if (cls.rojos.length) {
+      html += '<div class="acceso-bloque-titulo rojo">🚫 Le bloquea:</div>';
+      html += cls.rojos.map(m => `<div class="acceso-motivo">${esc(m)}</div>`).join('');
+    } else {
+      // Si no hay ningún motivo rojo, no sabemos qué le bloqueó: se dice.
+      html += '<div class="acceso-sin-motivo">Motivo no registrado (bloqueo anterior a junio).</div>';
+    }
+
+    if (cls.naranjas.length) {
+      const visibles = cls.naranjas.slice(0, 3);
+      const resto = cls.naranjas.length - visibles.length;
+      html += '<div class="acceso-bloque-titulo naranja">⚠️ Además tiene aviso:</div>';
+      html += visibles.map(m => `<div class="acceso-motivo naranja">${esc(m)}</div>`).join('');
+      if (resto > 0) {
+        html += `<div class="acceso-motivo naranja">+${resto} aviso${resto === 1 ? '' : 's'} más</div>`;
+      }
+    }
+
+    return `<div class="acceso-motivos">${html}</div>`;
+  }
+
   function pintarDetalleAccesos(incidencias, gruposSR) {
     const contenido = document.getElementById('modal-accesos-contenido');
     const resumen = document.getElementById('modal-accesos-resumen');
@@ -1119,7 +1181,7 @@
       const estadoTxt = g.pendientes > 0
         ? `${g.pendientes} pendiente${g.pendientes === 1 ? '' : 's'}${g.revisados ? ` · ${g.revisados} revisado${g.revisados === 1 ? '' : 's'}` : ''}`
         : `Todo revisado (${g.revisados})`;
-      const detalles = Array.from(g.detalles).slice(0, 3).map(d => esc(d)).join('<br>');
+      const motivosHtml = pintarMotivosBloqueo(clasificarMotivosBloqueo(Array.from(g.detalles)));
       return `
         <div class="acceso-item">
           <div class="acceso-top">
@@ -1129,7 +1191,8 @@
             </div>
             <div class="acceso-contador">${g.intentos} ${g.intentos === 1 ? 'intento' : 'intentos'}</div>
           </div>
-          <div class="acceso-detalle">${esc(estadoTxt)}${detalles ? '<br>' + detalles : ''}</div>
+          <div class="acceso-detalle">${esc(estadoTxt)}</div>
+          ${motivosHtml}
         </div>`;
     }).join('');
 
