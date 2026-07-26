@@ -162,6 +162,30 @@
     .modal { padding: 20px; }
   }
   /* Jornada intensiva */
+  /* ====== PANEL DE CIERRE DE MES (U-11) ====== */
+  .panel-cierre { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; margin-bottom: 16px; padding: 0 14px; }
+  .panel-cierre > summary { cursor: pointer; padding: 12px 0; font-weight: 600; font-size: 14px; list-style: none; }
+  .panel-cierre > summary::-webkit-details-marker { display: none; }
+  .panel-cierre > summary::after { content: "\25B8"; float: right; color: var(--texto2); transition: transform 0.15s ease; }
+  .panel-cierre[open] > summary::after { content: "\25BE"; }
+  .pc-estado { font-weight: 600; font-size: 13px; margin-left: 10px; }
+  .pc-estado.pendiente { color: var(--naranja); }
+  .pc-estado.listo { color: var(--verde); }
+  .pc-cuerpo { padding: 4px 0 16px; display: flex; flex-direction: column; gap: 14px; }
+  .pc-paso { border-left: 3px solid var(--borde); padding-left: 12px; }
+  .pc-paso.alerta { border-left-color: var(--naranja); }
+  .pc-paso.hecho  { border-left-color: var(--verde); }
+  .pc-cab { display: flex; align-items: flex-start; gap: 10px; }
+  .pc-num { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--bg3); color: var(--texto2); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .pc-paso.alerta .pc-num { background: rgba(255,152,0,0.18); color: var(--naranja); }
+  .pc-paso.hecho  .pc-num { background: rgba(76,175,80,0.18); color: var(--verde); }
+  .pc-tit { font-size: 14px; font-weight: 600; }
+  .pc-desc { font-size: 12px; color: var(--texto2); margin-top: 2px; }
+  .pc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0 32px; }
+  .pc-chip { background: var(--bg3); border: 1px solid var(--borde); color: var(--texto); padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; }
+  .pc-chip:hover { border-color: var(--naranja); color: var(--naranja); }
+  #pc-btn-exportar { margin: 10px 0 0 32px; }
+
   .panel-intensiva { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; margin-bottom: 16px; padding: 0 14px; }
   .panel-intensiva > summary { cursor: pointer; padding: 12px 0; font-weight: 600; font-size: 14px; list-style: none; }
   .panel-intensiva > summary::-webkit-details-marker { display: none; }
@@ -249,6 +273,42 @@
           <button class="btn-secundario" id="btn-quitar-intensiva">Quitar</button>
         </div>
         <div class="pi-estado"><b id="int-count">0</b> día(s) marcados como intensiva este mes. <span class="msg-info" id="int-msg"></span></div>
+      </div>
+    </details>
+
+    <details class="panel-cierre" id="panel-cierre">
+      <summary>📋 Cierre de mes <span class="pc-estado" id="pc-estado"></span></summary>
+      <div class="pc-cuerpo">
+
+        <div class="pc-paso" id="pc-paso-1">
+          <div class="pc-cab"><span class="pc-num" id="pc-icono-1">1</span>
+            <div>
+              <div class="pc-tit">Corregir los autocierres</div>
+              <div class="pc-desc" id="pc-desc-1">—</div>
+            </div>
+          </div>
+          <div class="pc-chips" id="pc-chips"></div>
+        </div>
+
+        <div class="pc-paso" id="pc-paso-2">
+          <div class="pc-cab"><span class="pc-num" id="pc-icono-2">2</span>
+            <div>
+              <div class="pc-tit">Revisar los días tocados a mano</div>
+              <div class="pc-desc" id="pc-desc-2">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pc-paso" id="pc-paso-3">
+          <div class="pc-cab"><span class="pc-num">3</span>
+            <div>
+              <div class="pc-tit">Exportar el Excel proforma</div>
+              <div class="pc-desc">Es el entregable del mes. Descárgalo cuando los pasos 1 y 2 estén revisados.</div>
+            </div>
+          </div>
+          <button class="btn-primario" id="pc-btn-exportar">📥 Excel proforma</button>
+        </div>
+
       </div>
     </details>
 
@@ -446,6 +506,8 @@ let horarioIntensiva = { entrada: null, salida: null, descanso: null };
     await cargarResumen();
   });
   document.getElementById('btn-exportar-excel').addEventListener('click', exportarExcelProforma);
+  // El botón del panel de cierre es el mismo paso, no una función aparte
+  document.getElementById('pc-btn-exportar').addEventListener('click', exportarExcelProforma);
   document.getElementById('btn-guardar-normal').addEventListener('click', guardarHorarioNormal);
   document.getElementById('btn-guardar-intensiva').addEventListener('click', guardarHorarioIntensiva);
   document.getElementById('btn-marcar-intensiva').addEventListener('click', () => marcarIntensiva(true));
@@ -818,9 +880,101 @@ async function cargarResumen() {
 
   zona.innerHTML = html;
 
-  if (totalAutocierres > 0) {
+  // El aviso mira los autocierres que AÚN NO se han corregido, para que
+  // baje a medida que el jefe los va arreglando. (Antes contaba todos y
+  // nunca desaparecía, así que acababa ignorándose.)
+  const pendientes = autocierresPendientes();
+  if (pendientes.length > 0) {
     msg.className = 'msg-info aviso';
-    msg.textContent = `⚠️ ${totalAutocierres} ${totalAutocierres === 1 ? 'salida' : 'salidas'} con cierre automático este mes (en naranja).`;
+    msg.textContent = `⚠️ ${pendientes.length} ${pendientes.length === 1 ? 'salida' : 'salidas'} con cierre automático sin corregir (en naranja).`;
+  } else {
+    msg.className = 'msg-info';
+    msg.textContent = '';
+  }
+
+  actualizarPanelCierre();
+}
+
+// =====================================================================
+// PANEL DE CIERRE DE MES (U-11)
+// Guía los pasos de fin de mes con los números reales del mes cargado.
+// No toca js/excel-proforma.js: todo sale de los fichajes ya cargados.
+// =====================================================================
+
+// Un autocierre está "pendiente" mientras nadie haya corregido esa salida.
+function autocierresPendientes() {
+  return fichajesMesCache
+    .filter(f => f.cierre_automatico && !f.corregido_por)
+    .sort((a, b) => new Date(a.hora) - new Date(b.hora));
+}
+
+function actualizarPanelCierre() {
+  const panel = document.getElementById('panel-cierre');
+  const pendientes = autocierresPendientes();
+
+  // --- Paso 1: autocierres por corregir ---
+  const paso1 = document.getElementById('pc-paso-1');
+  const chips = document.getElementById('pc-chips');
+  chips.innerHTML = '';
+
+  if (pendientes.length === 0) {
+    paso1.className = 'pc-paso hecho';
+    document.getElementById('pc-icono-1').textContent = '✓';
+    document.getElementById('pc-desc-1').textContent =
+      'No queda ninguna salida automática sin corregir.';
+  } else {
+    paso1.className = 'pc-paso alerta';
+    document.getElementById('pc-icono-1').textContent = '1';
+    document.getElementById('pc-desc-1').textContent =
+      pendientes.length + (pendientes.length === 1
+        ? ' salida se cerró sola porque nadie fichó. Su hora es inventada: corrígela antes de exportar.'
+        : ' salidas se cerraron solas porque nadie fichó. Sus horas son inventadas: corrígelas antes de exportar.');
+
+    pendientes.forEach(f => {
+      const t = resumenTrabajadores[f.trabajador_id];
+      const d = new Date(f.hora);
+      const b = document.createElement('button');
+      b.className = 'pc-chip';
+      b.textContent = (t ? t.nombre : 'Trabajador') + ' · ' + d.getDate() + '/' + (d.getMonth() + 1);
+      b.onclick = () => abrirDetalleDia(f.trabajador_id, d.getDate());
+      chips.appendChild(b);
+    });
+  }
+
+  // --- Paso 2: días tocados a mano (manual, corregido u horas fijadas) ---
+  let diasTocados = 0;
+  Object.values(diasTocadosMap).forEach(set => { diasTocados += set.size; });
+  let diasFijados = 0;
+  Object.values(resumenTrabajadores).forEach(t => {
+    diasFijados += Object.keys(t.dias_ajuste || {}).length;
+  });
+
+  const paso2 = document.getElementById('pc-paso-2');
+  const total2 = diasTocados + diasFijados;
+  if (total2 === 0) {
+    paso2.className = 'pc-paso hecho';
+    document.getElementById('pc-icono-2').textContent = '✓';
+    document.getElementById('pc-desc-2').textContent =
+      'Ningún día lleva fichajes manuales, correcciones ni horas fijadas.';
+  } else {
+    paso2.className = 'pc-paso';
+    document.getElementById('pc-icono-2').textContent = '2';
+    const partes = [];
+    if (diasTocados > 0) partes.push(diasTocados + (diasTocados === 1 ? ' día con fichaje manual o corregido (esquina amarilla)' : ' días con fichajes manuales o corregidos (esquina amarilla)'));
+    if (diasFijados > 0) partes.push(diasFijados + (diasFijados === 1 ? ' día con horas fijadas a mano (esquina azul)' : ' días con horas fijadas a mano (esquina azul)'));
+    document.getElementById('pc-desc-2').textContent =
+      partes.join(' · ') + '. Repásalos: son horas que no salen del fichaje real.';
+  }
+
+  // --- Estado general + si el panel se abre solo ---
+  const estado = document.getElementById('pc-estado');
+  if (pendientes.length > 0) {
+    estado.className = 'pc-estado pendiente';
+    estado.textContent = '· ' + pendientes.length + ' por corregir';
+    panel.open = true;
+  } else {
+    estado.className = 'pc-estado listo';
+    estado.textContent = '· listo para exportar';
   }
 }
 
