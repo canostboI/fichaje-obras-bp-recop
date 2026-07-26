@@ -67,6 +67,21 @@
   .resumen-col:last-child { border-right: none; }
   .resumen-col h3 { font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 20px 8px; }
 
+  /* ====== PESTAÑAS ALERTAS / REGISTRO ====== */
+  .pestanas { display: flex; gap: 6px; margin-bottom: 12px; border-bottom: 1px solid var(--borde); }
+  .pestana { background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--texto2); padding: 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 8px; }
+  .pestana:hover { color: var(--texto); }
+  .pestana.activa { color: var(--texto); border-bottom-color: var(--azul); }
+  .contador-pestana { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; background: rgba(244,67,54,0.15); color: var(--rojo); }
+  .contador-pestana.cero { background: rgba(76,175,80,0.15); color: var(--verde); }
+  .aviso-familia { font-size: 12px; color: var(--texto2); padding: 10px 20px; border-bottom: 1px solid var(--borde); background: var(--bg3); }
+  .pill.verde { background: rgba(76,175,80,0.15);  color: var(--verde); }
+  .pill.azul  { background: rgba(33,150,243,0.15); color: var(--azul); }
+  .btn-accion { background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 5px 11px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+  .btn-accion:hover { background: var(--verde); border-color: var(--verde); color: #fff; }
+  .btn-accion:disabled { opacity: 0.5; cursor: default; }
+  .oculto { display: none !important; }
+
   /* ====== INFORME IMPRIMIBLE ====== */
   #informe-print { display: none; }
   @media print {
@@ -86,6 +101,7 @@
   }
 </style>
   <script src="../js/auto-logout.js"></script>
+  <script src="../js/incidencias-familias.js"></script>
 </head>
 <body>
 
@@ -122,6 +138,10 @@
       <input type="date" id="filtro-hasta" title="Hasta">
       <select id="filtro-obra"><option value="">Todas las obras</option></select>
       <select id="filtro-tipo"><option value="">Todos los tipos</option></select>
+      <select id="filtro-estado">
+        <option value="nueva">Solo pendientes</option>
+        <option value="">Todas (incluye revisadas)</option>
+      </select>
       <button class="btn-secundario" id="btn-buscar">Buscar</button>
     </div>
     <div class="barra-rapidos">
@@ -139,11 +159,21 @@
       <div id="resumen"><div class="cargando">Cargando…</div></div>
     </div>
 
+    <div class="pestanas">
+      <button class="pestana activa" id="tab-alerta" data-familia="alerta">
+        ⚠️ Alertas <span class="contador-pestana" id="contador-alertas">—</span>
+      </button>
+      <button class="pestana" id="tab-rastro" data-familia="rastro">
+        📓 Registro
+      </button>
+    </div>
+
     <div class="seccion">
       <div class="seccion-cab">
-        <h2>Listado de incidencias</h2>
+        <h2 id="titulo-listado">Alertas — requieren revisión</h2>
         <span class="badge" id="badge-total">—</span>
       </div>
+      <div class="aviso-familia" id="aviso-familia"></div>
       <div id="tabla-incidencias"><div class="cargando">Cargando…</div></div>
     </div>
   </div>
@@ -159,7 +189,13 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 AutoLogout.init(sb);
 
-let datosActuales = [];   // incidencias del periodo actual (para resumen e informe)
+// El INFORME (resumen de arriba + impresión) siempre mira las denegaciones
+// de acceso, pase lo que pase en las pestañas de abajo.
+const TIPOS_DENEGACION = ['bloqueo_rojo', 'fuera_de_zona'];
+let datosInforme = [];
+
+// Pestaña activa del listado: 'alerta' (accionable) o 'rastro' (solo registro)
+let familiaActiva = window.IncidenciasFamilias.ALERTA;
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -168,9 +204,33 @@ let datosActuales = [];   // incidencias del periodo actual (para resumen e info
   if (!u || u.rol !== 'admin') { window.location.href = '../'; return; }
   aplicarRango('mes');
   await cargarObras();
-  await cargarTipos();
+  cargarTipos();
+  aplicarAspectoFamilia();
   await buscar();
 })();
+
+// ===== Pestañas =====
+document.querySelectorAll('.pestana').forEach(b => {
+  b.onclick = () => {
+    if (familiaActiva === b.dataset.familia) return;
+    familiaActiva = b.dataset.familia;
+    document.querySelectorAll('.pestana').forEach(x => x.classList.toggle('activa', x === b));
+    cargarTipos();            // el desplegable se acota a la familia
+    aplicarAspectoFamilia();
+    cargarListado();          // el informe de arriba NO se recalcula: no depende de la pestaña
+  };
+});
+
+// Ajusta títulos, textos y visibilidad del filtro de estado según la pestaña
+function aplicarAspectoFamilia() {
+  const esAlerta = familiaActiva === window.IncidenciasFamilias.ALERTA;
+  document.getElementById('titulo-listado').textContent =
+    esAlerta ? 'Alertas — requieren revisión' : 'Registro — solo consulta';
+  document.getElementById('aviso-familia').textContent = esAlerta
+    ? 'Incidencias que piden una acción: bloqueos, personas sin registrar, móvil compartido y autocierres por corregir.'
+    : 'Constancia de cosas ya resueltas o informativas. No hay nada que hacer aquí: es el histórico consultable.';
+  document.getElementById('filtro-estado').classList.toggle('oculto', !esAlerta);
+}
 
 document.getElementById('btn-salir').onclick = async () => { await sb.auth.signOut(); window.location.href = '../'; };
 
@@ -185,11 +245,22 @@ async function cargarObras() {
   });
 }
 
-async function cargarTipos() {
-  const { data } = await sb.from('incidencias').select('tipo').limit(1000);
-  const tipos = [...new Set((data || []).map(d => d.tipo).filter(Boolean))].sort();
+// Lista FIJA de tipos, acotada a la pestaña activa.
+// (Antes se deducía de las 1.000 filas más recientes, así que con mucho
+//  volumen de un solo tipo el desplegable se quedaba incompleto.)
+function cargarTipos() {
+  const F = window.IncidenciasFamilias;
   const select = document.getElementById('filtro-tipo');
-  tipos.forEach(t => { const opt = document.createElement('option'); opt.value = t; opt.textContent = t; select.appendChild(opt); });
+  select.innerHTML = '<option value="">Todos los tipos</option>';
+  F.tipos(familiaActiva)
+    .map(t => ({ valor: t, texto: F.etiqueta(t) }))
+    .sort((a, b) => a.texto.localeCompare(b.texto, 'es'))
+    .forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.valor;
+      opt.textContent = t.texto;
+      select.appendChild(opt);
+    });
 }
 
 // ===== Rangos rápidos =====
@@ -217,20 +288,18 @@ document.querySelectorAll('.btn-rapido').forEach(b => {
   b.onclick = () => { aplicarRango(b.dataset.rango); buscar(); };
 });
 document.getElementById('btn-buscar').onclick = buscar;
+// Tipo y estado solo afectan al listado de abajo, no al informe de arriba
+document.getElementById('filtro-tipo').onchange   = cargarListado;
+document.getElementById('filtro-estado').onchange = cargarListado;
 
 // ===== Búsqueda =====
-async function buscar() {
-  document.getElementById('tabla-incidencias').innerHTML = '<div class="cargando">Cargando…</div>';
-  document.getElementById('resumen').innerHTML = '<div class="cargando">Cargando…</div>';
+const CAMPOS = 'id, tipo, estado, detalle, comentario, created_at, trabajador_id, obra_id, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)';
 
+// Filtros que valen para las dos consultas: periodo + obra
+function aplicarFiltrosComunes(query) {
   const fDesde = document.getElementById('filtro-desde').value;
   const fHasta = document.getElementById('filtro-hasta').value;
   const obraId = document.getElementById('filtro-obra').value;
-  const tipo   = document.getElementById('filtro-tipo').value;
-
-  let query = sb.from('incidencias')
-    .select('id, tipo, detalle, comentario, created_at, trabajador_id, obra_id, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)')
-    .order('created_at', { ascending: false }).limit(1000);
 
   if (fDesde) {
     const [y, m, d] = fDesde.split('-').map(Number);
@@ -241,20 +310,96 @@ async function buscar() {
     query = query.lte('created_at', new Date(y, m - 1, d, 23, 59, 59, 999).toISOString());
   }
   if (obraId) query = query.eq('obra_id', obraId);
-  if (tipo)   query = query.eq('tipo', tipo);
+  return query;
+}
 
-  const { data, error } = await query;
+async function buscar() {
+  await Promise.all([cargarInforme(), cargarListado()]);
+}
+
+// --- 1) Informe de denegaciones: SIEMPRE los mismos tipos ---
+// Va en su propia consulta para que las miles de incidencias de rastro
+// no le coman el límite de filas y lo dejen incompleto sin avisar.
+async function cargarInforme() {
+  document.getElementById('resumen').innerHTML = '<div class="cargando">Cargando…</div>';
+
+  let query = sb.from('incidencias').select(CAMPOS)
+    .in('tipo', TIPOS_DENEGACION)
+    .order('created_at', { ascending: false }).limit(2000);
+
+  const { data, error } = await aplicarFiltrosComunes(query);
+
+  if (error) {
+    document.getElementById('badge-resumen').textContent = 'Error';
+    document.getElementById('resumen').innerHTML = '<div class="vacio">Error al cargar: ' + esc(error.message) + '</div>';
+    datosInforme = [];
+    return;
+  }
+  datosInforme = data || [];
+  pintarResumen(datosInforme);
+}
+
+// --- 2) Listado de la pestaña activa ---
+async function cargarListado() {
+  const F = window.IncidenciasFamilias;
+  document.getElementById('tabla-incidencias').innerHTML = '<div class="cargando">Cargando…</div>';
+
+  const tipo   = document.getElementById('filtro-tipo').value;
+  const estado = document.getElementById('filtro-estado').value;
+  const esAlerta = familiaActiva === F.ALERTA;
+
+  let query = sb.from('incidencias').select(CAMPOS)
+    .order('created_at', { ascending: false }).limit(1000);
+
+  // Filtrado por familia EN EL SERVIDOR (no traer todo y descartar aquí)
+  query = tipo ? query.eq('tipo', tipo) : query.in('tipo', F.tipos(familiaActiva));
+  if (esAlerta && estado) query = query.eq('estado', estado);
+
+  const { data, error } = await aplicarFiltrosComunes(query);
 
   if (error) {
     document.getElementById('badge-total').textContent = 'Error';
     document.getElementById('tabla-incidencias').innerHTML = '<div class="vacio">Error al cargar: ' + esc(error.message) + '</div>';
-    document.getElementById('resumen').innerHTML = '<div class="vacio">—</div>';
     return;
   }
 
-  datosActuales = data || [];
-  pintarResumen(datosActuales);
-  pintarListado(datosActuales);
+  pintarListado(data || []);
+  actualizarContadorAlertas();
+}
+
+// --- Contador de alertas pendientes de la pestaña ---
+async function actualizarContadorAlertas() {
+  const F = window.IncidenciasFamilias;
+  const el = document.getElementById('contador-alertas');
+
+  let query = sb.from('incidencias')
+    .select('id', { count: 'exact', head: true })
+    .in('tipo', F.tipos(F.ALERTA))
+    .eq('estado', 'nueva');
+
+  const { count, error } = await aplicarFiltrosComunes(query);
+
+  if (error) { el.textContent = '—'; el.classList.remove('cero'); return; }
+  el.textContent = count || 0;
+  el.classList.toggle('cero', !count);
+}
+
+// ===== Marcar una alerta como revisada =====
+async function marcarRevisada(id, boton) {
+  if (!confirm('¿Marcar esta incidencia como revisada?\n\nNo se puede deshacer desde aquí.')) return;
+
+  boton.disabled = true;
+  boton.textContent = '…';
+
+  const { data, error } = await sb.rpc('marcar_incidencia_vista', { p_incidencia_id: id });
+
+  if (error || !data || data.success === false) {
+    alert('No se pudo marcar: ' + ((data && data.error) || (error && error.message) || 'error desconocido'));
+    boton.disabled = false;
+    boton.textContent = '✓ Revisada';
+    return;
+  }
+  await cargarListado();
 }
 
 // ===== Causas: cada incidencia puede aportar una o varias causas =====
@@ -342,25 +487,62 @@ function iconoCausa(c) {
 
 // ===== Listado detallado =====
 function pintarListado(data) {
+  const F = window.IncidenciasFamilias;
+  const esAlerta = familiaActiva === F.ALERTA;
+  const cont = document.getElementById('tabla-incidencias');
+
   if (!data || data.length === 0) {
     document.getElementById('badge-total').textContent = '0 incidencias';
-    document.getElementById('tabla-incidencias').innerHTML = '<div class="vacio">No hay incidencias ✓</div>';
+    cont.innerHTML = '<div class="vacio">' +
+      (esAlerta ? 'No hay alertas pendientes ✓' : 'Sin registros en este periodo') + '</div>';
     return;
   }
   document.getElementById('badge-total').textContent = data.length + ' registros';
-  document.getElementById('tabla-incidencias').innerHTML = `
+
+  cont.innerHTML = `
     <table><thead><tr>
       <th>Trabajador</th><th>DNI</th><th>Obra</th><th>Tipo</th><th>Detalle</th><th>Fecha y hora</th>
+      <th>Estado</th>${esAlerta ? '<th></th>' : ''}
     </tr></thead><tbody>
     ${data.map(i => `<tr>
-      <td><strong>${esc(i.trabajador?.nombre)} ${esc(i.trabajador?.apellidos)}</strong></td>
-      <td>${esc(i.trabajador?.dni)}</td>
-      <td>${esc(i.obra?.nombre)}</td>
-      <td><span class="pill ${colorTipo(i.tipo)}">${esc(i.tipo)}</span></td>
+      <td><strong>${nombreTrabajador(i)}</strong></td>
+      <td>${esc(i.trabajador?.dni) || '—'}</td>
+      <td>${esc(i.obra?.nombre) || '—'}</td>
+      <td><span class="pill ${colorTipo(i.tipo)}">${esc(F.etiqueta(i.tipo))}</span></td>
       <td class="detalle-celda">${detalleBonito(i)}${i.comentario ? `<div class="comentario">${esc(i.comentario)}</div>` : ''}</td>
       <td>${formatFechaHora(i.created_at)}</td>
+      <td><span class="pill ${colorEstado(i.estado)}">${esc(etiquetaEstado(i.estado))}</span></td>
+      ${esAlerta ? `<td>${i.estado === 'nueva'
+        ? `<button class="btn-accion" data-id="${esc(i.id)}">✓ Revisada</button>`
+        : ''}</td>` : ''}
     </tr>`).join('')}
     </tbody></table>`;
+
+  // Los botones se enganchan aquí (nada de onclick con datos incrustados en el HTML)
+  cont.querySelectorAll('.btn-accion').forEach(b => {
+    b.onclick = () => marcarRevisada(b.dataset.id, b);
+  });
+}
+
+// La persona puede no tener ficha (presente_sin_registrar): entonces no hay
+// trabajador enlazado y el nombre declarado vive dentro del detalle.
+function nombreTrabajador(i) {
+  const n = ((i.trabajador?.nombre || '') + ' ' + (i.trabajador?.apellidos || '')).trim();
+  if (n) return esc(n);
+  const decl = leerDetalleObjeto(i);
+  if (decl && decl.nombre) return esc(decl.nombre) + ' <span class="comentario">(declarado)</span>';
+  return '—';
+}
+
+function etiquetaEstado(estado) {
+  if (estado === 'revisada') return 'Revisada';
+  if (estado === 'resuelta') return 'Resuelta';
+  return 'Nueva';
+}
+function colorEstado(estado) {
+  if (estado === 'revisada') return 'azul';
+  if (estado === 'resuelta') return 'verde';
+  return 'naranja';
 }
 
 // Si el detalle es un JSON array de motivos, mostrarlo legible
@@ -368,23 +550,43 @@ function detalleBonito(i) {
   const det = (i.detalle || '').trim();
   if (!det) return '—';
   try {
-    const arr = JSON.parse(det);
-    if (Array.isArray(arr)) return arr.map(m => '• ' + esc(String(m))).join('<br>');
+    const val = JSON.parse(det);
+    if (Array.isArray(val)) return val.map(m => '• ' + esc(String(m))).join('<br>');
+    // Objeto (p.ej. presente_sin_registrar): pares clave: valor, no el JSON crudo
+    if (val && typeof val === 'object') {
+      return Object.keys(val)
+        .filter(k => k !== 'declarado' && val[k] !== null && val[k] !== '')
+        .map(k => '<strong>' + esc(etiquetaClave(k)) + ':</strong> ' + esc(String(val[k])))
+        .join('<br>') || '—';
+    }
   } catch (e) { /* texto normal */ }
   return esc(det);
 }
 
+function etiquetaClave(k) {
+  const mapa = { dni: 'DNI', nombre: 'Nombre', empresa: 'Empresa', intentos: 'Intentos' };
+  return mapa[k] || k;
+}
+
+// Devuelve el detalle como objeto si lo es; si no, null.
+function leerDetalleObjeto(i) {
+  try {
+    const val = JSON.parse((i.detalle || '').trim());
+    return (val && typeof val === 'object' && !Array.isArray(val)) ? val : null;
+  } catch (e) { return null; }
+}
+
 function colorTipo(tipo) {
   if (!tipo) return 'gris';
-  const t = tipo.toLowerCase();
-  if (t.includes('rojo') || t.includes('autocierre') || t.includes('cierre')) return 'rojo';
-  if (t.includes('naranja') || t.includes('aviso') || t.includes('zona')) return 'naranja';
+  const t = String(tipo).toLowerCase();
+  if (t === 'bloqueo_rojo' || t === 'presente_sin_registrar') return 'rojo';
+  if (t === 'autocierre' || t === 'movil_compartido' || t === 'aviso_naranja' || t === 'fuera_de_zona') return 'naranja';
   return 'gris';
 }
 
 // ===== Informe imprimible =====
 document.getElementById('btn-imprimir').onclick = () => {
-  const r = calcularResumen(datosActuales);
+  const r = calcularResumen(datosInforme);
   const fDesde = document.getElementById('filtro-desde').value;
   const fHasta = document.getElementById('filtro-hasta').value;
   const selObra = document.getElementById('filtro-obra');
@@ -395,7 +597,7 @@ document.getElementById('btn-imprimir').onclick = () => {
   const vistos = new Set();
   const filas = [];
   // Recorremos de más antiguo a más reciente para quedarnos con la primera vez
-  [...datosActuales].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)).forEach(i => {
+  [...datosInforme].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)).forEach(i => {
     const causas = causasDenegacion(i);
     if (!causas) return;
     causas.forEach(c => {
