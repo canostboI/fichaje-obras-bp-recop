@@ -311,6 +311,17 @@ async function cargarSaludCrons() {
     '<br><small style="opacity:0.85">Revisa cron.job_run_details en Supabase (JOIN con cron.job).</small>';
 }
 
+// La sync de e-Coordina corre de LUNES A VIERNES de madrugada (ecoordina.yml).
+// Devuelve el día en que DEBERÍA haber corrido por última vez, para no dar
+// aviso naranja un domingo solo por no haber sincronizado en sábado.
+function ultimaSyncEsperada() {
+  const d = new Date();
+  if (d.getHours() < 6) d.setDate(d.getDate() - 1);                        // la de hoy aún no ha corrido
+  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1); // sáb/dom → atrás hasta viernes
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 async function cargarSyncEcoordina() {
   const el = document.getElementById('banner-ecoordina');
   const { data, error } = await sb.from('ecoordina_sync')
@@ -324,18 +335,22 @@ async function cargarSyncEcoordina() {
   }
   const d = new Date(data.ejecutada_en);
   const esHoy = d.toDateString() === new Date().toDateString();
+  const alDia = d >= ultimaSyncEsperada();
   const fecha = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
   const hora = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   let bg, color, txt;
   if (data.estado === 'error') {
     bg = 'rgba(244,67,54,0.15)'; color = '#f44336';
     txt = `⚠️ e-Coordina: la última sincronización (${esHoy ? 'hoy' : fecha} ${hora}) tuvo errores en ${data.obras_error} obra(s).`;
-  } else if (!esHoy) {
-    bg = 'rgba(255,152,0,0.15)'; color = '#ff9800';
-    txt = `⏳ e-Coordina: última sincronización el ${fecha} a las ${hora}. Hoy aún no se ha actualizado.`;
-  } else {
+  } else if (esHoy) {
     bg = 'rgba(76,175,80,0.15)'; color = '#4caf50';
     txt = `✅ e-Coordina: sincronizado hoy a las ${hora} · ${data.obras_ok} obra(s) actualizada(s).`;
+  } else if (alDia) {
+    bg = 'rgba(76,175,80,0.15)'; color = '#4caf50';
+    txt = `✅ e-Coordina: al día. Última sincronización el ${fecha} a las ${hora} (se ejecuta de lunes a viernes).`;
+  } else {
+    bg = 'rgba(255,152,0,0.15)'; color = '#ff9800';
+    txt = `⏳ e-Coordina: última sincronización el ${fecha} a las ${hora}. Ya debería haberse actualizado — revisa el workflow “ecoordina.yml” en GitHub Actions.`;
   }
   el.style.display = 'block';
   el.style.background = bg; el.style.color = color;
@@ -346,24 +361,70 @@ document.getElementById('btn-salir').addEventListener('click', async () => {
   await sb.auth.signOut(); window.location.href = '../';
 });
 
+// Tope de filas que se traen para la tabla. El contador de arriba NO depende
+// de este tope (va por count exacto) y, si se supera, se avisa bajo la tabla.
+const LIMITE_FICHAJES_TABLA = 400;
+
 async function cargarFichajes() {
   const { desdeISO, hastaISO } = rangoHoyLocal();
-  const { data } = await sb.from('fichajes')
-    .select('tipo, hora, trabajador_id, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)')
-    .gte('hora', desdeISO).lte('hora', hastaISO)
-    .order('hora', { ascending: false }).limit(50);
 
-  const n = data ? data.length : 0;
-  document.getElementById('stat-fichajes').textContent = n;
-  document.getElementById('badge-fichajes').textContent = n + ' registros';
+  // Contador REAL del día, sin límite: antes se contaban solo las filas traídas.
+  const { count: totalFichajes } = await sb.from('fichajes')
+    .select('id', { count: 'exact', head: true })
+    .gte('hora', desdeISO).lte('hora', hastaISO);
+
+  const { data } = await sb.from('fichajes')
+    .select('tipo, hora, trabajador_id, obra_id, cierre_automatico, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)')
+    .gte('hora', desdeISO).lte('hora', hastaISO)
+    .order('hora', { ascending: true }).limit(LIMITE_FICHAJES_TABLA);
+
+  const total = (typeof totalFichajes === 'number') ? totalFichajes : (data ? data.length : 0);
+  document.getElementById('stat-fichajes').textContent = total;
 
   if (!data || data.length === 0) {
+    document.getElementById('badge-fichajes').textContent = '0 personas';
     document.getElementById('tabla-fichajes').innerHTML = '<div class="vacio">No hay fichajes hoy</div>';
     return;
   }
 
+  // ── Agrupar por PERSONA + OBRA: una fila por jornada, no una por fichaje ──
+  // Los datos llegan en orden ascendente, así que la primera entrada que se ve es
+  // la primera del día y la última salida que se ve es la definitiva.
+  const grupos = new Map();
+  data.forEach(f => {
+    const clave = (f.trabajador_id || 'sin-id') + '|' + (f.obra_id || 'sin-obra');
+    if (!grupos.has(clave)) {
+      grupos.set(clave, {
+        trabajador_id: f.trabajador_id, trabajador: f.trabajador, obra: f.obra,
+        entrada: null, salida: null, nEntradas: 0, nSalidas: 0,
+        salidaAuto: false, ultimoTipo: null
+      });
+    }
+    const g = grupos.get(clave);
+    if (f.tipo === 'entrada') {
+      g.nEntradas++;
+      if (!g.entrada) g.entrada = f.hora;
+    } else {
+      g.nSalidas++;
+      g.salida = f.hora;
+      g.salidaAuto = !!f.cierre_automatico;
+    }
+    g.ultimoTipo = f.tipo;
+  });
+
+  // Primero los que siguen en obra; dentro de cada bloque, por orden de llegada.
+  const filas = [...grupos.values()].sort((a, b) => {
+    const enA = a.ultimoTipo === 'entrada' ? 0 : 1;
+    const enB = b.ultimoTipo === 'entrada' ? 0 : 1;
+    if (enA !== enB) return enA - enB;
+    return String(a.entrada || '').localeCompare(String(b.entrada || ''));
+  });
+
+  document.getElementById('badge-fichajes').textContent =
+    filas.length + (filas.length === 1 ? ' persona' : ' personas') + ' · ' + total + ' fichajes';
+
   // Cargar habilitaciones de los trabajadores en la tabla
-  const ids = [...new Set(data.map(f => f.trabajador_id).filter(Boolean))];
+  const ids = [...new Set(filas.map(g => g.trabajador_id).filter(Boolean))];
   const habIconos = {};
   if (ids.length > 0) {
     const { data: habs } = await sb
@@ -378,23 +439,34 @@ async function cargarFichajes() {
     });
   }
 
+  const aviso = (total > data.length)
+    ? `<div class="vacio" style="margin-top:10px">Se muestran los ${data.length} primeros fichajes de hoy, de ${total}. Para el listado completo del día, usa la página de Fichajes.</div>`
+    : '';
+
   document.getElementById('tabla-fichajes').innerHTML = `
     <table><thead><tr>
       <th>Estado</th><th>Nombre</th><th>DNI</th><th>Obra</th><th>Entrada</th><th>Salida</th>
     </tr></thead><tbody>
-    ${data.map(f => {
-      const iconos = (habIconos[f.trabajador_id] || []).join(' ');
+    ${filas.map(g => {
+      const iconos = (habIconos[g.trabajador_id] || []).join(' ');
       const iconosHtml = iconos ? `<span class="iconos-hab" title="Habilitaciones: ${iconos}">${iconos}</span>` : '';
+      const enObra = g.ultimoTipo === 'entrada';
+      const repetido = (g.nEntradas > 1 || g.nSalidas > 1)
+        ? `<span style="opacity:0.6;font-size:11px;margin-left:5px" title="${g.nEntradas} entrada(s) y ${g.nSalidas} salida(s) hoy en esta obra. Se muestran la primera entrada y la última salida.">⇄${g.nEntradas + g.nSalidas}</span>`
+        : '';
+      const auto = (g.salida && g.salidaAuto)
+        ? `<span style="opacity:0.75;font-size:11px;margin-left:4px" title="Salida puesta por el cierre automático de la noche. Conviene corregirla.">🕛</span>`
+        : '';
       return `<tr>
-        <td><span class="pill ${f.tipo === 'entrada' ? 'verde' : 'azul'}">${f.tipo === 'entrada' ? 'En obra' : 'Salida'}</span></td>
-        <td><strong>${esc(f.trabajador?.nombre)} ${esc(f.trabajador?.apellidos)}</strong>${iconosHtml}</td>
-        <td>${esc(f.trabajador?.dni)}</td>
-        <td>${esc(f.obra?.nombre)}</td>
-        <td>${f.tipo === 'entrada' ? formatHora(f.hora) : '—'}</td>
-        <td>${f.tipo === 'salida' ? formatHora(f.hora) : '—'}</td>
+        <td><span class="pill ${enObra ? 'verde' : 'azul'}">${enObra ? 'En obra' : 'Salió'}</span></td>
+        <td><strong>${esc(g.trabajador?.nombre)} ${esc(g.trabajador?.apellidos)}</strong>${iconosHtml}${repetido}</td>
+        <td>${esc(g.trabajador?.dni)}</td>
+        <td>${esc(g.obra?.nombre)}</td>
+        <td>${formatHora(g.entrada)}</td>
+        <td>${g.salida ? formatHora(g.salida) + auto : '—'}</td>
       </tr>`;
     }).join('')}
-    </tbody></table>`;
+    </tbody></table>${aviso}`;
 }
 
 async function cargarObras() {
