@@ -846,16 +846,24 @@ function irATrabaladoresRP() {
 
 function iniciarRefrescoPresencia() {
   if (intervalPresencia) { clearInterval(intervalPresencia); intervalPresencia = null; }
-  intervalPresencia = setInterval(() => {
+  intervalPresencia = setInterval(async () => {
     if (document.hidden) return;
     if (!obraActual) return;
-    cargarPresencia();
+    await cargarPresencia();
+    // Con la presencia recién leída, recalcular quién sigue sin poder entrar:
+    // si no, el contador se queda congelado en el de primera hora y sigue
+    // enseñando en rojo a gente que ya está dentro trabajando.
+    await cargarBloqueos();
     cargarRondaEncargado();
   }, 60 * 1000);
 }
 
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && obraActual) { cargarPresencia(); cargarRondaEncargado(); }
+document.addEventListener('visibilitychange', async () => {
+  if (!document.hidden && obraActual) {
+    await cargarPresencia();
+    await cargarBloqueos();
+    cargarRondaEncargado();
+  }
 });
 
 function aplicarBrandingObra(empresaMarca) {
