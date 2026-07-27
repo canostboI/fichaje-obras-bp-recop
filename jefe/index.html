@@ -8,6 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
 <script src="../js/branding.js"></script>
 <script src="../js/auto-logout.js"></script>
+<script src="../js/accesos-resueltos.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -188,6 +189,25 @@
   .acceso-detalle { margin-top: 9px; color: var(--texto2); font-size: 13px; line-height: 1.45; }
   .acceso-motivos { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
   .acceso-motivo-item { background: rgba(244,67,54,0.07); border: 1px solid rgba(244,67,54,0.2); border-radius: 6px; padding: 6px 10px; font-size: 13px; color: var(--texto); line-height: 1.4; }
+  .acceso-motivo-item.naranja { background: rgba(255,152,0,0.07); border-color: rgba(255,152,0,0.25); color: var(--texto2); }
+  .acceso-bloque-titulo { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; margin-top: 6px; color: var(--rojo); }
+  .acceso-bloque-titulo.naranja { color: var(--naranja); margin-top: 10px; }
+  .acceso-sin-motivo { font-size: 13px; color: var(--texto2); font-style: italic; padding: 6px 0; }
+  /* Bloque de resueltos: mismo dato, sin gritar. */
+  .accesos-seccion { margin-top: 20px; }
+  .accesos-seccion-titulo { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--texto2); padding-bottom: 6px; border-bottom: 1px solid var(--borde); }
+  .acceso-item.resuelto { opacity: 0.72; border-color: var(--borde); background: transparent; }
+  .acceso-item.resuelto .acceso-contador { color: var(--texto2); font-weight: 600; }
+  .acceso-item.resuelto .acceso-motivo-item { background: transparent; border-color: var(--borde); color: var(--texto2); }
+  .acceso-desenlace { display: inline-block; margin-top: 8px; font-size: 13px; color: var(--verde); font-weight: 600; }
+  .accesos-rapidos { margin-top: 16px; border: 1px solid var(--borde); border-radius: 10px; padding: 10px 14px; }
+  .accesos-rapidos > summary { cursor: pointer; font-size: 13px; color: var(--texto2); list-style: none; }
+  .accesos-rapidos > summary::-webkit-details-marker { display: none; }
+  .accesos-rapidos > summary::before { content: '▸ '; color: var(--texto2); }
+  .accesos-rapidos[open] > summary::before { content: '▾ '; }
+  .accesos-rapidos-lista { margin-top: 8px; font-size: 13px; color: var(--texto2); line-height: 1.7; }
+  .accesos-nota { margin-top: 14px; font-size: 12px; color: var(--texto2); line-height: 1.5; }
+  .accesos-aviso { background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.35); color: var(--naranja); border-radius: 8px; padding: 9px 12px; font-size: 13px; margin-bottom: 10px; }
 
   .conexion-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 200; padding: 10px 20px; text-align: center; font-size: 14px; font-weight: 600; color: white; background: var(--rojo); box-shadow: 0 2px 10px rgba(0,0,0,0.3); transform: translateY(0); transition: transform 0.3s ease, background 0.3s ease; }
   .conexion-banner.oculto { transform: translateY(-100%); }
@@ -298,7 +318,11 @@
         <div class="desglose" id="stat-desglose" style="display:none"></div>
       </div>
       <div class="stat stat-clickable naranja-hover" id="card-naranjas" role="button" tabindex="0" title="Ver trabajadores presentes con documentación naranja"><div class="numero naranja" id="stat-naranja">—</div><div class="etiqueta">Documentación naranja</div></div>
-      <div class="stat stat-clickable rojo-hover" id="card-rojos" role="button" tabindex="0" title="Ver detalle de accesos denegados"><div class="numero rojo" id="stat-rojo">—</div><div class="etiqueta">Personas denegadas hoy</div></div>
+      <div class="stat stat-clickable rojo-hover" id="card-rojos" role="button" tabindex="0" title="Ver detalle de accesos denegados">
+        <div class="numero rojo" id="stat-rojo">—</div>
+        <div class="etiqueta">Denegados sin resolver</div>
+        <div class="desglose" id="stat-rojo-desglose" style="display:none"></div>
+      </div>
     </div>
     <div style="height:20px"></div>
     <div class="panel-bloqueos oculto" id="panel-bloqueos">
@@ -430,6 +454,11 @@ let fotoUrlActual = '';
 
 let validacionesCache = {};
 let naranjasActualesCache = [];
+// Fichajes de hoy en la obra activa. Los carga cargarPresencia() y los
+// reutilizan el contador de denegados y su modal, para saber quién de los
+// denegados acabó ENTRANDO. `null` = todavía no se sabe (o falló la carga):
+// en ese caso no se da nada por resuelto.
+let fichajesHoyCache = null;
 let empresasPropias = new Set();
 
 let estaOffline = false;
@@ -940,8 +969,10 @@ async function cargarPresencia() {
       .order('hora', { ascending: true });
     if (resp.error) throw resp.error;
     fichajes = resp.data;
+    fichajesHoyCache = fichajes || [];
     marcarOnline();
   } catch (err) {
+    fichajesHoyCache = null;
     marcarOffline();
     document.getElementById('tabla-presencia').innerHTML = '<div class="vacio">No se pudo cargar la presencia. Reintentando automáticamente…</div>';
     return;
@@ -1195,123 +1226,96 @@ document.getElementById('modal-naranjas-overlay').addEventListener('click', e =>
   if (e.target === document.getElementById('modal-naranjas-overlay')) cerrarModalNaranjas();
 });
 
-// ── P-01: cargarBloqueos — contador = personas distintas, no intentos ──
+// ── Contador y panel de accesos denegados ───────────────────────────────
+// La REGLA de qué sigue pendiente y qué se resolvió solo vive en
+// js/accesos-resueltos.js (compartida con encargado/ y admin/): un intento
+// denegado que acabó en ENTRADA no es trabajo pendiente. Pasa cada mañana:
+// el GPS del móvil da la posición de la antena y al reintentar entra, o la
+// sync de e-Coordina pasa a la persona de rojo a naranja y entra al rato.
+// Si eso sumara en el contador, el número sería tan grande que no se
+// miraría. Nada se borra: las incidencias siguen en la bandeja del admin.
 async function cargarBloqueos() {
   const panel = document.getElementById('panel-bloqueos');
   const lista = document.getElementById('bloqueos-lista');
   const titulo = document.getElementById('bloqueos-titulo');
+  const desglose = document.getElementById('stat-rojo-desglose');
   panel.classList.add('oculto');
   lista.innerHTML = '';
+  desglose.style.display = 'none';
+  desglose.innerHTML = '';
   document.getElementById('stat-rojo').textContent = '0';
   if (!obraActual) return;
   const { desdeISO, hastaISO } = rangoHoyLocal();
 
-  // Contador "Personas denegadas hoy": personas distintas (doc/GPS + sin registrar)
-  const { data: dataHistorico } = await sb
-    .from('incidencias')
-    .select('trabajador_id')
-    .eq('obra_id', obraActual)
-    .in('tipo', ['bloqueo_rojo', 'fuera_de_zona'])
-    .gte('created_at', desdeISO)
-    .lte('created_at', hastaISO);
-  const personasDistintas = new Set((dataHistorico || []).map(i => i.trabajador_id).filter(Boolean));
-
-  const { data: dataSRhist } = await sb
-    .from('incidencias')
-    .select('detalle')
-    .eq('obra_id', obraActual)
-    .eq('tipo', 'presente_sin_registrar')
-    .gte('created_at', desdeISO)
-    .lte('created_at', hastaISO);
-  (dataSRhist || []).forEach(i => {
-    const d = parseDetalleSR(i.detalle);
-    if (d && d.dni) personasDistintas.add('SR:' + d.dni);
-  });
-  document.getElementById('stat-rojo').textContent = personasDistintas.size;
-
-  // Lista de pendientes (estado 'nueva'): bloqueos documentales / GPS
   const { data: incidencias } = await sb
     .from('incidencias')
-    .select('id, tipo, detalle, created_at, trabajador:trabajador_id(id, nombre, apellidos, dni)')
+    .select('id, tipo, detalle, estado, created_at, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni, empresa:empresa_id(nombre))')
     .eq('obra_id', obraActual)
     .in('tipo', ['bloqueo_rojo', 'fuera_de_zona'])
-    .eq('estado', 'nueva')
     .gte('created_at', desdeISO)
     .lte('created_at', hastaISO)
     .order('created_at', { ascending: false });
-  const porTrabajador = {};
-  (incidencias || []).forEach(inc => {
-    const tid = inc.trabajador?.id || 'desconocido';
-    if (!porTrabajador[tid]) {
-      porTrabajador[tid] = { incidencia_id: inc.id, trabajador: inc.trabajador, primer_intento: inc.created_at, ultimo_intento: inc.created_at, intentos: 1, tipos: new Set([inc.tipo || 'bloqueo_rojo']) };
-    } else {
-      porTrabajador[tid].intentos++;
-      porTrabajador[tid].tipos.add(inc.tipo || 'bloqueo_rojo');
-      if (inc.created_at < porTrabajador[tid].primer_intento) porTrabajador[tid].primer_intento = inc.created_at;
-    }
-  });
-  const grupos = Object.values(porTrabajador);
 
-  // ...y presentes sin registrar (personas sin ficha; identidad en detalle JSON)
-  const { data: incidenciasSR } = await sb
+  const { data: dataSR } = await sb
     .from('incidencias')
-    .select('id, detalle, created_at')
+    .select('id, detalle, estado, created_at')
     .eq('obra_id', obraActual)
     .eq('tipo', 'presente_sin_registrar')
-    .eq('estado', 'nueva')
     .gte('created_at', desdeISO)
     .lte('created_at', hastaISO)
     .order('created_at', { ascending: false });
-  const gruposSR = (incidenciasSR || []).map(inc => {
+
+  const gruposSR = (dataSR || []).map(inc => {
     const d = parseDetalleSR(inc.detalle) || {};
-    return { incidencia_id: inc.id, nombre: d.nombre || '', empresa: d.empresa || '', dni: d.dni || '', intentos: d.intentos || 1, ultimo_intento: inc.created_at };
+    return {
+      incidencia_id: inc.id, nombre: d.nombre || '', empresa: d.empresa || '',
+      dni: d.dni || '', intentos: d.intentos || 1, ultimo_intento: inc.created_at,
+      pendiente: (inc.estado || 'nueva') === 'nueva'
+    };
   });
 
-  if (grupos.length === 0 && gruposSR.length === 0) return;
+  // Sin fichajes cargados no se da nada por resuelto: mejor un pendiente de
+  // más que esconder a alguien que se quedó en la valla.
+  const clas = AccesosResueltos.clasificar({
+    incidencias: incidencias || [],
+    sinRegistrar: gruposSR,
+    fichajes: fichajesHoyCache
+  });
 
-  const totalPersonas = grupos.length + gruposSR.length;
-  const totalPendientes = grupos.reduce((s, g) => s + g.intentos, 0) + gruposSR.reduce((s, g) => s + g.intentos, 0);
-  titulo.textContent = totalPersonas === 1
-    ? `1 persona · ${totalPendientes} ${totalPendientes === 1 ? 'intento pendiente' : 'intentos pendientes'}`
-    : `${totalPersonas} personas · ${totalPendientes} ${totalPendientes === 1 ? 'intento pendiente' : 'intentos pendientes'}`;
+  document.getElementById('stat-rojo').textContent = clas.totales.personasPendientes;
 
-  const htmlSR = gruposSR.map(g => {
-    const nombre = g.nombre || '(nombre no facilitado)';
-    const empresa = g.empresa ? ` · ${g.empresa}` : '';
+  const nRes = clas.totales.personasResueltas;
+  if (nRes > 0) {
+    desglose.style.display = 'block';
+    desglose.textContent = `✅ ${nRes} ${nRes === 1 ? 'resuelto' : 'resueltos'} solo${nRes === 1 ? '' : 's'} hoy`;
+  }
+
+  // El panel rojo solo saca a quien SIGUE fuera y no se ha marcado como visto.
+  const porRevisar = clas.pendientes.filter(g => g.pendientes > 0);
+  if (porRevisar.length === 0) return;
+
+  const totalIntentos = porRevisar.reduce((s, g) => s + g.pendientes, 0);
+  titulo.textContent = porRevisar.length === 1
+    ? `1 persona sin poder entrar · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'}`
+    : `${porRevisar.length} personas sin poder entrar · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'}`;
+
+  lista.innerHTML = porRevisar.map(g => {
     const dni = g.dni ? ` — ${g.dni}` : '';
-    const horaUltimo = formatHora(g.ultimo_intento);
+    const horaUltimo = formatHora(g.ultimoIntento);
     const intentosTexto = g.intentos === 1 ? '1 intento' : `${g.intentos} intentos`;
+    const etiquetaTxt = AccesosResueltos.etiquetas(g).join(' · ');
+    const boton = g.incidencia_id
+      ? `<button class="btn-visto-rojo" onclick="marcarVistoRojo('${g.incidencia_id}', this)">✓ Visto</button>`
+      : '';
     return `
-      <div class="bloqueo-item" data-id="${g.incidencia_id}">
+      <div class="bloqueo-item" data-id="${esc(g.incidencia_id || '')}">
         <div class="bloqueo-info">
-          <strong>${esc(nombre)}</strong>
-          <div class="detalle">🆕 Sin registrar${esc(empresa)} · ${esc(horaUltimo)} · ${esc(intentosTexto)}${esc(dni)}</div>
-        </div>
-        <button class="btn-visto-rojo" onclick="marcarVistoRojo('${g.incidencia_id}', this)">✓ Visto</button>
-      </div>`;
-  }).join('');
-
-  const htmlDoc = grupos.map(g => {
-    const t = g.trabajador || {};
-    const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || '(sin nombre)';
-    const dni = t.dni ? ` — ${t.dni}` : '';
-    const horaUltimo = formatHora(g.ultimo_intento);
-    const intentosTexto = g.intentos === 1 ? '1 intento' : `${g.intentos} intentos`;
-    const etiquetas = [];
-    if (g.tipos.has('bloqueo_rojo')) etiquetas.push('🔴 Documentación');
-    if (g.tipos.has('fuera_de_zona')) etiquetas.push('📍 GPS');
-    const etiquetaTxt = etiquetas.join(' · ');
-    return `
-      <div class="bloqueo-item" data-id="${g.incidencia_id}">
-        <div class="bloqueo-info">
-          <strong>${esc(nombre)}</strong>
+          <strong>${esc(g.nombre)}</strong>
           <div class="detalle">${esc(etiquetaTxt)} · ${esc(horaUltimo)} · ${esc(intentosTexto)}${esc(dni)}</div>
         </div>
-        <button class="btn-visto-rojo" onclick="marcarVistoRojo('${g.incidencia_id}', this)">✓ Visto</button>
+        ${boton}
       </div>`;
   }).join('');
-
-  lista.innerHTML = htmlSR + htmlDoc;
   panel.classList.remove('oculto');
 }
 
@@ -1323,7 +1327,14 @@ async function marcarVistoRojo(incidenciaId, btn) {
   await cargarBloqueos();
 }
 
-// ── P-01 Fix 2: modal accesos denegados — añadir empresa en acceso-meta ──
+// ── Modal "Accesos denegados hoy" ───────────────────────────────────────
+// Dos cambios de fondo respecto a la versión anterior:
+// 1) El motivo sale de `incidencias.detalle` (la foto CONGELADA del momento
+//    del intento) y no de `validaciones_obra` (el estado de AHORA). Con el
+//    estado de ahora, a quien le arreglaban los papeles se le quedaba el
+//    recuadro VACÍO, y a quien pasaba a naranja se le enseñaban sus naranjas
+//    como si fueran la causa del bloqueo. Se ha quitado esa consulta.
+// 2) Se separa quien sigue fuera de quien acabó entrando.
 async function abrirModalAccesosDenegados() {
   const overlay = document.getElementById('modal-accesos-overlay');
   const contenido = document.getElementById('modal-accesos-contenido');
@@ -1336,6 +1347,7 @@ async function abrirModalAccesosDenegados() {
   if (!obraActual) { contenido.innerHTML = '<div class="modal-motivos-vacio">Selecciona una obra para ver el detalle.</div>'; return; }
   const obraNombre = document.getElementById('selector-obra').options[document.getElementById('selector-obra').selectedIndex]?.text || 'obra seleccionada';
   sub.textContent = `Detalle de intentos bloqueados hoy en ${obraNombre}`;
+
   const { desdeISO, hastaISO } = rangoHoyLocal();
   const { data, error } = await sb
     .from('incidencias')
@@ -1346,17 +1358,7 @@ async function abrirModalAccesosDenegados() {
     .lte('created_at', hastaISO)
     .order('created_at', { ascending: false });
   if (error) { contenido.innerHTML = `<div class="modal-motivos-vacio">No se pudo cargar el detalle: ${esc(error.message)}</div>`; return; }
-  const incidencias = data || [];
-  const idsConBloqueo = [...new Set(incidencias.map(inc => inc.trabajador_id).filter(Boolean))];
-  let motivosPorTrabajador = {};
-  if (idsConBloqueo.length > 0) {
-    const { data: vals } = await sb
-      .from('validaciones_obra')
-      .select('trabajador_id, motivos')
-      .eq('obra_id', obraActual)
-      .in('trabajador_id', idsConBloqueo);
-    (vals || []).forEach(v => { motivosPorTrabajador[v.trabajador_id] = v.motivos || []; });
-  }
+
   const { data: dataSR } = await sb
     .from('incidencias')
     .select('id, detalle, estado, created_at')
@@ -1367,91 +1369,129 @@ async function abrirModalAccesosDenegados() {
     .order('created_at', { ascending: false });
   const gruposSR = (dataSR || []).map(inc => {
     const d = parseDetalleSR(inc.detalle) || {};
-    return { nombre: d.nombre || '', empresa: d.empresa || '', dni: d.dni || '', intentos: d.intentos || 1, ultimo_intento: inc.created_at, pendiente: (inc.estado || 'nueva') === 'nueva' };
+    return {
+      incidencia_id: inc.id, nombre: d.nombre || '', empresa: d.empresa || '',
+      dni: d.dni || '', intentos: d.intentos || 1, ultimo_intento: inc.created_at,
+      pendiente: (inc.estado || 'nueva') === 'nueva'
+    };
   });
-  pintarDetalleAccesos(incidencias, motivosPorTrabajador, gruposSR);
+
+  pintarDetalleAccesos(AccesosResueltos.clasificar({
+    incidencias: data || [],
+    sinRegistrar: gruposSR,
+    fichajes: fichajesHoyCache
+  }));
 }
 
-function pintarDetalleAccesos(incidencias, motivosPorTrabajador, gruposSR) {
+// Motivos del bloqueo, separando lo que DENIEGA de lo que solo AVISA.
+function pintarMotivosAcceso(g) {
+  const partes = [];
+  if (g.tipos.indexOf('bloqueo_rojo') !== -1) {
+    const cls = AccesosResueltos.clasificarMotivos(g.detalles);
+    if (cls.rojos.length) {
+      partes.push('<div class="acceso-bloque-titulo">🚫 Le bloquea:</div>');
+      partes.push(cls.rojos.map(m => `<div class="acceso-motivo-item">${esc(m)}</div>`).join(''));
+    } else {
+      // Los bloqueos anteriores a junio de 2026 guardaban un texto genérico.
+      partes.push('<div class="acceso-sin-motivo">Motivo no registrado (bloqueo anterior a junio).</div>');
+    }
+    if (cls.naranjas.length) {
+      const visibles = cls.naranjas.slice(0, 3);
+      const resto = cls.naranjas.length - visibles.length;
+      partes.push('<div class="acceso-bloque-titulo naranja">⚠️ Además tiene aviso:</div>');
+      partes.push(visibles.map(m => `<div class="acceso-motivo-item naranja">${esc(m)}</div>`).join(''));
+      if (resto > 0) partes.push(`<div class="acceso-motivo-item naranja">+${resto} aviso${resto === 1 ? '' : 's'} más</div>`);
+    }
+  }
+  if (g.detallesGps.length) {
+    partes.push('<div class="acceso-bloque-titulo">📍 GPS:</div>');
+    partes.push(g.detallesGps.slice(0, 3).map(d => `<div class="acceso-motivo-item">${esc(d)}</div>`).join(''));
+  }
+  if (!partes.length) return '';
+  return `<div class="acceso-motivos">${partes.join('')}</div>`;
+}
+
+function tarjetaAcceso(g, resuelto) {
+  const dni = g.dni ? `DNI: ${g.dni}` : 'DNI no disponible';
+  const empresa = g.empresa ? ` · <strong>${esc(g.empresa)}</strong>` : '';
+  const etiquetaTxt = AccesosResueltos.etiquetas(g).join(' · ');
+  const cabecera = `<div class="acceso-contador">${g.intentos} ${g.intentos === 1 ? 'intento' : 'intentos'}</div>`;
+  const revisado = g.pendientes > 0
+    ? `${g.pendientes} pendiente${g.pendientes === 1 ? '' : 's'} de revisar${g.revisados ? ` · ${g.revisados} revisado${g.revisados === 1 ? '' : 's'}` : ''}`
+    : `Todo revisado (${g.revisados})`;
+  const desenlace = resuelto
+    ? `<div class="acceso-desenlace">✅ ${esc(AccesosResueltos.textoDesenlace(g))}</div>`
+    : '';
+  const detalleSR = g.clase === 'sin_registrar'
+    ? '<div class="acceso-detalle">Dato declarado sin verificar · esta persona no tiene ficha en la app.</div>'
+    : '';
+  return `
+    <div class="acceso-item${resuelto ? ' resuelto' : ''}">
+      <div class="acceso-top">
+        <div>
+          <div class="acceso-nombre">${esc(g.nombre)}</div>
+          <div class="acceso-meta">${esc(dni)}${empresa} · Último intento: ${esc(formatHora(g.ultimoIntento))}</div>
+        </div>
+        ${cabecera}
+      </div>
+      <div class="acceso-detalle">${etiquetaTxt ? '<strong>' + etiquetaTxt + '</strong> · ' : ''}${esc(revisado)}</div>
+      ${detalleSR}
+      ${desenlace}
+      ${pintarMotivosAcceso(g)}
+    </div>`;
+}
+
+function pintarDetalleAccesos(clas) {
   const contenido = document.getElementById('modal-accesos-contenido');
   const resumen = document.getElementById('modal-accesos-resumen');
-  const srList = gruposSR || [];
-  if ((!incidencias || incidencias.length === 0) && srList.length === 0) {
+
+  if (!clas || clas.totales.personas === 0) {
     resumen.style.display = 'none';
     contenido.innerHTML = '<div class="modal-motivos-vacio">Hoy no hay accesos denegados en esta obra.</div>';
     return;
   }
-  const porTrabajador = {};
-  (incidencias || []).forEach(inc => {
-    const t = inc.trabajador || null;
-    const key = t?.id || inc.trabajador_id || ('sin_trabajador_' + (inc.detalle || ''));
-    if (!porTrabajador[key]) {
-      porTrabajador[key] = { trabajador: t, trabajador_id: inc.trabajador_id, intentos: 0, pendientes: 0, revisados: 0, ultimo: inc.created_at, tipos: new Set(), detallesGps: new Set() };
-    }
-    const g = porTrabajador[key];
-    g.intentos++;
-    g.tipos.add(inc.tipo || 'bloqueo_rojo');
-    if (inc.tipo === 'fuera_de_zona' && inc.detalle) g.detallesGps.add(inc.detalle);
-    if ((inc.estado || 'nueva') === 'nueva') g.pendientes++; else g.revisados++;
-    if (inc.created_at && new Date(inc.created_at) > new Date(g.ultimo)) g.ultimo = inc.created_at;
-  });
-  const grupos = Object.values(porTrabajador).sort((a, b) => new Date(b.ultimo) - new Date(a.ultimo));
-  const totalIntentos = (incidencias || []).length + srList.reduce((s, g) => s + g.intentos, 0);
-  const totalPersonas = grupos.length + srList.length;
-  const totalPendientes = grupos.reduce((s, g) => s + g.pendientes, 0) + srList.filter(g => g.pendiente).length;
+
+  const t = clas.totales;
   resumen.style.display = 'block';
-  resumen.textContent = `${totalPersonas} ${totalPersonas === 1 ? 'persona' : 'personas'} · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'} hoy · ${totalPendientes} pendiente${totalPendientes === 1 ? '' : 's'} de revisar`;
-  const htmlSR = srList.map(g => {
-    const nombre = g.nombre || 'Persona no identificada';
-    const empresa = g.empresa ? ` · <strong>${esc(g.empresa)}</strong>` : '';
-    const dni = g.dni ? `DNI: ${g.dni}` : 'DNI no disponible';
-    return `
-      <div class="acceso-item">
-        <div class="acceso-top">
-          <div>
-            <div class="acceso-nombre">${esc(nombre)}</div>
-            <div class="acceso-meta">${esc(dni)}${empresa} · Último intento: ${esc(formatHora(g.ultimo_intento))}</div>
-          </div>
-          <div class="acceso-contador">${g.intentos} ${g.intentos === 1 ? 'intento' : 'intentos'}</div>
+  resumen.className = t.personasPendientes > 0 ? 'accesos-resumen' : 'accesos-resumen naranja';
+  resumen.textContent = t.personasPendientes > 0
+    ? `${t.personasPendientes} sin poder entrar · ${t.personasResueltas} resuelto${t.personasResueltas === 1 ? '' : 's'} · ${t.intentos} intento${t.intentos === 1 ? '' : 's'} hoy`
+    : `Nadie se ha quedado fuera · ${t.personasResueltas} caso${t.personasResueltas === 1 ? '' : 's'} resuelto${t.personasResueltas === 1 ? '' : 's'} · ${t.intentos} intento${t.intentos === 1 ? '' : 's'} hoy`;
+
+  let html = '';
+
+  if (!clas.entradasConocidas) {
+    html += '<div class="accesos-aviso">No se han podido leer los fichajes de hoy, así que no se sabe quién acabó entrando: se muestran todos como pendientes.</div>';
+  }
+
+  if (clas.pendientes.length) {
+    html += '<div class="accesos-seccion-titulo">🚫 Se quedaron fuera</div>';
+    html += clas.pendientes.map(g => tarjetaAcceso(g, false)).join('');
+  }
+
+  if (clas.resueltos.length) {
+    html += '<div class="accesos-seccion"><div class="accesos-seccion-titulo">✅ Resueltos hoy · entraron más tarde</div>';
+    html += clas.resueltos.map(g => tarjetaAcceso(g, true)).join('');
+    html += '</div>';
+  }
+
+  if (clas.rapidos.length) {
+    const n = clas.rapidos.length;
+    html += `
+      <details class="accesos-rapidos">
+        <summary>${n} ${n === 1 ? 'caso resuelto solo' : 'casos resueltos solos'} en menos de ${clas.minutosGracia} min (GPS impreciso o sincronización): no ${n === 1 ? 'requiere' : 'requieren'} nada</summary>
+        <div class="accesos-rapidos-lista">
+          ${clas.rapidos.map(g => {
+            const causa = g.detallesGps[0] || AccesosResueltos.clasificarMotivos(g.detalles).rojos[0] || '';
+            return `• ${esc(g.nombre)} — ${esc(AccesosResueltos.textoDesenlace(g))}${causa ? ' · ' + esc(causa) : ''}`;
+          }).join('<br>')}
         </div>
-        <div class="acceso-detalle"><strong>🆕 Sin registrar</strong> · dato declarado sin verificar</div>
-      </div>`;
-  }).join('');
-  const htmlDoc = grupos.map(g => {
-    const t = g.trabajador || {};
-    const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || 'Trabajador no identificado';
-    const dni = t.dni ? `DNI: ${t.dni}` : 'DNI no disponible';
-    const empresa = t.empresa?.nombre ? ` · <strong>${esc(t.empresa.nombre)}</strong>` : '';
-    const estadoTxt = g.pendientes > 0
-      ? `${g.pendientes} pendiente${g.pendientes === 1 ? '' : 's'}${g.revisados ? ` · ${g.revisados} revisado${g.revisados === 1 ? '' : 's'}` : ''}`
-      : `Todo revisado (${g.revisados})`;
-    const motivos = motivosPorTrabajador[g.trabajador_id] || [];
-    const etiquetas = [];
-    if (g.tipos.has('bloqueo_rojo')) etiquetas.push('🔴 Documentación');
-    if (g.tipos.has('fuera_de_zona')) etiquetas.push('📍 Fuera de zona GPS');
-    const etiquetaTxt = etiquetas.join(' · ');
-    const motivosDoc = g.tipos.has('bloqueo_rojo')
-      ? motivos.map(m => `<div class="acceso-motivo-item">${esc(limpiarMotivo(m))}</div>`)
-      : [];
-    const motivosGps = Array.from(g.detallesGps).slice(0, 3).map(d => `<div class="acceso-motivo-item">${esc(d)}</div>`);
-    const todosMotivos = motivosDoc.concat(motivosGps);
-    const motivosHtml = todosMotivos.length > 0
-      ? '<div class="acceso-motivos">' + todosMotivos.join('') + '</div>'
-      : '';
-    return `
-      <div class="acceso-item">
-        <div class="acceso-top">
-          <div>
-            <div class="acceso-nombre">${esc(nombre)}</div>
-            <div class="acceso-meta">${esc(dni)}${empresa} · Último intento: ${esc(formatHora(g.ultimo))}</div>
-          </div>
-          <div class="acceso-contador">${g.intentos} ${g.intentos === 1 ? 'intento' : 'intentos'}</div>
-        </div>
-        <div class="acceso-detalle">${etiquetaTxt ? '<strong>' + etiquetaTxt + '</strong> · ' : ''}${esc(estadoTxt)}</div>
-        ${motivosHtml}
-      </div>`;
-  }).join('');
-  contenido.innerHTML = htmlSR + htmlDoc;
+      </details>`;
+  }
+
+  html += `<div class="accesos-nota">Todos los intentos quedan registrados en la bandeja de incidencias del admin, se muestren aquí como pendientes o no.</div>`;
+
+  contenido.innerHTML = html;
 }
 
 function cerrarModalAccesos() {
