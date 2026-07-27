@@ -897,19 +897,25 @@
 
   function iniciarRefrescoPresencia() {
     if (intervalPresencia) { clearInterval(intervalPresencia); intervalPresencia = null; }
-    intervalPresencia = setInterval(() => {
+    intervalPresencia = setInterval(async () => {
       if (document.hidden) return;
       if (!obraActualId) return;
       // Solo auto-refrescar si estamos viendo hoy
       const fechaActual = document.getElementById('input-fecha-presencia').value || fechaHoyISO();
-      if (esHoy(fechaActual)) cargarPresencia(obraActualId, fechaActual);
+      if (!esHoy(fechaActual)) return;
+      await cargarPresencia(obraActualId, fechaActual);
+      // Y con la presencia recién leída, recalcular quién sigue sin entrar.
+      // Si no, el contador se queda congelado en el de las 7 de la mañana.
+      await cargarBloqueos();
     }, 60 * 1000);
   }
 
-  document.addEventListener('visibilitychange', () => {
+  document.addEventListener('visibilitychange', async () => {
     if (!document.hidden && obraActualId) {
       const fechaActual = document.getElementById('input-fecha-presencia').value || fechaHoyISO();
-      if (esHoy(fechaActual)) cargarPresencia(obraActualId, fechaActual);
+      if (!esHoy(fechaActual)) return;
+      await cargarPresencia(obraActualId, fechaActual);
+      await cargarBloqueos();
     }
   });
 
@@ -1333,8 +1339,28 @@
 
   document.getElementById('input-sin-fichar').addEventListener('input', pintarDeclaracionRonda);
 
-  document.getElementById('btn-ronda').addEventListener('click', () => {
+  document.getElementById('btn-ronda').addEventListener('click', async () => {
     if (!obraActualId) return;
+
+    // La ronda es una DECLARACIÓN firmada y su número dispara el email al
+    // jefe: se recalcula justo antes de enseñarla, no se usa lo que se
+    // calculó al abrir la pantalla hace tres horas. El 27/7/2026 se cerró
+    // una ronda con "4 sin poder fichar" cuando esos 4 ya estaban dentro
+    // desde las 08:20.
+    const btn = document.getElementById('btn-ronda');
+    const textoBtn = btn.innerHTML;
+    btn.disabled = true;
+    try {
+      const fechaActual = document.getElementById('input-fecha-presencia').value || fechaHoyISO();
+      if (esHoy(fechaActual)) {
+        await cargarPresencia(obraActualId, fechaActual);
+        await cargarBloqueos();
+      }
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = textoBtn;
+    }
+
     const numPresentes = presentesCache.length;
     if (numPresentes === 0) return;
 
