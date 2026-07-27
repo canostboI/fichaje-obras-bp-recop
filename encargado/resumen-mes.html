@@ -328,6 +328,11 @@
   let resumenTrabajadores = {};     // trabajador_id -> { nombre, dni, dias, dias_ajuste }
   let ajustesMesMap = {};           // trabajador_id -> { dia: { horas, motivo } }
   let horasObraActual = { entrada: null, salida: null };
+  // Se pone a true si alguna consulta de apoyo al cálculo (horas fijadas,
+  // horario de la obra, días de intensiva) falla. Con esto a true las horas
+  // en pantalla pueden no coincidir con el proforma: se avisa y se bloquea
+  // la descarga del listado del día.
+  let datosCalculoIncompletos = false;
   let diasIntensivaSetEnc = new Set();
   let horarioIntensivaEnc = { entrada: null, salida: null, descanso: null };
 
@@ -403,13 +408,21 @@
 
     miNombreUsuario = (usuario.nombre || session.user.email || '—') + ' (encargado)';
 
-    const { data: asignaciones } = await sb
+    const { data: asignacionesRaw, error: errAsig } = await sb
       .from('usuarios_obra')
-      .select('obra_id, obras(id, nombre, empresa_marca)')
+      .select('obra_id, obras(id, nombre, empresa_marca, estado)')
       .eq('usuario_app_id', usuario.id)
       .eq('rol_en_obra', 'encargado');
 
-    if (!asignaciones || asignaciones.length === 0) {
+    if (errAsig) {
+      mostrarError('No se han podido cargar tus obras: ' + errAsig.message);
+      return;
+    }
+
+    // Las obras OCULTAS no se muestran (misma regla que el panel del jefe, US-4).
+    const asignaciones = (asignacionesRaw || []).filter(a => a.obras && a.obras.estado !== 'oculta');
+
+    if (asignaciones.length === 0) {
       mostrarError('No tienes ninguna obra asignada.');
       return;
     }
@@ -523,6 +536,8 @@
     mesCargado = mes;
     ajustarSelectorDia(mes);
     resumenTrabajadores = {};
+    datosCalculoIncompletos = false;
+    const avisosCarga = [];
 
     // Días "tocados": con algún fichaje manual o corregido → esquina amarilla
     diasTocadosMap = {};
@@ -551,41 +566,63 @@
     const [year, month] = mes.split('-').map(Number);
     const diasMes = new Date(year, month, 0).getDate();
 
-    // Ajustes de horas fijadas del mes (tabla ajustes_horas_dia)
+    // Ajustes de horas fijadas del mes (tabla ajustes_horas_dia).
+    // Si esta consulta falla NO se puede callar: la pantalla enseñaría las
+    // horas CALCULADAS donde debería enseñar las FIJADAS, que son las que
+    // paga el proforma. Antes el error se ignoraba (se recogía solo `data`),
+    // así que el try/catch no llegaba a ejecutarse nunca.
     ajustesMesMap = {};
-    try {
+    {
       const primerDia = mes + '-01';
       const ultimoDia = mes + '-' + String(diasMes).padStart(2, '0');
-      const { data: ajs } = await sb.from('ajustes_horas_dia')
+      const { data: ajs, error: errAjs } = await sb.from('ajustes_horas_dia')
         .select('trabajador_id, fecha, horas, motivo')
         .eq('obra_id', obraActualId)
         .gte('fecha', primerDia).lte('fecha', ultimoDia);
-      (ajs || []).forEach(a => {
-        const dia = Number(String(a.fecha).slice(8, 10));
-        if (!ajustesMesMap[a.trabajador_id]) ajustesMesMap[a.trabajador_id] = {};
-        ajustesMesMap[a.trabajador_id][dia] = { horas: Number(a.horas), motivo: a.motivo || '' };
-      });
-    } catch (e) { /* si la tabla no responde, el resumen sale con las horas calculadas */ }
+      if (errAjs) {
+        datosCalculoIncompletos = true;
+        avisosCarga.push('no se han podido leer las horas fijadas a mano');
+        console.error('ajustes_horas_dia:', errAjs);
+      } else {
+        (ajs || []).forEach(a => {
+          const dia = Number(String(a.fecha).slice(8, 10));
+          if (!ajustesMesMap[a.trabajador_id]) ajustesMesMap[a.trabajador_id] = {};
+          ajustesMesMap[a.trabajador_id][dia] = { horas: Number(a.horas), motivo: a.motivo || '' };
+        });
+      }
+    }
 
     // Horas oficiales de la obra (suelo/techo del cómputo de horas) + horario intensiva.
     let horasObra = { entrada: null, salida: null, descanso: null };
     horarioIntensivaEnc = { entrada: null, salida: null, descanso: null };
     diasIntensivaSetEnc = new Set();
-    try {
-      const { data: obraInfo } = await sb.from('obras')
+    // Sin el horario de la obra el cálculo pierde suelo/techo y descanso: las
+    // horas saldrían infladas. Tampoco puede fallar en silencio.
+    {
+      const { data: obraInfo, error: errObraInfo } = await sb.from('obras')
         .select('hora_entrada_default, hora_salida_default, minutos_descanso, hora_entrada_intensiva, hora_salida_intensiva, minutos_descanso_intensiva')
         .eq('id', obraActualId).single();
-      if (obraInfo) {
+      if (errObraInfo) {
+        datosCalculoIncompletos = true;
+        avisosCarga.push('no se ha podido leer el horario de la obra');
+        console.error('obras (horario):', errObraInfo);
+      } else if (obraInfo) {
         horasObra = { entrada: obraInfo.hora_entrada_default, salida: obraInfo.hora_salida_default, descanso: obraInfo.minutos_descanso };
         horarioIntensivaEnc = { entrada: obraInfo.hora_entrada_intensiva, salida: obraInfo.hora_salida_intensiva, descanso: obraInfo.minutos_descanso_intensiva };
       }
-    } catch (e) { /* sin horas oficiales: el cálculo simplemente no aplica suelo/techo */ }
-    try {
-      const { data: dias } = await sb.from('dias_intensiva_obra')
+    }
+    {
+      const { data: dias, error: errDias } = await sb.from('dias_intensiva_obra')
         .select('fecha').eq('obra_id', obraActualId)
         .gte('fecha', `${mes}-01`).lte('fecha', `${mes}-${String(diasMes).padStart(2,'0')}`);
-      (dias || []).forEach(r => diasIntensivaSetEnc.add(r.fecha));
-    } catch (e) { /* sin días intensiva */ }
+      if (errDias) {
+        datosCalculoIncompletos = true;
+        avisosCarga.push('no se han podido leer los días de jornada intensiva');
+        console.error('dias_intensiva_obra:', errDias);
+      } else {
+        (dias || []).forEach(r => diasIntensivaSetEnc.add(r.fecha));
+      }
+    }
     horasObraActual = horasObra;
 
     const grupos = window.ExcelProforma.agruparPorEmpresa(fichajes);
@@ -610,9 +647,17 @@
 
     zona.innerHTML = html;
 
+    const partes = [];
+    if (avisosCarga.length) {
+      partes.push('⛔ Estas horas pueden NO ser correctas: ' + avisosCarga.join('; ')
+        + '. Recarga la página antes de darlas por buenas.');
+    }
     if (totalAutocierres > 0) {
-      msg.className = 'msg-info aviso';
-      msg.textContent = `⚠️ ${totalAutocierres} ${totalAutocierres === 1 ? 'salida' : 'salidas'} con cierre automático este mes.`;
+      partes.push(`⚠️ ${totalAutocierres} ${totalAutocierres === 1 ? 'salida' : 'salidas'} con cierre automático este mes.`);
+    }
+    if (partes.length) {
+      msg.className = avisosCarga.length ? 'msg-info err' : 'msg-info aviso';
+      msg.textContent = partes.join(' · ');
     }
   }
 
@@ -749,23 +794,22 @@
     const lista = document.getElementById('dia-lista');
     const fichajes = fichajesDelDia(trabajadorId, dia);
 
-    // Horas del día (mismo cálculo que el resumen: pares entrada→salida)
-    let entrada = null, horas = 0;
-    fichajes.forEach(f => {
-      const h = new Date(f.hora);
-      if (f.tipo === 'entrada') { if (!entrada) entrada = h; }
-      else if (f.tipo === 'salida' && entrada) {
-        const diff = (h - entrada) / 3600000;
-        if (diff > 0 && diff < 24) horas += diff;
-        entrada = null;
-      }
-    });
-    const ajDia = (resumenTrabajadores[trabajadorId] && resumenTrabajadores[trabajadorId].dias_ajuste
-      && resumenTrabajadores[trabajadorId].dias_ajuste[dia]) || null;
-    let lineaHoras = fichajes.length === 0 ? '' : `Horas computadas este día: <b>${formatHoras(redondear2(horas))} h</b>`;
+    // Las horas NO se calculan aquí. Se leen del resumen que ya construyó
+    // js/excel-proforma.js, que es el único motor: así el modal, la celda de
+    // la tabla y el Excel dicen SIEMPRE lo mismo. Antes esta línea restaba
+    // salida menos entrada a mano, sin horario de obra, sin descanso y sin
+    // redondeo: un día normal salía a 9,08 h en el modal y a 7,5 h en la celda.
+    const tRes = resumenTrabajadores[trabajadorId] || {};
+    const ajDia = (tRes.dias_ajuste && tRes.dias_ajuste[dia]) || null;
+    const horasDia = (tRes.dias && tRes.dias[dia]) || 0;
+
+    let lineaHoras = '';
     if (ajDia) {
       lineaHoras = `Horas del día: <b>${formatHoras(ajDia.fijadas)} h</b> <span style="color:#1565c0">(fijadas a mano; calculadas ${formatHoras(ajDia.calculadas)} h)</span>`
         + (ajDia.motivo ? `<br><span style="font-size:0.78rem">📝 ${esc(ajDia.motivo)}</span>` : '');
+    } else if (fichajes.length > 0) {
+      lineaHoras = `Horas computadas este día: <b>${formatHoras(horasDia)} h</b>`
+        + ` <span style="font-size:0.78rem;color:#999">(con horario de obra, descanso y redondeo aplicados)</span>`;
     }
     document.getElementById('dia-horas').innerHTML = lineaHoras;
 
@@ -1251,6 +1295,13 @@
     if (mesCargado !== mes || fecha.slice(0, 7) !== mes) {
       msg.className = 'msg-info err';
       msg.textContent = 'El día elegido no pertenece al mes cargado. Carga ese mes primero.';
+      return;
+    }
+    // Guarda: si el mes se cargó con datos de cálculo incompletos, el Excel
+    // enseñaría horas que pueden no cuadrar con el proforma. Mejor no darlo.
+    if (datosCalculoIncompletos) {
+      msg.className = 'msg-info err';
+      msg.textContent = 'No se puede generar el listado: falta algún dato del cálculo (horas fijadas u horario de la obra) y las horas podrían no coincidir con el proforma. Recarga la página e inténtalo otra vez.';
       return;
     }
 
