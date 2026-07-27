@@ -90,8 +90,30 @@
   .acceso-contador { white-space: nowrap; color: var(--rojo); font-weight: 800; font-size: 14px; }
   .acceso-contador.naranja { color: var(--naranja); }
   .acceso-detalle { margin-top: 9px; color: var(--texto2); font-size: 13px; line-height: 1.45; }
+  .stat .desglose { font-size: 12px; color: var(--texto2); margin-top: 6px; }
+  .acceso-motivos { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .acceso-motivo-item { background: rgba(244,67,54,0.07); border: 1px solid rgba(244,67,54,0.2); border-radius: 6px; padding: 6px 10px; font-size: 13px; color: var(--texto); line-height: 1.4; }
+  .acceso-motivo-item.naranja { background: rgba(255,152,0,0.07); border-color: rgba(255,152,0,0.25); color: var(--texto2); }
+  .acceso-bloque-titulo { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; margin-top: 6px; color: var(--rojo); }
+  .acceso-bloque-titulo.naranja { color: var(--naranja); margin-top: 10px; }
+  .acceso-sin-motivo { font-size: 13px; color: var(--texto2); font-style: italic; padding: 6px 0; }
+  .accesos-seccion { margin-top: 20px; }
+  .accesos-seccion-titulo { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--texto2); padding-bottom: 6px; border-bottom: 1px solid var(--borde); }
+  .acceso-item.resuelto { opacity: 0.72; border-color: var(--borde); background: transparent; }
+  .acceso-item.resuelto .acceso-contador { color: var(--texto2); font-weight: 600; }
+  .acceso-item.resuelto .acceso-motivo-item { background: transparent; border-color: var(--borde); color: var(--texto2); }
+  .acceso-desenlace { display: inline-block; margin-top: 8px; font-size: 13px; color: var(--verde); font-weight: 600; }
+  .accesos-rapidos { margin-top: 16px; border: 1px solid var(--borde); border-radius: 10px; padding: 10px 14px; }
+  .accesos-rapidos > summary { cursor: pointer; font-size: 13px; color: var(--texto2); list-style: none; }
+  .accesos-rapidos > summary::-webkit-details-marker { display: none; }
+  .accesos-rapidos > summary::before { content: '▸ '; }
+  .accesos-rapidos[open] > summary::before { content: '▾ '; }
+  .accesos-rapidos-lista { margin-top: 8px; font-size: 13px; color: var(--texto2); line-height: 1.7; }
+  .accesos-nota { margin-top: 14px; font-size: 12px; color: var(--texto2); line-height: 1.5; }
+  .accesos-aviso { background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.35); color: var(--naranja); border-radius: 8px; padding: 9px 12px; font-size: 13px; margin-bottom: 10px; }
 </style>
   <script src="../js/auto-logout.js"></script>
+  <script src="../js/accesos-resueltos.js"></script>
 </head>
 <body>
 
@@ -127,7 +149,11 @@
     <div class="stats">
       <div class="stat"><div class="numero azul" id="stat-fichajes">—</div><div class="etiqueta">Fichajes hoy</div></div>
       <div class="stat"><div class="numero verde" id="stat-obras">—</div><div class="etiqueta">Obras activas</div></div>
-      <div class="stat stat-clickable rojo-hover" id="card-rojos" role="button" tabindex="0" title="Ver detalle de accesos denegados"><div class="numero rojo" id="stat-rojos">—</div><div class="etiqueta">Accesos denegados hoy</div></div>
+      <div class="stat stat-clickable rojo-hover" id="card-rojos" role="button" tabindex="0" title="Ver detalle de accesos denegados">
+        <div class="numero rojo" id="stat-rojos">—</div>
+        <div class="etiqueta">Denegados sin resolver</div>
+        <div class="desglose" id="stat-rojos-desglose" style="display:none"></div>
+      </div>
       <div class="stat stat-clickable naranja-hover" id="card-incidencias" role="button" tabindex="0" title="Ver detalle de incidencias de hoy"><div class="numero naranja" id="stat-incidencias">—</div><div class="etiqueta">Incidencias hoy</div></div>
     </div>
     <div class="seccion">
@@ -478,15 +504,204 @@ async function cargarObras() {
   document.getElementById('tabla-obras').innerHTML = `<table><thead><tr><th>Nombre</th><th>Dirección</th><th>Empresa</th></tr></thead><tbody>${data.map(o => `<tr><td><strong>${esc(o.nombre)}</strong></td><td>${esc(o.direccion || '—')}</td><td>${esc(o.empresa_marca || '—')}</td></tr>`).join('')}</tbody></table>`;
 }
 
-async function cargarAccesosDenegadosHoy() {
+// ── Accesos denegados de hoy (todas las obras) ──────────────────────────
+// La REGLA de qué sigue pendiente y qué se resolvió solo vive en
+// js/accesos-resueltos.js, compartida con jefe/ y encargado/. Un intento
+// denegado que acabó en ENTRADA no es trabajo pendiente: el GPS del móvil
+// da la posición de la antena y al reintentar entra, o la sync de
+// e-Coordina pasa a la persona de rojo a naranja y entra al rato.
+//
+// El módulo trabaja con UNA obra cada vez, a propósito: si mezclara obras,
+// alguien denegado en Muralla y presente en Escola saldría como resuelto.
+// Por eso aquí se agrupa por obra y se llama una vez por cada una.
+
+async function obtenerAccesosHoy() {
   const { desdeISO, hastaISO } = rangoHoyLocal();
-  const { count, error } = await sb.from('incidencias')
-    .select('id', { count: 'exact', head: true })
+
+  const { data: incidencias, error } = await sb
+    .from('incidencias')
+    .select('id, tipo, detalle, estado, created_at, trabajador_id, obra_id, trabajador:trabajador_id(id, nombre, apellidos, dni), obra:obra_id(id, nombre)')
     .in('tipo', ['bloqueo_rojo', 'fuera_de_zona'])
     .gte('created_at', desdeISO)
-    .lte('created_at', hastaISO);
-  if (error) { document.getElementById('stat-rojos').textContent = '—'; return; }
-  document.getElementById('stat-rojos').textContent = count ?? 0;
+    .lte('created_at', hastaISO)
+    .order('created_at', { ascending: false });
+  if (error) return { error: error.message };
+
+  // Fichajes de hoy: para saber quién de los denegados acabó entrando.
+  // Si esta consulta falla no se da nada por resuelto (se avisa en el modal).
+  let fichajes = null;
+  const resp = await sb
+    .from('fichajes')
+    .select('tipo, hora, obra_id, trabajador_id, trabajador:trabajador_id(id, dni)')
+    .gte('hora', desdeISO)
+    .lte('hora', hastaISO);
+  if (!resp.error) fichajes = resp.data || [];
+
+  const porObra = {};
+  (incidencias || []).forEach(inc => {
+    const k = inc.obra_id || 'sin_obra';
+    if (!porObra[k]) porObra[k] = { obraId: inc.obra_id, obraNombre: inc.obra?.nombre || 'Obra no disponible', incidencias: [] };
+    porObra[k].incidencias.push(inc);
+  });
+
+  const obras = Object.keys(porObra).map(k => {
+    const o = porObra[k];
+    const suyos = (fichajes === null) ? null : fichajes.filter(f => f.obra_id === o.obraId);
+    const clas = AccesosResueltos.clasificar({ incidencias: o.incidencias, fichajes: suyos });
+    clas.personas.forEach(g => { g.obraNombre = o.obraNombre; });
+    return { obraNombre: o.obraNombre, clas: clas };
+  });
+
+  const total = { pendientes: 0, resueltos: 0, intentos: 0 };
+  obras.forEach(o => {
+    total.pendientes += o.clas.totales.personasPendientes;
+    total.resueltos += o.clas.totales.personasResueltas;
+    total.intentos += o.clas.totales.intentos;
+  });
+
+  return { obras: obras, total: total, entradasConocidas: fichajes !== null };
+}
+
+async function cargarAccesosDenegadosHoy() {
+  const desglose = document.getElementById('stat-rojos-desglose');
+  desglose.style.display = 'none';
+  desglose.textContent = '';
+  const res = await obtenerAccesosHoy();
+  if (res.error) { document.getElementById('stat-rojos').textContent = '—'; return; }
+  document.getElementById('stat-rojos').textContent = res.total.pendientes;
+  if (res.total.resueltos > 0) {
+    desglose.style.display = 'block';
+    desglose.textContent = `✅ ${res.total.resueltos} ${res.total.resueltos === 1 ? 'resuelto' : 'resueltos'} solo${res.total.resueltos === 1 ? '' : 's'} hoy`;
+  }
+}
+
+async function abrirModalAccesosDenegados() {
+  const overlay = document.getElementById('modal-accesos-overlay');
+  const contenido = document.getElementById('modal-accesos-contenido');
+  const resumen = document.getElementById('modal-accesos-resumen');
+
+  overlay.classList.add('visible');
+  contenido.innerHTML = '<div class="cargando">Cargando…</div>';
+  resumen.style.display = 'none';
+  resumen.textContent = '';
+
+  const res = await obtenerAccesosHoy();
+  if (res.error) {
+    contenido.innerHTML = `<div class="vacio">No se pudo cargar el detalle: ${esc(res.error)}</div>`;
+    return;
+  }
+  pintarDetalleAccesos(res);
+}
+
+// Motivos del bloqueo: arriba lo que DENIEGA, abajo lo que solo AVISA.
+// Salen de `incidencias.detalle` (la foto congelada del momento del intento).
+// Antes se pintaba ese campo EN CRUDO, con sus corchetes y comillas.
+function pintarMotivosAcceso(g) {
+  const partes = [];
+  if (g.tipos.indexOf('bloqueo_rojo') !== -1) {
+    const cls = AccesosResueltos.clasificarMotivos(g.detalles);
+    if (cls.rojos.length) {
+      partes.push('<div class="acceso-bloque-titulo">🚫 Le bloquea:</div>');
+      partes.push(cls.rojos.map(m => `<div class="acceso-motivo-item">${esc(m)}</div>`).join(''));
+    } else {
+      partes.push('<div class="acceso-sin-motivo">Motivo no registrado (bloqueo anterior a junio).</div>');
+    }
+    if (cls.naranjas.length) {
+      const visibles = cls.naranjas.slice(0, 3);
+      const resto = cls.naranjas.length - visibles.length;
+      partes.push('<div class="acceso-bloque-titulo naranja">⚠️ Además tiene aviso:</div>');
+      partes.push(visibles.map(m => `<div class="acceso-motivo-item naranja">${esc(m)}</div>`).join(''));
+      if (resto > 0) partes.push(`<div class="acceso-motivo-item naranja">+${resto} aviso${resto === 1 ? '' : 's'} más</div>`);
+    }
+  }
+  if (g.detallesGps.length) {
+    partes.push('<div class="acceso-bloque-titulo">📍 GPS:</div>');
+    partes.push(g.detallesGps.slice(0, 3).map(d => `<div class="acceso-motivo-item">${esc(d)}</div>`).join(''));
+  }
+  return partes.length ? `<div class="acceso-motivos">${partes.join('')}</div>` : '';
+}
+
+function tarjetaAcceso(g, resuelto) {
+  const dni = g.dni ? `DNI: ${g.dni}` : 'DNI no disponible';
+  const obra = g.obraNombre ? ` · Obra: ${g.obraNombre}` : '';
+  const etiquetaTxt = AccesosResueltos.etiquetas(g).join(' · ');
+  const revisado = g.pendientes > 0
+    ? `${g.pendientes} pendiente${g.pendientes === 1 ? '' : 's'} de revisar${g.revisados ? ` · ${g.revisados} revisado${g.revisados === 1 ? '' : 's'}` : ''}`
+    : `Todo revisado (${g.revisados})`;
+  const desenlace = resuelto
+    ? `<div class="acceso-desenlace">✅ ${esc(AccesosResueltos.textoDesenlace(g))}</div>`
+    : '';
+  return `
+    <div class="acceso-item${resuelto ? ' resuelto' : ''}">
+      <div class="acceso-top">
+        <div>
+          <div class="acceso-nombre">${esc(g.nombre)}</div>
+          <div class="acceso-meta">${esc(dni)}${esc(obra)} · Último intento: ${esc(formatHora(g.ultimoIntento))}</div>
+        </div>
+        <div class="acceso-contador">${g.intentos} ${g.intentos === 1 ? 'intento' : 'intentos'}</div>
+      </div>
+      <div class="acceso-detalle">${etiquetaTxt ? '<strong>' + etiquetaTxt + '</strong> · ' : ''}${esc(revisado)}</div>
+      ${desenlace}
+      ${pintarMotivosAcceso(g)}
+    </div>`;
+}
+
+function pintarDetalleAccesos(res) {
+  const contenido = document.getElementById('modal-accesos-contenido');
+  const resumen = document.getElementById('modal-accesos-resumen');
+
+  if (!res || !res.obras || res.obras.length === 0) {
+    resumen.style.display = 'none';
+    contenido.innerHTML = '<div class="vacio">Hoy no hay accesos denegados.</div>';
+    return;
+  }
+
+  const pendientes = [], resueltos = [], rapidos = [];
+  res.obras.forEach(o => {
+    pendientes.push(...o.clas.pendientes);
+    resueltos.push(...o.clas.resueltos);
+    rapidos.push(...o.clas.rapidos);
+  });
+  const porFecha = (a, b) => new Date(b.ultimoIntento) - new Date(a.ultimoIntento);
+  pendientes.sort(porFecha); resueltos.sort(porFecha); rapidos.sort(porFecha);
+
+  const t = res.total;
+  resumen.style.display = 'block';
+  resumen.className = t.pendientes > 0 ? 'accesos-resumen' : 'accesos-resumen naranja';
+  resumen.textContent = t.pendientes > 0
+    ? `${t.pendientes} sin poder entrar · ${t.resueltos} resuelto${t.resueltos === 1 ? '' : 's'} · ${t.intentos} intento${t.intentos === 1 ? '' : 's'} hoy`
+    : `Nadie se ha quedado fuera · ${t.resueltos} caso${t.resueltos === 1 ? '' : 's'} resuelto${t.resueltos === 1 ? '' : 's'} · ${t.intentos} intento${t.intentos === 1 ? '' : 's'} hoy`;
+
+  let html = '';
+  if (!res.entradasConocidas) {
+    html += '<div class="accesos-aviso">No se han podido leer los fichajes de hoy, así que no se sabe quién acabó entrando: se muestran todos como pendientes.</div>';
+  }
+  if (pendientes.length) {
+    html += '<div class="accesos-seccion-titulo">🚫 Se quedaron fuera</div>';
+    html += pendientes.map(g => tarjetaAcceso(g, false)).join('');
+  }
+  if (resueltos.length) {
+    html += '<div class="accesos-seccion"><div class="accesos-seccion-titulo">✅ Resueltos hoy · entraron más tarde</div>';
+    html += resueltos.map(g => tarjetaAcceso(g, true)).join('');
+    html += '</div>';
+  }
+  if (rapidos.length) {
+    const n = rapidos.length;
+    const gracia = res.obras[0].clas.minutosGracia;
+    html += `
+      <details class="accesos-rapidos">
+        <summary>${n} ${n === 1 ? 'caso resuelto solo' : 'casos resueltos solos'} en menos de ${gracia} min (GPS impreciso o sincronización): no ${n === 1 ? 'requiere' : 'requieren'} nada</summary>
+        <div class="accesos-rapidos-lista">
+          ${rapidos.map(g => {
+            const causa = g.detallesGps[0] || AccesosResueltos.clasificarMotivos(g.detalles).rojos[0] || '';
+            return `• ${esc(g.nombre)}${g.obraNombre ? ' (' + esc(g.obraNombre) + ')' : ''} — ${esc(AccesosResueltos.textoDesenlace(g))}${causa ? ' · ' + esc(causa) : ''}`;
+          }).join('<br>')}
+        </div>
+      </details>`;
+  }
+  html += '<div class="accesos-nota">Todos los intentos quedan registrados en la bandeja de incidencias, se muestren aquí como pendientes o no.</div>';
+
+  contenido.innerHTML = html;
 }
 
 async function cargarTablaRojos() {
@@ -508,96 +723,6 @@ async function cargarIncidencias() {
   document.getElementById('badge-incidencias').textContent = n + ' hoy';
   if (!data || data.length === 0) { document.getElementById('tabla-incidencias').innerHTML = '<div class="vacio">No hay incidencias hoy</div>'; return; }
   document.getElementById('tabla-incidencias').innerHTML = `<table><thead><tr><th>Trabajador</th><th>Obra</th><th>Tipo</th><th>Detalle</th><th>Hora</th></tr></thead><tbody>${data.map(i => `<tr><td><strong>${esc(i.trabajador?.nombre)} ${esc(i.trabajador?.apellidos)}</strong></td><td>${esc(i.obra?.nombre)}</td><td><span class="pill naranja">${esc(i.tipo)}</span></td><td>${esc(i.detalle || '—')}${i.comentario ? '<br><small style="color:var(--texto2)">' + esc(i.comentario) + '</small>' : ''}</td><td>${formatHora(i.created_at)}</td></tr>`).join('')}</tbody></table>`;
-}
-
-async function abrirModalAccesosDenegados() {
-  const overlay = document.getElementById('modal-accesos-overlay');
-  const contenido = document.getElementById('modal-accesos-contenido');
-  const resumen = document.getElementById('modal-accesos-resumen');
-
-  overlay.classList.add('visible');
-  contenido.innerHTML = '<div class="cargando">Cargando…</div>';
-  resumen.style.display = 'none';
-  resumen.textContent = '';
-
-  const { desdeISO, hastaISO } = rangoHoyLocal();
-  const { data, error } = await sb
-    .from('incidencias')
-    .select('id, tipo, detalle, estado, created_at, trabajador_id, obra_id, trabajador:trabajador_id(id, nombre, apellidos, dni), obra:obra_id(id, nombre)')
-    .in('tipo', ['bloqueo_rojo', 'fuera_de_zona'])
-    .gte('created_at', desdeISO)
-    .lte('created_at', hastaISO)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    contenido.innerHTML = `<div class="vacio">No se pudo cargar el detalle: ${esc(error.message)}</div>`;
-    return;
-  }
-
-  pintarDetalleAccesos(data || []);
-}
-
-function pintarDetalleAccesos(incidencias) {
-  const contenido = document.getElementById('modal-accesos-contenido');
-  const resumen = document.getElementById('modal-accesos-resumen');
-
-  if (!incidencias || incidencias.length === 0) {
-    resumen.style.display = 'none';
-    contenido.innerHTML = '<div class="vacio">Hoy no hay accesos denegados.</div>';
-    return;
-  }
-
-  const porTrabajadorObra = {};
-  incidencias.forEach(inc => {
-    const t = inc.trabajador || null;
-    const o = inc.obra || null;
-    const key = `${inc.obra_id || 'sin_obra'}|${t?.id || inc.trabajador_id || inc.detalle || 'sin_trabajador'}`;
-    if (!porTrabajadorObra[key]) {
-      porTrabajadorObra[key] = { trabajador: t, obra: o, intentos: 0, pendientes: 0, revisados: 0, ultimo: inc.created_at, detalles: new Set(), tipos: new Set() };
-    }
-    const g = porTrabajadorObra[key];
-    g.intentos++;
-    g.tipos.add(inc.tipo || 'bloqueo_rojo');
-    if ((inc.estado || 'nueva') === 'nueva') g.pendientes++;
-    else g.revisados++;
-    if (inc.created_at && new Date(inc.created_at) > new Date(g.ultimo)) g.ultimo = inc.created_at;
-    if (inc.detalle) g.detalles.add(inc.detalle);
-  });
-
-  const grupos = Object.values(porTrabajadorObra).sort((a, b) => new Date(b.ultimo) - new Date(a.ultimo));
-  const totalIntentos = incidencias.length;
-  const totalPersonasObra = grupos.length;
-  const totalPendientes = grupos.reduce((s, g) => s + g.pendientes, 0);
-
-  resumen.style.display = 'block';
-  resumen.textContent = `${totalPersonasObra} ${totalPersonasObra === 1 ? 'trabajador/obra' : 'trabajadores/obra'} · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'} hoy · ${totalPendientes} pendiente${totalPendientes === 1 ? '' : 's'} de revisar`;
-
-  contenido.innerHTML = grupos.map(g => {
-    const t = g.trabajador || {};
-    const o = g.obra || {};
-    const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || 'Trabajador no identificado';
-    const dni = t.dni ? `DNI: ${t.dni}` : 'DNI no disponible';
-    const obra = o.nombre ? `Obra: ${o.nombre}` : 'Obra no disponible';
-    const estadoTxt = g.pendientes > 0
-      ? `${g.pendientes} pendiente${g.pendientes === 1 ? '' : 's'}${g.revisados ? ` · ${g.revisados} revisado${g.revisados === 1 ? '' : 's'}` : ''}`
-      : `Todo revisado (${g.revisados})`;
-    const motivos = [];
-    if (g.tipos.has('bloqueo_rojo')) motivos.push('🔴 Documentación');
-    if (g.tipos.has('fuera_de_zona')) motivos.push('📍 Fuera de zona GPS');
-    const motivoTxt = motivos.join(' · ');
-    const detalles = Array.from(g.detalles).slice(0, 3).map(d => esc(d)).join('<br>');
-    return `
-      <div class="acceso-item">
-        <div class="acceso-top">
-          <div>
-            <div class="acceso-nombre">${esc(nombre)}</div>
-            <div class="acceso-meta">${esc(dni)} · ${esc(obra)} · Último intento: ${esc(formatHora(g.ultimo))}</div>
-          </div>
-          <div class="acceso-contador">${g.intentos} ${g.intentos === 1 ? 'intento' : 'intentos'}</div>
-        </div>
-        <div class="acceso-detalle">${motivoTxt ? '<strong>' + motivoTxt + '</strong><br>' : ''}${esc(estadoTxt)}${detalles ? '<br>' + detalles : ''}</div>
-      </div>`;
-  }).join('');
 }
 
 function cerrarModalAccesos() {
