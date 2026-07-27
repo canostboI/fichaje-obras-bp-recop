@@ -469,6 +469,11 @@ let horasObraActual = { entrada: null, salida: null };
 let diasIntensivaSet = new Set();
 let horarioNormal = { entrada: null, salida: null, descanso: null };
 let horarioIntensiva = { entrada: null, salida: null, descanso: null };
+// Se pone a true si falla alguna consulta de apoyo al cálculo (horas fijadas,
+// horario de la obra, días de intensiva). Con esto a true las horas pueden no
+// ser las buenas: se avisa en pantalla y NO se deja exportar nada, porque el
+// proforma es el entregable económico y no puede salir divergiendo en silencio.
+let datosCalculoIncompletos = false;
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -594,22 +599,28 @@ async function obtenerFichajesMes(obraId, mes) {
 
 // Ajustes de horas fijadas del mes (tabla ajustes_horas_dia).
 // Devuelve { trabajador_id: { dia: { horas, motivo } } }.
+// Si la consulta falla LANZA. Antes se tragaba el error y devolvía un mapa
+// VACÍO, y ese mapa vacío entraba tal cual en ExcelProforma.generar: el
+// proforma salía con las horas CALCULADAS donde tocaban las FIJADAS, sin
+// avisar de nada. Es el mismo fallo de N-1 por otra puerta.
 async function obtenerAjustesMes(obraId, mes) {
   const mapa = {};
-  try {
-    const [year, month] = mes.split('-').map(Number);
-    const ultimo = new Date(year, month, 0).getDate();
-    const { data: ajs } = await sb.from('ajustes_horas_dia')
-      .select('trabajador_id, fecha, horas, motivo')
-      .eq('obra_id', obraId)
-      .gte('fecha', mes + '-01')
-      .lte('fecha', mes + '-' + String(ultimo).padStart(2, '0'));
-    (ajs || []).forEach(a => {
-      const dia = Number(String(a.fecha).slice(8, 10));
-      if (!mapa[a.trabajador_id]) mapa[a.trabajador_id] = {};
-      mapa[a.trabajador_id][dia] = { horas: Number(a.horas), motivo: a.motivo || '' };
-    });
-  } catch (e) { /* sin ajustes: se usan las horas calculadas */ }
+  const [year, month] = mes.split('-').map(Number);
+  const ultimo = new Date(year, month, 0).getDate();
+  const { data: ajs, error } = await sb.from('ajustes_horas_dia')
+    .select('trabajador_id, fecha, horas, motivo')
+    .eq('obra_id', obraId)
+    .gte('fecha', mes + '-01')
+    .lte('fecha', mes + '-' + String(ultimo).padStart(2, '0'));
+  if (error) {
+    console.error('ajustes_horas_dia:', error);
+    throw new Error('no se han podido leer las horas fijadas a mano (' + error.message + ')');
+  }
+  (ajs || []).forEach(a => {
+    const dia = Number(String(a.fecha).slice(8, 10));
+    if (!mapa[a.trabajador_id]) mapa[a.trabajador_id] = {};
+    mapa[a.trabajador_id][dia] = { horas: Number(a.horas), motivo: a.motivo || '' };
+  });
   return mapa;
 }
 
@@ -626,6 +637,14 @@ async function exportarExcelProforma() {
   if (!mes || !/^\d{4}-\d{2}$/.test(mes)) { msg.className = 'msg-info err'; msg.textContent = 'Selecciona un mes.'; return; }
   if (!window.ExcelJS) { msg.className = 'msg-info err'; msg.textContent = 'No se ha cargado ExcelJS. Recarga la página.'; return; }
   if (!window.ExcelProforma || !window.ExcelProforma.generar) { msg.className = 'msg-info err'; msg.textContent = 'No se ha cargado js/excel-proforma.js. Recarga la página.'; return; }
+  // Guarda: si el mes se cargó con datos de cálculo incompletos, el proforma
+  // saldría con horas que pueden no ser las que hay que pagar. Antes esto
+  // pasaba en silencio; ahora no sale el archivo.
+  if (datosCalculoIncompletos) {
+    msg.className = 'msg-info err';
+    msg.textContent = 'No se puede exportar: falta algún dato del cálculo (horas fijadas u horario de la obra) y el proforma podría salir con horas equivocadas. Recarga la página e inténtalo otra vez.';
+    return;
+  }
 
   btn.disabled = true; const textoOriginal = btn.textContent; btn.textContent = 'Exportando…';
 
@@ -818,6 +837,13 @@ async function descargarListadoDia() {
     msg.textContent = 'El día elegido no pertenece al mes cargado. Carga ese mes primero.';
     return;
   }
+  // Guarda: mismo motivo que en el proforma. Este listado puede acabar en
+  // manos de la propiedad; no puede salir con horas que no cuadren.
+  if (datosCalculoIncompletos) {
+    msg.className = 'msg-info err';
+    msg.textContent = 'No se puede generar el listado: falta algún dato del cálculo (horas fijadas u horario de la obra) y las horas podrían no coincidir con el proforma. Recarga la página e inténtalo otra vez.';
+    return;
+  }
 
   btn.disabled = true; const textoOriginal = btn.textContent; btn.textContent = 'Generando…';
 
@@ -872,26 +898,36 @@ async function cargarIntensiva(mes) {
   diasIntensivaSet = new Set();
   horarioNormal = { entrada: null, salida: null, descanso: null };
   horarioIntensiva = { entrada: null, salida: null, descanso: null };
+  const fallos = [];
   if (obraActual && /^\d{4}-\d{2}$/.test(mes)) {
-    try {
-      const { data: o } = await sb.from('obras')
+    {
+      const { data: o, error: errO } = await sb.from('obras')
         .select('hora_entrada_default, hora_salida_default, minutos_descanso, hora_entrada_intensiva, hora_salida_intensiva, minutos_descanso_intensiva')
         .eq('id', obraActual).single();
-      if (o) {
+      if (errO) {
+        console.error('obras (horario):', errO);
+        fallos.push('no se ha podido leer el horario de la obra');
+      } else if (o) {
         horarioNormal = { entrada: o.hora_entrada_default, salida: o.hora_salida_default, descanso: o.minutos_descanso };
         horarioIntensiva = { entrada: o.hora_entrada_intensiva, salida: o.hora_salida_intensiva, descanso: o.minutos_descanso_intensiva };
       }
-    } catch (e) { /* sin horario definido: se usa el normal */ }
-    try {
+    }
+    {
       const [y, m] = mes.split('-').map(Number);
       const ultimo = new Date(y, m, 0).getDate();
-      const { data: dias } = await sb.from('dias_intensiva_obra')
+      const { data: dias, error: errD } = await sb.from('dias_intensiva_obra')
         .select('fecha').eq('obra_id', obraActual)
         .gte('fecha', `${mes}-01`).lte('fecha', `${mes}-${String(ultimo).padStart(2,'0')}`);
-      (dias || []).forEach(r => diasIntensivaSet.add(r.fecha));
-    } catch (e) { /* sin días intensiva */ }
+      if (errD) {
+        console.error('dias_intensiva_obra:', errD);
+        fallos.push('no se han podido leer los días de jornada intensiva');
+      } else {
+        (dias || []).forEach(r => diasIntensivaSet.add(r.fecha));
+      }
+    }
   }
   pintarPanelIntensiva(mes);
+  return fallos;
 }
 
 function pintarPanelIntensiva(mes) {
@@ -983,7 +1019,11 @@ async function cargarResumen() {
     return;
   }
 
-  await cargarIntensiva(mes);
+  datosCalculoIncompletos = false;
+  const avisosCarga = [];
+
+  avisosCarga.push(...(await cargarIntensiva(mes)));
+  if (avisosCarga.length) datosCalculoIncompletos = true;
 
   zona.innerHTML = '<div class="seccion"><div class="cargando">Cargando…</div></div>';
 
@@ -1030,16 +1070,30 @@ async function cargarResumen() {
   const diasMes = new Date(year, month, 0).getDate();
 
   // Ajustes de horas fijadas del mes
-  ajustesMesMap = await obtenerAjustesMes(obraActual, mes);
+  ajustesMesMap = {};
+  try {
+    ajustesMesMap = await obtenerAjustesMes(obraActual, mes);
+  } catch (e) {
+    datosCalculoIncompletos = true;
+    avisosCarga.push(e.message || 'no se han podido leer las horas fijadas a mano');
+  }
 
   // Horas oficiales de la obra (suelo/techo del cómputo de horas).
+  // Sin esto el cálculo pierde suelo/techo y descanso: las horas saldrían
+  // infladas. No puede fallar en silencio.
   let horasObra = { entrada: null, salida: null, descanso: null };
-  try {
-    const { data: obraInfo } = await sb.from('obras')
+  {
+    const { data: obraInfo, error: errObraInfo } = await sb.from('obras')
       .select('hora_entrada_default, hora_salida_default, minutos_descanso')
       .eq('id', obraActual).single();
-    if (obraInfo) horasObra = { entrada: obraInfo.hora_entrada_default, salida: obraInfo.hora_salida_default, descanso: obraInfo.minutos_descanso };
-  } catch (e) { /* sin horas oficiales: el cálculo simplemente no aplica suelo/techo */ }
+    if (errObraInfo) {
+      console.error('obras (horario normal):', errObraInfo);
+      datosCalculoIncompletos = true;
+      avisosCarga.push('no se ha podido leer el horario de la obra');
+    } else if (obraInfo) {
+      horasObra = { entrada: obraInfo.hora_entrada_default, salida: obraInfo.hora_salida_default, descanso: obraInfo.minutos_descanso };
+    }
+  }
   horasObraActual = horasObra;
 
   const grupos = window.ExcelProforma.agruparPorEmpresa(fichajes);
@@ -1068,9 +1122,17 @@ async function cargarResumen() {
   // baje a medida que el jefe los va arreglando. (Antes contaba todos y
   // nunca desaparecía, así que acababa ignorándose.)
   const pendientes = autocierresPendientes();
+  const partes = [];
+  if (avisosCarga.length) {
+    partes.push('⛔ Estas horas pueden NO ser correctas: ' + avisosCarga.join('; ')
+      + '. No se puede exportar hasta arreglarlo; recarga la página.');
+  }
   if (pendientes.length > 0) {
-    msg.className = 'msg-info aviso';
-    msg.textContent = `⚠️ ${pendientes.length} ${pendientes.length === 1 ? 'salida' : 'salidas'} con cierre automático sin corregir (en naranja).`;
+    partes.push(`⚠️ ${pendientes.length} ${pendientes.length === 1 ? 'salida' : 'salidas'} con cierre automático sin corregir (en naranja).`);
+  }
+  if (partes.length) {
+    msg.className = avisosCarga.length ? 'msg-info err' : 'msg-info aviso';
+    msg.textContent = partes.join(' · ');
   } else {
     msg.className = 'msg-info';
     msg.textContent = '';
@@ -1288,23 +1350,22 @@ function renderListaDia(trabajadorId, dia) {
   const lista = document.getElementById('dia-lista');
   const fichajes = fichajesDelDia(trabajadorId, dia);
 
-  // Horas del día (mismo cálculo que el resumen: pares entrada→salida)
-  let entrada = null, horas = 0;
-  fichajes.forEach(f => {
-    const h = new Date(f.hora);
-    if (f.tipo === 'entrada') { if (!entrada) entrada = h; }
-    else if (f.tipo === 'salida' && entrada) {
-      const diff = (h - entrada) / 3600000;
-      if (diff > 0 && diff < 24) horas += diff;
-      entrada = null;
-    }
-  });
-  const ajDia = (resumenTrabajadores[trabajadorId] && resumenTrabajadores[trabajadorId].dias_ajuste
-    && resumenTrabajadores[trabajadorId].dias_ajuste[dia]) || null;
-  let lineaHoras = fichajes.length === 0 ? '' : `Horas computadas este día: <b>${formatHoras(redondear2(horas))} h</b>`;
+  // Las horas NO se calculan aquí. Se leen del resumen que ya construyó
+  // js/excel-proforma.js, que es el único motor: así el modal, la celda de la
+  // tabla y el Excel dicen SIEMPRE lo mismo. Antes esta línea restaba salida
+  // menos entrada a mano, sin horario de obra, sin descanso y sin redondeo:
+  // un día normal salía a 9,08 h en el modal y a 7,5 h en la celda.
+  const tRes = resumenTrabajadores[trabajadorId] || {};
+  const ajDia = (tRes.dias_ajuste && tRes.dias_ajuste[dia]) || null;
+  const horasDia = (tRes.dias && tRes.dias[dia]) || 0;
+
+  let lineaHoras = '';
   if (ajDia) {
     lineaHoras = `Horas del día: <b>${formatHoras(ajDia.fijadas)} h</b> <span style="color:#64a9ff">(fijadas a mano; calculadas ${formatHoras(ajDia.calculadas)} h)</span>`
       + (ajDia.motivo ? `<br><span style="font-size:11px">📝 ${escapeHtml(ajDia.motivo)}</span>` : '');
+  } else if (fichajes.length > 0) {
+    lineaHoras = `Horas computadas este día: <b>${formatHoras(horasDia)} h</b>`
+      + ` <span style="font-size:11px;opacity:.7">(con horario de obra, descanso y redondeo aplicados)</span>`;
   }
   document.getElementById('dia-horas').innerHTML = lineaHoras;
 
