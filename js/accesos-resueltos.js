@@ -206,6 +206,7 @@ window.AccesosResueltos = (function () {
           primerIntento: inc.created_at,
           ultimoIntento: inc.created_at,
           incidencia_id: inc.id || null,
+          _idPendienteEn: null,
           tipos: [],
           detalles: [],
           detallesGps: []
@@ -227,8 +228,14 @@ window.AccesosResueltos = (function () {
           if (g.detalles.indexOf(inc.detalle) === -1) g.detalles.push(inc.detalle);
         }
       }
-      // La incidencia pendiente más reciente es la que lleva el botón "✓ Visto".
-      if ((inc.estado || 'nueva') === 'nueva' && inc.id) g.incidencia_id = inc.id;
+      // El botón "✓ Visto" de la pantalla marca UNA incidencia: la pendiente
+      // más reciente. Se compara por fecha, sin fiarse del orden de llegada.
+      if ((inc.estado || 'nueva') === 'nueva' && inc.id && inc.created_at) {
+        if (!g._idPendienteEn || new Date(inc.created_at) > new Date(g._idPendienteEn)) {
+          g._idPendienteEn = inc.created_at;
+          g.incidencia_id = inc.id;
+        }
+      }
     });
 
     var personas = Object.keys(porPersona).map(function (k) { return porPersona[k]; });
