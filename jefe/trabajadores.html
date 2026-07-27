@@ -562,6 +562,9 @@ let habIconosPorTrabajador = {};
 
 const gruposAbiertos = {};
 let presentesAhoraCache = null;
+// Avisos de las consultas de cargarTrabajadores que hayan fallado. Se pintan
+// encima de la tabla: una lista incompleta sin decirlo es peor que un error.
+let avisosTabla = [];
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -690,12 +693,22 @@ async function cargarPresentesAhora() {
   const obraId = document.getElementById('resumen-filtro-obra')?.value || '';
   if (!obraId) { presentesAhoraCache = new Set(); return; }
   const cargando = document.getElementById('resumen-toggle-cargando');
-  if (cargando) cargando.style.display = 'inline';
+  if (cargando) { cargando.textContent = 'Consultando…'; cargando.style.display = 'inline'; }
   const ahora = new Date();
   const desdeISO = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 0, 0, 0, 0).toISOString();
   const hastaISO = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 23, 59, 59, 999).toISOString();
-  const { data: fichajes } = await sb.from('fichajes').select('tipo, trabajador_id')
+  const { data: fichajes, error: errFich } = await sb.from('fichajes').select('tipo, trabajador_id')
     .eq('obra_id', obraId).gte('hora', desdeISO).lte('hora', hastaISO).order('hora', { ascending: true });
+  if (errFich) {
+    // Un Set vacío diría "no hay nadie en obra", que es una respuesta falsa.
+    // null = no filtrar por presencia: se enseñan todos y se dice por qué.
+    console.error('fichajes (presentes ahora):', errFich);
+    presentesAhoraCache = null;
+    const chk = document.getElementById('resumen-chk-presencia');
+    if (chk) chk.checked = false;
+    if (cargando) { cargando.textContent = '⚠️ No se ha podido consultar quién está en obra; se muestran todos.'; cargando.style.display = 'inline'; }
+    return;
+  }
   const contadores = {};
   (fichajes || []).forEach(f => {
     if (!contadores[f.trabajador_id]) contadores[f.trabajador_id] = 0;
@@ -917,18 +930,31 @@ async function cargarTrabajadores() {
     `).in('obra_id', obraIds)
   ]);
 
+  avisosTabla = [];
+
   let validaciones = validacionesResult.data;
   if (validacionesResult.error) {
     const fallback = await sb.from('validaciones_obra')
       .select('trabajador_id, obra_id, estado, estado_forzado, motivo_forzado, motivos, forzado_en, trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado)')
       .in('obra_id', obraIds);
+    // Si también falla el plan B, la tabla saldría VACÍA y parecería que no hay
+    // trabajadores. Hay que decirlo, no enseñar una lista en blanco.
+    if (fallback.error) {
+      console.error('validaciones_obra (principal):', validacionesResult.error);
+      console.error('validaciones_obra (fallback):', fallback.error);
+      avisosTabla.push('No se ha podido cargar la lista de trabajadores. Lo que ves puede estar incompleto.');
+    }
     validaciones = fallback.data || [];
   }
 
   const hoy = new Date().toISOString().slice(0, 10);
-  const { data: excepciones } = await sb.from('excepciones_acceso')
+  const { data: excepciones, error: errExc } = await sb.from('excepciones_acceso')
     .select('id, trabajador_id, obra_id, motivo_autorizacion, created_at, autorizado_por:autorizado_por_user_id(nombre)')
     .in('obra_id', obraIds).eq('fecha', hoy).eq('estado', 'activa');
+  if (errExc) {
+    console.error('excepciones_acceso:', errExc);
+    avisosTabla.push('No se han podido leer las autorizaciones de hoy: si alguien en rojo está autorizado, aquí no se verá.');
+  }
 
   const excepcionesPorKey = {};
   (excepciones || []).forEach(ex => { excepcionesPorKey[`${ex.trabajador_id}|${ex.obra_id}`] = ex; });
@@ -1012,10 +1038,14 @@ function renderTabla(lista) {
   document.getElementById('contador').textContent = obraFiltrada ? `${lista.length} trabajadores en esta obra` : `${lista.length} trabajadores`;
 
   const contenedor = document.getElementById('tabla-trabajadores');
+  const bloqueAvisos = avisosTabla.length
+    ? '<div style="background:#4a1f1f;border:1px solid #a33;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:.9rem">'
+      + avisosTabla.map(a => '⚠️ ' + esc(a)).join('<br>') + '</div>'
+    : '';
   if (lista.length === 0) {
-    contenedor.innerHTML = obraFiltrada
+    contenedor.innerHTML = bloqueAvisos + (obraFiltrada
       ? '<div class="vacio">No hay trabajadores asignados a esta obra todavía.</div>'
-      : '<div class="vacio">No hay trabajadores.</div>';
+      : '<div class="vacio">No hay trabajadores.</div>');
     return;
   }
 
@@ -1094,7 +1124,7 @@ function renderTabla(lista) {
     });
   });
 
-  contenedor.innerHTML = `<table>${filasCabecera}<tbody>${filasBody}</tbody></table>`;
+  contenedor.innerHTML = bloqueAvisos + `<table>${filasCabecera}<tbody>${filasBody}</tbody></table>`;
 }
 
 function toggleGrupo(empresa) {
@@ -1229,12 +1259,34 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   if (rpcData && rpcData.ok === false) { msg.className = 'msg-error'; msg.textContent = 'Error: ' + (rpcData.error || 'No se pudo guardar'); btn.disabled = false; return; }
   if (modoEdicion) {
     const trabajadorId = rpcData.id;
-    const { data: asignacionesActuales } = await sb.from('validaciones_obra').select('obra_id')
+    // OJO: llegados aquí el trabajador YA está guardado (la RPC de arriba fue
+    // bien). Lo único que queda es QUITARLE las obras que has desmarcado.
+    // Si esto falla no se puede decir "Guardado correctamente": el trabajador
+    // seguiría teniendo acceso a una obra de la que crees que lo has quitado.
+    const { data: asignacionesActuales, error: errLeer } = await sb
+      .from('validaciones_obra').select('obra_id')
       .eq('trabajador_id', trabajadorId).in('obra_id', misObras.map(o => o.id));
+    if (errLeer) {
+      console.error('validaciones_obra (leer asignaciones):', errLeer);
+      msg.className = 'msg-error';
+      msg.textContent = 'Los datos se han guardado, pero NO se ha podido comprobar de qué obras había que quitarlo. Revisa las obras marcadas y vuelve a guardar.';
+      btn.disabled = false;
+      return;
+    }
     const yaAsignadas = (asignacionesActuales || []).map(a => a.obra_id);
     const aQuitar = yaAsignadas.filter(id => !obrasSeleccionadas.includes(id));
     if (aQuitar.length > 0) {
-      await sb.from('validaciones_obra').delete().eq('trabajador_id', trabajadorId).in('obra_id', aQuitar);
+      const { error: errQuitar } = await sb.from('validaciones_obra').delete()
+        .eq('trabajador_id', trabajadorId).in('obra_id', aQuitar);
+      if (errQuitar) {
+        console.error('validaciones_obra (quitar obras):', errQuitar);
+        msg.className = 'msg-error';
+        msg.textContent = 'Los datos se han guardado, pero NO se ha podido quitar de '
+          + aQuitar.length + (aQuitar.length === 1 ? ' obra' : ' obras')
+          + '. SIGUE teniendo acceso. Vuelve a guardar.';
+        btn.disabled = false;
+        return;
+      }
     }
   }
   msg.className = 'msg-ok'; msg.textContent = 'Guardado correctamente.';
