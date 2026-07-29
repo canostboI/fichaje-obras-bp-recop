@@ -155,6 +155,8 @@ function peorEstado(a, b) {
 let reglas = [];
 let empresasPropias = new Set();
 let autonomosSolos = new Set();
+// Exenciones documentales por empresa: Map(clave empresa -> Map(doc -> motivo)).
+let exenciones = new Map();
 let contratosVigentes = new Set();
 let librosVigentes = new Set();
 
@@ -194,6 +196,28 @@ function esAutonomoSinAsalariados(empresaRaw) {
   if (nNombre && autonomosSolos.has(`NOMBRE:${nNombre}`)) return true;
   if (nCif && autonomosSolos.has(`CIF:${nCif}`)) return true;
   return false;
+}
+// EXENCIONES DOCUMENTALES POR EMPRESA: "a esta empresa este documento no le
+// aplica", decidido y firmado por un admin. Solo documentos de EMPRESA.
+// El nombre casa EXACTO (normalizado), no por fragmentos: lo teclea una
+// persona y un trozo suelto ("REA") casaría con documentos que no toca.
+// Devuelve el MOTIVO si está exento, o null. Se devuelve el motivo porque la
+// exención deja rastro escrito: nada desaparece en silencio.
+function esDocExento(empresaRaw, nombreDoc) {
+  if (!exenciones.size || !empresaRaw || !nombreDoc) return null;
+  const { nombre, cif } = extraerEmpresa(empresaRaw);
+  const nNombre = normalizar(nombre);
+  const nCif = normalizar(cif);
+  const nDoc = normalizar(nombreDoc);
+  const claves = [];
+  if (nNombre && nCif) claves.push(`${nNombre}|${nCif}`);
+  if (nNombre) claves.push(`NOMBRE:${nNombre}`);
+  if (nCif) claves.push(`CIF:${nCif}`);
+  for (const clave of claves) {
+    const docs = exenciones.get(clave);
+    if (docs && docs.has(nDoc)) return docs.get(nDoc);
+  }
+  return null;
 }
 function tieneContratoVigente(empresaRaw) {
   if (!empresaRaw) return false;
@@ -372,6 +396,12 @@ function calcularResultadoObra(filasObra, trabajadoresApp) {
     for (const p of empProblemas) {
       if (!empresaEsPropia && esDocSoloRP(p.doc)) continue;
       if (empresaEsAutonomoSolo && esDocSoloPlantilla(p.doc)) continue;
+      // Exención firmada por un admin. NO se salta callando: deja su línea.
+      const motivoExencion = esDocExento(info.empresaRaw, p.doc);
+      if (motivoExencion !== null) {
+        motivos.push(`[Exención] ${p.doc} — no aplica: ${motivoExencion}`);
+        continue;
+      }
       estadoFinal = peorEstado(estadoFinal, p.resultado);
       motivos.push(`[Empresa] ${p.doc} (${p.estado}) → ${p.resultado}`);
     }
@@ -489,7 +519,32 @@ async function main() {
       if (nCif) autonomosSolos.add(`CIF:${nCif}`);
     }
   }
-  log(`Reglas: ${reglas.length} · Empresas propias: ${empresasPropias.size} · Autónomos solos: ${autonomosSolos.size}`);
+  {
+    // Si esto falla NO se sigue: sin exenciones el semáforo volvería a exigir
+    // documentos que un admin decidió que no aplican, y bloquearía gente de
+    // madrugada sin que nadie lo viera. Mejor no sincronizar y abrir issue.
+    const { data, error } = await sb
+      .from('exenciones_documento_empresa')
+      .select('nombre_documento, motivo, empresa:empresa_id(nombre, cif)')
+      .eq('activo', true);
+    if (error) { console.error('ERROR cargando exenciones documentales:', error.message); process.exit(1); }
+    exenciones = new Map();
+    for (const ex of (data || [])) {
+      const emp = ex.empresa || {};
+      const nNombre = normalizar(emp.nombre), nCif = normalizar(emp.cif);
+      const nDoc = normalizar(ex.nombre_documento);
+      if (!nDoc) continue;
+      const claves = [];
+      if (nNombre && nCif) claves.push(`${nNombre}|${nCif}`);
+      if (nNombre) claves.push(`NOMBRE:${nNombre}`);
+      if (nCif) claves.push(`CIF:${nCif}`);
+      for (const clave of claves) {
+        if (!exenciones.has(clave)) exenciones.set(clave, new Map());
+        exenciones.get(clave).set(nDoc, ex.motivo || '');
+      }
+    }
+  }
+  log(`Reglas: ${reglas.length} · Empresas propias: ${empresasPropias.size} · Autónomos solos: ${autonomosSolos.size} · Exenciones: ${exenciones.size}`);
 
   // Trabajadores de la app (para marca enApp; no se crean los desconocidos aquí)
   const trabajadoresApp = {};
