@@ -9,6 +9,7 @@
 <script src="../js/branding.js"></script>
 <script src="../js/auto-logout.js"></script>
 <script src="../js/accesos-resueltos.js"></script>
+<script src="../js/sb-paginado.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -782,24 +783,49 @@ async function comprobarRP() {
   } catch (_) {}
 }
 
+// Ventana de 90 días para saber QUIÉN está en la obra (29/7/2026).
+// Antes se pedía el historial COMPLETO de fichajes de la obra sin filtro de
+// fecha, y Supabase devuelve como mucho 1.000 filas aunque no se le pida
+// límite: en Muralla eso eran las primeras semanas de la obra, así que
+// QUIEN ENTRÓ DESPUÉS NO SE COMPROBABA NUNCA. Un aviso de habilitación
+// caducada que se deja gente fuera es peor que no tenerlo.
+// Se acota a 90 días a propósito: el banner avisa de quién puede quedarse
+// sin habilitación ESTANDO EN OBRA. Quien lleva tres meses sin fichar no
+// está; en cuanto vuelva a fichar, entra en la ventana y se le comprueba.
+const DIAS_VENTANA_HABILITACIONES = 90;
+
 async function comprobarHabilitacionesCaducidad() {
   const banner = document.getElementById('banner-hab-caducidad');
   banner.className = 'banner-hab-caducidad oculto';
   banner.innerHTML = '';
   if (!obraActual) return;
   try {
-    const { data: fich } = await sb
+    if (!window.SbPaginado || !window.SbPaginado.traerTodo) {
+      throw new Error('No se ha cargado js/sb-paginado.js');
+    }
+    const desde = new Date();
+    desde.setDate(desde.getDate() - DIAS_VENTANA_HABILITACIONES);
+    desde.setHours(0, 0, 0, 0);
+
+    // Por tandas: aunque 90 días caben de sobra, la ventana tampoco puede
+    // truncarse en silencio si la obra crece.
+    const fich = await window.SbPaginado.traerTodo(() => sb
       .from('fichajes')
       .select('trabajador_id')
-      .eq('obra_id', obraActual);
+      .eq('obra_id', obraActual)
+      .gte('hora', desde.toISOString())
+      .order('id', { ascending: true }),
+      { etiqueta: 'fichajes de los últimos ' + DIAS_VENTANA_HABILITACIONES + ' días' });
+
     const idsObra = [...new Set((fich || []).map(f => f.trabajador_id).filter(Boolean))];
     if (idsObra.length === 0) return;
-    const { data: habs } = await sb
+    const { data: habs, error: errHabs } = await sb
       .from('habilitaciones_trabajador')
       .select('trabajador_id, fecha_caducidad, tipo:tipo_habilitacion_id(nombre), trabajador:trabajador_id(nombre, apellidos)')
       .in('trabajador_id', idsObra)
       .eq('activo', true)
       .not('fecha_caducidad', 'is', null);
+    if (errHabs) throw errHabs;
     if (!habs || habs.length === 0) return;
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
@@ -836,7 +862,15 @@ async function comprobarHabilitacionesCaducidad() {
         proximas.map(i => `<li>${i.icono} ${esc(i.nombre)} — ${esc(i.tipo)} (caduca ${esc(i.fechaTxt)})</li>`).join('') + '</ul>';
     }
     banner.innerHTML = html;
-  } catch (_) {}
+  } catch (e) {
+    // Un vigilante no puede fallar en silencio. Antes el catch se tragaba el
+    // error y el banner simplemente no salía: indistinguible de "no hay
+    // ninguna habilitación caducada". Ahora se dice.
+    console.error('habilitaciones (caducidad):', e);
+    banner.className = 'banner-hab-caducidad amarillo';
+    banner.innerHTML = '⚠ No se ha podido comprobar la caducidad de habilitaciones (grúa, electricidad…). ' +
+      'No quiere decir que estén bien: quiere decir que no se ha podido mirar. Recarga la página.';
+  }
 }
 
 function irATrabaladoresRP() {
