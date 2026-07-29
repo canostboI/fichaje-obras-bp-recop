@@ -67,6 +67,7 @@
     .alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; line-height: 1.5; margin-bottom: 10px; }
     .alert-info { background: rgba(33,150,243,0.08); border: 1px solid rgba(33,150,243,0.3); color: #90caf9; }
     .alert-warning { background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.3); color: #ffb74d; }
+    .alert-danger { background: rgba(244,67,54,0.10); border: 1px solid rgba(244,67,54,0.45); color: #ef9a9a; }
     .alert-error { background: rgba(244,67,54,0.08); border: 1px solid rgba(244,67,54,0.3); color: #ef9a9a; }
     .alert-success { background: rgba(76,175,80,0.08); border: 1px solid rgba(76,175,80,0.3); color: #a5d6a7; }
     .alert a { color: inherit; text-decoration: underline; }
@@ -260,16 +261,23 @@ const EI = window.EcoordinaImport;
 let session = null;
 let misObras = [];
 // Contexto que se pasa a EI.calcularResultado. Los sets que no dependen de la
-// obra (reglas, empresas propias, autónomos solos, trabajadoresApp) se cargan
-// en init(); los que sí dependen (contratos, libros) se cargan al procesar.
+// obra (reglas, empresas propias, autónomos solos, exenciones, trabajadoresApp)
+// se cargan en init(); los que sí dependen (contratos, libros) al procesar.
 let ctx = {
   reglas: [],
   empresasPropias: new Set(),
   autonomosSolos: new Set(),
+  exenciones: new Map(),
   trabajadoresApp: {},
   contratosVigentes: new Set(),
   librosVigentes: new Set()
 };
+// Las exenciones necesitan bandera propia: un Map VACÍO es un estado legítimo
+// ("no hay ninguna exención"), así que no se puede usar .size para saber si se
+// han cargado. Y si la carga falla hay que DECIRLO: sin exenciones, gente que
+// está exenta vuelve a salir bloqueada.
+let exencionesCargadas = false;
+let exencionesError = null;
 let datosExcel = null;
 let resultadoFinal = [];
 let descartadosMultiEmpresa = [];
@@ -311,6 +319,10 @@ async function init() {
     ctx.reglas = await EI.cargarReglas(sb);
     ctx.empresasPropias = await EI.cargarEmpresasPropias(sb);
     ctx.autonomosSolos = await EI.cargarAutonomosSolos(sb);
+    const resEx = await EI.cargarExenciones(sb);
+    ctx.exenciones = resEx.exenciones;
+    exencionesError = resEx.error;
+    exencionesCargadas = !resEx.error;
     ctx.trabajadoresApp = await EI.cargarTrabajadoresApp(sb);
   } catch (err) {
     console.error('Error arrancando e-Coordina:', err);
@@ -449,6 +461,16 @@ async function procesarExcel() {
     if (ctx.empresasPropias.size === 0) ctx.empresasPropias = await EI.cargarEmpresasPropias(sb);
     if (ctx.autonomosSolos.size === 0) ctx.autonomosSolos = await EI.cargarAutonomosSolos(sb);
     if (!ctx.reglas.length) ctx.reglas = await EI.cargarReglas(sb);
+    // Exenciones: se recargan si no se cargaron bien, y SIEMPRE que se procesa
+    // (un admin puede haber creado una exención hace un minuto).
+    const resEx2 = await EI.cargarExenciones(sb);
+    if (!resEx2.error) {
+      ctx.exenciones = resEx2.exenciones;
+      exencionesCargadas = true;
+      exencionesError = null;
+    } else if (!exencionesCargadas) {
+      exencionesError = resEx2.error;
+    }
 
     // Contexto que SÍ depende de la obra: se recarga cada vez (puede haber
     // habido cambios de contrato/libro entre procesados).
@@ -470,6 +492,7 @@ async function procesarExcel() {
     renderStats();
     renderAlertaCambiosEmpresa();
     renderAlertaSinRegla();
+    renderAlertaExenciones();
     renderDesaparecidos();
 
     if (infoCentro) {
@@ -534,6 +557,19 @@ function renderAlertaSinRegla() {
       <strong>⚠️ Documentos sin regla definida (${sinRegla.size}) — tratados como NARANJA</strong>
       <p style="margin:6px 0 8px;">Estos documentos no tienen regla y se han marcado como <strong>naranja</strong> por seguridad. Añade la regla en <a href="../admin/reglas.html" style="color:var(--naranja)">Admin → Reglas documentales</a> para que el cálculo sea exacto.</p>
       <ul style="margin-left:18px;">${filas}</ul>
+    </div>`;
+}
+
+// Aviso ROJO si las exenciones no se pudieron leer. Sin ellas el semáforo
+// vuelve a exigir documentos que un admin decidió que no aplican, y el jefe
+// vería bloqueos que no debería. Un fallo así no puede pasar callando.
+function renderAlertaExenciones() {
+  if (!exencionesError) return;
+  document.getElementById('alertas').innerHTML += `
+    <div class="alert alert-danger" style="margin-top:10px;">
+      <strong>❌ No se han podido leer las exenciones documentales</strong>
+      <p style="margin:6px 0 0;">El cálculo de abajo <strong>NO tiene en cuenta las exenciones</strong>: puede marcar en rojo o naranja a empresas a las que un administrador eximió de algún documento. <strong>Revisa antes de guardar.</strong></p>
+      <p style="margin:6px 0 0;font-size:12px;opacity:.85;">Detalle técnico: ${escHtml(exencionesError)}</p>
     </div>`;
 }
 
