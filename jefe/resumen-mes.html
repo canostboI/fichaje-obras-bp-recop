@@ -7,6 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/branding.js"></script>
 <script src="../js/auto-logout.js"></script>
+<script src="../js/sb-paginado.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="../js/excel-proforma.js"></script>
 <script src="../js/listado-dia.js"></script>
@@ -576,25 +577,47 @@ function mesActual() {
 // =====================================================================
 // CARGA DE DATOS (misma query que el Excel mensual de jefe/fichajes.html)
 // =====================================================================
+// LECTURA POR TANDAS (29/7/2026). Supabase devuelve como MUCHO 1.000 filas
+// por consulta aunque no se le pida límite, y no avisa. Como esta consulta
+// va ordenada por hora ascendente, lo que se perdía era el FINAL DEL MES:
+// MURALLA DE VALLS julio 2026 tiene 1.168 fichajes y los días 27, 28 y 29
+// salían VACÍOS en pantalla — y el proforma se generaba sin ellos, en
+// silencio. Escola (647) cabía entera y por eso no se veía el fallo.
+// `js/sb-paginado.js` pide de 1.000 en 1.000 hasta traerlo todo.
 async function obtenerFichajesMes(obraId, mes) {
   const [year, month] = mes.split('-').map(Number);
   const desde = new Date(year, month - 1, 1, 0, 0, 0, 0);
   const hasta = new Date(year, month, 1, 0, 0, 0, 0);
 
-  let { data, error } = await sb.from('fichajes')
-    .select(`id, tipo, hora, cierre_automatico, es_manual, corregido_por, motivo_correccion, trabajador_id,
-      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado, empresa:empresa_id(nombre))`)
-    .eq('obra_id', obraId).gte('hora', desde.toISOString()).lt('hora', hasta.toISOString())
-    .order('hora', { ascending: true });
-  if (!error) return data || [];
+  // Sin el módulo NO se lee a la antigua: volvería el mes truncado sin
+  // avisar, que es justo lo que se está cerrando aquí.
+  if (!window.SbPaginado || !window.SbPaginado.traerTodo) {
+    throw new Error('No se ha cargado js/sb-paginado.js. Recarga la página.');
+  }
 
-  const fallback = await sb.from('fichajes')
-    .select(`id, tipo, hora, cierre_automatico, es_manual, corregido_por, motivo_correccion, trabajador_id,
-      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado)`)
-    .eq('obra_id', obraId).gte('hora', desde.toISOString()).lt('hora', hasta.toISOString())
-    .order('hora', { ascending: true });
-  if (fallback.error) throw fallback.error;
-  return fallback.data || [];
+  const SELECT_COMPLETO = `id, tipo, hora, cierre_automatico, es_manual, corregido_por, motivo_correccion, trabajador_id,
+      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado, empresa:empresa_id(nombre))`;
+  const SELECT_FALLBACK = `id, tipo, hora, cierre_automatico, es_manual, corregido_por, motivo_correccion, trabajador_id,
+      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado)`;
+
+  // El orden es OBLIGATORIO para paginar: sin él, las tandas pueden
+  // duplicar filas y perder otras.
+  const consulta = (campos) => () => sb.from('fichajes')
+    .select(campos)
+    .eq('obra_id', obraId)
+    .gte('hora', desde.toISOString())
+    .lt('hora', hasta.toISOString())
+    .order('hora', { ascending: true })
+    .order('id', { ascending: true });
+
+  try {
+    return await window.SbPaginado.traerTodo(consulta(SELECT_COMPLETO), { etiqueta: 'fichajes del mes' });
+  } catch (e) {
+    // Igual que antes: si el select con empresa falla (relación no
+    // disponible), se reintenta sin ella. Si también falla, LANZA.
+    console.warn('fichajes del mes (select completo):', e.message || e);
+    return await window.SbPaginado.traerTodo(consulta(SELECT_FALLBACK), { etiqueta: 'fichajes del mes' });
+  }
 }
 
 // Ajustes de horas fijadas del mes (tabla ajustes_horas_dia).
@@ -607,14 +630,26 @@ async function obtenerAjustesMes(obraId, mes) {
   const mapa = {};
   const [year, month] = mes.split('-').map(Number);
   const ultimo = new Date(year, month, 0).getDate();
-  const { data: ajs, error } = await sb.from('ajustes_horas_dia')
-    .select('trabajador_id, fecha, horas, motivo')
-    .eq('obra_id', obraId)
-    .gte('fecha', mes + '-01')
-    .lte('fecha', mes + '-' + String(ultimo).padStart(2, '0'));
-  if (error) {
+  // También por tandas: julio 2026 llegó a 119 ajustes en una obra. Está
+  // lejos de 1.000, pero es el mismo tipo de consulta (mes entero) y un
+  // ajuste que no se lea significa pagar la hora CALCULADA en vez de la
+  // FIJADA, sin avisar. No se deja al azar.
+  if (!window.SbPaginado || !window.SbPaginado.traerTodo) {
+    throw new Error('No se ha cargado js/sb-paginado.js. Recarga la página.');
+  }
+  let ajs;
+  try {
+    ajs = await window.SbPaginado.traerTodo(() => sb.from('ajustes_horas_dia')
+      .select('trabajador_id, fecha, horas, motivo')
+      .eq('obra_id', obraId)
+      .gte('fecha', mes + '-01')
+      .lte('fecha', mes + '-' + String(ultimo).padStart(2, '0'))
+      .order('fecha', { ascending: true })
+      .order('trabajador_id', { ascending: true }),
+      { etiqueta: 'horas fijadas del mes' });
+  } catch (error) {
     console.error('ajustes_horas_dia:', error);
-    throw new Error('no se han podido leer las horas fijadas a mano (' + error.message + ')');
+    throw new Error('no se han podido leer las horas fijadas a mano (' + (error.message || error) + ')');
   }
   (ajs || []).forEach(a => {
     const dia = Number(String(a.fecha).slice(8, 10));
