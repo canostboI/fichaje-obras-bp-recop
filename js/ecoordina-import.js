@@ -209,6 +209,35 @@ window.EcoordinaImport = (function () {
     return false;
   }
 
+  // ── EXENCIONES DOCUMENTALES POR EMPRESA ───────────────────────────────────
+  // "A esta empresa, este documento no le aplica." Decisión humana firmada por
+  // un admin (tabla exenciones_documento_empresa). Solo afecta a documentos de
+  // EMPRESA; los del trabajador se siguen exigiendo enteros.
+  //
+  // El nombre del documento debe casar EXACTO (normalizado). Nada de anclas
+  // cortas como en DOCS_SOLO_RP: aquí lo escribe una persona y un fragmento
+  // suelto ("REA") casaría con documentos que no toca.
+  //
+  // Devuelve el MOTIVO (string) si está exento, o null si no lo está. Se
+  // devuelve el motivo, y no true/false, porque la exención deja rastro
+  // escrito en los motivos del trabajador: nada desaparece en silencio.
+  function esDocExento(exenciones, empresaRaw, nombreDoc) {
+    if (!exenciones || !exenciones.size || !empresaRaw || !nombreDoc) return null;
+    const { nombre, cif } = extraerEmpresa(empresaRaw);
+    const nNombre = normalizar(nombre);
+    const nCif = normalizar(cif);
+    const nDoc = normalizar(nombreDoc);
+    const claves = [];
+    if (nNombre && nCif) claves.push(`${nNombre}|${nCif}`);
+    if (nNombre) claves.push(`NOMBRE:${nNombre}`);
+    if (nCif) claves.push(`CIF:${nCif}`);
+    for (const clave of claves) {
+      const docs = exenciones.get(clave);
+      if (docs && docs.has(nDoc)) return docs.get(nDoc);
+    }
+    return null;
+  }
+
   function tieneContratoVigente(contratosVigentes, empresaRaw) {
     if (!empresaRaw) return false;
     const { nombre, cif } = extraerEmpresa(empresaRaw);
@@ -329,6 +358,42 @@ window.EcoordinaImport = (function () {
     return set;
   }
 
+  // Carga las exenciones documentales ACTIVAS. Devuelve un Map:
+  //   clave de empresa (mismo formato que cargarEmpresasPropias)
+  //     -> Map(nombre documento normalizado -> motivo)
+  // Una misma empresa se indexa por sus tres claves, igual que las propias.
+  //
+  // SI FALLA, NO DEVUELVE UN MAP VACÍO EN SILENCIO. Un Map vacío significa
+  // "no hay exenciones", y eso volvería a bloquear a gente que está exenta sin
+  // que nadie se entere. Devuelve { exenciones, error } y quien llama avisa.
+  async function cargarExenciones(sb) {
+    const mapa = new Map();
+    const { data, error } = await sb
+      .from('exenciones_documento_empresa')
+      .select('nombre_documento, motivo, empresa:empresa_id(nombre, cif)')
+      .eq('activo', true);
+    if (error) {
+      console.error('Error cargando exenciones documentales:', error);
+      return { exenciones: mapa, error: error.message || String(error) };
+    }
+    for (const ex of (data || [])) {
+      const emp = ex.empresa || {};
+      const nNombre = normalizar(emp.nombre);
+      const nCif = normalizar(emp.cif);
+      const nDoc = normalizar(ex.nombre_documento);
+      if (!nDoc) continue;
+      const claves = [];
+      if (nNombre && nCif) claves.push(`${nNombre}|${nCif}`);
+      if (nNombre) claves.push(`NOMBRE:${nNombre}`);
+      if (nCif) claves.push(`CIF:${nCif}`);
+      for (const clave of claves) {
+        if (!mapa.has(clave)) mapa.set(clave, new Map());
+        mapa.get(clave).set(nDoc, ex.motivo || '');
+      }
+    }
+    return { exenciones: mapa, error: null };
+  }
+
   async function cargarContratosVigentes(sb, obraId) {
     const set = new Set();
     if (!obraId) return set;
@@ -399,12 +464,13 @@ window.EcoordinaImport = (function () {
 
   // ── Cálculo del resultado para UNA obra ───────────────────────────────────
   // filasObra: filas del archivo ya filtradas para esta obra.
-  // ctx: { reglas, empresasPropias, autonomosSolos, contratosVigentes, librosVigentes, trabajadoresApp }
+  // ctx: { reglas, empresasPropias, autonomosSolos, exenciones, contratosVigentes, librosVigentes, trabajadoresApp }
   // Devuelve: { resultadoFinal, descartadosMultiEmpresa, sinRegla }
   function calcularResultado(filasObra, ctx) {
     const reglas = ctx.reglas || [];
     const empresasPropias = ctx.empresasPropias || new Set();
     const autonomosSolos = ctx.autonomosSolos || new Set();
+    const exenciones = ctx.exenciones || new Map();
     const contratosVigentes = ctx.contratosVigentes || new Set();
     const librosVigentes = ctx.librosVigentes || new Set();
     const trabajadoresApp = ctx.trabajadoresApp || {};
@@ -556,6 +622,13 @@ window.EcoordinaImport = (function () {
         if (!empresaEsPropia && esDocSoloRP(p.doc)) continue;
         // Autónomo sin asalariados: no exigir docs de PRL de empresa con plantilla.
         if (empresaEsAutonomoSolo && esDocSoloPlantilla(p.doc)) continue;
+        // Exención firmada por un admin: este documento no le aplica a esta
+        // empresa. NO se salta callando: deja su línea en los motivos.
+        const motivoExencion = esDocExento(exenciones, info.empresaRaw, p.doc);
+        if (motivoExencion !== null) {
+          motivos.push(`[Exención] ${p.doc} — no aplica: ${motivoExencion}`);
+          continue;
+        }
         estadoFinal = peorEstado(estadoFinal, p.resultado);
         motivos.push(`[Empresa] ${p.doc} (${p.estado}) → ${p.resultado}`);
       }
@@ -690,6 +763,7 @@ window.EcoordinaImport = (function () {
     docNoAplicaPorOficio,
     esEmpresaPropia,
     esAutonomoSinAsalariados,
+    esDocExento,
     tieneContratoVigente,
     tieneLibroVigente,
     convertirWorkbookAFilas,
@@ -700,6 +774,7 @@ window.EcoordinaImport = (function () {
     cargarReglas,
     cargarEmpresasPropias,
     cargarAutonomosSolos,
+    cargarExenciones,
     cargarContratosVigentes,
     cargarLibrosVigentes,
     cargarTrabajadoresApp,
