@@ -278,6 +278,11 @@ let ctx = {
 // está exenta vuelve a salir bloqueada.
 let exencionesCargadas = false;
 let exencionesError = null;
+// Cuántas exenciones ACTIVAS hay configuradas. Se compara con las que de
+// verdad han casado: si hay 3 configuradas y han casado 0, algo va mal
+// (nombre mal escrito, empresa distinta) y hay que DECIRLO. Hoy eso costó
+// cinco consultas a mano porque la pantalla no lo enseñaba.
+let exencionesTotal = 0;
 let datosExcel = null;
 let resultadoFinal = [];
 let descartadosMultiEmpresa = [];
@@ -323,6 +328,7 @@ async function init() {
     ctx.exenciones = resEx.exenciones;
     exencionesError = resEx.error;
     exencionesCargadas = !resEx.error;
+    exencionesTotal = await contarExencionesActivas();
     ctx.trabajadoresApp = await EI.cargarTrabajadoresApp(sb);
   } catch (err) {
     console.error('Error arrancando e-Coordina:', err);
@@ -468,6 +474,7 @@ async function procesarExcel() {
       ctx.exenciones = resEx2.exenciones;
       exencionesCargadas = true;
       exencionesError = null;
+      exencionesTotal = await contarExencionesActivas();
     } else if (!exencionesCargadas) {
       exencionesError = resEx2.error;
     }
@@ -560,16 +567,71 @@ function renderAlertaSinRegla() {
     </div>`;
 }
 
-// Aviso ROJO si las exenciones no se pudieron leer. Sin ellas el semáforo
-// vuelve a exigir documentos que un admin decidió que no aplican, y el jefe
-// vería bloqueos que no debería. Un fallo así no puede pasar callando.
+async function contarExencionesActivas() {
+  const { count, error } = await sb
+    .from('exenciones_documento_empresa')
+    .select('id', { count: 'exact', head: true })
+    .eq('activo', true);
+  if (error) { console.error('Error contando exenciones:', error.message); return 0; }
+  return count || 0;
+}
+
+// Cuenta las exenciones que de verdad han entrado en ESTE cálculo, leyendo las
+// líneas "[Exención] ..." que el motor escribió en los motivos.
+function resumenExencionesAplicadas() {
+  const porDoc = new Map();   // "empresa ‖ documento" -> nº de personas
+  let personas = 0;
+  for (const r of resultadoFinal) {
+    const lineas = (r.motivos || []).filter(m => typeof m === 'string' && m.startsWith('[Exención]'));
+    if (!lineas.length) continue;
+    personas++;
+    for (const l of lineas) {
+      const doc = l.slice('[Exención]'.length).split(' — no aplica:')[0].trim();
+      const clave = `${r.empresa || '(sin empresa)'} ‖ ${doc}`;
+      porDoc.set(clave, (porDoc.get(clave) || 0) + 1);
+    }
+  }
+  return { personas, porDoc };
+}
+
+// Las exenciones se ven SIEMPRE que hay alguna configurada. Tres casos:
+//   · no se pudieron leer            → rojo (el cálculo no las tiene en cuenta)
+//   · configuradas pero ninguna casó → naranja (probable nombre mal escrito)
+//   · aplicadas                      → azul, con el detalle de a quién
+// El caso del medio es el importante: es el fallo que no se ve.
 function renderAlertaExenciones() {
-  if (!exencionesError) return;
+  if (exencionesError) {
+    document.getElementById('alertas').innerHTML += `
+      <div class="alert alert-danger" style="margin-top:10px;">
+        <strong>❌ No se han podido leer las exenciones documentales</strong>
+        <p style="margin:6px 0 0;">El cálculo de abajo <strong>NO tiene en cuenta las exenciones</strong>: puede marcar en rojo o naranja a empresas a las que un administrador eximió de algún documento. <strong>Revisa antes de guardar.</strong></p>
+        <p style="margin:6px 0 0;font-size:12px;opacity:.85;">Detalle técnico: ${escHtml(exencionesError)}</p>
+      </div>`;
+    return;
+  }
+  if (!exencionesTotal) return;
+
+  const { personas, porDoc } = resumenExencionesAplicadas();
+
+  if (!porDoc.size) {
+    document.getElementById('alertas').innerHTML += `
+      <div class="alert alert-warning" style="margin-top:10px;">
+        <strong>⚠️ Hay ${exencionesTotal} exención${exencionesTotal === 1 ? '' : 'es'} configurada${exencionesTotal === 1 ? '' : 's'} y no ha entrado ninguna</strong>
+        <p style="margin:6px 0 0;">Puede ser normal (ninguna empresa eximida aparece en este Excel), pero también puede ser que el <strong>nombre del documento no coincida exacto</strong> con el de e-Coordina. Compruébalo en <a href="../admin/reglas.html" style="color:var(--naranja)">Admin → Reglas → Exenciones por empresa</a>.</p>
+      </div>`;
+    return;
+  }
+
+  const filas = [...porDoc.entries()].map(([clave, n]) => {
+    const [emp, doc] = clave.split(' ‖ ');
+    return `<li><strong>${escHtml(emp)}</strong> — ${escHtml(doc)} <span style="opacity:.75">(${n} persona${n === 1 ? '' : 's'})</span></li>`;
+  }).join('');
+
   document.getElementById('alertas').innerHTML += `
-    <div class="alert alert-danger" style="margin-top:10px;">
-      <strong>❌ No se han podido leer las exenciones documentales</strong>
-      <p style="margin:6px 0 0;">El cálculo de abajo <strong>NO tiene en cuenta las exenciones</strong>: puede marcar en rojo o naranja a empresas a las que un administrador eximió de algún documento. <strong>Revisa antes de guardar.</strong></p>
-      <p style="margin:6px 0 0;font-size:12px;opacity:.85;">Detalle técnico: ${escHtml(exencionesError)}</p>
+    <div class="alert alert-info" style="margin-top:10px;">
+      <strong>🚫 Exenciones aplicadas: ${personas} persona${personas === 1 ? '' : 's'}</strong>
+      <p style="margin:6px 0 8px;">Estos documentos <strong>no se han exigido</strong> porque un administrador los eximió. El resto de su documentación sí se ha valorado.</p>
+      <ul style="margin-left:18px;">${filas}</ul>
     </div>`;
 }
 
