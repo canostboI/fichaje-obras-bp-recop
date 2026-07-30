@@ -581,13 +581,13 @@
       }
     });
 
-    if (!fichajes || fichajes.length === 0) {
-      zona.innerHTML = '<div class="seccion"><div class="vacio">No hay fichajes en ese mes para esta obra.</div></div>';
-      return;
-    }
-
     const [year, month] = mes.split('-').map(Number);
     const diasMes = new Date(year, month, 0).getDate();
+
+    if (!fichajes || fichajes.length === 0) {
+      zona.innerHTML = renderMesSinFichajes(year, month, diasMes);
+      return;
+    }
 
     // Ajustes de horas fijadas del mes (tabla ajustes_horas_dia).
     // Si esta consulta falla NO se puede callar: la pantalla enseñaría las
@@ -697,7 +697,13 @@
     }
   }
 
-  function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
+  // Construye la fila de dias del mes (numero + letra + gris de finde + marca de
+  // jornada intensiva). La usan la tabla de horas y la vista de mes sin fichajes.
+  // OJO: `jefe/resumen-mes.html` tiene su propia copia de esta funcion. Se
+  // duplica A PROPOSITO: aqui no se decide ninguna hora (el motor unico sigue
+  // siendo js/excel-proforma.js), solo el dibujo del ☀. Si algun dia hay que
+  // cambiar el aspecto de un dia, hay que tocar LAS DOS.
+  function construirDiasMes(year, month, diasMes) {
     const findes = new Set();
     for (let d = 1; d <= diasMes; d++) {
       const dow = new Date(year, month - 1, d).getDay();
@@ -706,12 +712,50 @@
     const letras = ['D','L','M','X','J','V','S'];
 
     let thDias = '';
+    let nIntensiva = 0;
     for (let d = 1; d <= diasMes; d++) {
       const letra = letras[new Date(year, month - 1, d).getDay()];
       const fechaKeyD = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      const claseInt = diasIntensivaSetEnc.has(fechaKeyD) ? ' intensiva' : '';
+      const esInt = diasIntensivaSetEnc.has(fechaKeyD);
+      if (esInt) nIntensiva++;
+      const claseInt = esInt ? ' intensiva' : '';
       thDias += `<th class="dia${findes.has(d) ? ' finde' : ''}${claseInt}"${claseInt ? ' title="Jornada intensiva"' : ''}><span class="num">${d}</span><span class="letra">${letra}</span></th>`;
     }
+    return { findes, thDias, nIntensiva };
+  }
+
+  // Mes sin ningun fichaje: se pinta igualmente la fila de dias, para poder ver
+  // como esta configurado el mes (findes y jornada intensiva) ANTES de que entre
+  // nadie. Antes esto era un return en seco y el mes salia en blanco.
+  function renderMesSinFichajes(year, month, diasMes) {
+    const { thDias, nIntensiva } = construirDiasMes(year, month, diasMes);
+    const badge = nIntensiva > 0
+      ? `<span class="badge">${nIntensiva} día${nIntensiva === 1 ? '' : 's'} ☀ intensiva</span>`
+      : `<span class="badge">sin días ☀ marcados</span>`;
+    return `
+    <div class="seccion">
+      <div class="seccion-cab">
+        <h2>Configuración del mes</h2>
+        ${badge}
+      </div>
+      <div class="tabla-scroll">
+        <table class="mes">
+          <thead>
+            <tr>
+              <th class="col-nombre">Trabajador</th>
+              ${thDias}
+              <th class="col-total">Horas</th>
+            </tr>
+          </thead>
+        </table>
+      </div>
+      <div class="vacio">No hay fichajes en ese mes para esta obra.<br>
+      La fila de arriba enseña cómo está configurado el mes: ☀ y subrayado naranja = jornada intensiva.</div>
+    </div>`;
+  }
+
+  function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
+    const { findes, thDias } = construirDiasMes(year, month, diasMes);
 
     let filas = '';
     const totalDia = {};
