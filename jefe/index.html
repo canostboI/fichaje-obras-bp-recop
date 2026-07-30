@@ -257,10 +257,14 @@
   .modal-autocierres-cab { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
   .modal-autocierres-cab h3 { font-size: 17px; font-weight: 700; color: var(--naranja); }
   .modal-autocierres-sub { font-size: 13px; color: var(--texto2); margin-bottom: 20px; line-height: 1.5; }
-  .autocierre-item { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; }
+  .autocierre-item { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .autocierre-item:last-child { margin-bottom: 0; }
+  .autocierre-txt { min-width: 0; }
   .autocierre-nombre { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
   .autocierre-detalle { font-size: 13px; color: var(--texto2); }
+  .autocierre-fix { background: transparent; border: 1px solid var(--naranja); color: var(--naranja); padding: 7px 14px; border-radius: 7px; cursor: pointer; font-size: 13px; font-weight: 700; font-family: inherit; white-space: nowrap; flex-shrink: 0; }
+  .autocierre-fix:hover { background: var(--naranja); color: #111; }
+  .modal-autocierres-nota { font-size: 12px; color: var(--texto2); line-height: 1.5; margin-top: 16px; }
   .modal-autocierres-btns { display: flex; justify-content: flex-end; margin-top: 22px; }
   .btn-entendido { background: var(--naranja); color: #111; border: none; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 700; font-family: inherit; }
   .btn-entendido:hover { opacity: 0.88; }
@@ -430,9 +434,18 @@
       <h3>Autocierres pendientes de revisar</h3>
     </div>
     <div class="modal-autocierres-sub">
-      En los últimos 7 días se cerraron automáticamente las siguientes jornadas porque el trabajador no fichó la salida. Revísalas en <strong>Fichajes</strong> y corrige la hora si es necesario.
+      En los últimos 7 días el sistema cerró estas jornadas a la hora de salida prevista porque nadie fichó la salida.
+      <strong>La hora que consta puede no ser la real, y es la que contará en el Excel proforma del mes.</strong>
+      <br><br>
+      Pregunta al encargado a qué hora se fue cada uno y corrige la salida desde la celda del día en
+      <strong>Resumen · Proforma</strong>. Si la hora ya es correcta, corrígela igual con el mismo valor y
+      un motivo: así deja de contar como pendiente.
     </div>
     <div id="autocierres-lista"></div>
+    <div class="modal-autocierres-nota">
+      Cada botón te lleva ya con su obra seleccionada. Si la fecha es del mes pasado, cambia el mes al llegar.
+      «Entendido» solo cierra este aviso: no corrige nada.
+    </div>
     <div class="modal-autocierres-btns">
       <button class="btn-entendido" onclick="cerrarModalAutocierres()">Entendido</button>
     </div>
@@ -613,6 +626,17 @@ function cerrarModalAutocierres() {
   }
 }
 
+// Deja la obra del autocierre como obra activa del jefe (clave compartida
+// con Presencia / Trabajadores) y abre Resumen · Proforma, que es donde se
+// corrige. NO marca el aviso como visto a propósito: el modal debe seguir
+// saliendo hasta que el autocierre esté corregido de verdad.
+function irACorregirAutocierre(obraId) {
+  if (obraId) {
+    try { localStorage.setItem(CLAVE_OBRA_ACTIVA_JEFE, obraId); } catch (_) {}
+  }
+  window.location.href = 'resumen-mes.html';
+}
+
 async function comprobarAutoierresRecientes(misObrasIds) {
   if (!misObrasIds || misObrasIds.length === 0) return;
   const hace7dias = new Date();
@@ -620,9 +644,10 @@ async function comprobarAutoierresRecientes(misObrasIds) {
   hace7dias.setHours(0, 0, 0, 0);
   const { data: todos, error } = await sb
     .from('fichajes')
-    .select('id, hora, creado_en, trabajador:trabajador_id(nombre, apellidos), obra:obra_id(nombre)')
+    .select('id, hora, creado_en, obra_id, trabajador:trabajador_id(nombre, apellidos), obra:obra_id(nombre)')
     .in('obra_id', misObrasIds)
     .eq('cierre_automatico', true)
+    .is('corregido_por', null)
     .gte('hora', hace7dias.toISOString())
     .order('hora', { ascending: false });
   if (error || !todos || todos.length === 0) return;
@@ -641,12 +666,21 @@ async function comprobarAutoierresRecientes(misObrasIds) {
     const obraNombre = f.obra?.nombre || '';
     const fecha = new Date(f.hora).toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' });
     const horaStr = formatHora(f.hora);
+    const btn = f.obra_id
+      ? `<button type="button" class="autocierre-fix" data-obra="${esc(f.obra_id)}">Corregir →</button>`
+      : '';
     return `
       <div class="autocierre-item">
-        <div class="autocierre-nombre">${esc(nombre)}</div>
-        <div class="autocierre-detalle">${obraNombre ? esc(obraNombre) + ' · ' : ''}${esc(fecha)} · cierre a las ${esc(horaStr)}</div>
+        <div class="autocierre-txt">
+          <div class="autocierre-nombre">${esc(nombre)}</div>
+          <div class="autocierre-detalle">${obraNombre ? esc(obraNombre) + ' · ' : ''}${esc(fecha)} · cierre a las ${esc(horaStr)}</div>
+        </div>
+        ${btn}
       </div>`;
   }).join('');
+  lista.querySelectorAll('.autocierre-fix').forEach(b => {
+    b.addEventListener('click', () => irACorregirAutocierre(b.dataset.obra));
+  });
   document.getElementById('modal-autocierres-overlay').classList.add('visible');
 }
 
