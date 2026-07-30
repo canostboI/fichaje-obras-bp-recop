@@ -1,9 +1,30 @@
 name: e-Coordina · sincronización diaria
 
-# Ejecución automática L-V a las 01:43 UTC (= 03:43 España en VERANO).
-# Minuto "raro" a propósito: los crons a en-punto (ej. '0 4') se retrasan
-# horas en GitHub por congestión. Con minuto impar el retraso es mínimo.
-# ⚠️ Cambio de hora de octubre: pasar a '43 2 * * 1-5' (CET = UTC+1).
+# DOS EJECUCIONES DIARIAS. La segunda es RED DE SEGURIDAD, no un duplicado
+# molesto: volcar dos veces es inofensivo (mismo cálculo, mismos datos).
+#
+#   1) '43 22 * * 0-4'  = 22:43 UTC = 00:43 de Madrid en VERANO.
+#   2) '43 1 * * 1-5'   = 01:43 UTC = 03:43 de Madrid en VERANO (la de antes).
+#
+# ⚠️ OJO CON LOS DÍAS DE LA PRIMERA: van 0-4 (dom-jue) porque a las 22:43
+# UTC del DOMINGO en España ya es LUNES. Con 1-5 el lunes se quedaría sin
+# sincronizar y el viernes se haría de más.
+#
+# POR QUÉ SE ADELANTÓ (medido el 30/7/2026, 22 ejecuciones de un mes):
+# el minuto impar NO evita el retraso. GitHub encola los disparos
+# programados y los suelta entre 2h51m y 4h27m tarde, TODOS los días
+# (peor los lunes). Con la hora anterior, la sync terminaba entre las
+# 06:34 y las 08:10, y en Muralla se ficha a las 06:39: llegaba DESPUÉS
+# de que entrara la gente, a diario. El proceso en sí dura 1m 40s: todo
+# el retraso está en el arranque, no en la ejecución.
+#
+# POR QUÉ 00:43 Y NO LA NOCHE ANTERIOR: tiene que seguir siendo el MISMO
+# día natural español. Sincronizando el domingo por la noche, un documento
+# que caduca el lunes aún figuraría válido y esa persona entraría en verde
+# con el apto médico caducado.
+#
+# ⚠️ Cambio de hora de octubre (CET = UTC+1): pasar a '43 23 * * 0-4' y
+# '43 2 * * 1-5'. Lo recuerda solo recordatorio-crons.yml.
 # También se puede lanzar a mano desde la pestaña Actions (workflow_dispatch).
 #
 # MJ-20 (auditoría): si la sync falla, se abre (o actualiza) una issue
@@ -13,6 +34,7 @@ name: e-Coordina · sincronización diaria
 on:
   workflow_dispatch:
   schedule:
+    - cron: '43 22 * * 0-4'
     - cron: '43 1 * * 1-5'
 
 permissions:
