@@ -5,8 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Importar e-Coordina (todas) — Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="../js/ecoordina-import.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -117,76 +115,45 @@
 
 <div class="main">
   <div class="topbar">
-    <h1>Importar e-Coordina · Todas las obras</h1>
+    <h1>e-Coordina · Importación documental</h1>
   </div>
 
   <div class="contenido">
 
-    <!-- PASO 1 -->
     <div class="seccion">
-      <h2>📥 Paso 1 — Sube el archivo general de e-Coordina</h2>
+      <div class="alert alert-warning" style="margin-bottom:18px;">
+        <strong>⚠️ Esta pantalla ya no procesa archivos.</strong><br>
+        Antes calculaba el semáforo documental por su cuenta, y lo hacía
+        <strong>mal</strong>: no aplicaba las exenciones documentales por
+        empresa. El 30/7/2026 escribió en rojo a un trabajador que tenía su
+        exención activa, y no avisó de nada. La importación se hace ahora
+        desde un único sitio.
+      </div>
+
+      <h2>Importar desde aquí</h2>
       <p class="ayuda">
-        Sube <strong>una sola vez</strong> el archivo que contiene todas las obras de la empresa
-        (el de "Solicitudes de documentación" o el informe general). Cada obra se reconoce por su
-        <strong>Centro de e-Coordina</strong>, que se configura en cada obra desde
-        <strong>Obras → editar → Centro en e-Coordina</strong>.
+        El importador acepta tu usuario de administrador y te muestra
+        <strong>todas las obras activas</strong>. Sube el archivo
+        <strong>una sola vez</strong>: la pantalla te dice qué obras contiene
+        y las vas importando una a una sin volver a subirlo, cada una con su
+        revisión antes de guardar.
       </p>
-      <div id="estadoObras" class="alert alert-info" style="margin-bottom:16px;">Comprobando obras configuradas…</div>
-      <div class="drop-zone" id="dropZone">
-        <div class="icono">📊</div>
-        <p>Haz clic aquí o arrastra el archivo CSV o Excel de e-Coordina</p>
-        <p style="font-size:12px;">Archivos admitidos: .csv, .xlsx, .xls</p>
-        <div class="nombre-archivo" id="nombreArchivo"></div>
-      </div>
-      <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" />
-      <div class="acciones-fila">
-        <button class="btn-primario" id="btnAnalizar" disabled>Analizar todas las obras</button>
-        <span class="progreso" id="progresoAnalisis"></span>
-      </div>
+      <a class="btn-primario" style="display:inline-block;text-decoration:none;" href="../jefe/documentos-ecoordina.html">
+        📥 Ir al importador de e-Coordina
+      </a>
     </div>
 
-    <!-- PASO 2 -->
-    <div class="seccion oculto" id="seccionResumen">
-      <h2>📋 Paso 2 — Revisión por obra (antes de confirmar)</h2>
-      <div id="alertasResumen" style="margin-bottom:14px;"></div>
-      <table>
-        <thead>
-          <tr>
-            <th>Obra</th>
-            <th class="num">Filas</th>
-            <th class="num">🔴 Rojo</th>
-            <th class="num">🟡 Naranja</th>
-            <th class="num">🟢 Verde</th>
-            <th class="num">⚪ Nuevos</th>
-            <th class="num">Desaparecidos</th>
-          </tr>
-        </thead>
-        <tbody id="tbodyResumen"></tbody>
-      </table>
-
-      <div id="detallesObras" style="margin-top:16px;"></div>
-
-      <div class="aviso-no-guardado" style="margin-top:18px;">
-        <div class="ico-grande">⚠️</div>
-        <div>
-          <strong>Aún NO se ha guardado nada.</strong><br>
-          Revisa el resumen y pulsa <strong>"Confirmar importación de todas las obras"</strong> para guardar.
-          Los "desaparecidos" <strong>solo se informan</strong>: no se bloquea a nadie automáticamente
-          (eso se sigue haciendo a mano desde el panel del jefe).
-        </div>
-      </div>
-
-      <div class="acciones-fila">
-        <button class="btn-exito" id="btnConfirmar">✅ Confirmar importación de todas las obras</button>
-        <button class="btn-secundario" onclick="location.reload()">Cancelar</button>
-        <span class="progreso" id="progresoImport"></span>
-      </div>
-    </div>
-
-    <!-- PASO 3 -->
-    <div class="seccion oculto" id="seccionFinal">
-      <h2>✅ Paso 3 — Resultado</h2>
-      <div id="resumenFinal"></div>
+    <div class="seccion">
+      <h2>Por qué solo hay un sitio</h2>
+      <p class="ayuda" style="margin-bottom:0;">
+        El semáforo documental decide quién puede entrar en obra. Si dos
+        pantallas lo calculan por separado, tarde o temprano dan resultados
+        distintos y ninguna de las dos avisa: un dato nuevo se añade en una y
+        se olvida en la otra. Por eso el cálculo vive en un solo módulo y solo
+        una pantalla lo usa, igual que el Excel proforma se genera solo desde
+        <em>Resumen mes</em>. Esta página ya no carga el motor: no puede
+        volver a calcular por su cuenta ni por descuido.
+      </p>
     </div>
 
   </div>
@@ -195,35 +162,20 @@
 <script>
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
-
-if (!window.supabase || !window.supabase.createClient) {
-  alert('No se ha cargado la librería de Supabase. Recarga la página.');
-}
-if (!window.EcoordinaImport) {
-  alert('No se ha cargado el módulo js/ecoordina-import.js. Revisa que el archivo esté subido.');
-}
-
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 AutoLogout.init(sb);
-const EI = window.EcoordinaImport;
 
-// Estado
-let ctxGlobal = { reglas: [], empresasPropias: new Set(), autonomosSolos: new Set(), trabajadoresApp: {} };
-let obrasConCentro = [];
-let obrasSinCentro = [];
-let filasArchivo = null;
-let analisisPorObra = []; // [{ obra, filasUsadas, resultadoFinal, sinRegla, desaparecidos, counts }]
+// Esta pantalla NO carga js/ecoordina-import.js ni la librería xlsx, a
+// propósito. Sin el motor delante, no puede convertirse otra vez en una
+// segunda pieza que calcule el semáforo. Si algún día hace falta importar
+// desde aquí, lo que toca es enlazar, no volver a traer el módulo.
 
-function esc(v) {
-  return String(v ?? '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
+document.getElementById('btn-salir').onclick = async () => {
+  await sb.auth.signOut();
+  window.location.href = '../index.html';
+};
 
-document.getElementById('btn-salir').onclick = async () => { await sb.auth.signOut(); window.location.href = '../index.html'; };
-
-// ── AUTH + carga inicial ───────────────────────────────────────────────────
 async function init() {
   try {
     const { data: { session } } = await sb.auth.getSession();
@@ -231,248 +183,17 @@ async function init() {
 
     const { data: ua, error: uaErr } = await sb.from('usuarios_app')
       .select('id, rol').eq('auth_user_id', session.user.id).maybeSingle();
-    if (uaErr || !ua) { alert('No se ha podido comprobar tu usuario.'); return; }
-    if (ua.rol !== 'admin') { alert('Esta pantalla es solo para administradores. Rol detectado: ' + ua.rol); window.location.href = 'index.html'; return; }
-
-    // Contexto global (una vez)
-    ctxGlobal.reglas = await EI.cargarReglas(sb);
-    ctxGlobal.empresasPropias = await EI.cargarEmpresasPropias(sb);
-    ctxGlobal.autonomosSolos = await EI.cargarAutonomosSolos(sb);
-    ctxGlobal.trabajadoresApp = await EI.cargarTrabajadoresApp(sb);
-
-    // Obras activas
-    const { data: obras, error: obErr } = await sb.from('obras')
-      .select('id, nombre, empresa_marca, ecoordina_centro')
-      .eq('activa', true).order('nombre');
-    if (obErr) { document.getElementById('estadoObras').textContent = 'Error cargando obras: ' + obErr.message; return; }
-
-    obrasConCentro = (obras || []).filter(o => (o.ecoordina_centro || '').trim() !== '');
-    obrasSinCentro = (obras || []).filter(o => (o.ecoordina_centro || '').trim() === '');
-
-    const box = document.getElementById('estadoObras');
-    if (obrasConCentro.length === 0) {
-      box.className = 'alert alert-warning';
-      box.innerHTML = 'Ninguna obra activa tiene configurado su <strong>Centro de e-Coordina</strong>. ' +
-        'Configúralo en <strong>Obras → editar</strong> antes de importar.';
+    if (uaErr) { console.error('Error leyendo usuarios_app:', uaErr); alert('No se ha podido comprobar tu usuario.'); return; }
+    if (!ua) { alert('Tu usuario no está en usuarios_app.'); return; }
+    if (ua.rol !== 'admin') {
+      alert('Esta pantalla es solo para administradores. Rol detectado: ' + ua.rol);
+      window.location.href = 'index.html';
       return;
     }
-    box.className = 'alert alert-info';
-    box.innerHTML = '<strong>' + obrasConCentro.length + '</strong> obra(s) configuradas con Centro de e-Coordina, listas para importar.' +
-      (obrasSinCentro.length ? ' <strong>' + obrasSinCentro.length + '</strong> obra(s) activas sin Centro se omitirán (' +
-        obrasSinCentro.map(o => esc(o.nombre)).join(', ') + ').' : '');
   } catch (err) {
-    console.error('Error arrancando:', err);
+    console.error('Error arrancando la pantalla:', err);
     alert('Error arrancando la pantalla: ' + (err.message || err));
   }
-}
-
-// ── Carga de archivo ────────────────────────────────────────────────────────
-const dropZone = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
-dropZone.onclick = () => fileInput.click();
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) cargarArchivo(e.dataTransfer.files[0]); });
-fileInput.addEventListener('change', () => { if (fileInput.files[0]) cargarArchivo(fileInput.files[0]); });
-
-async function cargarArchivo(file) {
-  try {
-    filasArchivo = await EI.leerArchivo(file);
-    if (!filasArchivo.length) { alert('El archivo se ha leído pero no tiene filas de datos.'); return; }
-    const centros = EI.centrosDistintos(filasArchivo);
-    document.getElementById('nombreArchivo').innerHTML =
-      '✅ <strong>' + esc(file.name) + '</strong> — ' + filasArchivo.length + ' registros, ' + centros.size + ' obra(s) en el archivo';
-    document.getElementById('btnAnalizar').disabled = (obrasConCentro.length === 0);
-  } catch (err) {
-    console.error(err);
-    alert('No se ha podido leer el archivo: ' + (err.message || err));
-  }
-}
-
-// ── Analizar todas las obras ─────────────────────────────────────────────────
-document.getElementById('btnAnalizar').onclick = analizarTodas;
-
-async function analizarTodas() {
-  if (!filasArchivo) { alert('Sube primero el archivo.'); return; }
-  const btn = document.getElementById('btnAnalizar');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Analizando…';
-  const prog = document.getElementById('progresoAnalisis');
-
-  analisisPorObra = [];
-  for (let i = 0; i < obrasConCentro.length; i++) {
-    const obra = obrasConCentro[i];
-    prog.textContent = 'Analizando ' + (i + 1) + '/' + obrasConCentro.length + ': ' + obra.nombre;
-
-    const filasObra = EI.filtrarPorCentro(filasArchivo, obra.ecoordina_centro);
-    const contratosVigentes = await EI.cargarContratosVigentes(sb, obra.id);
-    const librosVigentes = await EI.cargarLibrosVigentes(sb, obra.id);
-    const { resultadoFinal, sinRegla } = EI.calcularResultado(filasObra, {
-      reglas: ctxGlobal.reglas,
-      empresasPropias: ctxGlobal.empresasPropias,
-      autonomosSolos: ctxGlobal.autonomosSolos,
-      contratosVigentes,
-      librosVigentes,
-      trabajadoresApp: ctxGlobal.trabajadoresApp
-    });
-
-    // Desaparecidos (solo informar): asignados a la obra que no aparecen en el archivo
-    const dnisEnObra = await EI.cargarDnisEnObra(sb, obra.id);
-    const dnisEnArchivo = new Set(resultadoFinal.map(r => r.dni.toUpperCase()));
-    const desaparecidos = Object.entries(dnisEnObra)
-      .filter(([dni, info]) => !dnisEnArchivo.has(dni) && !info.esPropia)
-      .map(([dni, info]) => ({ dni, nombre: info.nombre, estado: info.estado }));
-
-    const enApp = resultadoFinal.filter(r => r.enApp);
-    const counts = {
-      rojos: enApp.filter(r => r.estadoCalculado === 'rojo').length,
-      naranjas: enApp.filter(r => r.estadoCalculado === 'naranja').length,
-      verdes: enApp.filter(r => r.estadoCalculado === 'verde').length,
-      nuevos: resultadoFinal.filter(r => !r.enApp).length
-    };
-
-    analisisPorObra.push({ obra, filasUsadas: filasObra.length, resultadoFinal, sinRegla: [...sinRegla], desaparecidos, counts });
-  }
-
-  prog.textContent = '';
-  btn.innerHTML = 'Analizar todas las obras';
-  renderResumen();
-  document.getElementById('seccionResumen').classList.remove('oculto');
-  document.getElementById('seccionResumen').scrollIntoView({ behavior: 'smooth' });
-}
-
-function celdaNum(n, clasePill) {
-  if (!n) return '<td class="num"><span class="cero">0</span></td>';
-  return '<td class="num"><span class="pill ' + clasePill + '">' + n + '</span></td>';
-}
-
-function renderResumen() {
-  const tbody = document.getElementById('tbodyResumen');
-  tbody.innerHTML = '';
-  let sinFilas = 0;
-  for (const a of analisisPorObra) {
-    if (a.filasUsadas === 0) sinFilas++;
-    const desap = a.desaparecidos.length
-      ? '<span class="pill naranja">' + a.desaparecidos.length + '</span>'
-      : '<span class="cero">0</span>';
-    tbody.insertAdjacentHTML('beforeend',
-      '<tr>' +
-        '<td>' + esc(a.obra.nombre) + '<br><span class="num-obra">' + esc(a.obra.ecoordina_centro) + '</span></td>' +
-        '<td class="num">' + a.filasUsadas + '</td>' +
-        celdaNum(a.counts.rojos, 'rojo') +
-        celdaNum(a.counts.naranjas, 'naranja') +
-        celdaNum(a.counts.verdes, 'verde') +
-        celdaNum(a.counts.nuevos, 'gris') +
-        '<td class="num">' + desap + '</td>' +
-      '</tr>');
-  }
-
-  // Alertas globales
-  const cont = document.getElementById('alertasResumen');
-  cont.innerHTML = '';
-  if (sinFilas) {
-    cont.innerHTML += '<div class="alert alert-warning">⚠️ ' + sinFilas +
-      ' obra(s) no tienen ninguna fila en este archivo (su Centro no aparece). No se tocará nada en ellas.</div>';
-  }
-  // Documentos sin regla (unificados de todas las obras)
-  const sinReglaGlobal = new Set();
-  analisisPorObra.forEach(a => a.sinRegla.forEach(s => sinReglaGlobal.add(s)));
-  if (sinReglaGlobal.size) {
-    const items = [...sinReglaGlobal].map(par => {
-      const [doc, estado] = par.split('||');
-      return '<li>' + esc(doc) + ' — <em>' + esc(estado) + '</em></li>';
-    }).join('');
-    cont.innerHTML += '<div class="alert alert-warning">⚠️ <strong>Documentos sin regla definida (' +
-      sinReglaGlobal.size + ') — tratados como NARANJA.</strong> Añade la regla en ' +
-      '<a href="reglas.html" style="color:var(--naranja)">Reglas documentales</a> para afinar el cálculo.' +
-      '<details class="plegable"><summary>Ver lista</summary><ul>' + items + '</ul></details></div>';
-  }
-
-  // Detalle desaparecidos por obra (solo informativo)
-  const detalles = document.getElementById('detallesObras');
-  const conDesap = analisisPorObra.filter(a => a.desaparecidos.length);
-  if (conDesap.length) {
-    const bloques = conDesap.map(a => {
-      const li = a.desaparecidos.map(d =>
-        '<li>' + esc(d.nombre) + ' <code>' + esc(d.dni) + '</code> ' +
-        '<span class="pill ' + esc(EI.estadoSeguro(d.estado)) + '">' + esc((d.estado || '').toUpperCase()) + '</span></li>'
-      ).join('');
-      return '<details class="plegable"><summary>' + esc(a.obra.nombre) + ' — ' + a.desaparecidos.length +
-        ' desaparecido(s)</summary><ul>' + li + '</ul></details>';
-    }).join('');
-    detalles.innerHTML = '<div class="ayuda" style="margin-bottom:6px;">Desaparecidos por obra (asignados que no salen en el archivo). ' +
-      'Solo informativo — no se bloquean aquí:</div>' + bloques;
-  } else {
-    detalles.innerHTML = '';
-  }
-}
-
-// ── Confirmar importación de todas ────────────────────────────────────────────
-document.getElementById('btnConfirmar').onclick = confirmarTodas;
-
-async function confirmarTodas() {
-  if (!analisisPorObra.length) { alert('Analiza primero.'); return; }
-  const btn = document.getElementById('btnConfirmar');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Guardando…';
-  const prog = document.getElementById('progresoImport');
-
-  const porObra = [];
-  let totCreados = 0, totActualizados = 0, totFallos = 0;
-
-  for (let i = 0; i < analisisPorObra.length; i++) {
-    const a = analisisPorObra[i];
-    prog.textContent = 'Guardando ' + (i + 1) + '/' + analisisPorObra.length + ': ' + a.obra.nombre;
-
-    // Importación masiva: NO se bloquea a desaparecidos (lista vacía).
-    const res = await EI.aplicar(sb, a.obra.id, a.resultadoFinal, []);
-    const creados = res.creadosLista.length;
-    const actualizados = res.actualizadosLista.length;
-    const fallos = res.fallos.length;
-    totCreados += creados; totActualizados += actualizados; totFallos += fallos;
-    porObra.push({ obra: a.obra, creados, actualizados, fallos, detalleFallos: res.fallos, saltadosPorForzado: res.saltadosPorForzado });
-  }
-
-  prog.textContent = '';
-  btn.innerHTML = '✅ Confirmar importación de todas las obras';
-
-  renderFinal(porObra, totCreados, totActualizados, totFallos);
-  document.getElementById('seccionFinal').classList.remove('oculto');
-  document.getElementById('seccionFinal').scrollIntoView({ behavior: 'smooth' });
-}
-
-function renderFinal(porObra, totCreados, totActualizados, totFallos) {
-  const cont = document.getElementById('resumenFinal');
-  const claseGlobal = totFallos ? 'alert-error' : 'alert-success';
-  let html = '<div class="alert ' + claseGlobal + '"><strong>Importación terminada.</strong> ' +
-    totCreados + ' creados, ' + totActualizados + ' actualizados' +
-    (totFallos ? ', <strong>' + totFallos + ' con error</strong>' : ', sin errores') + '.</div>';
-
-  html += '<table style="margin-top:14px;"><thead><tr>' +
-    '<th>Obra</th><th class="num">Creados</th><th class="num">Actualizados</th><th class="num">Errores</th><th class="num">Forzados (sin tocar)</th>' +
-    '</tr></thead><tbody>';
-  for (const p of porObra) {
-    html += '<tr>' +
-      '<td>' + esc(p.obra.nombre) + '</td>' +
-      '<td class="num">' + p.creados + '</td>' +
-      '<td class="num">' + p.actualizados + '</td>' +
-      '<td class="num">' + (p.fallos ? '<span class="pill rojo">' + p.fallos + '</span>' : '<span class="cero">0</span>') + '</td>' +
-      '<td class="num">' + (p.saltadosPorForzado || 0) + '</td>' +
-      '</tr>';
-  }
-  html += '</tbody></table>';
-
-  // Detalle de errores si los hay
-  const conFallos = porObra.filter(p => p.fallos);
-  if (conFallos.length) {
-    const bloques = conFallos.map(p => {
-      const li = p.detalleFallos.map(f =>
-        '<li>' + esc(f.nombre || '(sin nombre)') + ' <code>' + esc(f.dni) + '</code> — ' + esc(f.fase) + ': ' + esc(f.mensaje) + '</li>'
-      ).join('');
-      return '<details class="plegable"><summary>' + esc(p.obra.nombre) + ' — ' + p.fallos + ' error(es)</summary><ul>' + li + '</ul></details>';
-    }).join('');
-    html += '<div style="margin-top:12px;">' + bloques + '</div>';
-  }
-
-  cont.innerHTML = html;
 }
 
 init();
