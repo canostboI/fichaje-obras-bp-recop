@@ -1213,8 +1213,20 @@ async function abrirEdicion(trabajadorId) {
   if (selCat.selectedIndex === -1) selCat.value = 'peon';
   document.getElementById('modal-precio-hora').value = t.precio_hora_personalizado ?? '';
   poblarSelectorEmpresas(t.empresa?.id || '');
-  const { data: vals } = await sb.from('validaciones_obra').select('obra_id')
+  const { data: vals, error: errVals } = await sb.from('validaciones_obra').select('obra_id')
     .eq('trabajador_id', trabajadorId).in('obra_id', misObras.map(o => o.id));
+  // OJO: si esta lectura falla, las casillas saldrían TODAS desmarcadas y al
+  // guardar se le quitarían obras sin querer. Por eso se bloquea el guardado.
+  if (errVals) {
+    console.error('validaciones_obra (abrir edición):', errVals);
+    const m = document.getElementById('modal-msg');
+    m.className = 'msg-error';
+    m.textContent = 'No se han podido leer las obras de este trabajador. NO guardes: podrías quitarle obras sin querer. Cierra y vuelve a intentarlo.';
+    document.getElementById('btn-guardar').disabled = true;
+    renderCheckObras([]);
+    document.getElementById('modal-overlay').classList.add('abierto');
+    return;
+  }
   renderCheckObras((vals || []).map(v => v.obra_id));
   document.getElementById('modal-overlay').classList.add('abierto');
 }
@@ -1250,6 +1262,32 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   if (obrasSeleccionadas.length === 0) {
     msg.className = 'msg-error'; msg.textContent = 'Selecciona al menos una obra.'; btn.disabled = false; return;
   }
+  // Antes de guardar nada: mirar de qué obras habría que quitarlo y pedir
+  // confirmación. Quitar el acceso a una obra es una acción de seguridad y
+  // hasta ahora ocurría por desmarcar una casilla, sin preguntar.
+  let aQuitar = [];
+  if (modoEdicion) {
+    const { data: asignacionesActuales, error: errLeer } = await sb
+      .from('validaciones_obra').select('obra_id')
+      .eq('trabajador_id', modoEdicion).in('obra_id', misObras.map(o => o.id));
+    if (errLeer) {
+      console.error('validaciones_obra (leer asignaciones):', errLeer);
+      msg.className = 'msg-error';
+      msg.textContent = 'No se ha podido comprobar en qué obras está. NO se ha guardado nada. Vuelve a intentarlo.';
+      btn.disabled = false;
+      return;
+    }
+    const yaAsignadas = (asignacionesActuales || []).map(a => a.obra_id);
+    aQuitar = yaAsignadas.filter(id => !obrasSeleccionadas.includes(id));
+    if (aQuitar.length > 0) {
+      const nombresQuitar = aQuitar.map(id => (misObras.find(o => o.id === id) || {}).nombre || id);
+      const seguir = confirm('Vas a QUITAR a ' + nombre + ' ' + apellidos + ' de:\n\n\u00b7 '
+        + nombresQuitar.join('\n\u00b7 ')
+        + '\n\nDejará de poder fichar con el QR de esa obra. Su histórico de fichajes se conserva. ¿Continuar?');
+      if (!seguir) { msg.className = ''; msg.textContent = ''; btn.disabled = false; return; }
+    }
+  }
+
   const { data: rpcData, error: rpcError } = await sb.rpc('crear_o_actualizar_trabajador', {
     p_nombre: nombre, p_apellidos: apellidos, p_dni: dni,
     p_categoria: categoria || null, p_precio_hora: precio_hora_personalizado,
@@ -1257,40 +1295,50 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   });
   if (rpcError) { msg.className = 'msg-error'; msg.textContent = 'Error: ' + rpcError.message; btn.disabled = false; return; }
   if (rpcData && rpcData.ok === false) { msg.className = 'msg-error'; msg.textContent = 'Error: ' + (rpcData.error || 'No se pudo guardar'); btn.disabled = false; return; }
-  if (modoEdicion) {
-    const trabajadorId = rpcData.id;
-    // OJO: llegados aquí el trabajador YA está guardado (la RPC de arriba fue
-    // bien). Lo único que queda es QUITARLE las obras que has desmarcado.
-    // Si esto falla no se puede decir "Guardado correctamente": el trabajador
-    // seguiría teniendo acceso a una obra de la que crees que lo has quitado.
-    const { data: asignacionesActuales, error: errLeer } = await sb
-      .from('validaciones_obra').select('obra_id')
-      .eq('trabajador_id', trabajadorId).in('obra_id', misObras.map(o => o.id));
-    if (errLeer) {
-      console.error('validaciones_obra (leer asignaciones):', errLeer);
+  // Si el DNI se ha cambiado por el de otra persona ya existente, la RPC de
+  // arriba resuelve por DNI y devuelve OTRO id. En ese caso NO se quita nada:
+  // las casillas que leímos eran de la persona que estábamos editando.
+  if (modoEdicion && rpcData && rpcData.id && rpcData.id !== modoEdicion) {
+    msg.className = 'msg-error';
+    msg.textContent = 'Los datos se han guardado, pero ese DNI corresponde a otra ficha. NO se ha quitado ninguna obra. Revísalo en la lista.';
+    btn.disabled = false;
+    return;
+  }
+
+  // Quitar obras: SIEMPRE por la RPC quitar_trabajador_de_obra, la misma que
+  // usa admin/trabajadores.html. Además de quitar la validación documental,
+  // retira al trabajador como Recurso Preventivo de esa obra. El DELETE
+  // directo sobre validaciones_obra que había aquí no tenía permisos (la tabla
+  // no concede DELETE a authenticated) y tampoco hacía lo del RP.
+  if (aQuitar.length > 0) {
+    const fallos = [];
+    for (const obraId of aQuitar) {
+      const { data: dQuitar, error: errQuitar } = await sb.rpc('quitar_trabajador_de_obra', {
+        p_trabajador_id: modoEdicion, p_obra_id: obraId
+      });
+      if (errQuitar || (dQuitar && dQuitar.ok === false)) {
+        console.error('quitar_trabajador_de_obra:', obraId, errQuitar || dQuitar);
+        fallos.push((misObras.find(o => o.id === obraId) || {}).nombre || obraId);
+      }
+    }
+    if (fallos.length > 0) {
       msg.className = 'msg-error';
-      msg.textContent = 'Los datos se han guardado, pero NO se ha podido comprobar de qué obras había que quitarlo. Revisa las obras marcadas y vuelve a guardar.';
+      msg.textContent = 'Los datos se han guardado, pero NO se ha podido quitar de: '
+        + fallos.join(', ') + '. SIGUE teniendo acceso. Vuelve a guardar.';
       btn.disabled = false;
       return;
     }
-    const yaAsignadas = (asignacionesActuales || []).map(a => a.obra_id);
-    const aQuitar = yaAsignadas.filter(id => !obrasSeleccionadas.includes(id));
-    if (aQuitar.length > 0) {
-      const { error: errQuitar } = await sb.from('validaciones_obra').delete()
-        .eq('trabajador_id', trabajadorId).in('obra_id', aQuitar);
-      if (errQuitar) {
-        console.error('validaciones_obra (quitar obras):', errQuitar);
-        msg.className = 'msg-error';
-        msg.textContent = 'Los datos se han guardado, pero NO se ha podido quitar de '
-          + aQuitar.length + (aQuitar.length === 1 ? ' obra' : ' obras')
-          + '. SIGUE teniendo acceso. Vuelve a guardar.';
-        btn.disabled = false;
-        return;
-      }
-    }
   }
-  msg.className = 'msg-ok'; msg.textContent = 'Guardado correctamente.';
-  setTimeout(() => { cerrarModal(); cargarTrabajadores(); }, 800);
+
+  msg.className = 'msg-ok';
+  if (aQuitar.length > 0) {
+    msg.textContent = 'Guardado. Quitado de ' + aQuitar.length
+      + (aQuitar.length === 1 ? ' obra' : ' obras')
+      + '. Aviso: si sigue en e-Coordina bajo el centro de esa obra, la sincronización de esta noche volverá a asignarlo. La baja definitiva se hace en e-Coordina.';
+  } else {
+    msg.textContent = 'Guardado correctamente.';
+  }
+  setTimeout(() => { cerrarModal(); cargarTrabajadores(); }, aQuitar.length > 0 ? 5000 : 800);
 });
 
 function abrirModalForzar(trabajadorId, obraId) {
