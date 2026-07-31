@@ -994,8 +994,22 @@
       ? '<p class="bloqueo-subtitulo" style="color:#c62828">⚠️ No se han podido leer los "presentes sin registrar" de hoy: si alguien se ha declarado en la valla, aquí no sale.</p>'
       : '';
 
-    // Prellenado de la ronda: solo los rojos documentales que siguen fuera.
-    rojosHoyCache = clas.pendientes.filter(g => g.clase === 'trabajador').length;
+    // Prellenado de la ronda: TODO el que hoy sigue sin poder entrar. Los dos
+    // tipos cuentan: el trabajador con el semáforo en rojo Y quien se declaró
+    // en la valla sin estar registrado. Los dos son "personas presentes que NO
+    // han podido fichar", que es justo lo que dice la etiqueta del campo.
+    // Es EXACTAMENTE el mismo número que enseña la tarjeta de arriba: el
+    // contador y el número que se FIRMA tienen que medir lo mismo.
+    // ANTES (hasta el 31/7/2026) solo contaba la clase 'trabajador'. Ese día
+    // una persona sin identificar lo intentó a las 06:46, la ronda de las
+    // 07:45 se firmó con un 0 prellenado y el jefe no recibió ni banner
+    // naranja ni email: marcar_ronda solo avisa si personas_sin_fichar > 0.
+    //
+    // Si la consulta de "presentes sin registrar" ha fallado, este número
+    // puede quedarse CORTO. No se rellena con una cifra incompleta algo que se
+    // firma: null = "no se sabe", el campo se deja en blanco y lo cuenta el
+    // encargado (mismo camino que cuando falla la consulta de bloqueos).
+    rojosHoyCache = errorSR ? null : clas.totales.personasPendientes;
 
     // Número visible de la tarjeta: los que siguen sin poder entrar.
     const statRojos = document.getElementById('stat-rojos');
