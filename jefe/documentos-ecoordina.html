@@ -64,6 +64,20 @@
     #paso-obra { display: none; }
     #resultado { display: none; }
 
+    /* Panel de progreso multi-obra. El archivo de e-Coordina puede traer
+       varias obras (columna "Centro"): esto enseña cuáles cubre, cuáles ya
+       se han importado en esta sesión y cuáles faltan. NO cambia el cálculo;
+       cada obra sigue pasando por su revisión completa una a una. */
+    .panel-progreso { background: var(--bg3); border: 1px solid var(--borde); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
+    .panel-progreso h3 { font-size: 12px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+    .obra-progreso { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--borde); font-size: 13px; }
+    .obra-progreso:last-of-type { border-bottom: none; }
+    .obra-progreso .ico { font-size: 15px; }
+    .obra-progreso .nom { font-weight: 600; color: var(--texto); }
+    .obra-progreso.hecha .nom { color: var(--texto2); }
+    .obra-progreso .filas { margin-left: auto; font-size: 12px; color: var(--texto2); }
+    .nota-progreso { font-size: 12px; color: var(--texto2); line-height: 1.5; margin-top: 10px; }
+
     .alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; line-height: 1.5; margin-bottom: 10px; }
     .alert-info { background: rgba(33,150,243,0.08); border: 1px solid rgba(33,150,243,0.3); color: #90caf9; }
     .alert-warning { background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.3); color: #ffb74d; }
@@ -157,6 +171,7 @@
           <option value="">Cargando obras...</option>
         </select>
       </div>
+      <div id="progresoObras"></div>
       <button class="btn btn-primary" id="btnProcesar" onclick="procesarExcel()">
         Procesar archivo
       </button>
@@ -288,6 +303,10 @@ let resultadoFinal = [];
 let descartadosMultiEmpresa = [];
 let sinRegla = new Set();
 let dnisEnObra = {}; // dni -> { trabajador_id, nombre, estado, esPropia }
+// Obras de ESTE archivo ya importadas en ESTA sesión: obraId -> { hora }.
+// Se vacía cada vez que se sube un archivo nuevo (si no, quedarían ticks
+// viejos de un archivo que ya no es el que hay cargado).
+let obrasImportadas = {};
 
 // ── Helpers UI puros ───────────────────────────────────────────────────────
 function escHtml(valor) {
@@ -413,16 +432,134 @@ async function procesarArchivo(file) {
     const filas = await EI.leerArchivo(file);
     if (!filas.length) { alert('El archivo se ha leído, pero no se han encontrado filas de datos.'); return; }
     datosExcel = filas;
+    // Archivo nuevo = recorrido nuevo. Se olvidan los ticks del anterior y se
+    // esconde el resultado en pantalla, que es del archivo viejo.
+    obrasImportadas = {};
+    document.getElementById('resultado').style.display = 'none';
     dropZone.innerHTML = `
       <div class="icon">✅</div>
       <p><strong>${escHtml(file.name)}</strong> cargado</p>
       <p style="font-size:12px;margin-top:4px;">${filas.length} registros leídos</p>
     `;
     document.getElementById('paso-obra').style.display = 'block';
+    renderProgresoObras();
   } catch (err) {
     console.error(err);
     alert('No se ha podido leer el archivo de e-Coordina: ' + (err.message || err));
   }
+}
+
+// ── COBERTURA MULTI-OBRA ───────────────────────────────────────────────────
+// Qué obras del usuario cubre el archivo que hay cargado, qué centros del
+// archivo no casan con ninguna y qué obras no tienen Centro configurado.
+//
+// IMPORTANTE: el emparejamiento centro↔obra se hace SIEMPRE con
+// EI.filtrarPorCentro, que es quien normaliza (mayúsculas, tildes, espacios).
+// La función normalizar() NO está exportada por el módulo, y reescribirla
+// aquí sería una segunda verdad: dos criterios de emparejamiento que un día
+// dejarían de coincidir. Por eso, para saber si un centro suelto casa con una
+// obra, se le pasa al módulo una fila sintética { Centro: c } en vez de
+// comparar textos a mano.
+function analizarCoberturaArchivo() {
+  const vacio = { sinColumnaCentro: false, obrasEnArchivo: [], obrasSinCentro: [], centrosHuerfanos: [] };
+  if (!datosExcel) return vacio;
+
+  const centros = Array.from(EI.centrosDistintos(datosExcel));
+  const conCentro = misObras.filter(o => (o.ecoordina_centro || '').trim() !== '');
+  const sinCentro = misObras.filter(o => (o.ecoordina_centro || '').trim() === '');
+
+  // Archivo de una sola obra (formato antiguo, sin columna Centro).
+  if (centros.length === 0) return Object.assign({}, vacio, { sinColumnaCentro: true });
+
+  const obrasEnArchivo = [];
+  conCentro.forEach(o => {
+    const n = EI.filtrarPorCentro(datosExcel, o.ecoordina_centro).length;
+    if (n > 0) obrasEnArchivo.push({ obra: o, filas: n });
+  });
+
+  const centrosHuerfanos = centros
+    .filter(c => !conCentro.some(o => EI.filtrarPorCentro([{ Centro: c }], o.ecoordina_centro).length > 0))
+    .map(c => ({ centro: c, filas: EI.filtrarPorCentro(datosExcel, c).length }));
+
+  return { sinColumnaCentro: false, obrasEnArchivo, obrasSinCentro: sinCentro, centrosHuerfanos };
+}
+
+function obrasPendientesDelArchivo() {
+  return analizarCoberturaArchivo().obrasEnArchivo.filter(x => !obrasImportadas[x.obra.id]);
+}
+
+function renderProgresoObras() {
+  const cont = document.getElementById('progresoObras');
+  if (!cont) return;
+  if (!datosExcel) { cont.innerHTML = ''; return; }
+
+  const cob = analizarCoberturaArchivo();
+
+  if (cob.sinColumnaCentro) {
+    cont.innerHTML = '<div class="alert alert-info">📄 Este archivo no trae columna <strong>Centro</strong>: se aplicará <strong>entero</strong> a la obra que selecciones.</div>';
+    return;
+  }
+
+  let html = '';
+
+  if (cob.obrasEnArchivo.length) {
+    const n = cob.obrasEnArchivo.length;
+    const pend = cob.obrasEnArchivo.filter(x => !obrasImportadas[x.obra.id]).length;
+    const filas = cob.obrasEnArchivo.map(x => {
+      const hecho = obrasImportadas[x.obra.id];
+      return '<div class="obra-progreso' + (hecho ? ' hecha' : '') + '">'
+        + '<span class="ico">' + (hecho ? '✅' : '⬜') + '</span>'
+        + '<span class="nom">' + escHtml(x.obra.nombre) + '</span>'
+        + '<span class="filas">' + x.filas + ' filas'
+        + (hecho ? ' · importada ' + escHtml(hecho.hora) : '')
+        + '</span></div>';
+    }).join('');
+    html += '<div class="panel-progreso">'
+      + '<h3>Este archivo contiene ' + n + ' obra' + (n > 1 ? 's' : '') + ' tuya' + (n > 1 ? 's' : '') + '</h3>'
+      + filas
+      + '<p class="nota-progreso">' + (pend === 0
+        ? '✅ Todas importadas. No hace falta volver a subir el archivo.'
+        : 'No hace falta volver a subir el archivo: cambia la obra aquí arriba y vuelve a pulsar <strong>"Procesar archivo"</strong>. Cada obra se revisa y se confirma por separado.')
+      + '</p></div>';
+  }
+
+  if (cob.centrosHuerfanos.length) {
+    const n = cob.centrosHuerfanos.length;
+    const li = cob.centrosHuerfanos.map(h =>
+      '<li><code>' + escHtml(h.centro) + '</code> — ' + h.filas + ' filas</li>').join('');
+    html += '<div class="alert alert-warning" style="margin-top:12px;">'
+      + '⚠️ <strong>El archivo trae ' + n + ' centro' + (n > 1 ? 's' : '') + ' que no corresponde'
+      + (n > 1 ? 'n' : '') + ' a ninguna obra tuya:</strong>'
+      + '<ul style="margin:8px 0 0 18px;">' + li + '</ul>'
+      + '<p style="margin-top:8px;font-size:12px;">Esas filas se están <strong>ignorando</strong>. '
+      + 'Si alguno debería ser una de tus obras, copia el texto tal cual en el campo '
+      + '<strong>Centro de e-Coordina</strong> de esa obra (Admin → Obras).</p></div>';
+  }
+
+  if (cob.obrasSinCentro.length) {
+    const n = cob.obrasSinCentro.length;
+    const li = cob.obrasSinCentro.map(o => '<li>' + escHtml(o.nombre) + '</li>').join('');
+    html += '<div class="alert alert-info" style="margin-top:12px;">'
+      + 'ℹ️ <strong>' + n + ' obra' + (n > 1 ? 's' : '') + ' sin Centro de e-Coordina configurado:</strong>'
+      + '<ul style="margin:8px 0 0 18px;">' + li + '</ul>'
+      + '<p style="margin-top:8px;font-size:12px;">Mientras no tengan Centro no se pueden importar '
+      + 'desde un archivo con varias obras.</p></div>';
+  }
+
+  cont.innerHTML = html;
+}
+
+// Cambia el selector a la siguiente obra pendiente y sube al Paso 2.
+// NO procesa nada solo: el usuario tiene que pulsar "Procesar archivo" y
+// revisar. Un botón que importara de golpe es justo lo que se pulsa sin leer.
+function irSiguienteObra() {
+  const pend = obrasPendientesDelArchivo();
+  if (!pend.length) return;
+  const sel = document.getElementById('obraSelect');
+  if (sel) sel.value = pend[0].obra.id;
+  document.getElementById('resultado').style.display = 'none';
+  renderProgresoObras();
+  document.getElementById('paso-obra').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 // ── PROCESAR ───────────────────────────────────────────────────────────────
@@ -706,6 +843,16 @@ async function confirmarImportacion() {
   // en el módulo. Devuelve listas para construir el resumen UI.
   const res = await EI.aplicar(sb, obraId, resultadoFinal, dnisABloquear);
 
+  // Ya ha ESCRITO en la BD: la obra queda marcada aunque haya habido fallos
+  // parciales (el detalle de los fallos sale más abajo). Marcar solo cuando
+  // todo va bien mentiría sobre lo que se ha tocado.
+  obrasImportadas[obraId] = {
+    hora: new Intl.DateTimeFormat('es-ES', {
+      timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit'
+    }).format(new Date())
+  };
+  renderProgresoObras();
+
   btn.disabled = false;
   btn.innerHTML = '✅ Confirmar importación';
   document.getElementById('avisoNoGuardado').classList.add('oculto');
@@ -774,6 +921,25 @@ async function confirmarImportacion() {
       ${construirLista('🆕 Trabajadores nuevos creados', res.creadosLista, 'var(--verde)')}
       ${construirLista('🔁 Trabajadores actualizados', res.actualizadosLista, 'var(--azul)')}
     `;
+  }
+
+  // Recorrido multi-obra: si el archivo trae más obras sin importar, decirlo
+  // AQUÍ, que es donde está mirando el usuario al terminar una.
+  const pendientes = obrasPendientesDelArchivo();
+  const totalEnArchivo = analizarCoberturaArchivo().obrasEnArchivo.length;
+  if (pendientes.length) {
+    const n = pendientes.length;
+    resumenCont.insertAdjacentHTML('beforeend',
+      '<div class="alert alert-info" style="margin-top:14px;">'
+      + 'Queda' + (n > 1 ? 'n' : '') + ' <strong>' + n + ' obra' + (n > 1 ? 's' : '')
+      + '</strong> de este archivo sin importar: '
+      + pendientes.map(p => escHtml(p.obra.nombre)).join(', ') + '.'
+      + '<br><button class="btn btn-primary" style="margin-top:10px;" onclick="irSiguienteObra()">→ Siguiente obra pendiente</button>'
+      + '</div>');
+  } else if (totalEnArchivo > 1) {
+    resumenCont.insertAdjacentHTML('beforeend',
+      '<div class="alert alert-success" style="margin-top:14px;">'
+      + '✅ Las ' + totalEnArchivo + ' obras de este archivo están importadas.</div>');
   }
 
   resumenCont.scrollIntoView({ behavior: 'smooth', block: 'center' });
