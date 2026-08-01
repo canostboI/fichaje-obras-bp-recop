@@ -301,12 +301,21 @@ async function buscar() {
   document.getElementById('tabla-fichajes').innerHTML = '<div class="cargando">Cargando…</div>';
   const fecha = document.getElementById('filtro-fecha').value;
 
+  // El tope se lleva siempre lo MÁS ANTIGUO, nunca lo de hoy:
+  //  · con fecha → un día cabe de sobra en 500.
+  //  · sin fecha (el campo se puede vaciar a mano) → antes pedía orden
+  //    ASCENDENTE, así que traía los 500 fichajes MÁS ANTIGUOS de la obra
+  //    y parecía que no había nada reciente. Ahora se piden en orden
+  //    descendente y se le da la vuelta antes de agrupar, porque aparear
+  //    entradas con salidas sí necesita orden cronológico.
+  const TOPE_FICHAJES = 500;
+
   let query = sb
     .from('fichajes')
     .select('id, tipo, hora, es_manual, cierre_automatico, corregido_por, corregido_en, motivo_correccion, origen, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni)')
     .eq('obra_id', obraActual)
-    .order('hora', { ascending: true })
-    .limit(500);
+    .order('hora', { ascending: !!fecha })
+    .limit(TOPE_FICHAJES);
 
   if (fecha) {
     const [y, m, d] = fecha.split('-').map(Number);
@@ -335,10 +344,15 @@ async function buscar() {
   // Nombres de quien registró/corrigió (consulta aparte: no dependemos de la FK)
   await cargarNombresFirmantes(data);
 
+  // Sin fecha vinieron del más nuevo al más viejo: se les da la vuelta,
+  // porque agruparEnJornadas aparea entrada→salida en orden cronológico.
+  const cronologico = fecha ? data : data.slice().reverse();
+  const topado = data.length >= TOPE_FICHAJES;
+
   // Agrupar en jornadas: clave = trabajador_id + fecha local
   // Una jornada = la entrada más reciente no cerrada + su salida correspondiente
   // Puede haber varias jornadas por trabajador por día (entró, salió, volvió a entrar)
-  const jornadas = agruparEnJornadas(data);
+  const jornadas = agruparEnJornadas(cronologico);
   jornadasActuales = jornadas;
 
   // Ordenar: por fecha desc, luego por apellidos asc
@@ -369,7 +383,10 @@ async function buscar() {
       <tbody>
         ${jornadas.map((j, i) => pintarJornada(j, mostrarFecha, i)).join('')}
       </tbody>
-    </table>`;
+    </table>` + (topado
+      ? '<div class="vacio" style="color:var(--naranja)">Se muestran los ' + TOPE_FICHAJES +
+        ' fichajes más recientes de esta obra. Elige una fecha concreta para ver el resto.</div>'
+      : '');
 }
 
 // Resuelve corregido_por (uuid) → nombre. Si falla, lo decimos: nunca dejamos
@@ -779,7 +796,15 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
 // EXPORTACIÓN EXCEL MENSUAL (sin cambios)
 // =====================================================================
 function mesActual() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
-function fechaHoy()  { return new Date().toISOString().split('T')[0]; }
+// "Hoy" en España, NO en UTC. `toISOString()` devuelve el día anterior
+// entre medianoche y las 02:00 de Madrid en verano: el botón "Hoy" y el
+// arranque de la página traían el día equivocado a esas horas.
+function fechaHoy()  {
+  const d = new Date();
+  return d.getFullYear() + '-' +
+         String(d.getMonth() + 1).padStart(2, '0') + '-' +
+         String(d.getDate()).padStart(2, '0');
+}
 function horaAhora() { const d = new Date(); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
 
 function mostrarError(msg) { const el = document.getElementById('error-correccion'); el.textContent = msg; el.style.display = 'block'; }

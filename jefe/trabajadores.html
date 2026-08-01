@@ -517,6 +517,19 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 AutoLogout.init(sb);
 
 const CLAVE_OBRA_ACTIVA_JEFE = 'jefe_obra_activa_id';
+
+// "Hoy" en España, NUNCA en UTC. `toISOString().slice(0,10)` devuelve el
+// DÍA ANTERIOR entre medianoche y las 02:00 de Madrid en verano (01:00 en
+// invierno). Aquí se usa para la vigencia de contratos y libros y para la
+// fecha de las excepciones de acceso: a esas horas se buscaba el día que
+// no era. Con horario de obra no llegaba a pasar, pero la regla del
+// proyecto es clara y esto no cuesta nada.
+function fechaHoyLocal() {
+  const d = new Date();
+  return d.getFullYear() + '-' +
+         String(d.getMonth() + 1).padStart(2, '0') + '-' +
+         String(d.getDate()).padStart(2, '0');
+}
 const CLAVE_OBRA_FILTRO_TRABAJADORES = 'jefe_trabajadores_obra_filtro';
 const EMPRESAS_PRIORITARIAS = ['Bosch Pascual', 'Recop', 'BOSCH PASCUAL', 'RECOP'];
 
@@ -757,7 +770,7 @@ async function cargarTrabajadoresPropios() {
 async function cargarContratos() {
   contratosPorEmpresa = {};
   if (!obraFiltroTrabajadores) return;
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = fechaHoyLocal();
   const { data, error } = await sb
     .from('contratos_empresa')
     .select('id, empresa_id, obra_id, valido_desde, valido_hasta')
@@ -771,7 +784,7 @@ async function cargarContratos() {
 async function cargarLibros() {
   librosPorEmpresa = {};
   if (!obraFiltroTrabajadores) return;
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = fechaHoyLocal();
   const { data, error } = await sb
     .from('libros_subcontratacion')
     .select('id, empresa_id, obra_id, valido_desde, valido_hasta')
@@ -956,7 +969,7 @@ async function cargarTrabajadores() {
     validaciones = fallback.data || [];
   }
 
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = fechaHoyLocal();
   const { data: excepciones, error: errExc } = await sb.from('excepciones_acceso')
     .select('id, trabajador_id, obra_id, motivo_autorizacion, created_at, autorizado_por:autorizado_por_user_id(nombre)')
     .in('obra_id', obraIds).eq('fecha', hoy).eq('estado', 'activa');
@@ -1697,7 +1710,7 @@ function abrirModalContrato(empresaId, empresaNombre) {
     btnGuardar.style.display = 'inline-block';
     btnGuardar.disabled = false;
     btnQuitar.style.display = 'none';
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = fechaHoyLocal();
     document.getElementById('contrato-desde').value = hoy;
     document.getElementById('contrato-hasta').value = '';
   }
@@ -1781,7 +1794,7 @@ function abrirModalLibro(empresaId, empresaNombre) {
     btnGuardar.style.display = 'inline-block';
     btnGuardar.disabled = false;
     btnQuitar.style.display = 'none';
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = fechaHoyLocal();
     document.getElementById('libro-desde').value = hoy;
     document.getElementById('libro-hasta').value = '';
   }
