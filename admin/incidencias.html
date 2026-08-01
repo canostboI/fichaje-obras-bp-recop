@@ -105,6 +105,7 @@
 </style>
   <script src="../js/auto-logout.js"></script>
   <script src="../js/incidencias-familias.js"></script>
+  <script src="../js/sb-paginado.js"></script>
 </head>
 <body>
 
@@ -330,26 +331,54 @@ async function buscar() {
 // --- 1) Informe de denegaciones: SIEMPRE los mismos tipos ---
 // Va en su propia consulta para que las miles de incidencias de rastro
 // no le coman el límite de filas y lo dejen incompleto sin avisar.
+//
+// EL INFORME TIENE QUE SER COMPLETO. Antes pedía .limit(2000), que era
+// humo: el techo del servidor son 1.000 filas y, con orden descendente,
+// lo que se perdía era lo MÁS ANTIGUO del rango, sin avisar. Ahora va por
+// js/sb-paginado.js, que lee por tandas hasta el final. Si algo falla,
+// LANZA: mejor un informe que dice "no soy fiable" que uno incompleto.
 async function cargarInforme() {
   document.getElementById('resumen').innerHTML = '<div class="cargando">Cargando…</div>';
 
-  let query = sb.from('incidencias').select(CAMPOS)
-    .in('tipo', TIPOS_DENEGACION)
-    .order('created_at', { ascending: false }).limit(2000);
-
-  const { data, error } = await aplicarFiltrosComunes(query);
-
-  if (error) {
+  if (!window.SbPaginado) {
     document.getElementById('badge-resumen').textContent = 'Error';
-    document.getElementById('resumen').innerHTML = '<div class="vacio">Error al cargar: ' + esc(error.message) + '</div>';
+    document.getElementById('resumen').innerHTML =
+      '<div class="vacio" style="color:var(--rojo)">⚠️ Falta el módulo js/sb-paginado.js. ' +
+      'El informe no se muestra porque saldría incompleto sin avisar.</div>';
     datosInforme = [];
     return;
   }
-  datosInforme = data || [];
+
+  try {
+    datosInforme = await window.SbPaginado.traerTodo(
+      () => aplicarFiltrosComunes(
+        sb.from('incidencias').select(CAMPOS)
+          .in('tipo', TIPOS_DENEGACION)
+          .order('created_at', { ascending: false })
+      ),
+      { etiqueta: 'informe de denegaciones' }
+    );
+  } catch (e) {
+    document.getElementById('badge-resumen').textContent = 'Error';
+    document.getElementById('resumen').innerHTML =
+      '<div class="vacio" style="color:var(--rojo)">⚠️ Error al cargar el informe: ' +
+      esc(e.message || 'error desconocido') +
+      '<br><span style="color:var(--texto2)">Esto NO significa que no haya denegaciones. No uses este informe hasta que cargue bien.</span></div>';
+    datosInforme = [];
+    return;
+  }
+
   pintarResumen(datosInforme);
 }
 
 // --- 2) Listado de la pestaña activa ---
+// El listado NO se pagina a propósito: es una pantalla para mirar, no un
+// informe, y el rastro puede ser de decenas de miles de filas. Lleva tope
+// EXPLÍCITO (TOPE_LISTADO) + total real por `count: 'exact'` + aviso de
+// truncado debajo de la tabla. Un badge que cuenta filas traídas miente
+// aunque el límite lo hayas puesto tú a mano.
+const TOPE_LISTADO = 500;
+
 async function cargarListado() {
   const F = window.IncidenciasFamilias;
   document.getElementById('tabla-incidencias').innerHTML = '<div class="cargando">Cargando…</div>';
@@ -358,22 +387,29 @@ async function cargarListado() {
   const estado = document.getElementById('filtro-estado').value;
   const esAlerta = familiaActiva === F.ALERTA;
 
-  let query = sb.from('incidencias').select(CAMPOS)
-    .order('created_at', { ascending: false }).limit(1000);
+  // Los mismos filtros para las dos consultas: la de datos y la de total
+  const construir = (base) => {
+    let q = tipo ? base.eq('tipo', tipo) : base.in('tipo', F.tipos(familiaActiva));
+    if (esAlerta && estado) q = q.eq('estado', estado);
+    return aplicarFiltrosComunes(q);
+  };
 
-  // Filtrado por familia EN EL SERVIDOR (no traer todo y descartar aquí)
-  query = tipo ? query.eq('tipo', tipo) : query.in('tipo', F.tipos(familiaActiva));
-  if (esAlerta && estado) query = query.eq('estado', estado);
+  const [res, resTotal] = await Promise.all([
+    construir(sb.from('incidencias').select(CAMPOS)
+      .order('created_at', { ascending: false }).limit(TOPE_LISTADO)),
+    construir(sb.from('incidencias').select('id', { count: 'exact', head: true })),
+  ]);
 
-  const { data, error } = await aplicarFiltrosComunes(query);
-
-  if (error) {
+  if (res.error) {
     document.getElementById('badge-total').textContent = 'Error';
-    document.getElementById('tabla-incidencias').innerHTML = '<div class="vacio">Error al cargar: ' + esc(error.message) + '</div>';
+    document.getElementById('tabla-incidencias').innerHTML =
+      '<div class="vacio" style="color:var(--rojo)">⚠️ Error al cargar: ' + esc(res.error.message) +
+      '<br><span style="color:var(--texto2)">Esto NO significa que no haya incidencias.</span></div>';
     return;
   }
 
-  pintarListado(data || []);
+  // Si el total falla no se inventa: se pasa null y el badge lo dice.
+  pintarListado(res.data || [], resTotal.error ? null : (resTotal.count || 0));
   actualizarContadorAlertas();
 }
 
@@ -539,7 +575,7 @@ function iconoCausa(c) {
 }
 
 // ===== Listado detallado =====
-function pintarListado(data) {
+function pintarListado(data, total) {
   const F = window.IncidenciasFamilias;
   const esAlerta = familiaActiva === F.ALERTA;
   const cont = document.getElementById('tabla-incidencias');
@@ -548,12 +584,21 @@ function pintarListado(data) {
   actualizarBotonMasivo();
 
   if (!data || data.length === 0) {
-    document.getElementById('badge-total').textContent = '0 incidencias';
+    document.getElementById('badge-total').textContent =
+      (total === null) ? '—' : '0 incidencias';
     cont.innerHTML = '<div class="vacio">' +
       (esAlerta ? 'No hay alertas pendientes ✓' : 'Sin registros en este periodo') + '</div>';
     return;
   }
-  document.getElementById('badge-total').textContent = data.length + ' registros';
+
+  // El badge da el TOTAL real del periodo, no las filas traídas.
+  document.getElementById('badge-total').textContent =
+    (total === null) ? '⚠️ total no disponible' : total + ' registros';
+
+  const truncado = (total !== null && total > data.length)
+    ? `<div class="vacio" style="color:var(--naranja)">Se muestran los ${data.length} más recientes, de ${total}. ` +
+      `Afina el filtro de fechas, de obra o de tipo para ver el resto.</div>`
+    : '';
 
   cont.innerHTML = `
     <table><thead><tr>
@@ -572,7 +617,7 @@ function pintarListado(data) {
         ? `<button class="btn-accion" data-id="${esc(i.id)}">✓ Revisada</button>`
         : ''}</td>` : ''}
     </tr>`).join('')}
-    </tbody></table>`;
+    </tbody></table>` + truncado;
 
   // Los botones se enganchan aquí (nada de onclick con datos incrustados en el HTML)
   cont.querySelectorAll('.btn-accion').forEach(b => {
