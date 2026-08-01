@@ -70,6 +70,7 @@
   .pill.naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
   .pill.rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
   .vacio { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+  .fallo { padding: 14px 16px; background: rgba(244,67,54,0.10); border: 1px solid rgba(244,67,54,0.45); border-radius: 10px; color: var(--rojo); font-size: 13px; font-weight: 700; line-height: 1.45; }
   .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .iconos-hab { display: inline; margin-left: 4px; font-size: 14px; letter-spacing: 1px; }
 
@@ -258,7 +259,13 @@ function rangoHoyLocal() {
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '../'; return; }
-  const { data: usuario } = await sb.from('usuarios_app').select('rol, nombre').eq('auth_user_id', session.user.id).single();
+  const { data: usuario, error: errUsuario } = await sb.from('usuarios_app').select('rol, nombre').eq('auth_user_id', session.user.id).single();
+  // Antes cualquier fallo de lectura echaba al login sin decir nada, y parecía
+  // una sesión caducada cuando era un fallo de conexión.
+  if (errUsuario) {
+    document.body.innerHTML = '<div style="max-width:520px;margin:80px auto;padding:22px;border:1px solid #f4433677;border-radius:12px;color:#f44336;font-family:system-ui,sans-serif;line-height:1.5">No se ha podido cargar tu usuario. La sesión sigue abierta: es un fallo de conexión con la base de datos.<br><br>Vuelve a cargar la página (Ctrl+Shift+R). Si sigue igual, avisa.</div>';
+    return;
+  }
   if (!usuario || usuario.rol !== 'admin') { window.location.href = '../'; return; }
   document.getElementById('usuario-email').textContent = usuario.nombre || session.user.email;
   await Promise.all([
@@ -395,14 +402,23 @@ async function cargarFichajes() {
   const { desdeISO, hastaISO } = rangoHoyLocal();
 
   // Contador REAL del día, sin límite: antes se contaban solo las filas traídas.
-  const { count: totalFichajes } = await sb.from('fichajes')
+  const { count: totalFichajes, error: errCount } = await sb.from('fichajes')
     .select('id', { count: 'exact', head: true })
     .gte('hora', desdeISO).lte('hora', hastaISO);
 
-  const { data } = await sb.from('fichajes')
+  const { data, error: errData } = await sb.from('fichajes')
     .select('tipo, hora, trabajador_id, obra_id, cierre_automatico, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)')
     .gte('hora', desdeISO).lte('hora', hastaISO)
     .order('hora', { ascending: true }).limit(LIMITE_FICHAJES_TABLA);
+
+  // Un cero aquí es la cifra más visible del panel: si la consulta falla no se
+  // dice "0 fichajes hoy", se dice que no se sabe.
+  if (errCount || errData) {
+    document.getElementById('stat-fichajes').textContent = '—';
+    document.getElementById('badge-fichajes').textContent = 'sin datos';
+    document.getElementById('tabla-fichajes').innerHTML = '<div class="fallo">⚠ No se han podido consultar los fichajes de hoy. El contador no dice cero: dice que no se sabe. Vuelve a cargar la página.</div>';
+    return;
+  }
 
   const total = (typeof totalFichajes === 'number') ? totalFichajes : (data ? data.length : 0);
   document.getElementById('stat-fichajes').textContent = total;
@@ -496,7 +512,18 @@ async function cargarFichajes() {
 }
 
 async function cargarObras() {
-  const { data } = await sb.from('obras').select('nombre, direccion, empresa_marca').eq('activa', true).order('nombre');
+  // US-4: la fuente de verdad es `obras.estado`. `activa` es un espejo derivado
+  // y dejaba pasar pausadas y terminadas como si fueran activas.
+  const { data, error } = await sb.from('obras')
+    .select('nombre, direccion, empresa_marca')
+    .eq('estado', 'activa')
+    .order('nombre');
+  if (error) {
+    document.getElementById('stat-obras').textContent = '—';
+    document.getElementById('badge-obras').textContent = 'sin datos';
+    document.getElementById('tabla-obras').innerHTML = '<div class="fallo">⚠ No se han podido consultar las obras. Vuelve a cargar la página.</div>';
+    return;
+  }
   const n = data ? data.length : 0;
   document.getElementById('stat-obras').textContent = n;
   document.getElementById('badge-obras').textContent = n + ' obras';
@@ -704,25 +731,60 @@ function pintarDetalleAccesos(res) {
   contenido.innerHTML = html;
 }
 
+// Tope de filas de la tabla. El badge NO depende de este tope: va por count
+// exacto, y si hay más de las que caben se avisa debajo de la tabla.
+const LIMITE_ROJOS_TABLA = 50;
+
 async function cargarTablaRojos() {
-  const { data } = await sb.from('validaciones_obra').select('motivos, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)').eq('estado', 'rojo').limit(50);
+  // `!inner` es obligatorio para poder filtrar por columnas del relacionado.
+  // Se excluyen trabajadores de baja y obras ocultas: una persona dada de baja
+  // o la obra de pruebas no son trabajo pendiente de nadie.
+  const { data, count, error } = await sb.from('validaciones_obra')
+    .select('motivos, trabajador:trabajador_id!inner(nombre, apellidos, dni, activo), obra:obra_id!inner(nombre, estado)', { count: 'exact' })
+    .eq('estado', 'rojo')
+    .eq('trabajador.activo', true)
+    .neq('obra.estado', 'oculta')
+    .limit(LIMITE_ROJOS_TABLA);
+  // Si esto falla NO se puede escribir "Ningún trabajador en rojo ✓": sería
+  // afirmar lo contrario de lo que se sabe.
+  if (error) {
+    document.getElementById('badge-rojos').textContent = 'sin datos';
+    document.getElementById('tabla-rojos').innerHTML = '<div class="fallo">⚠ No se ha podido consultar la documentación en rojo. Esto NO significa que no haya ninguno. Vuelve a cargar la página.</div>';
+    return;
+  }
+  const total = (typeof count === 'number') ? count : (data ? data.length : 0);
   const n = data ? data.length : 0;
-  document.getElementById('badge-rojos').textContent = n + ' trabajadores';
+  document.getElementById('badge-rojos').textContent = total + ' trabajadores';
   if (!data || data.length === 0) { document.getElementById('tabla-rojos').innerHTML = '<div class="vacio">Ningún trabajador en rojo ✓</div>'; return; }
-  document.getElementById('tabla-rojos').innerHTML = `<table><thead><tr><th>Trabajador</th><th>DNI</th><th>Obra</th><th>Motivos</th></tr></thead><tbody>${data.map(v => `<tr><td><strong>${esc(v.trabajador?.nombre)} ${esc(v.trabajador?.apellidos)}</strong></td><td>${esc(v.trabajador?.dni)}</td><td>${esc(v.obra?.nombre)}</td><td>${Array.isArray(v.motivos) ? v.motivos.map(m => esc(m)).join(', ') : '—'}</td></tr>`).join('')}</tbody></table>`;
+  const avisoRojos = (total > n)
+    ? `<div class="vacio" style="margin-top:10px">Se muestran los ${n} primeros, de ${total}. Para el listado completo, usa la página de Trabajadores.</div>`
+    : '';
+  document.getElementById('tabla-rojos').innerHTML = `<table><thead><tr><th>Trabajador</th><th>DNI</th><th>Obra</th><th>Motivos</th></tr></thead><tbody>${data.map(v => `<tr><td><strong>${esc(v.trabajador?.nombre)} ${esc(v.trabajador?.apellidos)}</strong></td><td>${esc(v.trabajador?.dni)}</td><td>${esc(v.obra?.nombre)}</td><td>${Array.isArray(v.motivos) ? v.motivos.map(m => esc(m)).join(', ') : '—'}</td></tr>`).join('')}</tbody></table>${avisoRojos}`;
 }
+
+const LIMITE_INCIDENCIAS_TABLA = 50;
 
 async function cargarIncidencias() {
   const { desdeISO, hastaISO } = rangoHoyLocal();
-  const { data } = await sb.from('incidencias')
-    .select('tipo, detalle, comentario, created_at, trabajador:trabajador_id(nombre, apellidos), obra:obra_id(nombre)')
+  const { data, count, error } = await sb.from('incidencias')
+    .select('tipo, detalle, comentario, created_at, trabajador:trabajador_id(nombre, apellidos), obra:obra_id(nombre)', { count: 'exact' })
     .gte('created_at', desdeISO).lte('created_at', hastaISO)
-    .order('created_at', { ascending: false }).limit(50);
+    .order('created_at', { ascending: false }).limit(LIMITE_INCIDENCIAS_TABLA);
+  if (error) {
+    document.getElementById('stat-incidencias').textContent = '—';
+    document.getElementById('badge-incidencias').textContent = 'sin datos';
+    document.getElementById('tabla-incidencias').innerHTML = '<div class="fallo">⚠ No se han podido consultar las incidencias de hoy. Vuelve a cargar la página.</div>';
+    return;
+  }
+  const total = (typeof count === 'number') ? count : (data ? data.length : 0);
   const n = data ? data.length : 0;
-  document.getElementById('stat-incidencias').textContent = n;
-  document.getElementById('badge-incidencias').textContent = n + ' hoy';
+  document.getElementById('stat-incidencias').textContent = total;
+  document.getElementById('badge-incidencias').textContent = total + ' hoy';
   if (!data || data.length === 0) { document.getElementById('tabla-incidencias').innerHTML = '<div class="vacio">No hay incidencias hoy</div>'; return; }
-  document.getElementById('tabla-incidencias').innerHTML = `<table><thead><tr><th>Trabajador</th><th>Obra</th><th>Tipo</th><th>Detalle</th><th>Hora</th></tr></thead><tbody>${data.map(i => `<tr><td><strong>${esc(i.trabajador?.nombre)} ${esc(i.trabajador?.apellidos)}</strong></td><td>${esc(i.obra?.nombre)}</td><td><span class="pill naranja">${esc(i.tipo)}</span></td><td>${esc(i.detalle || '—')}${i.comentario ? '<br><small style="color:var(--texto2)">' + esc(i.comentario) + '</small>' : ''}</td><td>${formatHora(i.created_at)}</td></tr>`).join('')}</tbody></table>`;
+  const avisoInc = (total > n)
+    ? `<div class="vacio" style="margin-top:10px">Se muestran las ${n} más recientes, de ${total}. Para el listado completo, usa la bandeja de Incidencias.</div>`
+    : '';
+  document.getElementById('tabla-incidencias').innerHTML = `<table><thead><tr><th>Trabajador</th><th>Obra</th><th>Tipo</th><th>Detalle</th><th>Hora</th></tr></thead><tbody>${data.map(i => `<tr><td><strong>${esc(i.trabajador?.nombre)} ${esc(i.trabajador?.apellidos)}</strong></td><td>${esc(i.obra?.nombre)}</td><td><span class="pill naranja">${esc(i.tipo)}</span></td><td>${esc(i.detalle || '—')}${i.comentario ? '<br><small style="color:var(--texto2)">' + esc(i.comentario) + '</small>' : ''}</td><td>${formatHora(i.created_at)}</td></tr>`).join('')}</tbody></table>${avisoInc}`;
 }
 
 function cerrarModalAccesos() {
