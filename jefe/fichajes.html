@@ -78,7 +78,19 @@
   .jornada-estado.dentro    { background: rgba(33,150,243,0.12); color: var(--azul); }
   .jornada-estado.autocierre{ background: rgba(255,152,0,0.12);  color: var(--naranja); }
   .jornada-avisos { font-size: 11px; color: var(--texto2); margin-top: 3px; }
+  .jornada-avisos button { background: none; border: none; padding: 0; margin: 0; font: inherit; color: var(--texto2); cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; }
+  .jornada-avisos button:hover { color: var(--color-acento); }
   .acciones-jornada { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  /* ── Historial de la jornada (solo lectura) ── */
+  .hist-bloque { background: var(--bg3); border: 1px solid var(--borde); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
+  .hist-bloque h3 { font-size: 12px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.4px; margin: 0 0 10px; }
+  .hist-linea { display: flex; gap: 10px; font-size: 13px; padding: 4px 0; }
+  .hist-linea .et { color: var(--texto2); min-width: 92px; flex-shrink: 0; }
+  .hist-linea .va { color: var(--texto); word-break: break-word; }
+  .hist-motivo { background: rgba(255,152,0,0.08); border-left: 3px solid var(--naranja); border-radius: 6px; padding: 8px 12px; margin-top: 10px; font-size: 13px; color: var(--texto); white-space: pre-wrap; }
+  .hist-aviso { background: rgba(244,67,54,0.1); color: var(--rojo); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; }
+  .hist-nota { font-size: 12px; color: var(--texto2); margin-top: 4px; }
 
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
   .modal-overlay.visible { display: flex; }
@@ -169,6 +181,17 @@
 </div>
 
 <!-- Modal fichaje manual -->
+<div class="modal-overlay" id="modal-historial">
+  <div class="modal">
+    <h2>🔍 Historial de la jornada</h2>
+    <div class="subtitulo" id="historial-subtitulo"></div>
+    <div id="historial-cuerpo"></div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cerrar-historial">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-manual">
   <div class="modal">
     <h2>Fichar por trabajador</h2>
@@ -204,6 +227,9 @@ let fichajeCorrigiendoId = null;
 let fichajeCorrigiendoHora = null;
 let trabajadoresObra = [];
 let miUsuarioAppId = null;
+let jornadasActuales = [];
+let nombresFirmantes = {};
+let falloNombresFirmantes = false;
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -277,7 +303,7 @@ async function buscar() {
 
   let query = sb
     .from('fichajes')
-    .select('id, tipo, hora, es_manual, cierre_automatico, corregido_por, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni)')
+    .select('id, tipo, hora, es_manual, cierre_automatico, corregido_por, corregido_en, motivo_correccion, origen, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni)')
     .eq('obra_id', obraActual)
     .order('hora', { ascending: true })
     .limit(500);
@@ -291,16 +317,29 @@ async function buscar() {
 
   const { data, error } = await query;
 
-  if (error || !data || data.length === 0) {
+  if (error) {
+    document.getElementById('badge-total').textContent = '—';
+    document.getElementById('tabla-fichajes').innerHTML =
+      '<div class="vacio" style="color:var(--rojo)">⚠️ No se han podido cargar los fichajes: ' +
+      esc(error.message || 'error desconocido') +
+      '<br><span style="color:var(--texto2)">Esto NO significa que no haya ninguno. Vuelve a intentarlo.</span></div>';
+    return;
+  }
+
+  if (!data || data.length === 0) {
     document.getElementById('badge-total').textContent = '0 jornadas';
     document.getElementById('tabla-fichajes').innerHTML = '<div class="vacio">No hay fichajes para esta fecha</div>';
     return;
   }
 
+  // Nombres de quien registró/corrigió (consulta aparte: no dependemos de la FK)
+  await cargarNombresFirmantes(data);
+
   // Agrupar en jornadas: clave = trabajador_id + fecha local
   // Una jornada = la entrada más reciente no cerrada + su salida correspondiente
   // Puede haber varias jornadas por trabajador por día (entró, salió, volvió a entrar)
   const jornadas = agruparEnJornadas(data);
+  jornadasActuales = jornadas;
 
   // Ordenar: por fecha desc, luego por apellidos asc
   jornadas.sort((a, b) => {
@@ -328,9 +367,36 @@ async function buscar() {
         <th>Acciones</th>
       </tr></thead>
       <tbody>
-        ${jornadas.map(j => pintarJornada(j, mostrarFecha)).join('')}
+        ${jornadas.map((j, i) => pintarJornada(j, mostrarFecha, i)).join('')}
       </tbody>
     </table>`;
+}
+
+// Resuelve corregido_por (uuid) → nombre. Si falla, lo decimos: nunca dejamos
+// el hueco en blanco como si no hubiera firmante.
+async function cargarNombresFirmantes(fichajes) {
+  const ids = [...new Set(fichajes.map(f => f.corregido_por).filter(Boolean))];
+  if (ids.length === 0) { falloNombresFirmantes = false; return; }
+
+  const { data, error } = await sb
+    .from('usuarios_app')
+    .select('id, nombre')
+    .in('id', ids);
+
+  if (error || !data) {
+    falloNombresFirmantes = true;
+    return;
+  }
+
+  falloNombresFirmantes = false;
+  data.forEach(u => { nombresFirmantes[u.id] = u.nombre || '(sin nombre)'; });
+}
+
+function nombreFirmante(id) {
+  if (!id) return null;
+  if (nombresFirmantes[id]) return nombresFirmantes[id];
+  if (falloNombresFirmantes) return '⚠️ no se ha podido leer quién';
+  return 'usuario no visible desde esta obra';
 }
 
 function agruparEnJornadas(fichajes) {
@@ -360,6 +426,8 @@ function agruparEnJornadas(fichajes) {
         entradaHora: f.hora,
         entradaManual: !!f.es_manual,
         entradaCorregida: !!f.corregido_por,
+        entradaDetalle: detalleFichaje(f),
+        salidaDetalle: null,
         salidaId: null,
         salidaHora: null,
         salidaManual: false,
@@ -373,6 +441,7 @@ function agruparEnJornadas(fichajes) {
         abiertas[tid].salidaHora = f.hora;
         abiertas[tid].salidaManual = !!f.es_manual;
         abiertas[tid].salidaCorregida = !!f.corregido_por;
+        abiertas[tid].salidaDetalle = detalleFichaje(f);
         abiertas[tid].autocierre = !!f.cierre_automatico;
         jornadas.push(abiertas[tid]);
         delete abiertas[tid];
@@ -388,10 +457,12 @@ function agruparEnJornadas(fichajes) {
           entradaHora: null,
           entradaManual: false,
           entradaCorregida: false,
+          entradaDetalle: null,
           salidaId: f.id,
           salidaHora: f.hora,
           salidaManual: !!f.es_manual,
           salidaCorregida: !!f.corregido_por,
+          salidaDetalle: detalleFichaje(f),
           autocierre: !!f.cierre_automatico,
         });
       }
@@ -422,7 +493,7 @@ function calcularDuracion(entradaIso, salidaIso) {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-function pintarJornada(j, mostrarFecha) {
+function pintarJornada(j, mostrarFecha, idxJornada) {
   const nombreCompleto = [j.nombre, j.apellidos].filter(Boolean).join(' ') || '(sin nombre)';
 
   // Fecha legible
@@ -460,11 +531,15 @@ function pintarJornada(j, mostrarFecha) {
   }
 
   // Avisos secundarios (manual / corregido)
+  // Un fichaje manual firma en `corregido_por`, así que ANTES salían las dos
+  // etiquetas por un solo acto. Manual manda: 🛠️ Corregido solo si NO es manual.
   const avisos = [];
   if (j.entradaManual || j.salidaManual) avisos.push('✍️ Manual');
-  if (j.entradaCorregida || j.salidaCorregida) avisos.push('🛠️ Corregido');
+  if ((j.entradaCorregida && !j.entradaManual) || (j.salidaCorregida && !j.salidaManual)) {
+    avisos.push('🛠️ Corregido');
+  }
   const avisosHtml = avisos.length
-    ? `<div class="jornada-avisos">${avisos.join(' · ')}</div>`
+    ? `<div class="jornada-avisos"><button type="button" onclick="abrirHistorial(${idxJornada})" title="Ver quién, cuándo y por qué">${avisos.join(' · ')}</button></div>`
     : '';
 
   // Botones de corrección
@@ -584,6 +659,88 @@ function abrirCorreccion(id, nombre, hora) {
   document.getElementById('btn-guardar').disabled = false;
   document.getElementById('modal-correccion').classList.add('visible');
 }
+
+// ── Historial de la jornada (solo lectura) ──
+function detalleFichaje(f) {
+  return {
+    tipo: f.tipo,
+    hora: f.hora,
+    origen: f.origen || null,
+    esManual: !!f.es_manual,
+    autocierre: !!f.cierre_automatico,
+    firmante: f.corregido_por || null,
+    cuando: f.corregido_en || null,
+    motivo: f.motivo_correccion || null,
+  };
+}
+
+function fechaHoraLegible(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleString('es-ES', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function pintarBloqueHistorial(d, titulo) {
+  if (!d) {
+    return `<div class="hist-bloque"><h3>${titulo}</h3>
+      <div class="hist-linea"><span class="va" style="color:var(--texto2)">No hay fichaje de ${titulo.toLowerCase()} en esta jornada.</span></div>
+    </div>`;
+  }
+
+  let como;
+  if (d.autocierre)   como = '⏰ Autocierre nocturno (lo cerró el sistema)';
+  else if (d.esManual) como = '✍️ Registrado a mano por una persona';
+  else                 como = '📱 Fichado por el trabajador' + (d.origen ? ` (${esc(d.origen)})` : '');
+
+  const filas = [
+    ['Hora', fechaHoraLegible(d.hora)],
+    ['Cómo', como],
+  ];
+
+  if (d.firmante) {
+    filas.push([d.esManual ? 'Lo registró' : 'Lo corrigió', esc(nombreFirmante(d.firmante))]);
+    if (d.cuando) filas.push(['Cuándo', fechaHoraLegible(d.cuando)]);
+  }
+
+  const filasHtml = filas.map(([et, va]) =>
+    `<div class="hist-linea"><span class="et">${et}</span><span class="va">${va}</span></div>`
+  ).join('');
+
+  const motivoHtml = d.motivo
+    ? `<div class="hist-motivo"><strong>Motivo:</strong> ${esc(d.motivo)}</div>`
+    : (d.firmante ? `<div class="hist-nota">Sin motivo escrito.</div>` : '');
+
+  return `<div class="hist-bloque"><h3>${titulo}</h3>${filasHtml}${motivoHtml}</div>`;
+}
+
+function abrirHistorial(idx) {
+  const j = jornadasActuales[idx];
+  if (!j) return;
+
+  const nombreCompleto = `${(j.apellidos || '').toUpperCase()}, ${j.nombre || ''}`.replace(/^, /, '');
+  document.getElementById('historial-subtitulo').textContent =
+    `${nombreCompleto} · ${j.dni || ''}`;
+
+  const avisoNombres = falloNombresFirmantes
+    ? `<div class="hist-aviso">⚠️ No se ha podido leer el nombre de quien firmó estos fichajes. El dato existe, pero la consulta ha fallado.</div>`
+    : '';
+
+  document.getElementById('historial-cuerpo').innerHTML =
+    avisoNombres +
+    pintarBloqueHistorial(j.entradaDetalle, 'Entrada') +
+    pintarBloqueHistorial(j.salidaDetalle, 'Salida') +
+    `<div class="hist-nota">Se muestra el estado actual del fichaje. Si se corrigió más de una vez, aquí solo consta el último motivo.</div>`;
+
+  document.getElementById('modal-historial').classList.add('visible');
+}
+
+document.getElementById('btn-cerrar-historial').addEventListener('click', () => {
+  document.getElementById('modal-historial').classList.remove('visible');
+});
 
 document.getElementById('btn-cancelar').addEventListener('click', () => {
   document.getElementById('modal-correccion').classList.remove('visible');
