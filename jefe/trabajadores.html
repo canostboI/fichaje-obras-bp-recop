@@ -600,6 +600,15 @@ let avisosTabla = [];
   await cargarTrabajadores();
   actualizarBotonRP();
 
+  // Llegada desde el dashboard: ?resumen=1[&obra=UUID] abre directamente el
+  // modal de resumen por empresa. Se hace DESPUÉS de cargarTrabajadores()
+  // porque el modal se pinta con `todosTrabajadores`; abierto antes saldría
+  // vacío y parecería que no hay nada pendiente.
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('resumen') === '1') {
+    abrirResumenDocumental(params.get('obra') || '');
+  }
+
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') cargarTrabajadores();
   });
@@ -656,7 +665,7 @@ document.getElementById('filtro-obra-trabajadores').addEventListener('change', e
   aplicarFiltrosTabla();
 });
 
-document.getElementById('btn-resumen-naranja').addEventListener('click', abrirResumenDocumental);
+document.getElementById('btn-resumen-naranja').addEventListener('click', () => abrirResumenDocumental());
 document.getElementById('btn-cerrar-resumen').addEventListener('click', cerrarResumenDocumental);
 document.getElementById('resumen-filtro-obra').addEventListener('change', () => {
   presentesAhoraCache = null;
@@ -1490,22 +1499,25 @@ document.getElementById('btn-quitar-autorizacion').addEventListener('click', asy
   setTimeout(() => { cerrarModalForzar(); cargarTrabajadores(); }, 800);
 });
 
-function abrirResumenDocumental() {
+// obraPreseleccionada: UUID opcional. Solo se aplica si es una obra del jefe;
+// si llega una obra ajena o inexistente, se cae a "Todas mis obras".
+function abrirResumenDocumental(obraPreseleccionada = '') {
   presentesAhoraCache = null;
   const chk = document.getElementById('resumen-chk-presencia');
   if (chk) chk.checked = false;
   const toggle = document.getElementById('resumen-toggle-presencia');
   if (toggle) toggle.classList.remove('activo');
-  prepararFiltroResumenObras();
+  const obraValida = misObras.some(o => o.id === obraPreseleccionada) ? obraPreseleccionada : '';
+  prepararFiltroResumenObras(obraValida);
   actualizarVisibilidadTogglePresencia();
   pintarResumenDocumental();
   document.getElementById('modal-resumen-overlay').classList.add('abierto');
 }
 
-function prepararFiltroResumenObras() {
+function prepararFiltroResumenObras(obraForzada = '') {
   const select = document.getElementById('resumen-filtro-obra');
   if (!select) return;
-  const valorPrevio = select.value || obraFiltroTrabajadores || '';
+  const valorPrevio = obraForzada || select.value || obraFiltroTrabajadores || '';
   select.innerHTML = '<option value="">Todas mis obras</option>' + misObras.map(o =>
     `<option value="${esc(o.id)}">${esc(o.nombre || 'Obra sin nombre')}</option>`
   ).join('');
