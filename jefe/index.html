@@ -71,6 +71,9 @@
   .pill.verde   { background: rgba(76,175,80,0.15);  color: var(--verde); }
   .pill.naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
   .pill.rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
+  .pill.sindato { background: rgba(160,160,160,0.15); color: #9aa0a6; }
+  .aviso-fallo { background: rgba(244,67,54,0.10); border: 1px solid rgba(244,67,54,0.45); color: var(--rojo); border-radius: 10px; padding: 11px 14px; font-size: 13px; font-weight: 700; margin-bottom: 12px; line-height: 1.45; }
+  .aviso-fallo.oculto { display: none; }
   .pill.clicable { cursor: pointer; transition: filter 0.15s, transform 0.1s; }
   .pill.clicable:hover { filter: brightness(1.25); }
   .pill.clicable:active { transform: scale(0.96); }
@@ -319,6 +322,8 @@
     </div>
     <div class="banner-rp-formacion oculto" id="banner-rp-formacion"></div>
     <div class="banner-hab-caducidad oculto" id="banner-hab-caducidad"></div>
+    <div class="aviso-fallo oculto" id="aviso-doc-presencia"></div>
+    <div class="aviso-fallo oculto" id="aviso-bloqueos"></div>
     <div class="stats">
       <div class="stat">
         <div class="numero verde" id="stat-dentro">—</div>
@@ -477,12 +482,18 @@ let fotoUrlActual = '';
 
 let validacionesCache = {};
 let naranjasActualesCache = [];
+// true si la última carga no pudo leer validaciones_obra: el modal de naranjas
+// no puede decir "no hay ninguno" cuando lo que pasa es que no lo sabe.
+let falloValidacionesCache = false;
 // Fichajes de hoy en la obra activa. Los carga cargarPresencia() y los
 // reutilizan el contador de denegados y su modal, para saber quién de los
 // denegados acabó ENTRANDO. `null` = todavía no se sabe (o falló la carga):
 // en ese caso no se da nada por resuelto.
 let fichajesHoyCache = null;
 let empresasPropias = new Set();
+// true si no se pudo leer qué empresas son propias: sin ese dato el desglose
+// propios/externos diría "0 propios" y sonaría a dato, no a fallo.
+let falloEmpresasPropias = false;
 
 let estaOffline = false;
 let timeoutBannerOnline = null;
@@ -696,13 +707,16 @@ async function comprobarAutoierresRecientes(misObrasIds) {
 // Carga una sola vez los IDs de empresas propias
 async function cargarEmpresasPropias() {
   try {
-    const { data } = await sb
+    const { data, error } = await sb
       .from('empresas')
       .select('id')
       .eq('es_empresa_propia', true);
+    if (error) throw error;
     empresasPropias = new Set((data || []).map(e => e.id));
+    falloEmpresasPropias = false;
   } catch (_) {
     empresasPropias = new Set();
+    falloEmpresasPropias = true;
   }
 }
 
@@ -710,12 +724,18 @@ async function cargarEmpresasPropias() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = '../'; return; }
 
-  const { data: miUsuario } = await sb
+  const { data: miUsuario, error: errUsuario } = await sb
     .from('usuarios_app')
     .select('id, nombre')
     .eq('auth_user_id', session.user.id)
     .single();
 
+  // Antes cualquier fallo de lectura echaba al login sin decir nada, y parecía
+  // una sesión caducada cuando no lo era.
+  if (errUsuario) {
+    document.body.innerHTML = '<div style="max-width:520px;margin:80px auto;padding:22px;border:1px solid #f4433677;border-radius:12px;color:#f44336;font-family:system-ui,sans-serif;line-height:1.5">No se ha podido cargar tu usuario. La sesión sigue abierta: es un fallo de conexión con la base de datos.<br><br>Vuelve a cargar la página (Ctrl+Shift+R). Si sigue igual, avisa.</div>';
+    return;
+  }
   if (!miUsuario) { window.location.href = '../'; return; }
 
   document.getElementById('usuario-nombre').textContent = miUsuario.nombre || session.user.email;
@@ -798,11 +818,19 @@ async function comprobarRP() {
     if (error) return;
     if (!rps || rps.length === 0) { bannerSinRP.classList.remove('oculto'); return; }
     const idsRP = rps.map(r => r.trabajador_id);
-    const { data: vals } = await sb
+    const { data: vals, error: errVals } = await sb
       .from('validaciones_obra')
       .select('trabajador_id, motivos')
       .eq('obra_id', obraActual)
       .in('trabajador_id', idsRP);
+    // Sin este dato no se puede decir que los RP están en regla: se dice que
+    // no se ha podido comprobar.
+    if (errVals) {
+      bannerFormacion.classList.remove('oculto');
+      bannerFormacion.classList.add('rojo');
+      bannerFormacion.innerHTML = '⚠ No se ha podido comprobar la Formación 60h de los Recursos Preventivos designados. Vuelve a cargar la pantalla.';
+      return;
+    }
     const motivosPorRP = {};
     (vals || []).forEach(v => { motivosPorRP[v.trabajador_id] = v.motivos || []; });
     const rpsConProblema = rps.filter(r => {
@@ -1085,13 +1113,26 @@ async function cargarPresencia() {
   const ids = dentro.map(t => t.trabajador.id);
 
   let validaciones = {};
+  // Si esta consulta falla NO se puede dar a nadie por verde: el estado
+  // documental es lo que decide si alguien debería estar dentro.
+  let falloValidaciones = false;
   if (ids.length > 0) {
-    const { data: vals } = await sb
+    const { data: vals, error: errVals } = await sb
       .from('validaciones_obra')
       .select('trabajador_id, estado, motivos')
       .eq('obra_id', obraActual)
       .in('trabajador_id', ids);
+    if (errVals) falloValidaciones = true;
     (vals || []).forEach(v => { validaciones[v.trabajador_id] = { estado: v.estado, motivos: v.motivos || [] }; });
+  }
+  falloValidacionesCache = falloValidaciones;
+  const avisoDoc = document.getElementById('aviso-doc-presencia');
+  if (falloValidaciones) {
+    avisoDoc.classList.remove('oculto');
+    avisoDoc.textContent = '⚠ No se ha podido consultar el estado documental de los presentes. El semáforo sale sin dato y el contador de naranjas no es fiable. No des a nadie por conforme con esta pantalla.';
+  } else {
+    avisoDoc.classList.add('oculto');
+    avisoDoc.textContent = '';
   }
 
   validacionesCache = {};
@@ -1100,7 +1141,7 @@ async function cargarPresencia() {
     const v = validaciones[tid];
     validacionesCache[tid] = {
       nombre: [t.trabajador.nombre, t.trabajador.apellidos].filter(Boolean).join(' ') || '(sin nombre)',
-      estado: v?.estado || 'verde',
+      estado: v?.estado || (falloValidaciones ? 'sindato' : 'verde'),
       motivos: v?.motivos || []
     };
   });
@@ -1123,15 +1164,19 @@ async function cargarPresencia() {
   const nDentro = dentro.length;
   const nNaranja = naranjasActualesCache.length;
   document.getElementById('stat-dentro').textContent = nDentro;
-  document.getElementById('stat-naranja').textContent = nNaranja;
+  document.getElementById('stat-naranja').textContent = falloValidaciones ? '—' : nNaranja;
   document.getElementById('badge-presencia').textContent = nDentro + ' dentro';
 
   // Desglose propios / externos
   if (nDentro > 0) {
-    const nPropios = dentro.filter(t => empresasPropias.has(t.trabajador.empresa_id)).length;
-    const nExternos = nDentro - nPropios;
     desgloseEl.style.display = 'block';
-    desgloseEl.innerHTML = `${nPropios} propios · <span class="externos-num">${nExternos} externos</span>`;
+    if (falloEmpresasPropias) {
+      desgloseEl.innerHTML = 'desglose propios/externos no disponible';
+    } else {
+      const nPropios = dentro.filter(t => empresasPropias.has(t.trabajador.empresa_id)).length;
+      const nExternos = nDentro - nPropios;
+      desgloseEl.innerHTML = `${nPropios} propios · <span class="externos-num">${nExternos} externos</span>`;
+    }
   }
 
   if (dentro.length === 0) {
@@ -1211,7 +1256,7 @@ async function cargarPresencia() {
 
     grupo.trabajadores.forEach(t => {
       const ultimaEntrada = t.entradas[t.entradas.length - 1];
-      const estado = validaciones[t.trabajador.id]?.estado || 'verde';
+      const estado = validaciones[t.trabajador.id]?.estado || (falloValidaciones ? 'sindato' : 'verde');
       const esClicable = estado === 'naranja' || estado === 'rojo';
       const pillHtml = esClicable
         ? `<span class="pill ${estado} clicable" onclick="abrirMotivos('${t.trabajador.id}')" title="Ver motivos">${estado}</span>`
@@ -1289,6 +1334,10 @@ function abrirModalNaranjas() {
   resumen.style.display = 'none';
   resumen.textContent = '';
   const lista = naranjasActualesCache || [];
+  if (falloValidacionesCache) {
+    contenido.innerHTML = '<div class="modal-motivos-vacio">No se pudo consultar el estado documental. Esta lista no es fiable: vuelve a cargar la pantalla antes de dar a nadie por conforme.</div>';
+    return;
+  }
   if (lista.length === 0) {
     contenido.innerHTML = '<div class="vacio">Ahora mismo no hay trabajadores presentes con documentación naranja.</div>';
     return;
@@ -1343,7 +1392,11 @@ async function cargarBloqueos() {
   if (!obraActual) return;
   const { desdeISO, hastaISO } = rangoHoyLocal();
 
-  const { data: incidencias } = await sb
+  const avisoBloq = document.getElementById('aviso-bloqueos');
+  avisoBloq.classList.add('oculto');
+  avisoBloq.textContent = '';
+
+  const { data: incidencias, error: errInc } = await sb
     .from('incidencias')
     .select('id, tipo, detalle, estado, created_at, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni, empresa:empresa_id(nombre))')
     .eq('obra_id', obraActual)
@@ -1352,7 +1405,16 @@ async function cargarBloqueos() {
     .lte('created_at', hastaISO)
     .order('created_at', { ascending: false });
 
-  const { data: dataSR } = await sb
+  // Un cero falso aquí apaga el aviso entero: parecería que hoy no ha habido
+  // ningún bloqueo en la valla.
+  if (errInc) {
+    document.getElementById('stat-rojo').textContent = '—';
+    avisoBloq.classList.remove('oculto');
+    avisoBloq.textContent = '⚠ No se han podido consultar los accesos denegados de hoy. El contador no dice cero: dice que no se sabe.';
+    return;
+  }
+
+  const { data: dataSR, error: errSR } = await sb
     .from('incidencias')
     .select('id, detalle, estado, created_at')
     .eq('obra_id', obraActual)
@@ -1360,6 +1422,11 @@ async function cargarBloqueos() {
     .gte('created_at', desdeISO)
     .lte('created_at', hastaISO)
     .order('created_at', { ascending: false });
+
+  if (errSR) {
+    avisoBloq.classList.remove('oculto');
+    avisoBloq.textContent = '⚠ No se han podido consultar los "presentes sin registrar" de hoy. El número de denegados puede quedarse corto.';
+  }
 
   const gruposSR = (dataSR || []).map(inc => {
     const d = parseDetalleSR(inc.detalle) || {};
@@ -1456,7 +1523,7 @@ async function abrirModalAccesosDenegados() {
     .order('created_at', { ascending: false });
   if (error) { contenido.innerHTML = `<div class="modal-motivos-vacio">No se pudo cargar el detalle: ${esc(error.message)}</div>`; return; }
 
-  const { data: dataSR } = await sb
+  const { data: dataSR, error: errSR } = await sb
     .from('incidencias')
     .select('id, detalle, estado, created_at')
     .eq('obra_id', obraActual)
@@ -1464,6 +1531,9 @@ async function abrirModalAccesosDenegados() {
     .gte('created_at', desdeISO)
     .lte('created_at', hastaISO)
     .order('created_at', { ascending: false });
+  const avisoSRModal = errSR
+    ? '<div class="modal-motivos-vacio">⚠ No se han podido consultar los "presentes sin registrar". Esta lista puede estar incompleta.</div>'
+    : '';
   const gruposSR = (dataSR || []).map(inc => {
     const d = parseDetalleSR(inc.detalle) || {};
     return {
@@ -1478,6 +1548,7 @@ async function abrirModalAccesosDenegados() {
     sinRegistrar: gruposSR,
     fichajes: fichajesHoyCache
   }));
+  if (avisoSRModal) contenido.innerHTML = avisoSRModal + contenido.innerHTML;
 }
 
 // Motivos del bloqueo, separando lo que DENIEGA de lo que solo AVISA.
