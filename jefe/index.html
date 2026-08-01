@@ -179,6 +179,9 @@
   .btn-cerrar-accesos { background: var(--bg3); color: var(--texto); border: 1px solid var(--borde); width: 34px; height: 34px; border-radius: 8px; cursor: pointer; font-size: 20px; line-height: 1; }
   .btn-cerrar-accesos:hover { background: var(--borde); }
   .accesos-resumen { background: rgba(244,67,54,0.08); border: 1px solid rgba(244,67,54,0.35); color: var(--rojo); border-radius: 10px; padding: 12px 14px; font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+  .modal-accesos-pie { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--borde); display: flex; justify-content: flex-end; }
+  .btn-resumen-empresa { display: inline-block; background: var(--bg3); color: var(--texto); border: 1px solid var(--borde); border-radius: 8px; padding: 9px 15px; font-size: 13px; font-weight: 700; font-family: inherit; text-decoration: none; }
+  .btn-resumen-empresa:hover { background: var(--bg2); }
   .accesos-resumen.naranja { background: rgba(255,152,0,0.08); border-color: rgba(255,152,0,0.35); color: var(--naranja); }
   .acceso-item { border: 1px solid var(--borde); background: var(--bg3); border-radius: 10px; padding: 13px 14px; margin-top: 10px; }
   .acceso-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
@@ -389,6 +392,9 @@
     </div>
     <div id="modal-accesos-resumen" class="accesos-resumen" style="display:none"></div>
     <div id="modal-accesos-contenido"><div class="cargando">Cargando…</div></div>
+    <div class="modal-accesos-pie">
+      <a class="btn-resumen-empresa" id="link-resumen-rojos" href="trabajadores.html?resumen=1">📨 Resumen doc. por empresa →</a>
+    </div>
   </div>
 </div>
 
@@ -404,6 +410,9 @@
     </div>
     <div id="modal-naranjas-resumen" class="accesos-resumen naranja" style="display:none"></div>
     <div id="modal-naranjas-contenido"><div class="cargando">Cargando…</div></div>
+    <div class="modal-accesos-pie">
+      <a class="btn-resumen-empresa" id="link-resumen-naranjas" href="trabajadores.html?resumen=1">📨 Resumen doc. por empresa →</a>
+    </div>
   </div>
 </div>
 
@@ -1261,10 +1270,21 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { cerrarMotivos(); cerrarQR(); cerrarModalNaranjas(); cerrarModalFoto(); }
 });
 
+// Fija el destino del enlace "Resumen doc. por empresa" con la obra activa.
+// Sin obra seleccionada, el resumen se abre con todas las obras del jefe.
+function fijarEnlaceResumen(idEnlace) {
+  const a = document.getElementById(idEnlace);
+  if (!a) return;
+  a.href = obraActual
+    ? `trabajadores.html?resumen=1&obra=${encodeURIComponent(obraActual)}`
+    : 'trabajadores.html?resumen=1';
+}
+
 function abrirModalNaranjas() {
   const overlay = document.getElementById('modal-naranjas-overlay');
   const contenido = document.getElementById('modal-naranjas-contenido');
   const resumen = document.getElementById('modal-naranjas-resumen');
+  fijarEnlaceResumen('link-resumen-naranjas');
   overlay.classList.add('visible');
   resumen.style.display = 'none';
   resumen.textContent = '';
@@ -1416,6 +1436,7 @@ async function abrirModalAccesosDenegados() {
   const contenido = document.getElementById('modal-accesos-contenido');
   const resumen = document.getElementById('modal-accesos-resumen');
   const sub = document.getElementById('modal-accesos-sub');
+  fijarEnlaceResumen('link-resumen-rojos');
   overlay.classList.add('visible');
   contenido.innerHTML = '<div class="cargando">Cargando…</div>';
   resumen.style.display = 'none';
