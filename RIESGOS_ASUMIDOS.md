@@ -5,6 +5,7 @@
 > escritas y no se redescubran como "bugs" en el futuro.
 >
 > Creado: 6/7/2026 (auditoría profunda, hallazgo MJ-19).
+> Última actualización: 2/8/2026 (revisión de grants a `anon`).
 
 ---
 
@@ -68,15 +69,44 @@ páginas (es inevitable en una web estática sin servidor propio).
 
 **Por qué se acepta:** es el diseño estándar de Supabase. La anon key
 **no da acceso a nada por sí misma**: todo pasa por RLS + FORCE RLS y
-por las 4 únicas RPC públicas. La seguridad no depende del secreto de
+por las 5 únicas RPC públicas. La seguridad no depende del secreto de
 la clave, sino de las policies.
 
-**Mitigaciones activas (verificadas en auditoría, 27/6):**
-- `anon` solo puede ejecutar 4 RPC: `obra_publica`, `validar_acceso`,
-  `registrar_fichaje`, `registrar_incidencia_movil_compartido`.
+**Mitigaciones activas (verificadas en auditoría, 27/6; inventario de
+RPC revisado y corregido el 2/8/2026):**
+- `anon` solo puede ejecutar 5 RPC: `obra_publica`, `validar_acceso`,
+  `registrar_fichaje`, `registrar_presente_sin_registrar`,
+  `registrar_incidencia_movil_compartido`.
+- Las 5 se invocan **únicamente desde `fichaje/index.html`** (página
+  anónima del trabajador). Verificado por búsqueda en el repo el
+  2/8/2026: ninguna de ellas se llama desde `jefe/`, `encargado/` ni
+  `admin/` con sesión anónima.
+- `sincronizar_activa_desde_estado()` tenía EXECUTE para `anon` sin
+  justificación (es una función de mantenimiento interno, sin
+  argumentos, que escribe en masa). **REVOCADO a `anon` y a
+  `authenticated` el 2/8/2026.** Sigue siendo ejecutable por
+  `postgres` (SQL Editor) y por triggers internos.
 - `PUBLIC` no tiene EXECUTE en ninguna función del esquema.
 - FORCE RLS en las 19 tablas activas; `anon` sin grants directos.
 - `service_role` jamás en frontend, repo, chat ni documentación.
+
+**Nota de mantenimiento:** hasta el 2/8/2026 este documento afirmaba
+que `anon` podía ejecutar 4 RPC. Eran 5 (faltaba
+`registrar_presente_sin_registrar`). El desfase se detectó al cruzar
+`pg_proc` con el código del repo. Cualquier RPC nueva que se abra a
+`anon` debe añadirse aquí en el mismo commit.
+
+**Consulta de verificación** (SQL Editor, para repetir la comprobación
+en futuras auditorías):
+
+```sql
+SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public'
+  AND has_function_privilege('anon', p.oid, 'EXECUTE')
+ORDER BY p.proname;
+```
 
 ---
 
@@ -125,4 +155,6 @@ automático).
   qué es, por qué se acepta, mitigaciones, y cuándo revisarlo.
 - Si una mitigación cambia (p. ej. se implementa A-02), actualizar el
   punto afectado con fecha.
+- Si se abre o se cierra el EXECUTE de una RPC a `anon`, actualizar
+  R-3 en el **mismo commit** que el cambio en base de datos.
 - Este archivo vive en la raíz del repo y en el knowledge del proyecto.
