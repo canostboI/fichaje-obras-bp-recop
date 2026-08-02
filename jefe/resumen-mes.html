@@ -1173,7 +1173,7 @@ async function cargarResumen() {
       + '. No se puede exportar hasta arreglarlo; recarga la página.');
   }
   if (pendientes.length > 0) {
-    partes.push(`⚠️ ${pendientes.length} ${pendientes.length === 1 ? 'salida' : 'salidas'} con cierre automático sin corregir (en naranja).`);
+    partes.push(`⚠️ ${pendientes.length} ${pendientes.length === 1 ? 'salida' : 'salidas'} con cierre automático sin resolver (en naranja).`);
   }
   if (partes.length) {
     msg.className = avisosCarga.length ? 'msg-info err' : 'msg-info aviso';
@@ -1192,10 +1192,28 @@ async function cargarResumen() {
 // No toca js/excel-proforma.js: todo sale de los fichajes ya cargados.
 // =====================================================================
 
-// Un autocierre está "pendiente" mientras nadie haya corregido esa salida.
+// Un autocierre está "pendiente" mientras su hora inventada siga
+// decidiendo las horas de ese día. Deja de estarlo por DOS vías:
+//   1) alguien corrigió esa salida (`corregido_por`), o
+//   2) ese día lleva HORAS FIJADAS para ese trabajador: entonces el
+//      proforma cobra la cifra fijada y la hora del autocierre ya no
+//      decide nada.
+// Es el MISMO criterio de cero que usa el paso 3 (reentradas). Tenerlo
+// en un paso y no en el otro dejaba un aviso que no se podía apagar
+// haciendo lo correcto.
+// OJO: el día se toma del propio fichaje de salida, igual que hace el
+// chip que abre el detalle. Si algún día un autocierre cayera en la
+// válvula de las 23:59 del día siguiente, ambos apuntarían al día
+// siguiente; es un caso aparte y no se trata aquí.
 function autocierresPendientes() {
   return fichajesMesCache
-    .filter(f => f.cierre_automatico && !f.corregido_por)
+    .filter(f => {
+      if (!f.cierre_automatico || f.corregido_por) return false;
+      const t = resumenTrabajadores[f.trabajador_id];
+      const dia = new Date(f.hora).getDate();
+      if (t && t.dias_ajuste && t.dias_ajuste[dia] !== undefined) return false;
+      return true;
+    })
     .sort((a, b) => new Date(a.hora) - new Date(b.hora));
 }
 
@@ -1261,14 +1279,14 @@ function actualizarPanelCierre() {
     paso1.className = 'pc-paso hecho';
     document.getElementById('pc-icono-1').textContent = '✓';
     document.getElementById('pc-desc-1').textContent =
-      'No queda ninguna salida automática sin corregir.';
+      'No queda ninguna salida automática sin resolver (corregida o con horas fijadas).';
   } else {
     paso1.className = 'pc-paso alerta';
     document.getElementById('pc-icono-1').textContent = '1';
     document.getElementById('pc-desc-1').textContent =
       pendientes.length + (pendientes.length === 1
-        ? ' salida se cerró sola porque nadie fichó. Su hora es inventada: corrígela antes de exportar.'
-        : ' salidas se cerraron solas porque nadie fichó. Sus horas son inventadas: corrígelas antes de exportar.');
+        ? ' salida se cerró sola porque nadie fichó. Su hora es inventada: antes de exportar, corrige esa hora o fija las horas de ese día.'
+        : ' salidas se cerraron solas porque nadie fichó. Sus horas son inventadas: antes de exportar, corrige esas horas o fija las horas de esos días.');
 
     pendientes.forEach(f => {
       const t = resumenTrabajadores[f.trabajador_id];
