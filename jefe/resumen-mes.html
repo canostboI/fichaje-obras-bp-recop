@@ -310,10 +310,20 @@
         </div>
 
         <div class="pc-paso" id="pc-paso-3">
-          <div class="pc-cab"><span class="pc-num">3</span>
+          <div class="pc-cab"><span class="pc-num" id="pc-icono-3">3</span>
+            <div>
+              <div class="pc-tit">Revisar las reentradas seguidas</div>
+              <div class="pc-desc" id="pc-desc-3">—</div>
+            </div>
+          </div>
+          <div class="pc-chips" id="pc-chips-3"></div>
+        </div>
+
+        <div class="pc-paso" id="pc-paso-4">
+          <div class="pc-cab"><span class="pc-num">4</span>
             <div>
               <div class="pc-tit">Exportar el Excel proforma</div>
-              <div class="pc-desc">Es el entregable del mes. Descárgalo cuando los pasos 1 y 2 estén revisados.</div>
+              <div class="pc-desc">Es el entregable del mes. Descárgalo cuando los pasos 1, 2 y 3 estén revisados.</div>
             </div>
           </div>
           <button class="btn-primario" id="pc-btn-exportar">📥 Excel proforma</button>
@@ -1189,6 +1199,55 @@ function autocierresPendientes() {
     .sort((a, b) => new Date(a.hora) - new Date(b.hora));
 }
 
+// Una REENTRADA SOSPECHOSA es una entrada que llega muy poco después de
+// una salida del mismo trabajador y el mismo día: casi siempre es el
+// doble pase del QR al salir, que abre una jornada fantasma.
+// El umbral sale de los datos reales (abr-jul 2026): los errores están
+// entre 0 y 15 minutos y las salidas legítimas (comer, ir a por
+// material) empiezan en 78. Entre medias no hay ningún caso.
+const HUECO_REENTRADA_MIN = 20;
+
+// OJO: `corregido_por` lo rellena TAMBIÉN un fichaje manual, no solo una
+// corrección. Aquí se usa a propósito como "por aquí ya ha pasado una
+// persona": si el jefe metió mano en ese fichaje, el aviso sobra.
+function reentradasSospechosas() {
+  const porTrabajador = {};
+  fichajesMesCache.forEach(f => {
+    if (!porTrabajador[f.trabajador_id]) porTrabajador[f.trabajador_id] = [];
+    porTrabajador[f.trabajador_id].push(f);
+  });
+
+  const encontradas = [];
+  Object.keys(porTrabajador).forEach(tid => {
+    const lista = porTrabajador[tid]
+      .slice()
+      .sort((a, b) => new Date(a.hora) - new Date(b.hora));
+
+    for (let i = 1; i < lista.length; i++) {
+      const ant = lista[i - 1], act = lista[i];
+      if (ant.tipo !== 'salida' || act.tipo !== 'entrada') continue;
+
+      const dSal = new Date(ant.hora), dEnt = new Date(act.hora);
+      // Mismo día natural (local). Si cruza medianoche no es este caso.
+      if (dSal.getDate() !== dEnt.getDate() || dSal.getMonth() !== dEnt.getMonth()) continue;
+
+      const minutos = Math.round((dEnt - dSal) / 60000);
+      if (minutos > HUECO_REENTRADA_MIN) continue;
+
+      // Criterio de CERO: la línea desaparece si alguien ya tocó uno de
+      // los dos fichajes, o si el día lleva horas fijadas a mano.
+      if (ant.corregido_por || act.corregido_por) continue;
+      const t = resumenTrabajadores[tid];
+      const dia = dEnt.getDate();
+      if (t && t.dias_ajuste && t.dias_ajuste[dia] !== undefined) continue;
+
+      encontradas.push({ trabajador_id: tid, dia, minutos, dSal, dEnt });
+    }
+  });
+
+  return encontradas.sort((a, b) => a.dEnt - b.dEnt);
+}
+
 function actualizarPanelCierre() {
   const panel = document.getElementById('panel-cierre');
   const pendientes = autocierresPendientes();
@@ -1247,11 +1306,55 @@ function actualizarPanelCierre() {
       partes.join(' · ') + '. Repásalos: son horas que no salen del fichaje real.';
   }
 
+  // --- Paso 3: reentradas seguidas (doble pase del QR) ---
+  const reentradas = reentradasSospechosas();
+  const paso3 = document.getElementById('pc-paso-3');
+  const chips3 = document.getElementById('pc-chips-3');
+  chips3.innerHTML = '';
+
+  if (reentradas.length === 0) {
+    paso3.className = 'pc-paso hecho';
+    document.getElementById('pc-icono-3').textContent = '✓';
+    document.getElementById('pc-desc-3').textContent =
+      'Ninguna entrada llega pegada a una salida anterior.';
+  } else {
+    paso3.className = 'pc-paso alerta';
+    document.getElementById('pc-icono-3').textContent = '3';
+    document.getElementById('pc-desc-3').textContent =
+      reentradas.length + (reentradas.length === 1
+        ? ' entrada llega justo después de una salida (menos de '
+        : ' entradas llegan justo después de una salida (menos de ') +
+      HUECO_REENTRADA_MIN + ' min). Suele ser el QR pasado dos veces al salir, ' +
+      'y abre una jornada de más. Míralas: si sobra, corrige esa entrada. ' +
+      'Si de verdad volvió a trabajar, déjalo como está.';
+
+    reentradas.forEach(r => {
+      const t = resumenTrabajadores[r.trabajador_id];
+      const hh = d => String(d.getHours()).padStart(2, '0') + ':' +
+                      String(d.getMinutes()).padStart(2, '0');
+      const b = document.createElement('button');
+      b.className = 'pc-chip';
+      b.textContent = (t ? t.nombre : 'Trabajador') + ' · ' +
+                      r.dia + '/' + (r.dEnt.getMonth() + 1) + ' · ' +
+                      hh(r.dSal) + '→' + hh(r.dEnt) +
+                      ' (' + r.minutos + ' min)';
+      b.onclick = () => abrirDetalleDia(r.trabajador_id, r.dia);
+      chips3.appendChild(b);
+    });
+  }
+
   // --- Estado general + si el panel se abre solo ---
+  // Los autocierres mandan: su hora es inventada. Las reentradas avisan,
+  // pero no bloquean el export.
   const estado = document.getElementById('pc-estado');
   if (pendientes.length > 0) {
     estado.className = 'pc-estado pendiente';
     estado.textContent = '· ' + pendientes.length + ' por corregir';
+    panel.open = true;
+  } else if (reentradas.length > 0) {
+    estado.className = 'pc-estado pendiente';
+    estado.textContent = '· ' + reentradas.length +
+      (reentradas.length === 1 ? ' reentrada por revisar' : ' reentradas por revisar');
     panel.open = true;
   } else {
     estado.className = 'pc-estado listo';
