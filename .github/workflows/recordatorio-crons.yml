@@ -9,6 +9,12 @@ name: Recordatorio · cambio de hora en crons
 # Minuto "raro" a propósito (congestión de GitHub Actions).
 # También se puede lanzar a mano desde la pestaña Actions.
 #
+# ⚠️ ACTUALIZADO 3/8/2026: añadido `auditoria_permisos_diaria` (el
+# vigilante de permisos, creado el 2/8). Sin esta línea la issue de
+# octubre habría hecho cambiar 4 crons de pg_cron de los 5 que hay, y
+# el vigilante se habría quedado corriendo a las 06:00 de Madrid en vez
+# de a las 07:00: no falla, solo se adelanta, y nadie se entera.
+#
 # ⚠️ ACTUALIZADO 31/7/2026: `ecoordina.yml` tiene DOS líneas `cron:`
 # desde el 30/7 (SYNC-TARDE). Antes aquí solo figuraba una, la de
 # `1-5`: la issue de octubre habría hecho cambiar una sola y la otra
@@ -45,7 +51,8 @@ jobs:
           | pg_cron · \`autocierre_nocturno\` | \`30 22 * * *\` | \`30 23 * * *\` |
           | pg_cron · \`aviso_ronda_1\` | \`30 7 * * 1-5\` | \`30 8 * * 1-5\` |
           | pg_cron · \`aviso_ronda_2\` | \`0 8 * * 1-5\` | \`0 9 * * 1-5\` |
-          | pg_cron · \`aviso_ronda_3\` | \`0 9 * * 1-5\` | \`0 10 * * 1-5\` |"
+          | pg_cron · \`aviso_ronda_3\` | \`0 9 * * 1-5\` | \`0 10 * * 1-5\` |
+          | pg_cron · \`auditoria_permisos_diaria\` | \`0 5 * * *\` | \`0 6 * * *\` |"
           else
             TITULO="🕑 Cambio de hora (VERANO): adelantar los crons — $(date -u +'%Y')"
             DIRECCION="España pasa a **UTC+2** el último domingo de marzo. Hay que restar **-1 hora** a todos los crons UTC para que sigan corriendo a la misma hora española."
@@ -56,7 +63,8 @@ jobs:
           | pg_cron · \`autocierre_nocturno\` | \`30 23 * * *\` | \`30 22 * * *\` |
           | pg_cron · \`aviso_ronda_1\` | \`30 8 * * 1-5\` | \`30 7 * * 1-5\` |
           | pg_cron · \`aviso_ronda_2\` | \`0 9 * * 1-5\` | \`0 8 * * 1-5\` |
-          | pg_cron · \`aviso_ronda_3\` | \`0 10 * * 1-5\` | \`0 9 * * 1-5\` |"
+          | pg_cron · \`aviso_ronda_3\` | \`0 10 * * 1-5\` | \`0 9 * * 1-5\` |
+          | pg_cron · \`auditoria_permisos_diaria\` | \`0 6 * * *\` | \`0 5 * * *\` |"
           fi
 
           CUERPO="$DIRECCION
@@ -71,9 +79,11 @@ jobs:
 
           **Cómo:**
           - [ ] \`ecoordina.yml\`: editar **las DOS líneas** \`cron:\` en el repo.
-          - [ ] pg_cron (los 4): en Supabase → SQL Editor, un \`SELECT cron.alter_job(jobid, schedule => '...')\` por cada uno, o desde la UI de Integrations → Cron.
+          - [ ] pg_cron (los 5): en Supabase → SQL Editor, un \`SELECT cron.alter_job(jobid, schedule => '...')\` por cada uno, o desde la UI de Integrations → Cron.
           - [ ] Verificar al día siguiente que la sync nocturna y los SMS de ronda llegan a su hora española habitual.
           - [ ] Comprobar en \`ecoordina_sync\` que la ejecución buena sigue terminando de madrugada, muy por delante de los fichajes de las 06:39 en Muralla.
+
+          > ⚠️ **Esta lista es código que envejece.** Si se crea un cron nuevo (pg_cron o GitHub Actions), hay que añadirlo AQUÍ el mismo día. Un recordatorio incompleto es peor que ninguno: hace creer que el repaso está hecho.
 
           _Issue creada automáticamente por \`recordatorio-crons.yml\` (MJ-23)._"
 
