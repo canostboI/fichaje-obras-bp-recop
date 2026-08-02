@@ -5,7 +5,8 @@
 > escritas y no se redescubran como "bugs" en el futuro.
 >
 > Creado: 6/7/2026 (auditoría profunda, hallazgo MJ-19).
-> Última actualización: 2/8/2026 (revisión de grants a `anon`).
+> Última actualización: 2/8/2026 (revisión de grants a `anon` y
+> cierre documental de A-02).
 
 ---
 
@@ -120,12 +121,28 @@ UUID y puede llamar a las RPC públicas de esa obra.
 (requisito operativo). El UUID por sí solo no permite fichar sin DNI
 válido ni GPS dentro del radio.
 
-**Riesgo derivado NO aceptado:** la combinación UUID + anon key permite
-hoy enumerar DNIs y obtener datos personales vía `validar_acceso`
-(hallazgo **A-02**, RGPD). Ese riesgo **NO se asume**: está en cola de
-implementación (la RPC pasará a devolver solo nombre de pila + color +
-acción sugerida + mensaje genérico). Cuando A-02 esté desplegado, el
-riesgo residual de este punto quedará dentro de lo aceptable.
+**Hallazgo A-02 (RGPD) — ✅ RESUELTO el 8/7/2026.** Antes, la
+combinación UUID + anon key permitía enumerar DNIs y obtener apellidos,
+motivos documentales detallados y en qué otra obra tenía jornada
+abierta el trabajador. `validar_acceso` se reescribió para devolver
+solo nombre de pila + color + acción sugerida + mensaje genérico. Ver
+`PLAN_A02.md` para el diseño completo. **Verificado contra
+`pg_get_functiondef` el 2/8/2026:** el `json_build_object` final no
+contiene `motivos` ni `obra_abierta_otra`; los motivos detallados solo
+se escriben en la incidencia `bloqueo_rojo` (uso interno, con RLS).
+
+**Riesgo residual, ahora SÍ aceptado:** con un UUID de obra cualquiera
++ anon key todavía se puede comprobar si un DNI existe en el sistema y
+obtener, de ese DNI:
+- el **nombre de pila** (necesario para el saludo de la pantalla),
+- el **color** del semáforo en esa obra,
+- si hay excepción activa hoy.
+
+Ojo al alcance: la búsqueda del trabajador **no filtra por obra**, así
+que el UUID de una sola obra sirve para sondear DNIs contra toda la
+base. Se acepta porque el dato revelado es mínimo y el atacante ya
+necesita conocer el DNI completo de antemano (no es enumerable por
+fuerza bruta con coste razonable: 8 dígitos + letra de control).
 
 ---
 
