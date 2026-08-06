@@ -10,6 +10,8 @@
 <script src="../js/auto-logout.js"></script>
 <script src="../js/accesos-resueltos.js"></script>
 <script src="../js/sb-paginado.js"></script>
+<script src="../js/fechas.js"></script>
+<script src="../js/habilitaciones.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -498,26 +500,13 @@ let falloEmpresasPropias = false;
 let estaOffline = false;
 let timeoutBannerOnline = null;
 
-// ── H-6: Diccionario de iconos de habilitación (global) ──
-const ICONOS_HAB = [
-  { clave: 'movimiento de tierras', icono: '🚜' },
-  { clave: 'dumper',                icono: '🚛' },
-  { clave: 'grúa torre',            icono: '🏗️' },
-  { clave: 'grua torre',            icono: '🏗️' },
-  { clave: 'plataforma elevadora',  icono: '🛗' },
-  { clave: 'carretilla elevadora',  icono: '🛺' },
-  { clave: 'toro',                  icono: '🛺' },
-  { clave: 'andamio',               icono: '🪜' },
-  { clave: 'altura con arnés',      icono: '🧗' },
-  { clave: 'arnes',                 icono: '🧗' },
-  { clave: 'eléctrico',             icono: '⚡' },
-  { clave: 'electrico',             icono: '⚡' },
-  { clave: 'eléctrica',             icono: '⚡' },
-];
-function iconoHab(nombre) {
-  const n = (nombre || '').toLowerCase();
-  for (const { clave, icono } of ICONOS_HAB) { if (n.includes(clave)) return icono; }
-  return '🔧';
+// ── Iconos, estado y umbral: js/habilitaciones.js (window.Hab) ──
+// El diccionario estaba copiado aquí y en otros siete archivos.
+if (!window.Fechas || !window.Hab) {
+  document.body.innerHTML =
+    '<div style="padding:40px;font-family:system-ui;color:#f44336">' +
+    'No se han cargado js/fechas.js y js/habilitaciones.js. Recarga la página.</div>';
+  throw new Error('Faltan los módulos Fechas/Hab');
 }
 
 function marcarOffline() {
@@ -892,45 +881,48 @@ async function comprobarHabilitacionesCaducidad() {
     if (idsObra.length === 0) return;
     const { data: habs, error: errHabs } = await sb
       .from('habilitaciones_trabajador')
-      .select('trabajador_id, fecha_caducidad, tipo:tipo_habilitacion_id(nombre), trabajador:trabajador_id(nombre, apellidos)')
+      .select('trabajador_id, fecha_caducidad, sin_caducidad, tipo:tipo_habilitacion_id(nombre), trabajador:trabajador_id(nombre, apellidos)')
       .in('trabajador_id', idsObra)
-      .eq('activo', true)
-      .not('fecha_caducidad', 'is', null);
+      .eq('activo', true);
     if (errHabs) throw errHabs;
     if (!habs || habs.length === 0) return;
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    const limite = new Date(hoy);
-    limite.setDate(limite.getDate() + 30);
+    // El estado lo decide Hab.estado(): mismo criterio que las pantallas
+    // de habilitaciones y que la RPC. Antes aquí eran 30 días y la fecha
+    // del navegador.
     const caducadas = [];
-    const proximas = [];
+    const proximas  = [];
+    const sinFecha  = [];
     habs.forEach(h => {
-      if (!h.fecha_caducidad) return;
-      const partes = h.fecha_caducidad.split('-');
-      const fc = new Date(+partes[0], +partes[1] - 1, +partes[2], 0, 0, 0, 0);
       const t = h.trabajador || {};
       const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || '(sin nombre)';
       const tipo = h.tipo?.nombre || 'Habilitación';
-      const icono = iconoHab(tipo);
-      const fechaTxt = fc.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
-      const item = { nombre, tipo, icono, fechaTxt };
-      if (fc < hoy) caducadas.push(item);
-      else if (fc <= limite) proximas.push(item);
+      const item = { nombre, tipo, icono: Hab.icono(tipo), texto: Hab.textoCaducidad(h) };
+      const est = Hab.estado(h);
+      if (est === 'caducada')         caducadas.push(item);
+      else if (est === 'proxima')     proximas.push(item);
+      else if (est === 'falta_fecha') sinFecha.push(item);
     });
-    if (caducadas.length === 0 && proximas.length === 0) return;
+    if (caducadas.length === 0 && proximas.length === 0 && sinFecha.length === 0) return;
     banner.classList.remove('oculto');
     let html = '';
     if (caducadas.length > 0) {
       banner.classList.add('rojo');
       html += '🚫 Habilitaciones caducadas:<ul>' +
-        caducadas.map(i => `<li>${i.icono} ${esc(i.nombre)} — ${esc(i.tipo)} (caducó ${esc(i.fechaTxt)})</li>`).join('') + '</ul>';
+        caducadas.map(i => `<li>${i.icono} ${esc(i.nombre)} — ${esc(i.tipo)} (${esc(i.texto)})</li>`).join('') + '</ul>';
     } else {
       banner.classList.add('amarillo');
     }
     if (proximas.length > 0) {
-      html += (caducadas.length > 0 ? '<div style="margin-top:8px"></div>' : '') +
-        '⚠ Habilitaciones próximas a caducar (≤30 días):<ul>' +
-        proximas.map(i => `<li>${i.icono} ${esc(i.nombre)} — ${esc(i.tipo)} (caduca ${esc(i.fechaTxt)})</li>`).join('') + '</ul>';
+      html += (html ? '<div style="margin-top:8px"></div>' : '') +
+        `⚠ Habilitaciones próximas a caducar (≤${Hab.UMBRAL_DIAS} días):<ul>` +
+        proximas.map(i => `<li>${i.icono} ${esc(i.nombre)} — ${esc(i.tipo)} (${esc(i.texto)})</li>`).join('') + '</ul>';
+    }
+    // Sin fecha registrada: no se puede afirmar que valgan ni que no.
+    // Antes ni salían: la consulta las descartaba.
+    if (sinFecha.length > 0) {
+      html += (html ? '<div style="margin-top:8px"></div>' : '') +
+        '❓ Habilitaciones sin fecha de caducidad — no se puede saber si siguen en vigor:<ul>' +
+        sinFecha.map(i => `<li>${i.icono} ${esc(i.nombre)} — ${esc(i.tipo)}</li>`).join('') + '</ul>';
     }
     banner.innerHTML = html;
   } catch (e) {
@@ -1202,7 +1194,7 @@ async function cargarPresencia() {
       .in('trabajador_id', ids)
       .eq('activo', true);
     (habs || []).forEach(h => {
-      const icono = iconoHab(h.tipo?.nombre || '');
+      const icono = Hab.icono(h.tipo?.nombre || '');
       if (!habIconosPorTrabajador[h.trabajador_id]) habIconosPorTrabajador[h.trabajador_id] = [];
       if (!habIconosPorTrabajador[h.trabajador_id].includes(icono))
         habIconosPorTrabajador[h.trabajador_id].push(icono);
