@@ -56,6 +56,7 @@
   .tw-hab-badge.proxima       { background: rgba(255,193,7,0.15);   color: var(--amarillo); }
   .tw-hab-badge.vigente       { background: rgba(76,175,80,0.15);   color: var(--verde); }
   .tw-hab-badge.sin_caducidad { background: rgba(139,144,158,0.15); color: var(--texto2); }
+  .tw-hab-badge.falta-fecha   { background: rgba(255,152,0,0.18);   color: var(--naranja); }
 
   .buscador-wrap { display: flex; gap: 10px; margin-bottom: 6px; }
   .buscador-wrap input { flex: 1; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 13px; font-family: inherit; }
@@ -74,6 +75,7 @@
   .hab-item.proxima       { border-left: 3px solid var(--amarillo); }
   .hab-item.caducada      { border-left: 3px solid var(--rojo); }
   .hab-item.sin_caducidad { border-left: 3px solid var(--texto2); }
+  .hab-item.falta-fecha   { border-left: 3px solid var(--naranja); }
   .hab-nombre { font-size: 14px; font-weight: 600; flex: 1; }
   .hab-caducidad { font-size: 12px; color: var(--texto2); }
   .hab-acciones { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
@@ -83,6 +85,14 @@
   .badge.proxima        { background: rgba(255,193,7,0.15);   color: var(--amarillo); }
   .badge.caducada       { background: rgba(244,67,54,0.15);   color: var(--rojo); }
   .badge.sin_caducidad  { background: rgba(139,144,158,0.15); color: var(--texto2); }
+  .badge.falta-fecha    { background: rgba(255,152,0,0.18);   color: var(--naranja); }
+
+  /* Edición de fecha en línea. Sustituye al prompt() del navegador, que
+     obligaba a teclear AAAA-MM-DD a mano y se corrompía según el idioma. */
+  .hab-edit { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+  .hab-edit input[type="date"] { background: var(--bg2); border: 1px solid var(--borde); border-radius: 6px; color: var(--texto); font-size: 13px; padding: 6px 9px; font-family: inherit; }
+  .hab-edit input[type="date"]:disabled { opacity: 0.4; }
+  .chk-nocaduca { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--texto2); cursor: pointer; text-transform: none; letter-spacing: 0; font-weight: 500; margin: 0; }
 
   .form-anadir { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
   .form-anadir label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--texto2); display: block; margin-bottom: 4px; }
@@ -112,6 +122,8 @@
   .separador { border: none; border-top: 1px solid var(--borde); margin: 14px 0; }
 </style>
 <script src="../js/auto-logout.js"></script>
+<script src="../js/fechas.js"></script>
+<script src="../js/habilitaciones.js"></script>
 </head>
 <body>
 
@@ -193,8 +205,12 @@
                 </select>
               </div>
               <div>
-                <label>Fecha de caducidad (opcional)</label>
+                <label>Fecha de caducidad</label>
                 <input type="date" id="input-caducidad" />
+                <label class="chk-nocaduca" style="margin-top:8px;">
+                  <input type="checkbox" id="chk-nocaduca" />
+                  Esta habilitación no caduca
+                </label>
               </div>
               <button class="btn btn-primario" id="btn-anadir">+ Añadir habilitación</button>
             </div>
@@ -225,27 +241,14 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 AutoLogout.init(sb);
 
-// Diccionario de iconos por nombre de tipo (coincidencia parcial, minúsculas)
-const ICONOS_HAB = [
-  { clave: 'movimiento de tierras', icono: '🚜' },
-  { clave: 'dumper',                icono: '🚛' },
-  { clave: 'grúa torre',            icono: '🏗️' },
-  { clave: 'grua torre',            icono: '🏗️' },
-  { clave: 'plataforma elevadora',  icono: '🛗' },
-  { clave: 'carretilla elevadora',  icono: '🛺' },
-  { clave: 'toro',                  icono: '🛺' },
-  { clave: 'andamio',               icono: '🪜' },
-  { clave: 'altura con arnés',      icono: '🧗' },
-  { clave: 'altura con arnes',      icono: '🧗' },
-  { clave: 'eléctrico',             icono: '⚡' },
-  { clave: 'electrico',             icono: '⚡' },
-  { clave: 'eléctrica',             icono: '⚡' },
-];
-
-function iconoHab(nombre) {
-  const n = (nombre || '').toLowerCase();
-  const match = ICONOS_HAB.find(r => n.includes(r.clave));
-  return match ? match.icono : '🔧';
+// Iconos, estado y umbral viven en js/habilitaciones.js (window.Hab).
+// Antes el diccionario estaba copiado aquí y en otros siete archivos, y
+// dos copias ya habían divergido.
+if (!window.Fechas || !window.Hab) {
+  document.body.innerHTML =
+    '<div style="padding:40px;font-family:system-ui;color:#f44336">' +
+    'No se han cargado js/fechas.js y js/habilitaciones.js. Recarga la página.</div>';
+  throw new Error('Faltan los módulos Fechas/Hab');
 }
 
 let tiposCache = [];
@@ -270,6 +273,11 @@ let usuarioAppId = null;
   });
   document.getElementById('btn-cerrar-panel').addEventListener('click', cerrarPanel);
   document.getElementById('btn-anadir').addEventListener('click', anadirHabilitacion);
+  document.getElementById('chk-nocaduca').addEventListener('change', e => {
+    const inp = document.getElementById('input-caducidad');
+    inp.disabled = e.target.checked;
+    if (e.target.checked) inp.value = '';
+  });
   document.getElementById('input-buscar').addEventListener('input', () => {
     clearTimeout(buscarTimeout);
     buscarTimeout = setTimeout(buscarTrabajadores, 300);
@@ -341,7 +349,7 @@ async function cargarHabilitados() {
 
   const { data, error } = await sb
     .from('habilitaciones_trabajador')
-    .select('trabajador_id, tipo:tipo_habilitacion_id(nombre), fecha_caducidad')
+    .select('trabajador_id, tipo:tipo_habilitacion_id(nombre), fecha_caducidad, sin_caducidad')
     .in('trabajador_id', [...trabajadoresObraIds])
     .eq('activo', true);
 
@@ -350,9 +358,9 @@ async function cargarHabilitados() {
   const porTrabajador = {};
   (data || []).forEach(h => {
     if (!porTrabajador[h.trabajador_id]) porTrabajador[h.trabajador_id] = [];
-    const estado = calcularEstado(h.fecha_caducidad);
+    const estado = Hab.estado(h);
     const nombre = h.tipo?.nombre || '?';
-    porTrabajador[h.trabajador_id].push({ nombre, estado, icono: iconoHab(nombre) });
+    porTrabajador[h.trabajador_id].push({ nombre, estado, icono: Hab.icono(nombre) });
   });
 
   const ids = Object.keys(porTrabajador);
@@ -373,7 +381,7 @@ async function cargarHabilitados() {
   el.innerHTML = (twData || []).map(t => {
     const habs = porTrabajador[t.id] || [];
     const badges = habs.map(h =>
-      `<span class="tw-hab-badge ${h.estado}">${h.icono} ${esc(h.nombre)}</span>`
+      `<span class="tw-hab-badge ${Hab.clase(h.estado)}">${h.icono} ${esc(h.nombre)}</span>`
     ).join('');
     return `
       <div class="tw-item ${trabajadorActual?.id === t.id ? 'seleccionado' : ''}"
@@ -385,16 +393,6 @@ async function cargarHabilitados() {
         </div>
       </div>`;
   }).join('');
-}
-
-function calcularEstado(fecha_caducidad) {
-  if (!fecha_caducidad) return 'sin_caducidad';
-  const hoy = new Date(); hoy.setHours(0,0,0,0);
-  const cad = new Date(fecha_caducidad + 'T00:00:00');
-  if (cad < hoy) return 'caducada';
-  const pronto = new Date(hoy); pronto.setDate(pronto.getDate() + 30);
-  if (cad <= pronto) return 'proxima';
-  return 'vigente';
 }
 
 // ── BÚSQUEDA ──────────────────────────────────────────────────────
@@ -444,32 +442,71 @@ function cerrarPanel() {
   document.querySelectorAll('.tw-item').forEach(el => el.classList.remove('seleccionado'));
 }
 
+// ── HABILITACIONES DEL TRABAJADOR ────────────────────────────────
+let habsCache = [];
+let editandoTipoId = null;
+
+// Traducción de los códigos que devuelve la RPC. Un código en crudo en
+// pantalla no le dice nada a quien lo lee.
+const ERRORES_HAB = {
+  falta_caducidad:              'Falta la fecha de caducidad. Pon una fecha o marca «no caduca».',
+  caducidad_contradictoria:     'No puede tener fecha y estar marcada como «no caduca» a la vez.',
+  sin_permiso:                  'No tienes permiso para hacer esto.',
+  trabajador_fuera_de_tus_obras:'Ese trabajador no está en ninguna de tus obras.'
+};
+function textoErrorHab(cod) { return ERRORES_HAB[cod] || ('Error: ' + cod); }
+
 async function cargarHabilitaciones(id) {
   const el = document.getElementById('lista-habilitaciones');
   el.innerHTML = '<div class="cargando">Cargando…</div>';
   const { data, error } = await sb.rpc('get_habilitaciones_trabajador', { p_trabajador_id: id });
   if (error) { el.innerHTML = `<div class="vacio">Error: ${esc(error.message)}</div>`; return; }
-  const habs = Array.isArray(data) ? data : [];
-  if (!habs.length) {
+  habsCache = Array.isArray(data) ? data : [];
+  editandoTipoId = null;
+  renderHabilitaciones();
+}
+
+function renderHabilitaciones() {
+  const el = document.getElementById('lista-habilitaciones');
+  if (!habsCache.length) {
     el.innerHTML = '<div class="vacio" style="padding:10px 0">Sin habilitaciones registradas.</div>';
     return;
   }
-  const labels = { vigente: 'Vigente', proxima_caducidad: 'Caduca pronto', caducada: 'Caducada', sin_caducidad: 'Sin caducidad' };
-  el.innerHTML = habs.map(h => {
-    const estado = h.estado_caducidad;
-    const claseEstado = estado === 'proxima_caducidad' ? 'proxima' : estado;
-    const cadTxt = h.fecha_caducidad ? 'Caduca: ' + formatFecha(h.fecha_caducidad) : 'Sin fecha de caducidad';
-    const ico = iconoHab(h.tipo_nombre);
+
+  el.innerHTML = habsCache.map(h => {
+    const est = Hab.estado(h);
+    const cls = Hab.clase(est);
+    const ico = Hab.icono(h.tipo_nombre);
+
+    if (h.tipo_habilitacion_id === editandoTipoId) {
+      const fechaVal = h.fecha_caducidad ? String(h.fecha_caducidad).slice(0, 10) : '';
+      return `
+        <div class="hab-item ${cls}">
+          <div style="flex:1;min-width:0">
+            <div class="hab-nombre">${ico} ${esc(h.tipo_nombre)}</div>
+            <div class="hab-edit">
+              <input type="date" id="edit-fecha" value="${fechaVal}" ${h.sin_caducidad ? 'disabled' : ''}>
+              <label class="chk-nocaduca">
+                <input type="checkbox" id="edit-nocaduca" ${h.sin_caducidad ? 'checked' : ''}>
+                No caduca
+              </label>
+              <button class="btn btn-primario" onclick="guardarEdicion('${h.tipo_habilitacion_id}')">Guardar</button>
+              <button class="btn btn-secundario" onclick="cancelarEdicion()">Cancelar</button>
+            </div>
+          </div>
+        </div>`;
+    }
+
     return `
-      <div class="hab-item ${claseEstado}">
+      <div class="hab-item ${cls}">
         <div style="flex:1">
           <div class="hab-nombre">${ico} ${esc(h.tipo_nombre)}</div>
-          <div class="hab-caducidad">${cadTxt}</div>
+          <div class="hab-caducidad">${esc(Hab.textoCaducidad(h))}</div>
         </div>
         <div class="hab-acciones">
-          <span class="badge ${claseEstado}">${labels[estado] || estado}</span>
+          <span class="badge ${cls}">${esc(Hab.etiqueta(est))}</span>
           <button class="btn btn-secundario"
-            onclick="editarFecha('${h.tipo_habilitacion_id}','${h.fecha_caducidad || ''}','${escAttr(h.tipo_nombre)}')">
+            onclick="abrirEdicion('${h.tipo_habilitacion_id}')">
             ✏️ Fecha
           </button>
           <button class="btn btn-peligro"
@@ -479,30 +516,77 @@ async function cargarHabilitaciones(id) {
         </div>
       </div>`;
   }).join('');
+
+  const chk = document.getElementById('edit-nocaduca');
+  if (chk) {
+    chk.addEventListener('change', () => {
+      const inp = document.getElementById('edit-fecha');
+      inp.disabled = chk.checked;
+      if (chk.checked) inp.value = '';
+    });
+  }
+}
+
+function abrirEdicion(tipoId)  { editandoTipoId = tipoId; renderHabilitaciones(); }
+function cancelarEdicion()     { editandoTipoId = null;  renderHabilitaciones(); }
+
+async function guardarEdicion(tipoId) {
+  const noCaduca = document.getElementById('edit-nocaduca').checked;
+  const fecha = document.getElementById('edit-fecha').value || null;
+  if (!noCaduca && !fecha) {
+    msgHab('Pon una fecha de caducidad o marca «no caduca».', 'err');
+    return;
+  }
+  await guardarHabilitacion(tipoId, fecha, noCaduca, 'Fecha actualizada.');
+}
+
+// Única puerta de escritura: alta, reactivación y cambio de fecha pasan
+// por aquí, para que las tres validen igual.
+async function guardarHabilitacion(tipoId, fecha, noCaduca, msgOk) {
+  if (!trabajadorActual) return false;
+  const { data, error } = await sb.rpc('añadir_habilitacion', {
+    p_trabajador_id: trabajadorActual.id,
+    p_tipo_habilitacion_id: tipoId,
+    p_fecha_caducidad: noCaduca ? null : fecha,
+    p_sin_caducidad: !!noCaduca
+  });
+  if (error) { msgHab('Error: ' + error.message, 'err'); return false; }
+  const res = typeof data === 'string' ? JSON.parse(data) : data;
+  if (res.error) { msgHab(textoErrorHab(res.error), 'err'); return false; }
+  const msgs = {
+    creada: 'Habilitación añadida.',
+    reactivada: 'Habilitación reactivada.',
+    actualizada: 'Fecha actualizada.'
+  };
+  msgHab(msgOk || msgs[res.accion] || 'Guardado.', 'ok');
+  await cargarHabilitaciones(trabajadorActual.id);
+  await cargarHabilitados();
+  return true;
 }
 
 async function anadirHabilitacion() {
   if (!trabajadorActual) return;
-  const tipoId = document.getElementById('sel-tipo').value;
+  const tipoId   = document.getElementById('sel-tipo').value;
+  const noCaduca = document.getElementById('chk-nocaduca').checked;
   const caducidad = document.getElementById('input-caducidad').value || null;
+
   if (!tipoId) { msgHab('Selecciona un tipo.', 'err'); return; }
+  if (!noCaduca && !caducidad) {
+    msgHab('Falta la fecha de caducidad. Pon una fecha o marca «no caduca».', 'err');
+    return;
+  }
+
   const btn = document.getElementById('btn-anadir');
   btn.disabled = true; btn.textContent = 'Guardando…';
-  const { data, error } = await sb.rpc('añadir_habilitacion', {
-    p_trabajador_id: trabajadorActual.id,
-    p_tipo_habilitacion_id: tipoId,
-    p_fecha_caducidad: caducidad
-  });
+  const ok = await guardarHabilitacion(tipoId, caducidad, noCaduca, null);
   btn.disabled = false; btn.textContent = '+ Añadir habilitación';
-  if (error) { msgHab('Error: ' + error.message, 'err'); return; }
-  const res = typeof data === 'string' ? JSON.parse(data) : data;
-  if (res.error) { msgHab('Error: ' + res.error, 'err'); return; }
-  document.getElementById('sel-tipo').value = '';
-  document.getElementById('input-caducidad').value = '';
-  const msgs = { creada: 'Habilitación añadida.', reactivada: 'Habilitación reactivada.', actualizada: 'Fecha actualizada.' };
-  msgHab(msgs[res.accion] || 'Guardado.', 'ok');
-  await cargarHabilitaciones(trabajadorActual.id);
-  await cargarHabilitados();
+
+  if (ok) {
+    document.getElementById('sel-tipo').value = '';
+    const inp = document.getElementById('input-caducidad');
+    inp.value = ''; inp.disabled = false;
+    document.getElementById('chk-nocaduca').checked = false;
+  }
 }
 
 async function quitarHabilitacion(tipoId, tipoNombre) {
@@ -520,25 +604,6 @@ async function quitarHabilitacion(tipoId, tipoNombre) {
   await cargarHabilitados();
 }
 
-async function editarFecha(tipoId, fechaActual, tipoNombre) {
-  const nueva = prompt(
-    'Nueva fecha de caducidad para "' + tipoNombre + '"\n(deja en blanco para quitar la fecha)\nFormato: AAAA-MM-DD',
-    fechaActual
-  );
-  if (nueva === null) return;
-  const { data, error } = await sb.rpc('añadir_habilitacion', {
-    p_trabajador_id: trabajadorActual.id,
-    p_tipo_habilitacion_id: tipoId,
-    p_fecha_caducidad: nueva.trim() || null
-  });
-  if (error) { msgHab('Error: ' + error.message, 'err'); return; }
-  const res = typeof data === 'string' ? JSON.parse(data) : data;
-  if (res.error) { msgHab('Error: ' + res.error, 'err'); return; }
-  msgHab('Fecha actualizada.', 'ok');
-  await cargarHabilitaciones(trabajadorActual.id);
-  await cargarHabilitados();
-}
-
 // ── TIPOS ─────────────────────────────────────────────────────────
 async function cargarTipos() {
   const { data } = await sb.from('tipos_habilitacion')
@@ -548,13 +613,13 @@ async function cargarTipos() {
   if (!tiposCache.length) { el.innerHTML = '<div class="vacio">No hay tipos configurados.</div>'; return; }
   el.innerHTML = tiposCache.map(t => `
     <div class="tipo-item">
-      <span class="tipo-icono">${iconoHab(t.nombre)}</span>
+      <span class="tipo-icono">${Hab.icono(t.nombre)}</span>
       <span class="tipo-nombre">${esc(t.nombre)}</span>
     </div>
   `).join('');
   const sel = document.getElementById('sel-tipo');
   sel.innerHTML = '<option value="">Selecciona un tipo…</option>' +
-    tiposCache.map(t => `<option value="${t.id}">${iconoHab(t.nombre)} ${esc(t.nombre)}</option>`).join('');
+    tiposCache.map(t => `<option value="${t.id}">${Hab.icono(t.nombre)} ${esc(t.nombre)}</option>`).join('');
 }
 
 // ── UTILIDADES ────────────────────────────────────────────────────
