@@ -189,6 +189,10 @@
   .pc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0 32px; }
   .pc-chip { background: var(--bg3); border: 1px solid var(--borde); color: var(--texto); padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; }
   .pc-chip:hover { border-color: var(--naranja); color: var(--naranja); }
+  /* Los sábados se agrupan por día: la unidad de trabajo es el sábado
+     entero, no la persona suelta. Sin esto, 5 sábados de 16 personas son
+     80 chips en fila y no se entiende de qué día es cada uno. */
+  .pc-sab-cab { flex-basis: 100%; font-size: 12px; font-weight: 600; color: var(--texto2); margin-top: 4px; }
   #pc-btn-exportar { margin: 10px 0 0 32px; }
 
   .panel-intensiva { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; margin-bottom: 16px; padding: 0 14px; }
@@ -320,10 +324,20 @@
         </div>
 
         <div class="pc-paso" id="pc-paso-4">
-          <div class="pc-cab"><span class="pc-num">4</span>
+          <div class="pc-cab"><span class="pc-num" id="pc-icono-4">4</span>
+            <div>
+              <div class="pc-tit">Fijar las horas de los sábados</div>
+              <div class="pc-desc" id="pc-desc-4">—</div>
+            </div>
+          </div>
+          <div class="pc-chips" id="pc-chips-4"></div>
+        </div>
+
+        <div class="pc-paso" id="pc-paso-5">
+          <div class="pc-cab"><span class="pc-num">5</span>
             <div>
               <div class="pc-tit">Exportar el Excel proforma</div>
-              <div class="pc-desc">Es el entregable del mes. Descárgalo cuando los pasos 1, 2 y 3 estén revisados.</div>
+              <div class="pc-desc">Es el entregable del mes. Descárgalo cuando los pasos 1, 2, 3 y 4 estén revisados.</div>
             </div>
           </div>
           <button class="btn-primario" id="pc-btn-exportar">📥 Excel proforma</button>
@@ -748,6 +762,29 @@ async function exportarExcelProforma() {
         '¿Quieres exportar igualmente?'
       );
       if (!seguir) {
+        msg.className = 'msg-info err'; msg.textContent = 'Exportación cancelada.';
+        btn.disabled = false; btn.textContent = textoOriginal; return;
+      }
+    }
+
+    // Segunda red del paso 4. El panel de cierre es un <details>: se abre
+    // solo cuando hay alerta, pero se puede cerrar y exportar igual. Esto
+    // salta justo cuando la cifra sale por la puerta, que es el último
+    // momento en que sirve de algo.
+    // Se calcula sobre `fichajes` y `ajustes` LOCALES, no sobre las
+    // cachés: aquí el mes puede no ser el que está pintado.
+    const sabExport = sabadosDelMes(fichajes, ajustes);
+    if (sabExport.pendientes.length > 0) {
+      const diasSab = [...new Set(sabExport.pendientes.map(p => p.dia))].sort((a, b) => a - b);
+      const n = sabExport.pendientes.length;
+      const seguirSab = window.confirm(
+        `Atención: ${n} ${n === 1 ? 'jornada de sábado no tiene' : 'jornadas de sábado no tienen'} horas fijadas ` +
+        `(${diasSab.length === 1 ? 'sábado' : 'sábados'} ${diasSab.join(', ')}).\n\n` +
+        'El sábado se paga por acuerdo: 8 h, no lo que marca el reloj. Sin horas fijadas, ' +
+        'el proforma cobra las calculadas y esas jornadas saldrán cortas.\n\n' +
+        '¿Quieres exportar igualmente?'
+      );
+      if (!seguirSab) {
         msg.className = 'msg-info err'; msg.textContent = 'Exportación cancelada.';
         btn.disabled = false; btn.textContent = textoOriginal; return;
       }
@@ -1266,6 +1303,60 @@ function reentradasSospechosas() {
   return encontradas.sort((a, b) => a.dEnt - b.dEnt);
 }
 
+// SÁBADOS SIN FIJAR.
+//
+// El sábado se paga POR ACUERDO, no por presencia: se trabaja 08:00-14:00
+// y se pagan 8 h. Esas dos horas de diferencia no las produce ningún
+// cálculo ni ninguna marca de calendario — solo `fijar_horas_dia`, persona
+// a persona. Si nadie las fija, el proforma cobra las calculadas y la
+// jornada sale corta SIN QUE SALTE NADA. Eso es lo que cierra este paso.
+//
+// ⚠️ EL CRITERIO DE CERO ES DISTINTO AL DE LOS PASOS 1 Y 3, A PROPÓSITO.
+// Allí `corregido_por` apaga el aviso ("por aquí ya pasó una persona").
+// Aquí NO puede apagarlo: corregir la hora de salida de un sábado sigue
+// dando 5,50 o 6,00, nunca 8. La ÚNICA vía de extinción son las horas
+// fijadas. Si algún día alguien "unifica los tres pasos" por coherencia,
+// este aviso se apagará con la acción equivocada y nadie se enterará.
+//
+// Solo SÁBADO (getDay() === 6). El domingo no entra en el acuerdo.
+//
+// Recibe fichajes y ajustes POR PARÁMETRO en vez de leer las cachés
+// globales: el export puede correr sobre un mes distinto al que está
+// pintado en pantalla, y ahí las cachés serían de otro mes.
+//
+// Devuelve también cuántos sábados se han trabajado, para no dar un ✓
+// verde en un mes donde simplemente no hubo ningún sábado: "no hay nada
+// que fijar" y "está todo fijado" no son la misma frase.
+function sabadosDelMes(fichajes, ajustes) {
+  const diasConFichaje = new Set();
+  const vistos = new Set();
+  const pendientes = [];
+
+  (fichajes || []).forEach(f => {
+    const d = new Date(f.hora);
+    if (d.getDay() !== 6) return;
+    const dia = d.getDate();
+    diasConFichaje.add(dia);
+
+    const clave = f.trabajador_id + '|' + dia;
+    if (vistos.has(clave)) return;
+    vistos.add(clave);
+
+    const ajTrab = (ajustes || {})[f.trabajador_id];
+    if (ajTrab && ajTrab[dia] !== undefined) return;
+
+    pendientes.push({ trabajador_id: f.trabajador_id, dia });
+  });
+
+  pendientes.sort((a, b) => a.dia - b.dia);
+  return { trabajados: diasConFichaje.size, pendientes };
+}
+
+// Tope de chips pintados. Un mes en el que no se haya fijado nada son 5
+// sábados x ~16 personas = 80 botones. La lista deja de leerse mucho
+// antes de eso, y el número de verdad ya está en la descripción.
+const MAX_CHIPS_SABADO = 60;
+
 function actualizarPanelCierre() {
   const panel = document.getElementById('panel-cierre');
   const pendientes = autocierresPendientes();
@@ -1361,13 +1452,84 @@ function actualizarPanelCierre() {
     });
   }
 
+  // --- Paso 4: sábados trabajados sin horas fijadas ---
+  const sab = sabadosDelMes(fichajesMesCache, ajustesMesMap);
+  const paso4 = document.getElementById('pc-paso-4');
+  const chips4 = document.getElementById('pc-chips-4');
+  chips4.innerHTML = '';
+
+  const nombreDe = tid => {
+    const t = resumenTrabajadores[tid];
+    return t ? t.nombre : 'Trabajador';
+  };
+  const mesNum = mesCargado ? Number(mesCargado.split('-')[1]) : '';
+
+  if (sab.pendientes.length === 0) {
+    paso4.className = 'pc-paso hecho';
+    document.getElementById('pc-icono-4').textContent = '✓';
+    document.getElementById('pc-desc-4').textContent = sab.trabajados === 0
+      ? 'Este mes no se ha trabajado ningún sábado.'
+      : (sab.trabajados === 1
+          ? 'El sábado trabajado lleva sus horas fijadas.'
+          : 'Los ' + sab.trabajados + ' sábados trabajados llevan sus horas fijadas.');
+  } else {
+    paso4.className = 'pc-paso alerta';
+    document.getElementById('pc-icono-4').textContent = '4';
+
+    const diasPend = [...new Set(sab.pendientes.map(p => p.dia))];
+    document.getElementById('pc-desc-4').textContent =
+      sab.pendientes.length +
+      (sab.pendientes.length === 1 ? ' jornada de sábado no tiene' : ' jornadas de sábado no tienen') +
+      ' horas fijadas, en ' + diasPend.length +
+      (diasPend.length === 1 ? ' sábado' : ' sábados') + '. ' +
+      'El sábado se paga por acuerdo (8 h), no por lo que marca el reloj: ' +
+      'sin fijar, el proforma cobra las horas calculadas y esas jornadas salen cortas. ' +
+      'Corregir el fichaje NO lo arregla: hay que fijar las horas.';
+
+    let pintados = 0;
+    diasPend.forEach(dia => {
+      const delDia = sab.pendientes
+        .filter(p => p.dia === dia)
+        .sort((a, b) => nombreDe(a.trabajador_id).localeCompare(nombreDe(b.trabajador_id), 'es'));
+
+      const cab = document.createElement('div');
+      cab.className = 'pc-sab-cab';
+      cab.textContent = 'Sábado ' + dia + '/' + mesNum + ' · ' + delDia.length + ' sin fijar';
+      chips4.appendChild(cab);
+
+      delDia.forEach(p => {
+        if (pintados >= MAX_CHIPS_SABADO) return;
+        const b = document.createElement('button');
+        b.className = 'pc-chip';
+        b.textContent = nombreDe(p.trabajador_id);
+        b.onclick = () => abrirDetalleDia(p.trabajador_id, p.dia);
+        chips4.appendChild(b);
+        pintados++;
+      });
+    });
+
+    if (pintados < sab.pendientes.length) {
+      const resto = document.createElement('div');
+      resto.className = 'pc-sab-cab';
+      resto.textContent = '… y ' + (sab.pendientes.length - pintados) +
+        ' más sin pintar. Ve fijando y la lista se vacía.';
+      chips4.appendChild(resto);
+    }
+  }
+
   // --- Estado general + si el panel se abre solo ---
-  // Los autocierres mandan: su hora es inventada. Las reentradas avisan,
-  // pero no bloquean el export.
+  // Los autocierres mandan: su hora es inventada. Después los sábados,
+  // que son horas que FALTAN por pagar. Las reentradas avisan de horas
+  // que sobran, pero pueden ser legítimas. Ninguno bloquea el export.
   const estado = document.getElementById('pc-estado');
   if (pendientes.length > 0) {
     estado.className = 'pc-estado pendiente';
     estado.textContent = '· ' + pendientes.length + ' por corregir';
+    panel.open = true;
+  } else if (sab.pendientes.length > 0) {
+    estado.className = 'pc-estado pendiente';
+    estado.textContent = '· ' + sab.pendientes.length +
+      (sab.pendientes.length === 1 ? ' sábado por fijar' : ' sábados por fijar');
     panel.open = true;
   } else if (reentradas.length > 0) {
     estado.className = 'pc-estado pendiente';
