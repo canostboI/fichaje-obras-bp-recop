@@ -285,7 +285,15 @@
       }
 
       t.horas_mes = redondear2(Object.values(t.dias).reduce((a, b) => a + b, 0));
-      t.total = t.precio_hora ? redondear2(t.horas_mes * Number(t.precio_hora)) : 0;
+      // ⚠️ AQUÍ NO SE CALCULA NINGÚN IMPORTE, Y ES A PROPÓSITO.
+      // Hubo un `t.total = horas_mes * precio_hora` que no leía nadie: se
+      // calculaba y se tiraba. Retirado (33ª) por el mismo motivo por el que
+      // se retiró `calcular_horas_mes` de la BD en la 23ª: un motor de
+      // cálculo dormido es una trampa para quien lea esto dentro de un año.
+      // El importe lo calcula el PROPIO EXCEL, con la fórmula `horas*precio`
+      // que se escribe en la celda de total. Así quien factura teclea el
+      // precio en su columna y todo recalcula solo. Si algún día hace falta
+      // el importe en JS, se añade CON un consumidor, no antes.
       t.autocierres_mes = Object.values(t.dias_autocierre).reduce((a, b) => a + b, 0);
     });
 
