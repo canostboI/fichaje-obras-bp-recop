@@ -191,23 +191,33 @@
       return;
     }
 
-    const { data: asignaciones } = await sb
+    // H-2: antes este error se ignoraba y salía "No tienes ninguna obra
+    // asignada", que es falso: lo que pasa es que no se ha podido mirar.
+    const { data: asignaciones, error: errAsig } = await sb
       .from('usuarios_obra')
-      .select('obra_id, obras(id, nombre, empresa_marca, imagen_fondo_url)')
+      .select('obra_id, obras(id, nombre, estado, empresa_marca, imagen_fondo_url)')
       .eq('usuario_app_id', usuario.id)
       .eq('rol_en_obra', 'encargado');
 
-    if (!asignaciones || asignaciones.length === 0) {
+    if (errAsig) {
+      mostrarError('No se han podido cargar tus obras. Recarga la página. (' + errAsig.message + ')');
+      return;
+    }
+
+    // H-11: fuera las obras ocultas, igual que en el resto de pantallas.
+    const obrasAsignadas = (asignaciones || []).filter(a => a.obras && a.obras.estado !== 'oculta');
+
+    if (obrasAsignadas.length === 0) {
       mostrarError('No tienes ninguna obra asignada.');
       return;
     }
 
-    if (asignaciones.length === 1) {
-      const obra = asignaciones[0].obras;
+    if (obrasAsignadas.length === 1) {
+      const obra = obrasAsignadas[0].obras;
       await cargarObra(obra.id, obra.nombre, obra.empresa_marca, obra.imagen_fondo_url);
     } else {
       const select = document.getElementById('select-obra');
-      asignaciones.forEach(a => {
+      obrasAsignadas.forEach(a => {
         const opt = document.createElement('option');
         opt.value = a.obras.id;
         opt.textContent = a.obras.nombre;
