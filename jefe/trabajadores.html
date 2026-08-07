@@ -7,6 +7,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/branding.js"></script>
   <script src="../js/auto-logout.js"></script>
+  <script src="../js/fechas.js"></script>
+  <script src="../js/habilitaciones.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -533,27 +535,15 @@ function fechaHoyLocal() {
 const CLAVE_OBRA_FILTRO_TRABAJADORES = 'jefe_trabajadores_obra_filtro';
 const EMPRESAS_PRIORITARIAS = ['Bosch Pascual', 'Recop', 'BOSCH PASCUAL', 'RECOP'];
 
-// Diccionario de iconos por tipo de habilitación (igual que en habilitaciones.html)
-const ICONOS_HAB = [
-  { clave: 'movimiento de tierras', icono: '🚜' },
-  { clave: 'dumper',                icono: '🚛' },
-  { clave: 'grúa torre',            icono: '🏗️' },
-  { clave: 'grua torre',            icono: '🏗️' },
-  { clave: 'plataforma elevadora',  icono: '🛗' },
-  { clave: 'carretilla elevadora',  icono: '🛺' },
-  { clave: 'toro',                  icono: '🛺' },
-  { clave: 'andamio',               icono: '🪜' },
-  { clave: 'altura con arnés',      icono: '🧗' },
-  { clave: 'altura con arnes',      icono: '🧗' },
-  { clave: 'eléctrico',             icono: '⚡' },
-  { clave: 'electrico',             icono: '⚡' },
-  { clave: 'eléctrica',             icono: '⚡' },
-];
-
-function iconoHab(nombre) {
-  const n = (nombre || '').toLowerCase();
-  const match = ICONOS_HAB.find(r => n.includes(r.clave));
-  return match ? match.icono : '🔧';
+// Iconos de habilitación: js/habilitaciones.js (window.Hab).
+// El diccionario estaba copiado aquí y en otros siete archivos. Este era
+// uno de los dos que habían divergido: usaba la clave 'altura con arnes'
+// en vez de 'arnes'.
+if (!window.Fechas || !window.Hab) {
+  document.body.innerHTML =
+    '<div style="padding:40px;font-family:system-ui;color:#f44336">' +
+    'No se han cargado js/fechas.js y js/habilitaciones.js. Recarga la página.</div>';
+  throw new Error('Faltan los módulos Fechas/Hab');
 }
 
 let misObras = [];
@@ -842,7 +832,7 @@ async function cargarHabilitacionesDeTodasMisObras() {
 
   (data || []).forEach(h => {
     const nombre = h.tipo?.nombre || '';
-    const icono = iconoHab(nombre);
+    const icono = Hab.icono(nombre);
     if (!habIconosPorTrabajador[h.trabajador_id]) habIconosPorTrabajador[h.trabajador_id] = [];
     // No duplicar el mismo icono
     if (!habIconosPorTrabajador[h.trabajador_id].includes(icono)) {
