@@ -255,6 +255,7 @@ let tiposCache = [];
 let trabajadorActual = null;
 let obraActualId = null;
 let trabajadoresObraIds = new Set();
+let errorObra = null;   // != null → no se pudo leer quién está en la obra
 let buscarTimeout = null;
 let usuarioAppId = null;
 
@@ -291,17 +292,28 @@ let usuarioAppId = null;
 async function cargarObras() {
   const { data, error } = await sb
     .from('usuarios_obra')
-    .select('obra:obra_id(id, nombre)')
+    .select('obra:obra_id(id, nombre, estado)')
     .eq('usuario_app_id', usuarioAppId)
     .eq('rol_en_obra', 'jefe_obra');
 
   const sel = document.getElementById('sel-obra');
-  if (error || !data || !data.length) {
+
+  // "No se ha podido leer" y "no tienes obras" son cosas distintas.
+  // Antes las dos decían lo mismo: "Sin obras asignadas".
+  if (error) {
+    sel.innerHTML = '<option value="">⚠ No se han podido cargar las obras</option>';
+    return;
+  }
+  if (!data || !data.length) {
     sel.innerHTML = '<option value="">Sin obras asignadas</option>';
     return;
   }
 
-  const obras = data.map(r => r.obra).filter(Boolean).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  // H-11: las obras ocultas no salen. Mismo criterio que las otras
+  // cuatro pantallas que ya lo hacían.
+  const obras = data.map(r => r.obra)
+    .filter(o => o && o.estado !== 'oculta')
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
   sel.innerHTML = '<option value="">— Selecciona una obra —</option>' +
     obras.map(o => `<option value="${o.id}">${esc(o.nombre)}</option>`).join('');
 
@@ -327,10 +339,15 @@ async function onCambioObra() {
 
   localStorage.setItem('jefe_obra_activa_id', obraActualId);
 
-  const { data: valData } = await sb
+  // H-2 (grave): si esta consulta fallaba, el conjunto quedaba vacío y
+  // la pantalla afirmaba "Sin trabajadores en esta obra" — presentaba un
+  // fallo de red como un hecho sobre la obra.
+  const { data: valData, error: errVal } = await sb
     .from('validaciones_obra')
     .select('trabajador_id')
     .eq('obra_id', obraActualId);
+
+  errorObra = errVal ? (errVal.message || 'error desconocido') : null;
   trabajadoresObraIds = new Set((valData || []).map(r => r.trabajador_id));
 
   await cargarHabilitados();
@@ -340,6 +357,13 @@ async function onCambioObra() {
 async function cargarHabilitados() {
   const el = document.getElementById('lista-habilitados');
   el.innerHTML = '<div class="cargando">Cargando…</div>';
+
+  if (errorObra) {
+    el.innerHTML = '<div class="vacio">⚠ No se ha podido leer qué trabajadores hay en esta obra. ' +
+                   'Vuelve a seleccionarla o recarga la página.<br><small>' + esc(errorObra) + '</small></div>';
+    document.getElementById('count-habilitados').textContent = '';
+    return;
+  }
 
   if (!trabajadoresObraIds.size) {
     el.innerHTML = '<div class="vacio">Sin trabajadores en esta obra.</div>';
@@ -370,11 +394,23 @@ async function cargarHabilitados() {
     return;
   }
 
-  const { data: twData } = await sb
+  // H-2 (grave): antes este error se ignoraba. Las habilitaciones se
+  // leían bien, fallaba solo la consulta de nombres, y la pantalla ponía
+  // "0 trabajadores". Un cero que no era cero.
+  // H-10: los trabajadores de baja ya no salen.
+  const { data: twData, error: errTw } = await sb
     .from('trabajadores')
     .select('id, nombre, apellidos, dni, empresa:empresa_id(nombre)')
     .in('id', ids)
+    .eq('activo', true)
     .order('apellidos');
+
+  if (errTw) {
+    el.innerHTML = '<div class="vacio">⚠ Las habilitaciones se han leído, pero no se han podido cargar los nombres. ' +
+                   'No es que no haya nadie.<br><small>' + esc(errTw.message) + '</small></div>';
+    document.getElementById('count-habilitados').textContent = '';
+    return;
+  }
 
   document.getElementById('count-habilitados').textContent = (twData || []).length + ' trabajadores';
 
@@ -408,6 +444,11 @@ async function buscarTrabajadores() {
     .eq('activo', true).order('apellidos').limit(50);
 
   if (error) { el.innerHTML = `<div class="vacio">Error: ${esc(error.message)}</div>`; return; }
+  if (errorObra) {
+    el.innerHTML = '<div class="vacio">⚠ No se ha podido leer qué trabajadores hay en esta obra, ' +
+                   'así que no se puede filtrar la búsqueda. Recarga la página.</div>';
+    return;
+  }
   const filtrados = (data || []).filter(t => trabajadoresObraIds.has(t.id));
   if (!filtrados.length) { el.innerHTML = '<div class="vacio">Sin resultados en esta obra.</div>'; return; }
 
@@ -606,10 +647,22 @@ async function quitarHabilitacion(tipoId, tipoNombre) {
 
 // ── TIPOS ─────────────────────────────────────────────────────────
 async function cargarTipos() {
-  const { data } = await sb.from('tipos_habilitacion')
+  // H-2: antes el error se ignoraba y salía "No hay tipos configurados",
+  // que es una afirmación sobre el catálogo, no sobre la consulta.
+  const { data, error } = await sb.from('tipos_habilitacion')
     .select('*').eq('activo', true).order('nombre');
-  tiposCache = data || [];
   const el = document.getElementById('lista-tipos');
+  const selTipo = document.getElementById('sel-tipo');
+
+  if (error) {
+    tiposCache = [];
+    el.innerHTML = '<div class="vacio">⚠ No se ha podido cargar el catálogo de tipos.<br><small>' +
+                   esc(error.message) + '</small></div>';
+    selTipo.innerHTML = '<option value="">No se han podido cargar los tipos</option>';
+    return;
+  }
+
+  tiposCache = data || [];
   if (!tiposCache.length) { el.innerHTML = '<div class="vacio">No hay tipos configurados.</div>'; return; }
   el.innerHTML = tiposCache.map(t => `
     <div class="tipo-item">
@@ -617,8 +670,7 @@ async function cargarTipos() {
       <span class="tipo-nombre">${esc(t.nombre)}</span>
     </div>
   `).join('');
-  const sel = document.getElementById('sel-tipo');
-  sel.innerHTML = '<option value="">Selecciona un tipo…</option>' +
+  selTipo.innerHTML = '<option value="">Selecciona un tipo…</option>' +
     tiposCache.map(t => `<option value="${t.id}">${Hab.icono(t.nombre)} ${esc(t.nombre)}</option>`).join('');
 }
 
