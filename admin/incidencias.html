@@ -506,10 +506,27 @@ function causasDenegacion(inc) {
   return ['Documentación en rojo (sin detalle)'];
 }
 
-// ===== Resumen: cuenta TRABAJADORES DISTINTOS por causa (no intentos) =====
+// ===== Resumen =====
+// LA UNIDAD ES EL CASO: un trabajador · una causa · una obra.
+// No son intentos: la misma persona bloqueada diez mañanas por el mismo
+// papel en la misma obra es UN caso.
+//
+// ⚠️ ESTA UNIDAD LA COMPARTEN CUATRO CIFRAS y tienen que seguir
+// compartiéndola: el badge de pantalla, la columna POR CAUSA, la columna
+// POR OBRA y las filas del detalle del informe imprimible. Si una de las
+// cuatro cambia de criterio, dejan de sumar lo mismo y el panel enseña
+// dos números distintos del mismo hecho, uno al lado del otro.
+//
+// Antes `porCausa` agrupaba solo por trabajador, SIN la obra: quien
+// estaba bloqueado por el mismo motivo en las dos obras contaba una vez
+// aquí y dos en la columna de al lado. De ahí el badge 223 contra las
+// columnas 227 medido el 3/8.
+const CLAVE_CASO = (i, causa) =>
+  (i.trabajador_id || 'desconocido') + '|' + causa + '|' + (i.obra?.nombre || 'Obra desconocida');
+
 function calcularResumen(incs) {
-  const porCausa = new Map();          // causa → Set(trabajador_id)
-  const porObra  = new Map();          // obra → Set("trabajador|causa")
+  const porCausa = new Map();          // causa → Set("trabajador|obra")
+  const porObra  = new Map();          // obra  → Set("trabajador|causa")
   const trabajadoresDenegados = new Set();
 
   incs.forEach(i => {
@@ -520,7 +537,7 @@ function calcularResumen(incs) {
     trabajadoresDenegados.add(tid);
     causas.forEach(c => {
       if (!porCausa.has(c)) porCausa.set(c, new Set());
-      porCausa.get(c).add(tid);
+      porCausa.get(c).add(tid + '|' + obraNombre);
       if (!porObra.has(obraNombre)) porObra.set(obraNombre, new Set());
       porObra.get(obraNombre).add(tid + '|' + c);
     });
@@ -532,25 +549,32 @@ function calcularResumen(incs) {
   const obras = [...porObra.entries()]
     .map(([obra, set]) => ({ obra, n: set.size }))
     .sort((a, b) => b.n - a.n);
-  const totalIncidencias = causas.reduce((s, c) => s + c.n, 0);
+  // Las dos sumas son el mismo número: los casos (trabajador × causa × obra).
+  const totalCasos = causas.reduce((s, c) => s + c.n, 0);
 
-  return { causas, obras, totalIncidencias, totalTrabajadores: trabajadoresDenegados.size };
+  return { causas, obras, totalCasos, totalTrabajadores: trabajadoresDenegados.size };
 }
 
 function pintarResumen(incs) {
   const r = calcularResumen(incs);
-  document.getElementById('badge-resumen').textContent =
-    r.totalIncidencias + ' incidencias · ' + r.totalTrabajadores + ' trabajadores';
+  const badge = document.getElementById('badge-resumen');
+  badge.textContent = r.totalCasos + ' casos · ' + r.totalTrabajadores + ' trabajadores';
+  badge.title = 'Un caso = un trabajador, una causa y una obra. ' +
+                'No son intentos: varios días bloqueado por lo mismo en la misma obra cuentan una vez.';
 
-  if (r.totalIncidencias === 0) {
+  if (r.totalCasos === 0) {
     document.getElementById('resumen').innerHTML = '<div class="vacio">Sin accesos denegados en el periodo ✓</div>';
     return;
   }
 
   document.getElementById('resumen').innerHTML = `
+    <div style="color:var(--texto2); font-size:13px; margin-bottom:10px;">
+      Un <strong>caso</strong> = un trabajador · una causa · una obra.
+      Las dos columnas suman lo mismo: <strong>${r.totalCasos}</strong>.
+    </div>
     <div class="resumen-grid">
       <div class="resumen-col">
-        <h3>Por causa (trabajadores distintos)</h3>
+        <h3>Por causa</h3>
         <table><tbody>
           ${r.causas.map(c => `<tr>
             <td>${iconoCausa(c.causa)} ${esc(c.causa)}</td>
@@ -585,7 +609,7 @@ function pintarListado(data, total) {
 
   if (!data || data.length === 0) {
     document.getElementById('badge-total').textContent =
-      (total === null) ? '—' : '0 incidencias';
+      (total === null) ? '—' : '0 registros';
     cont.innerHTML = '<div class="vacio">' +
       (esAlerta ? 'No hay alertas pendientes ✓' : 'Sin registros en este periodo') + '</div>';
     return;
@@ -694,7 +718,13 @@ document.getElementById('btn-imprimir').onclick = () => {
   const obraNombre = selObra.value ? selObra.options[selObra.selectedIndex].text : 'Todas las obras';
   const periodo = (fDesde ? formatFecha(fDesde) : 'inicio') + ' — ' + (fHasta ? formatFecha(fHasta) : 'hoy');
 
-  // Detalle del informe: solo denegaciones, deduplicadas por trabajador+causa
+  // Detalle del informe: solo denegaciones, una fila por CASO.
+  // ⚠️ LA OBRA VA EN LA CLAVE, y es imprescindible. Antes deduplicaba por
+  // trabajador+causa a secas: quien estaba bloqueado por el mismo papel en
+  // las dos obras salía UNA vez, con la obra de la primera — y la fila
+  // enseñaba esa obra como si fuera la única. El papel impreso escondía
+  // la otra sin decirlo. Además así el detalle tiene tantas filas como
+  // casos dice el total, que es lo que hace el informe cuadrable.
   const vistos = new Set();
   const filas = [];
   // Recorremos de más antiguo a más reciente para quedarnos con la primera vez
@@ -702,7 +732,7 @@ document.getElementById('btn-imprimir').onclick = () => {
     const causas = causasDenegacion(i);
     if (!causas) return;
     causas.forEach(c => {
-      const clave = (i.trabajador_id || '?') + '|' + c;
+      const clave = CLAVE_CASO(i, c);
       if (vistos.has(clave)) return;
       vistos.add(clave);
       filas.push({
@@ -723,15 +753,15 @@ document.getElementById('btn-imprimir').onclick = () => {
       Generado: ${new Date().toLocaleDateString('es-ES')} ${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
     </div>
 
-    <div class="total-linea">Total: ${r.totalIncidencias} incidencias · ${r.totalTrabajadores} trabajadores afectados</div>
+    <div class="total-linea">Total: ${r.totalCasos} casos · ${r.totalTrabajadores} trabajadores afectados</div>
 
     <h2>Resumen por causa</h2>
-    <table><thead><tr><th>Causa de la denegación</th><th style="width:120px;">Trabajadores</th></tr></thead><tbody>
+    <table><thead><tr><th>Causa de la denegación</th><th style="width:120px;">Casos</th></tr></thead><tbody>
       ${r.causas.length ? r.causas.map(c => `<tr><td>${esc(c.causa)}</td><td>${c.n}</td></tr>`).join('') : '<tr><td colspan="2">Sin denegaciones en el periodo</td></tr>'}
     </tbody></table>
 
     <h2>Resumen por obra</h2>
-    <table><thead><tr><th>Obra</th><th style="width:120px;">Incidencias</th></tr></thead><tbody>
+    <table><thead><tr><th>Obra</th><th style="width:120px;">Casos</th></tr></thead><tbody>
       ${r.obras.length ? r.obras.map(o => `<tr><td>${esc(o.obra)}</td><td>${o.n}</td></tr>`).join('') : '<tr><td colspan="2">—</td></tr>'}
     </tbody></table>
 
@@ -741,7 +771,8 @@ document.getElementById('btn-imprimir').onclick = () => {
     </tbody></table>
 
     <div class="pie">
-      Cada caso cuenta una vez por trabajador y causa, aunque haya habido varios intentos.
+      Un caso = un trabajador, una causa y una obra. Cuenta una sola vez aunque haya
+      habido varios intentos. Las tres tablas suman lo mismo.
       Generado con Fichaje Obras — Bosch Pascual / Rècop.
     </div>`;
 
