@@ -193,6 +193,23 @@
      entero, no la persona suelta. Sin esto, 5 sábados de 16 personas son
      80 chips en fila y no se entiende de qué día es cada uno. */
   .pc-sab-cab { flex-basis: 100%; font-size: 12px; font-weight: 600; color: var(--texto2); margin-top: 4px; }
+
+  /* ====== REVISIÓN RÁPIDA DEL SÁBADO ====== */
+  .sab-fila { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--borde); flex-wrap: wrap; }
+  .sab-fila:last-child { border-bottom: none; }
+  .sab-fila.avisada { background: rgba(255,152,0,0.07); }
+  .sab-fila.firmada { opacity: 0.45; }
+  .sab-datos { flex: 1 1 180px; min-width: 0; }
+  .sab-nombre { font-size: 13px; font-weight: 600; }
+  .sab-reloj { font-size: 12px; color: var(--texto2); margin-top: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .sab-aviso { font-size: 11px; color: var(--naranja); margin-top: 3px; }
+  .sab-acc { display: flex; gap: 6px; align-items: center; flex: none; }
+  .btn-firmar { background: var(--verde); color: #fff; border: none; padding: 7px 12px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
+  .btn-firmar:disabled { background: var(--bg3); color: var(--texto2); cursor: not-allowed; }
+  .btn-otras { background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 7px 10px; border-radius: 7px; font-size: 12px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+  .sab-igual { background: none; border: none; color: var(--naranja); font-size: 11px; text-decoration: underline; cursor: pointer; font-family: inherit; padding: 0; }
+  .sab-hecho { color: var(--verde); font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .sab-error { color: var(--rojo, #e05252); font-size: 11px; flex-basis: 100%; }
   #pc-btn-exportar { margin: 10px 0 0 32px; }
 
   .panel-intensiva { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; margin-bottom: 16px; padding: 0 14px; }
@@ -442,6 +459,18 @@
   </div>
 </div>
 
+<!-- Modal Revisión rápida del sábado: una línea por persona, un clic por persona -->
+<div class="modal-overlay" id="modal-sabado">
+  <div class="modal" style="max-width:560px">
+    <h2>✔ Firmar el sábado</h2>
+    <div class="subtitulo" id="sab-subtitulo">—</div>
+    <div id="sab-lista"></div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cerrar-sabado">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Fijar horas del día: decide cuántas horas se reconocen sin tocar los fichajes -->
 <div class="modal-overlay" id="modal-fijar">
   <div class="modal">
@@ -575,6 +604,34 @@ let datosCalculoIncompletos = false;
   // El botón del panel de cierre es el mismo paso, no una función aparte
   document.getElementById('pc-btn-exportar').addEventListener('click', exportarExcelProforma);
   document.getElementById('btn-guardar-normal').addEventListener('click', guardarHorarioNormal);
+
+  // Revisión rápida del sábado. Delegado: las filas se repintan.
+  document.getElementById('btn-cerrar-sabado').addEventListener('click', cerrarRevisionSabado);
+  document.getElementById('modal-sabado').addEventListener('click', async (e) => {
+    if (e.target.id === 'modal-sabado') { await cerrarRevisionSabado(); return; }
+
+    const tidFirmar = e.target.getAttribute && e.target.getAttribute('data-firmar');
+    if (tidFirmar) { await firmarSabado(tidFirmar, e.target); return; }
+
+    // "Firmar igualmente": desbloquea el botón del avisado, no firma. La
+    // segunda pulsación sigue siendo una decisión, no un descuido.
+    const tidIgual = e.target.getAttribute && e.target.getAttribute('data-igual');
+    if (tidIgual) {
+      const fila = e.target.closest('.sab-fila');
+      fila.querySelector('.btn-firmar').disabled = false;
+      e.target.remove();
+      return;
+    }
+
+    // "otras…": el caso raro se resuelve en el modal de siempre, con su
+    // motivo escrito a mano. Se cierra este para no dejar dos abiertos.
+    const tidOtras = e.target.getAttribute && e.target.getAttribute('data-otras');
+    if (tidOtras) {
+      const dia = sabadoAbierto.dia;
+      await cerrarRevisionSabado();
+      abrirDetalleDia(tidOtras, dia);
+    }
+  });
   document.getElementById('btn-guardar-intensiva').addEventListener('click', guardarHorarioIntensiva);
   document.getElementById('btn-marcar-intensiva').addEventListener('click', () => marcarIntensiva(true));
   document.getElementById('btn-quitar-intensiva').addEventListener('click', () => marcarIntensiva(false));
@@ -1357,6 +1414,156 @@ function sabadosDelMes(fichajes, ajustes) {
 // antes de eso, y el número de verdad ya está en la descripción.
 const MAX_CHIPS_SABADO = 60;
 
+// ====== REVISIÓN RÁPIDA DEL SÁBADO ======
+//
+// Las 8 h NO son por ser sábado: son por haber hecho la mañana (~08:00 a
+// 14:00). El que viene una hora cobra su hora. Por eso esto NO es un
+// "aceptar los 16 de golpe": es una firma por persona, con el reloj
+// delante, pero de un solo clic en vez de cinco.
+//
+// LO QUE EL RELOJ SABE Y LO QUE NO:
+// El 93% de los sábados de julio y agosto NO tienen hora de salida real:
+// son autocierres a la hora de entre semana (15:00 en intensiva, 17:30
+// antes). Ese número es inventado por el servidor. Juzgar la mañana con
+// él sería juzgarla con un dato que nadie marcó.
+// Así que solo se marca ⚠ cuando hay un fichaje REAL que demuestre que
+// no se hizo la mañana. Dos formas, una por cada extremo:
+//   - se fue pronto: salida REAL (no autocierre) antes de las 12:00
+//   - llegó tarde: entrada después de las 10:00 (la entrada siempre es real)
+// Todo lo demás va con el botón directo.
+const SAB_SALIDA_PRONTO = 12;   // hora
+const SAB_ENTRADA_TARDE = 10;   // hora
+const SAB_HORAS_ACUERDO = 8;
+const SAB_MOTIVO = 'Sábado, 8 h por acuerdo';
+
+let sabadoAbierto = null;       // { dia }
+let sabadoHuboCambios = false;
+
+// Lee el reloj de una persona en un día. Devuelve lo que se sabe de
+// verdad, distinguiendo lo marcado de lo inventado.
+function relojDelDia(trabajadorId, dia) {
+  const fs = fichajesDelDia(trabajadorId, dia);
+  if (fs.length === 0) return { hayDatos: false };
+
+  const primero = fs[0];
+  const ultimo = fs.length > 1 ? fs[fs.length - 1] : null;
+  const dEnt = new Date(primero.hora);
+  const dSal = ultimo ? new Date(ultimo.hora) : null;
+  const salidaReal = !!(ultimo && !ultimo.cierre_automatico);
+
+  const seFuePronto = salidaReal && (dSal.getHours() + dSal.getMinutes() / 60) < SAB_SALIDA_PRONTO;
+  const llegoTarde = (dEnt.getHours() + dEnt.getMinutes() / 60) > SAB_ENTRADA_TARDE;
+
+  return {
+    hayDatos: true,
+    entrada: dEnt,
+    salida: dSal,
+    salidaReal,
+    sinSalida: !ultimo,
+    horasReloj: dSal ? (dSal - dEnt) / 3600000 : null,
+    avisar: seFuePronto || llegoTarde,
+    motivoAviso: seFuePronto
+      ? 'Salió a las ' + hhmm(dSal) + ', y es una salida marcada de verdad. No parece que hiciera la mañana.'
+      : (llegoTarde ? 'Entró a las ' + hhmm(dEnt) + '. No parece que hiciera la mañana.' : '')
+  };
+}
+
+function hhmm(d) {
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+
+function abrirRevisionSabado(dia) {
+  sabadoAbierto = { dia };
+  sabadoHuboCambios = false;
+  const [year, month] = mesCargado.split('-').map(Number);
+  const fecha = new Date(year, month - 1, dia);
+  document.getElementById('sab-subtitulo').textContent =
+    fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }) +
+    ' · firma ' + SAB_HORAS_ACUERDO + ' h a quien hizo la mañana';
+  renderRevisionSabado();
+  document.getElementById('modal-sabado').classList.add('visible');
+}
+
+function renderRevisionSabado() {
+  const cont = document.getElementById('sab-lista');
+  const dia = sabadoAbierto.dia;
+  const sab = sabadosDelMes(fichajesMesCache, ajustesMesMap);
+  const delDia = sab.pendientes.filter(p => p.dia === dia);
+
+  if (delDia.length === 0) {
+    cont.innerHTML = '<div class="dia-vacio">Todo este sábado está firmado. 👍</div>';
+    return;
+  }
+
+  const nombreDe = tid => (resumenTrabajadores[tid] ? resumenTrabajadores[tid].nombre : 'Trabajador');
+
+  // Los avisados primero: son los que hay que mirar, no los que hay que
+  // pasar rápido.
+  const filas = delDia.map(p => ({ ...p, reloj: relojDelDia(p.trabajador_id, dia), nombre: nombreDe(p.trabajador_id) }));
+  filas.sort((a, b) => (b.reloj.avisar ? 1 : 0) - (a.reloj.avisar ? 1 : 0) || a.nombre.localeCompare(b.nombre, 'es'));
+
+  cont.innerHTML = filas.map(f => {
+    const r = f.reloj;
+    let reloj = '';
+    if (!r.hayDatos) {
+      reloj = 'Sin fichajes.';
+    } else if (r.sinSalida) {
+      reloj = hhmm(r.entrada) + ' → <span class="marca corregido">sin salida</span>';
+    } else {
+      reloj = hhmm(r.entrada) + ' → ' + hhmm(r.salida) +
+        (r.salidaReal
+          ? ' · ' + formatHoras(r.horasReloj) + ' h'
+          : ' <span class="marca autocierre">salida automática</span>');
+    }
+    return `<div class="sab-fila${r.avisar ? ' avisada' : ''}" data-tid="${escapeHtml(f.trabajador_id)}">
+      <div class="sab-datos">
+        <div class="sab-nombre">${r.avisar ? '⚠ ' : ''}${escapeHtml(f.nombre)}</div>
+        <div class="sab-reloj">${reloj}</div>
+        ${r.avisar ? `<div class="sab-aviso">${escapeHtml(r.motivoAviso)}
+          <button class="sab-igual" data-igual="${escapeHtml(f.trabajador_id)}">Firmar 8 h igualmente</button></div>` : ''}
+      </div>
+      <div class="sab-acc">
+        <button class="btn-firmar" data-firmar="${escapeHtml(f.trabajador_id)}" ${r.avisar ? 'disabled' : ''}>✔ Firmo 8 h</button>
+        <button class="btn-otras" data-otras="${escapeHtml(f.trabajador_id)}">otras…</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function firmarSabado(trabajadorId, boton) {
+  const dia = sabadoAbierto.dia;
+  const fila = boton.closest('.sab-fila');
+  boton.disabled = true;
+  boton.textContent = 'Firmando…';
+
+  const fechaStr = mesCargado + '-' + String(dia).padStart(2, '0');
+  const res = await guardarHorasDia(trabajadorId, fechaStr, SAB_HORAS_ACUERDO, SAB_MOTIVO);
+
+  if (!res.ok) {
+    boton.disabled = false;
+    boton.textContent = '✔ Firmo 8 h';
+    let err = fila.querySelector('.sab-error');
+    if (!err) { err = document.createElement('div'); err.className = 'sab-error'; fila.appendChild(err); }
+    err.textContent = 'No se ha podido guardar: ' + res.error;
+    return;
+  }
+
+  sabadoHuboCambios = true;
+  fila.className = 'sab-fila firmada';
+  fila.querySelector('.sab-acc').innerHTML = '<span class="sab-hecho">✔ 8 h firmadas</span>';
+}
+
+// Al cerrar se recarga el mes UNA vez, no después de cada firma: recargar
+// 16 veces sería lento y repintaría la tabla entera bajo el modal.
+async function cerrarRevisionSabado() {
+  document.getElementById('modal-sabado').classList.remove('visible');
+  sabadoAbierto = null;
+  if (sabadoHuboCambios) {
+    sabadoHuboCambios = false;
+    await cargarResumen();
+  }
+}
+
 function actualizarPanelCierre() {
   const panel = document.getElementById('panel-cierre');
   const pendientes = autocierresPendientes();
@@ -1496,6 +1703,16 @@ function actualizarPanelCierre() {
       cab.className = 'pc-sab-cab';
       cab.textContent = 'Sábado ' + dia + '/' + mesNum + ' · ' + delDia.length + ' sin fijar';
       chips4.appendChild(cab);
+
+      // Puerta a la revisión rápida: es el camino normal. Los chips de
+      // debajo siguen abriendo el día suelto para el caso raro.
+      const bRev = document.createElement('button');
+      bRev.className = 'pc-chip';
+      bRev.style.borderColor = 'var(--verde)';
+      bRev.style.color = 'var(--verde)';
+      bRev.textContent = '✔ Firmar este sábado (' + delDia.length + ')';
+      bRev.onclick = () => abrirRevisionSabado(dia);
+      chips4.appendChild(bRev);
 
       delDia.forEach(p => {
         if (pintados >= MAX_CHIPS_SABADO) return;
@@ -1933,6 +2150,33 @@ function mostrarErrorFijar(txt) {
   e.textContent = txt; e.style.display = 'block';
 }
 
+// ÚNICA VÍA DE ESCRITURA de horas de nómina. La usan el modal de un día
+// y la revisión rápida del sábado. No se duplica la llamada a la RPC en
+// ningún sitio más: esto escribe un número que se paga y se firma, y dos
+// caminos distintos hacia el mismo dato acaban divergiendo.
+async function guardarHorasDia(trabajadorId, fechaStr, horas, motivo) {
+  const { data, error } = await sb.rpc('fijar_horas_dia', {
+    p_trabajador_id: trabajadorId,
+    p_obra_id: obraActual,
+    p_fecha: fechaStr,
+    p_horas: horas,
+    p_motivo: motivo
+  });
+  if (error || !data || data.success !== true) {
+    return { ok: false, error: error ? error.message : ((data && data.error) || 'No se ha podido guardar.') };
+  }
+  // El mapa en memoria se pone al día para que el paso 4 recalcule bien
+  // sin recargar el mes entero después de cada firma.
+  const dia = Number(fechaStr.slice(8, 10));
+  if (horas === null || horas === undefined) {
+    if (ajustesMesMap[trabajadorId]) delete ajustesMesMap[trabajadorId][dia];
+  } else {
+    if (!ajustesMesMap[trabajadorId]) ajustesMesMap[trabajadorId] = {};
+    ajustesMesMap[trabajadorId][dia] = { horas: Number(horas), motivo: motivo || '' };
+  }
+  return { ok: true };
+}
+
 async function llamarFijarHoras(horas, motivo, textoOk) {
   const fechaStr = mesCargado + '-' + String(diaAbierto.dia).padStart(2, '0');
 
@@ -1940,18 +2184,12 @@ async function llamarFijarHoras(horas, motivo, textoOk) {
   document.getElementById('btn-quitar-fijar').disabled = true;
   document.getElementById('error-fijar').style.display = 'none';
 
-  const { data, error } = await sb.rpc('fijar_horas_dia', {
-    p_trabajador_id: diaAbierto.trabajadorId,
-    p_obra_id: obraActual,
-    p_fecha: fechaStr,
-    p_horas: horas,
-    p_motivo: motivo
-  });
+  const res = await guardarHorasDia(diaAbierto.trabajadorId, fechaStr, horas, motivo);
 
-  if (error || !data || data.success !== true) {
+  if (!res.ok) {
     document.getElementById('btn-guardar-fijar').disabled = false;
     document.getElementById('btn-quitar-fijar').disabled = false;
-    mostrarErrorFijar(error ? error.message : ((data && data.error) || 'No se ha podido guardar.'));
+    mostrarErrorFijar(res.error);
     return false;
   }
 
