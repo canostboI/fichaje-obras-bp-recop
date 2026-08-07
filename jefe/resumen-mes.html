@@ -225,6 +225,7 @@
   .pi-nota { font-size: 12px; color: var(--texto2); margin-top: 4px; }
   .pi-fila { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
   .pi-fila label, .pi-marcar label { font-size: 13px; color: var(--texto2); display: flex; align-items: center; gap: 6px; }
+  .pi-nota-sabado { font-size: 11.5px; color: var(--texto2); line-height: 1.45; margin-top: 8px; max-width: 260px; }
   .pi-fila input, .pi-marcar input { background: var(--bg3); border: 1px solid var(--borde); border-radius: 6px; color: var(--texto); padding: 6px 8px; font-family: inherit; font-size: 14px; color-scheme: dark; }
   .pi-marcar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; font-size: 14px; }
   .pi-estado { font-size: 13px; color: var(--texto2); }
@@ -294,6 +295,15 @@
               <label>Descanso <input type="number" id="int-descanso" min="0" max="480" step="5" style="width:70px"> min</label>
             </div>
             <button class="btn-secundario" id="btn-guardar-intensiva">Guardar horario de verano</button>
+          </div>
+          <div class="pi-col">
+            <div class="pi-tit">Sábados</div>
+            <div class="pi-fila">
+              <label>Cierre automático <input type="time" id="sab-salida"></label>
+            </div>
+            <button class="btn-secundario" id="btn-guardar-sabado">Guardar hora de sábado</button>
+            <span class="msg-info" id="sab-msg"></span>
+            <div class="pi-nota-sabado">Solo afecta a la hora del <b>cierre automático</b> de los sábados, que manda sobre la intensiva. <b>No cambia las horas del proforma:</b> el sábado se paga fijando las horas del día. Vacío = el sábado se cierra como cualquier otro día.</div>
           </div>
         </div>
         <div class="pi-marcar">
@@ -523,6 +533,10 @@ let horasObraActual = { entrada: null, salida: null };
 let diasIntensivaSet = new Set();
 let horarioNormal = { entrada: null, salida: null, descanso: null };
 let horarioIntensiva = { entrada: null, salida: null, descanso: null };
+// Hora de cierre automático de los sábados. null = la obra no tiene hora
+// especial de sábado. SOLO la usa autocerrar_jornadas() en la BD: el cálculo
+// de horas del proforma NO la mira (el sábado se paga fijando las horas).
+let horarioSabado = null;
 // Se pone a true si falla alguna consulta de apoyo al cálculo (horas fijadas,
 // horario de la obra, días de intensiva). Con esto a true las horas pueden no
 // ser las buenas: se avisa en pantalla y NO se deja exportar nada, porque el
@@ -633,6 +647,7 @@ let datosCalculoIncompletos = false;
     }
   });
   document.getElementById('btn-guardar-intensiva').addEventListener('click', guardarHorarioIntensiva);
+  document.getElementById('btn-guardar-sabado').addEventListener('click', guardarHorarioSabado);
   document.getElementById('btn-marcar-intensiva').addEventListener('click', () => marcarIntensiva(true));
   document.getElementById('btn-quitar-intensiva').addEventListener('click', () => marcarIntensiva(false));
 })();
@@ -1037,11 +1052,12 @@ async function cargarIntensiva(mes) {
   diasIntensivaSet = new Set();
   horarioNormal = { entrada: null, salida: null, descanso: null };
   horarioIntensiva = { entrada: null, salida: null, descanso: null };
+  horarioSabado = null;
   const fallos = [];
   if (obraActual && /^\d{4}-\d{2}$/.test(mes)) {
     {
       const { data: o, error: errO } = await sb.from('obras')
-        .select('hora_entrada_default, hora_salida_default, minutos_descanso, hora_entrada_intensiva, hora_salida_intensiva, minutos_descanso_intensiva')
+        .select('hora_entrada_default, hora_salida_default, minutos_descanso, hora_entrada_intensiva, hora_salida_intensiva, minutos_descanso_intensiva, hora_salida_sabado')
         .eq('id', obraActual).single();
       if (errO) {
         console.error('obras (horario):', errO);
@@ -1049,6 +1065,7 @@ async function cargarIntensiva(mes) {
       } else if (o) {
         horarioNormal = { entrada: o.hora_entrada_default, salida: o.hora_salida_default, descanso: o.minutos_descanso };
         horarioIntensiva = { entrada: o.hora_entrada_intensiva, salida: o.hora_salida_intensiva, descanso: o.minutos_descanso_intensiva };
+        horarioSabado = o.hora_salida_sabado || null;
       }
     }
     {
@@ -1079,6 +1096,11 @@ function pintarPanelIntensiva(mes) {
   val('int-entrada', (horarioIntensiva.entrada ? String(horarioIntensiva.entrada).slice(0,5) : '07:00'));
   val('int-salida',  (horarioIntensiva.salida  ? String(horarioIntensiva.salida).slice(0,5)  : '15:00'));
   val('int-descanso', (horarioIntensiva.descanso != null ? horarioIntensiva.descanso : 0));
+  // OJO: aquí NO se pone valor por defecto. El vacío es un valor con
+  // significado ("esta obra no tiene hora especial de sábado"); rellenarlo
+  // con una hora inventada haría creer que está configurada cuando no lo está.
+  val('sab-salida', (horarioSabado ? String(horarioSabado).slice(0,5) : ''));
+  set('sab-msg', '');
   set('int-count', diasIntensivaSet.size);
   set('int-msg', '');
   if (/^\d{4}-\d{2}$/.test(mes)) {
@@ -1121,6 +1143,24 @@ async function guardarHorarioIntensiva() {
   if (error) { im.textContent = 'Error: ' + error.message; return; }
   await cargarResumen();
   const im2 = document.getElementById('int-msg'); if (im2) im2.textContent = '✓ Horario de verano guardado.';
+}
+
+async function guardarHorarioSabado() {
+  const sm = document.getElementById('sab-msg');
+  if (!obraActual) { sm.textContent = 'No hay obra seleccionada.'; return; }
+  const salida = document.getElementById('sab-salida').value;
+  // Vacío es válido a propósito: es cómo se quita la hora especial de sábado.
+  if (salida === '') {
+    if (!confirm('Vas a dejar la obra SIN hora especial de sábado.\n\nA partir de ahora los sábados se cerrarán automáticamente a la misma hora que un día entre semana (la intensiva, si el día está marcado ☀).\n\n¿Continuar?')) return;
+  }
+  sm.textContent = 'Guardando…';
+  const { error } = await sb.rpc('guardar_horario_sabado', {
+    p_obra_id: obraActual, p_salida: salida
+  });
+  if (error) { sm.textContent = 'Error: ' + error.message; return; }
+  await cargarResumen();
+  const sm2 = document.getElementById('sab-msg');
+  if (sm2) sm2.textContent = salida === '' ? '✓ Sábado sin hora especial.' : '✓ Hora de sábado guardada.';
 }
 
 async function marcarIntensiva(marcar) {
