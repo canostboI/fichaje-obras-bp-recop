@@ -1105,8 +1105,11 @@ async function cargarPresencia() {
   const ids = dentro.map(t => t.trabajador.id);
 
   let validaciones = {};
-  // Si esta consulta falla NO se puede dar a nadie por verde: el estado
-  // documental es lo que decide si alguien debería estar dentro.
+  // DAT-014 · Aquí NO se da a nadie por verde, nunca. Sin fila en
+  // `validaciones_obra` el servidor (`registrar_fichaje`) trata a esa
+  // persona como ROJA, así que pintarla verde sería mentir: sin fila,
+  // `sindato`. `falloValidaciones` solo decide el aviso de arriba y si
+  // el contador de naranjas es fiable.
   let falloValidaciones = false;
   if (ids.length > 0) {
     const { data: vals, error: errVals } = await sb
@@ -1133,7 +1136,7 @@ async function cargarPresencia() {
     const v = validaciones[tid];
     validacionesCache[tid] = {
       nombre: [t.trabajador.nombre, t.trabajador.apellidos].filter(Boolean).join(' ') || '(sin nombre)',
-      estado: v?.estado || (falloValidaciones ? 'sindato' : 'verde'),
+      estado: v?.estado || 'sindato',
       motivos: v?.motivos || []
     };
   });
@@ -1248,7 +1251,7 @@ async function cargarPresencia() {
 
     grupo.trabajadores.forEach(t => {
       const ultimaEntrada = t.entradas[t.entradas.length - 1];
-      const estado = validaciones[t.trabajador.id]?.estado || (falloValidaciones ? 'sindato' : 'verde');
+      const estado = validaciones[t.trabajador.id]?.estado || 'sindato';
       const esClicable = estado === 'naranja' || estado === 'rojo';
       const pillHtml = esClicable
         ? `<span class="pill ${estado} clicable" onclick="abrirMotivos('${t.trabajador.id}')" title="Ver motivos">${estado}</span>`
