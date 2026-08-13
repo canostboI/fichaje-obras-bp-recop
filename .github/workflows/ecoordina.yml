@@ -71,15 +71,20 @@ jobs:
           SUPABASE_PASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
         run: npm run sync
 
-      - name: Subir CSV y capturas (siempre)
-        if: always()
+      # SEC-035 · Antes este paso subía `output/` —el CSV íntegro de
+      # e-Coordina, con el padrón documental de TODAS las obras— en CADA
+      # ejecución, a un repositorio PÚBLICO. Ahora solo sube las capturas
+      # de `debug/`, solo cuando la sync ha fallado, y se borran a los 7
+      # días. Para diagnosticar un fallo hacen falta las capturas, no el CSV.
+      - name: Subir capturas de diagnóstico (solo si falla)
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: resultado-sync
           path: |
-            output/
             debug/
           if-no-files-found: warn
+          retention-days: 7
 
       - name: Abrir issue si la sync ha fallado
         if: failure()
