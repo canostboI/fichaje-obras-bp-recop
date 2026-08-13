@@ -1632,10 +1632,12 @@
       if (errVals) console.error('validaciones_obra (presencia):', errVals);
 
       const validaciones = {};
-      (vals || []).forEach(v => { validaciones[v.trabajador_id] = { estado: v.estado || 'verde', motivos: v.motivos || [] }; });
+      // DAT-016 · Sin fila, o con `estado` en NULL, el servidor trata a esa
+      // persona como ROJA. Aquí el hueco se llama `sindato`, no `verde`.
+      (vals || []).forEach(v => { validaciones[v.trabajador_id] = { estado: v.estado || 'sindato', motivos: v.motivos || [] }; });
 
       presentes.forEach(t => {
-        const v = validaciones[t.id] || { estado: 'verde', motivos: [] };
+        const v = validaciones[t.id] || { estado: 'sindato', motivos: [] };
         t.estado = v.estado;
         t.motivos = v.motivos;
       });
@@ -1970,7 +1972,7 @@
       const t = v.trabajador;
       if (!t || !t.id || t.activo === false) return;
       if (!mapa.has(t.id)) {
-        mapa.set(t.id, { id: t.id, nombre: t.nombre || '', apellidos: t.apellidos || '', dni: t.dni || '', estado: v.estado || 'verde' });
+        mapa.set(t.id, { id: t.id, nombre: t.nombre || '', apellidos: t.apellidos || '', dni: t.dni || '', estado: v.estado || 'sindato' });
       }
     });
 
