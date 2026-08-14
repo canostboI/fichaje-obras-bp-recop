@@ -566,6 +566,12 @@ async function main() {
   const centrosEnArchivo = new Set(filas.map(f => normalizar(f['Centro'])).filter(Boolean));
 
   let huboFalloGrave = false;
+  // OPS-004 (2.3-A): un CSV vacío nunca es un día bueno — el padrón nunca
+  // está legítimamente vacío. Fallo grave aunque no haya obras que recorrer.
+  if (filas.length === 0) {
+    console.error('ERROR: el CSV de e-Coordina está vacío (0 filas). Revisa la descarga en el workflow.');
+    huboFalloGrave = true;
+  }
   const resumen = [];
 
   for (const obra of (obras || [])) {
@@ -573,7 +579,14 @@ async function main() {
 
     let filasObra;
     if (centrosEnArchivo.size === 0) {
-      filasObra = filas; // CSV sin columna Centro (formato antiguo)
+      // OPS-022 (2.2): el CSV no trae columna Centro (o vino vacío). NO aplicar
+      // todo a todas las obras: en multi-obra eso cruza papeles entre obras.
+      // Saltar y marcar fallo grave para que el run salga en ROJO.
+      const causa = filas.length === 0 ? 'CSV vacío' : 'CSV sin columna Centro';
+      log(`— ${obra.nombre}: SALTADA (${causa})`);
+      resumen.push({ obra: obra.nombre, estado: `saltada (${causa})` });
+      huboFalloGrave = true;
+      continue;
     } else if (!centroObra) {
       log(`— ${obra.nombre}: SALTADA (no tiene ecoordina_centro configurado)`);
       resumen.push({ obra: obra.nombre, estado: 'saltada (sin centro)' });
@@ -646,7 +659,9 @@ async function main() {
   // Registro global para el panel admin
   const obrasOk = resumen.filter(r => r.rpc === 'OK' && r.aplicados > 0).length;
   const obrasError = resumen.filter(r => r.rpc === 'ERROR').length;
-  const estadoGlobal = obrasError > 0 ? 'error' : 'ok';
+  // OPS-023 (2.3-B): verde SOLO si algo se sincronizó de verdad. obras_ok===0
+  // o un fallo grave (CSV vacío / sin Centro) ya no pasan por verdes.
+  const estadoGlobal = (obrasError > 0 || huboFalloGrave || obrasOk === 0) ? 'error' : 'ok';
   {
     const { error: logErr } = await sb.from('ecoordina_sync').insert({
       estado: estadoGlobal,
