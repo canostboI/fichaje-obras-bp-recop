@@ -549,6 +549,7 @@ if (!window.Fechas || !window.Hab) {
 let misObras = [];
 let todosTrabajadores = [];
 let todasEmpresas = [];
+let empresasError = false;   // OPS-009 (2.4): ¿falló cargar empresas? -> avisar en la tabla
 let obraFiltroTrabajadores = '';
 let miUsuarioId = null;
 
@@ -619,8 +620,9 @@ let avisosTabla = [];
 
 async function cargarEmpresas() {
   const { data, error } = await sb.from('empresas').select('id, nombre, es_empresa_propia').order('nombre');
-  if (error) { todasEmpresas = []; return; }
+  if (error) { console.error('empresas:', error); todasEmpresas = []; empresasError = true; return; }
   todasEmpresas = data || [];
+  empresasError = false;
 }
 
 function poblarSelectorEmpresas(empresaIdSeleccionada) {
@@ -943,6 +945,7 @@ async function cargarTrabajadores() {
   ]);
 
   avisosTabla = [];
+  if (empresasError) avisosTabla.push('No se han podido cargar las empresas: el selector de empresa saldrá vacío y algún dato de empresa puede faltar.');
 
   let validaciones = validacionesResult.data;
   if (validacionesResult.error) {
