@@ -406,6 +406,8 @@ async function cargarObras() {
   }
 
   sel.addEventListener('change', () => {
+    // Al cambiar de obra, el resultado en pantalla es de la obra anterior: ocultarlo. (DAT-023)
+    document.getElementById('resultado').style.display = 'none';
     const obra = misObras.find(o => o.id === sel.value);
     if (obra) {
       aplicarBrandingObra(obra.empresa_marca || 'bosch_pascual');
