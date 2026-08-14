@@ -324,7 +324,12 @@ window.EcoordinaImport = (function () {
   // ── Carga de contexto desde BD ────────────────────────────────────────────
   async function cargarReglas(sb) {
     const { data, error } = await sb.from('reglas_documentales').select('*');
-    if (error) { console.error('Error cargando reglas:', error); return []; }
+    if (error) {
+      console.error('Error cargando reglas:', error);
+      // SEC-036 (2.1): sin reglas, calcularResultado daria a TODOS por verdes.
+      // Abortar; el llamador (documentos-ecoordina) lo recoge y avisa.
+      throw new Error('No se han podido cargar las reglas documentales. Sin ellas, la validación daría a todos por buenos por error. Revisa la conexión e inténtalo de nuevo.');
+    }
     return data || [];
   }
 
