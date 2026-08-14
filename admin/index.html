@@ -117,6 +117,7 @@
   <script src="../js/fechas.js"></script>
   <script src="../js/habilitaciones.js"></script>
   <script src="../js/accesos-resueltos.js"></script>
+  <script src="../js/sb-paginado.js"></script>
 </head>
 <body>
 
@@ -363,7 +364,11 @@ async function cargarSyncEcoordina() {
   let bg, color, txt;
   if (data.estado === 'error') {
     bg = 'rgba(244,67,54,0.15)'; color = '#f44336';
-    txt = `⚠️ e-Coordina: la última sincronización (${esHoy ? 'hoy' : fecha} ${hora}) tuvo errores en ${data.obras_error} obra(s).`;
+    // OPS-023 (2.3-C): si el estado es error pero no hay obras con error, la
+    // causa es que NO se actualizó ninguna (CSV vacío/sin Centro). Decirlo claro.
+    txt = data.obras_error > 0
+      ? `⚠️ e-Coordina: la última sincronización (${esHoy ? 'hoy' : fecha} ${hora}) tuvo errores en ${data.obras_error} obra(s).`
+      : `⚠️ e-Coordina: la última sincronización (${esHoy ? 'hoy' : fecha} ${hora}) no actualizó ninguna obra. Revisa el CSV o el workflow en GitHub Actions.`;
   } else if (esHoy) {
     bg = 'rgba(76,175,80,0.15)'; color = '#4caf50';
     txt = `✅ e-Coordina: sincronizado hoy a las ${hora} · ${data.obras_ok} obra(s) actualizada(s).`;
@@ -534,24 +539,39 @@ async function cargarObras() {
 async function obtenerAccesosHoy() {
   const { desdeISO, hastaISO } = rangoHoyLocal();
 
-  const { data: incidencias, error } = await sb
-    .from('incidencias')
-    .select('id, tipo, detalle, estado, created_at, trabajador_id, obra_id, trabajador:trabajador_id(id, nombre, apellidos, dni), obra:obra_id(id, nombre)')
-    .in('tipo', ['bloqueo_rojo', 'fuera_de_zona'])
-    .gte('created_at', desdeISO)
-    .lte('created_at', hastaISO)
-    .order('created_at', { ascending: false });
-  if (error) return { error: error.message };
+  // OPS-021 (2.5): los denegados de un día pueden pasar de 1.000 filas (tope
+  // del servidor). Se leen por tandas para no perder el final de la lista.
+  let incidencias;
+  try {
+    incidencias = await SbPaginado.traerTodo(() => sb
+      .from('incidencias')
+      .select('id, tipo, detalle, estado, created_at, trabajador_id, obra_id, trabajador:trabajador_id(id, nombre, apellidos, dni), obra:obra_id(id, nombre)')
+      .in('tipo', ['bloqueo_rojo', 'fuera_de_zona'])
+      .gte('created_at', desdeISO)
+      .lte('created_at', hastaISO)
+      .order('created_at', { ascending: false }),
+      { etiqueta: 'accesos denegados de hoy' });
+  } catch (e) {
+    return { error: e.message };
+  }
 
   // Fichajes de hoy: para saber quién de los denegados acabó entrando.
   // Si esta consulta falla no se da nada por resuelto (se avisa en el modal).
+  // OPS-021 (2.5): los fichajes del día también pueden pasar de 1.000. Si se
+  // truncaran, gente que SÍ entró no se vería y saldría como pendiente.
+  // .order() es obligatorio para paginar sin duplicar/perder filas.
   let fichajes = null;
-  const resp = await sb
-    .from('fichajes')
-    .select('tipo, hora, obra_id, trabajador_id, trabajador:trabajador_id(id, dni)')
-    .gte('hora', desdeISO)
-    .lte('hora', hastaISO);
-  if (!resp.error) fichajes = resp.data || [];
+  try {
+    fichajes = await SbPaginado.traerTodo(() => sb
+      .from('fichajes')
+      .select('tipo, hora, obra_id, trabajador_id, trabajador:trabajador_id(id, dni)')
+      .gte('hora', desdeISO)
+      .lte('hora', hastaISO)
+      .order('hora', { ascending: true }),
+      { etiqueta: 'fichajes de hoy' });
+  } catch (_) {
+    fichajes = null; // como antes: si falla, no se da nada por resuelto
+  }
 
   const porObra = {};
   (incidencias || []).forEach(inc => {
