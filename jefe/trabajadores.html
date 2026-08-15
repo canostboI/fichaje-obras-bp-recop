@@ -550,6 +550,11 @@ let misObras = [];
 let todosTrabajadores = [];
 let todasEmpresas = [];
 let empresasError = false;   // OPS-009 (2.4): ¿falló cargar empresas? -> avisar en la tabla
+let contratosError = false;  // OPS-009 (2.4)
+let librosError = false;     // OPS-009 (2.4)
+let rpsError = false;        // OPS-009 (2.4)
+let habsError = false;       // OPS-009 (2.4)
+let twPropiosError = false;  // OPS-009 (2.4)
 let obraFiltroTrabajadores = '';
 let miUsuarioId = null;
 
@@ -753,7 +758,8 @@ async function cargarTrabajadoresPropios() {
   const { data, error } = await sb.from('trabajadores')
     .select('id, nombre, apellidos, dni, empresa:empresa_id(id, nombre, es_empresa_propia)')
     .eq('activo', true);
-  if (error) { trabajadoresPropios = []; return; }
+  if (error) { console.error('trabajadores propios:', error); trabajadoresPropios = []; twPropiosError = true; return; }
+  twPropiosError = false;
   trabajadoresPropios = (data || [])
     .filter(t => t.empresa?.es_empresa_propia === true)
     .sort((a, b) => nombreCompleto(a).localeCompare(nombreCompleto(b), 'es'));
@@ -769,7 +775,8 @@ async function cargarContratos() {
     .eq('obra_id', obraFiltroTrabajadores)
     .lte('valido_desde', hoy)
     .or(`valido_hasta.is.null,valido_hasta.gte.${hoy}`);
-  if (error) return;
+  if (error) { console.error('contratos_empresa:', error); contratosError = true; return; }
+  contratosError = false;
   (data || []).forEach(c => { contratosPorEmpresa[c.empresa_id] = c; });
 }
 
@@ -783,7 +790,8 @@ async function cargarLibros() {
     .eq('obra_id', obraFiltroTrabajadores)
     .lte('valido_desde', hoy)
     .or(`valido_hasta.is.null,valido_hasta.gte.${hoy}`);
-  if (error) return;
+  if (error) { console.error('libros_subcontratacion:', error); librosError = true; return; }
+  librosError = false;
   (data || []).forEach(l => { librosPorEmpresa[l.empresa_id] = l; });
 }
 
@@ -802,7 +810,8 @@ async function cargarRPsDeTodasMisObras() {
   const { data, error } = await sb.from('recursos_preventivos_obra')
     .select('trabajador_id, obra_id, activo').in('obra_id', obraIds).eq('activo', true);
   rpsPorObra = {};
-  if (error) return;
+  if (error) { console.error('recursos_preventivos_obra:', error); rpsError = true; return; }
+  rpsError = false;
   (data || []).forEach(rp => {
     if (!rpsPorObra[rp.obra_id]) rpsPorObra[rp.obra_id] = [];
     rpsPorObra[rp.obra_id].push(rp.trabajador_id);
@@ -830,7 +839,8 @@ async function cargarHabilitacionesDeTodasMisObras() {
     .eq('activo', true);
 
   habIconosPorTrabajador = {};
-  if (error) return;
+  if (error) { console.error('habilitaciones_trabajador:', error); habsError = true; return; }
+  habsError = false;
 
   (data || []).forEach(h => {
     const nombre = h.tipo?.nombre || '';
@@ -946,6 +956,10 @@ async function cargarTrabajadores() {
 
   avisosTabla = [];
   if (empresasError) avisosTabla.push('No se han podido cargar las empresas: el selector de empresa saldrá vacío y algún dato de empresa puede faltar.');
+  if (contratosError) avisosTabla.push('No se han podido cargar los contratos: los badges «⚠ Sin contrato» no aparecerán.');
+  if (librosError) avisosTabla.push('No se han podido cargar los libros de subcontratación: los badges «⚠ Sin libro» no aparecerán.');
+  if (rpsError) avisosTabla.push('No se han podido cargar los recursos preventivos: los iconos de RP no aparecerán.');
+  if (habsError) avisosTabla.push('No se han podido cargar las habilitaciones: los iconos de maquinaria no aparecerán.');
 
   let validaciones = validacionesResult.data;
   if (validacionesResult.error) {
