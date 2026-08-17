@@ -306,7 +306,7 @@ async function guardarTodo() {
     if (error) errores.push('Actualizar ' + r.nombre_documento + ': ' + error.message);
   }
   if (errores.length > 0) { mostrarError('Errores al guardar:\n' + errores.join('\n')); }
-  else { mostrarOk('Cambios guardados correctamente.'); eliminadas = []; await cargarReglas(); }
+  else { mostrarOk('Cambios guardados correctamente. Tendrán efecto en la próxima sincronización de e-Coordina (esta madrugada), o antes si el jefe importa el Excel a mano. El semáforo de hoy NO cambia todavía.'); eliminadas = []; await cargarReglas(); }
 }
 
 function mostrarOk(msg) { const el = document.getElementById('msgOk'); el.textContent = msg; el.style.display = 'block'; setTimeout(() => el.style.display = 'none', 4000); }
