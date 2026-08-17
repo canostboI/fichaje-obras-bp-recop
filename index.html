@@ -388,7 +388,7 @@ btnRegistro.addEventListener('click', async () => {
   // Si el correo ya tenía cuenta confirmada, Supabase devuelve un usuario
   // sin identities (por seguridad no da error). Lo detectamos y avisamos.
   if (data && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
-    mostrarError('Este correo ya tiene cuenta. Vuelve a "Entrar" e inicia sesión. Si no recuerdas la contraseña, avisa al administrador.');
+    mostrarError('Si ese correo tiene una ficha en la aplicación, recibirás un mensaje para continuar. Revisa también la carpeta de spam.');  // SEC-027: mismo texto que el flujo de recuperación; no confirma si el correo existe
     return;
   }
 
