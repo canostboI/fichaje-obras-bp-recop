@@ -334,6 +334,10 @@
   // en pantalla pueden no coincidir con el proforma: se avisa y se bloquea
   // la descarga del listado del día.
   let datosCalculoIncompletos = false;
+  // DAT-032 · Motivo concreto cuando el bloqueo es «no se ha podido leer la
+  // empresa de cada trabajador»: es un problema de reparto por hojas, no de
+  // horas, y el aviso tiene que decir cuál de los dos es.
+  let motivoSinEmpresa = false;
   let diasIntensivaSetEnc = new Set();
   let horarioIntensivaEnc = { entrada: null, salida: null, descanso: null };
 
@@ -522,8 +526,25 @@
       // Igual que antes: si el select con empresa falla, se reintenta sin
       // ella. Si también falla, LANZA.
       console.warn('fichajes del mes (select completo):', e.message || e);
+      // DAT-032 · El fallback trae los fichajes SIN la empresa del trabajador.
+      // La pantalla sigue sirviendo, pero el listado del día saldría con todo
+      // el mundo bajo «Sin empresa». Se marca el mes como incompleto.
+      datosCalculoIncompletos = true;
+      motivoSinEmpresa = true;
       return await window.SbPaginado.traerTodo(consulta(SELECT_FALLBACK), { etiqueta: 'fichajes del mes' });
     }
+  }
+
+  // Texto del bloqueo, con el motivo de verdad delante.
+  function textoCalculoIncompleto(queSale) {
+    if (motivoSinEmpresa) {
+      return 'No se puede ' + queSale + ': no se ha podido leer la empresa de cada '
+        + 'trabajador, así que el archivo saldría con TODA la obra en una sola hoja '
+        + '«Sin empresa». Recarga la página e inténtalo otra vez.';
+    }
+    return 'No se puede ' + queSale + ': falta algún dato del cálculo (horas fijadas '
+      + 'u horario de la obra) y las horas podrían no coincidir con el proforma. '
+      + 'Recarga la página e inténtalo otra vez.';
   }
 
   // ===================================================================
@@ -545,6 +566,12 @@
 
     zona.innerHTML = '<div class="seccion"><div class="cargando">Cargando…</div></div>';
 
+    // El reset va ANTES de traer los fichajes. Estaba DESPUÉS, y así cualquier
+    // aviso levantado durante la descarga se borraba solo en la línea de al
+    // lado: un aviso que no sobrevive al repintado no existe.
+    datosCalculoIncompletos = false;
+    motivoSinEmpresa = false;
+
     let fichajes;
     try {
       fichajes = await obtenerFichajesMes(obraActualId, mes);
@@ -559,7 +586,6 @@
     mesCargado = mes;
     ajustarSelectorDia(mes);
     resumenTrabajadores = {};
-    datosCalculoIncompletos = false;
     const avisosCarga = [];
 
     // Días "tocados": con algún fichaje manual o corregido → esquina amarilla
@@ -645,6 +671,14 @@
       } else if (obraInfo) {
         horasObra = { entrada: obraInfo.hora_entrada_default, salida: obraInfo.hora_salida_default, descanso: obraInfo.minutos_descanso };
         horarioIntensivaEnc = { entrada: obraInfo.hora_entrada_intensiva, salida: obraInfo.hora_salida_intensiva, descanso: obraInfo.minutos_descanso_intensiva };
+        // DAT-032 · Antes solo se avisaba si la CONSULTA fallaba. Una obra sin
+        // horario guardado devuelve la fila con los campos a NULL, y el cálculo
+        // se queda sin suelo, sin techo y sin descanso: horas infladas y
+        // silencio. Una fila con huecos no es una fila buena.
+        if (horasObra.entrada == null || horasObra.salida == null || horasObra.descanso == null) {
+          datosCalculoIncompletos = true;
+          avisosCarga.push('la obra no tiene horario guardado (entrada, salida o descanso)');
+        }
       }
     }
     {
@@ -1381,7 +1415,7 @@
     // enseñaría horas que pueden no cuadrar con el proforma. Mejor no darlo.
     if (datosCalculoIncompletos) {
       msg.className = 'msg-info err';
-      msg.textContent = 'No se puede generar el listado: falta algún dato del cálculo (horas fijadas u horario de la obra) y las horas podrían no coincidir con el proforma. Recarga la página e inténtalo otra vez.';
+      msg.textContent = textoCalculoIncompleto('generar el listado');
       return;
     }
 
