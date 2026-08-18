@@ -543,6 +543,22 @@ let horarioSabado = null;
 // ser las buenas: se avisa en pantalla y NO se deja exportar nada, porque el
 // proforma es el entregable económico y no puede salir divergiendo en silencio.
 let datosCalculoIncompletos = false;
+// DAT-032 · Motivo concreto cuando el bloqueo es «no se ha podido leer la
+// empresa de cada trabajador». Sin esto el aviso hablaba de horas y el fallo
+// real era el reparto por hojas: dos problemas distintos, un solo texto.
+let motivoSinEmpresa = false;
+
+// Texto del bloqueo, con el motivo de verdad delante.
+function textoCalculoIncompleto(queSale) {
+  if (motivoSinEmpresa) {
+    return 'No se puede ' + queSale + ': no se ha podido leer la empresa de cada '
+      + 'trabajador, así que el archivo saldría con TODA la obra en una sola hoja '
+      + '«Sin empresa». Recarga la página e inténtalo otra vez.';
+  }
+  return 'No se puede ' + queSale + ': falta algún dato del cálculo (horas fijadas '
+    + 'u horario de la obra) y las horas podrían salir equivocadas. Recarga la '
+    + 'página e inténtalo otra vez.';
+}
 
 (async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -719,6 +735,12 @@ async function obtenerFichajesMes(obraId, mes) {
     // Igual que antes: si el select con empresa falla (relación no
     // disponible), se reintenta sin ella. Si también falla, LANZA.
     console.warn('fichajes del mes (select completo):', e.message || e);
+    // DAT-032 · El fallback trae los fichajes SIN la empresa del trabajador.
+    // La pantalla sigue sirviendo (por eso no se lanza), pero el proforma
+    // metería a TODA la obra en una hoja llamada «Sin empresa» sin decir nada.
+    // Se marca el mes como incompleto: el Excel no sale hasta que vuelva.
+    datosCalculoIncompletos = true;
+    motivoSinEmpresa = true;
     return await window.SbPaginado.traerTodo(consulta(SELECT_FALLBACK), { etiqueta: 'fichajes del mes' });
   }
 }
@@ -780,7 +802,7 @@ async function exportarExcelProforma() {
   // pasaba en silencio; ahora no sale el archivo.
   if (datosCalculoIncompletos) {
     msg.className = 'msg-info err';
-    msg.textContent = 'No se puede exportar: falta algún dato del cálculo (horas fijadas u horario de la obra) y el proforma podría salir con horas equivocadas. Recarga la página e inténtalo otra vez.';
+    msg.textContent = textoCalculoIncompleto('exportar el proforma');
     return;
   }
 
@@ -791,6 +813,15 @@ async function exportarExcelProforma() {
     const fichajes = (mesCargado === mes && fichajesMesCache.length > 0)
       ? fichajesMesCache
       : await obtenerFichajesMes(obraActual, mes);
+
+    // DAT-032 · Si los fichajes se han traído AQUÍ (mes distinto del pintado),
+    // el fallback sin empresa se entera después de la guarda de arriba. Se
+    // vuelve a mirar, que es el último momento en que sirve de algo.
+    if (datosCalculoIncompletos) {
+      msg.className = 'msg-info err';
+      msg.textContent = textoCalculoIncompleto('exportar el proforma');
+      btn.disabled = false; btn.textContent = textoOriginal; return;
+    }
 
     // Ajustes de horas fijadas: caché si es el mes en pantalla; si no, consulta.
     const ajustes = (mesCargado === mes) ? ajustesMesMap : await obtenerAjustesMes(obraActual, mes);
@@ -805,6 +836,17 @@ async function exportarExcelProforma() {
       .select('id, nombre, numero_obra, empresa_marca, hora_entrada_default, hora_salida_default, minutos_descanso, hora_entrada_intensiva, hora_salida_intensiva, minutos_descanso_intensiva')
       .eq('id', obraActual).single();
     if (errObra) throw errObra;
+
+    // DAT-032 · Esta es la fila que entra en el generador del Excel, y se lee
+    // aquí, no en la carga del mes. Si viene con huecos, el proforma sale sin
+    // suelo, sin techo y sin descanso. No sale.
+    if (!obra || obra.hora_entrada_default == null || obra.hora_salida_default == null || obra.minutos_descanso == null) {
+      msg.className = 'msg-info err';
+      msg.textContent = 'No se puede exportar el proforma: la obra no tiene horario guardado '
+        + '(entrada, salida o descanso) y las horas saldrían infladas. Rellénalo en el panel '
+        + '☀️ de esta misma pantalla y vuelve a intentarlo.';
+      btn.disabled = false; btn.textContent = textoOriginal; return;
+    }
 
     // Logo de la marca en base64 (si falla, el Excel sale sin logo).
     let logoBase64 = null;
@@ -1007,7 +1049,7 @@ async function descargarListadoDia() {
   // manos de la propiedad; no puede salir con horas que no cuadren.
   if (datosCalculoIncompletos) {
     msg.className = 'msg-info err';
-    msg.textContent = 'No se puede generar el listado: falta algún dato del cálculo (horas fijadas u horario de la obra) y las horas podrían no coincidir con el proforma. Recarga la página e inténtalo otra vez.';
+    msg.textContent = textoCalculoIncompleto('generar el listado');
     return;
   }
 
@@ -1211,6 +1253,7 @@ async function cargarResumen() {
   }
 
   datosCalculoIncompletos = false;
+  motivoSinEmpresa = false;
   const avisosCarga = [];
 
   avisosCarga.push(...(await cargarIntensiva(mes)));
@@ -1283,6 +1326,14 @@ async function cargarResumen() {
       avisosCarga.push('no se ha podido leer el horario de la obra');
     } else if (obraInfo) {
       horasObra = { entrada: obraInfo.hora_entrada_default, salida: obraInfo.hora_salida_default, descanso: obraInfo.minutos_descanso };
+      // DAT-032 · Antes solo se avisaba si la CONSULTA fallaba. Una obra sin
+      // horario guardado devuelve la fila con los campos a NULL, y eso deja el
+      // cálculo sin suelo, sin techo y sin descanso: las horas salen infladas
+      // y nadie lo dice. Una fila con huecos no es una fila buena.
+      if (horasObra.entrada == null || horasObra.salida == null || horasObra.descanso == null) {
+        datosCalculoIncompletos = true;
+        avisosCarga.push('la obra no tiene horario guardado (entrada, salida o descanso)');
+      }
     }
   }
   horasObraActual = horasObra;
