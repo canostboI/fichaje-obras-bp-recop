@@ -153,6 +153,10 @@
     // se usa este horario en vez del normal. minutosDescansoIntensiva suele ser 0.
     const horaEntradaIntensiva = opts && opts.horaEntradaIntensiva ? opts.horaEntradaIntensiva : null;
     const horaSalidaIntensiva  = opts && opts.horaSalidaIntensiva  ? opts.horaSalidaIntensiva  : null;
+    // FICH-019 - Un dia marcado como intensiva solo cambia el horario si la obra
+    // TIENE horario intensivo guardado: hacen falta ENTRADA Y SALIDA. Sin las
+    // dos, ese dia es un dia normal ENTERO (entrada, salida y descanso).
+    const intensivaConfigurada = !!(horaEntradaIntensiva && horaSalidaIntensiva);
     const minutosDescansoIntensiva = (opts && opts.minutosDescansoIntensiva != null) ? opts.minutosDescansoIntensiva : null;
     const diasIntensiva = (opts && opts.diasIntensiva)
       ? (opts.diasIntensiva instanceof Set ? opts.diasIntensiva : new Set(opts.diasIntensiva))
@@ -221,9 +225,13 @@
           // ¿Este día fue jornada intensiva en esta obra? Si sí, se usa el
           // horario de verano (otra entrada/salida y, normalmente, sin comida).
           const fechaKey = fechaISOLocal(primeraEntrada);
-          const esIntensiva = diasIntensiva.has(fechaKey);
-          const entradaDia  = esIntensiva ? (horaEntradaIntensiva || horaEntradaObra) : horaEntradaObra;
-          const salidaDia   = esIntensiva ? (horaSalidaIntensiva  || horaSalidaObra)  : horaSalidaObra;
+          // FICH-019 - Antes la entrada y la salida SI caian al horario normal
+          // cuando la obra no tenia intensiva guardada, pero el descanso caia
+          // a 0: un dia marcado sin horario detras salia sin descontar la comida,
+          // hasta 1,5 h de mas por persona y dia. Ahora los tres van juntos.
+          const esIntensiva = intensivaConfigurada && diasIntensiva.has(fechaKey);
+          const entradaDia  = esIntensiva ? horaEntradaIntensiva : horaEntradaObra;
+          const salidaDia   = esIntensiva ? horaSalidaIntensiva  : horaSalidaObra;
           const descansoDia = esIntensiva
             ? (minutosDescansoIntensiva != null ? minutosDescansoIntensiva : 0)
             : minutosDescanso;
