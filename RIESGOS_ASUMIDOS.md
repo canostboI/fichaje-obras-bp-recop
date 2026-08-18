@@ -83,10 +83,37 @@ RPC revisado y corregido el 2/8/2026):**
   2/8/2026: ninguna de ellas se llama desde `jefe/`, `encargado/` ni
   `admin/` con sesión anónima.
 - `sincronizar_activa_desde_estado()` tenía EXECUTE para `anon` sin
-  justificación (es una función de mantenimiento interno, sin
-  argumentos, que escribe en masa). **REVOCADO a `anon` y a
-  `authenticated` el 2/8/2026.** Sigue siendo ejecutable por
-  `postgres` (SQL Editor) y por triggers internos.
+  justificación. **REVOCADO a `anon` y a `authenticated` el 17/8/2026**
+  (verificado: `has_function_privilege` = false para los dos). Sigue
+  siendo ejecutable por `postgres` y por el trigger interno.
+
+  🔴 **CORRECCIÓN DEL 17/8/2026.** Este párrafo afirmaba que el REVOKE
+  se hizo el **2/8/2026**. **Era falso.** El 17/8 se comprobó contra
+  `pg_proc` y `anon` seguía teniendo EXECUTE: o nunca se ejecutó, o se
+  deshizo. *Un documento describe lo que alguien quiso hacer; solo una
+  consulta describe lo que pasó.*
+
+  También era inexacta la descripción: no es una función «que escribe en
+  masa», es una **función de trigger** (`RETURNS trigger`) de tres
+  líneas que recalcula `obras.activa` a partir de `obras.estado`, y su
+  único consumidor es el trigger `trg_sincronizar_activa`. Como
+  PostgREST no expone funciones de trigger y Postgres no deja
+  invocarlas a mano, **aquel EXECUTE era un permiso imposible de usar:
+  no hubo exposición en ningún momento.**
+
+  ⚠️ **El riesgo real era otro, y estuvo abierto quince días.** Esta
+  función figuraba además en la lista blanca `rpc_publicas` de
+  `auditoria_permisos()`. El bloque A de esa auditoría solo denuncia
+  funciones abiertas a `anon` **que no estén en la lista**, así que dejó
+  de mirarla: del 2/8 al 17/8 el vigilante escribió
+  `hay_desviacion = false` todos los días con el permiso abierto
+  delante. **No falló: estaba mirando a otro lado por diseño.**
+
+  Corregido el 17/8 en un solo bloque (por separado, cualquiera de las
+  dos mitades dispara un aviso de desviación falsa a las 07:00):
+  REVOKE + lista blanca reducida a las 5 RPC reales + una guarda nueva
+  que denuncia cualquier nombre de `rpc_publicas` cuya función devuelva
+  `trigger`.
 - `PUBLIC` no tiene EXECUTE en ninguna función del esquema.
 - FORCE RLS en las 19 tablas activas; `anon` sin grants directos.
 - `service_role` jamás en frontend, repo, chat ni documentación.
@@ -96,6 +123,12 @@ que `anon` podía ejecutar 4 RPC. Eran 5 (faltaba
 `registrar_presente_sin_registrar`). El desfase se detectó al cruzar
 `pg_proc` con el código del repo. Cualquier RPC nueva que se abra a
 `anon` debe añadirse aquí en el mismo commit.
+
+**Segunda nota (17/8/2026):** es la segunda vez que este documento se
+desvía de la realidad, y las dos veces en la misma dirección — dando por
+hecho algo que nadie volvió a comprobar. **Un cambio de permisos no se
+anota como hecho hasta haberlo verificado con `has_function_privilege`
+después de ejecutarlo.** «Success. No rows returned» no es verificación.
 
 **Consulta de verificación** (SQL Editor, para repetir la comprobación
 en futuras auditorías):
