@@ -302,6 +302,10 @@ let datosExcel = null;
 let resultadoFinal = [];
 let descartadosMultiEmpresa = [];
 let sinRegla = new Set();
+// DAT-025 · Filas del archivo con un trabajador cuyo documento no se ha sabido
+// leer. Antes se colaban como documentos de empresa; ahora se apartan y se
+// avisa, porque son personas que este calculo NO ha mirado.
+let filasSinIdentificar = [];
 let dnisEnObra = {}; // dni -> { trabajador_id, nombre, estado, esPropia }
 // Obras de ESTE archivo ya importadas en ESTA sesión: obraId -> { hora }.
 // Se vacía cada vez que se sube un archivo nuevo (si no, quedarían ticks
@@ -632,12 +636,14 @@ async function procesarExcel() {
     resultadoFinal = calc.resultadoFinal;
     descartadosMultiEmpresa = calc.descartadosMultiEmpresa;
     sinRegla = calc.sinRegla;
+    filasSinIdentificar = calc.filasSinIdentificar || [];
 
     // Render
     renderTabla();
     renderStats();
     renderAlertaCambiosEmpresa();
     renderAlertaSinRegla();
+    renderAlertaSinIdentificar();
     renderAlertaExenciones();
     renderDesaparecidos();
 
@@ -703,6 +709,21 @@ function renderAlertaSinRegla() {
       <strong>⚠️ Documentos sin regla definida (${sinRegla.size}) — tratados como NARANJA</strong>
       <p style="margin:6px 0 8px;">Estos documentos no tienen regla y se han marcado como <strong>naranja</strong> por seguridad. Añade la regla en <a href="../admin/reglas.html" style="color:var(--naranja)">Admin → Reglas documentales</a> para que el cálculo sea exacto.</p>
       <ul style="margin-left:18px;">${filas}</ul>
+    </div>`;
+}
+
+function renderAlertaSinIdentificar() {
+  if (!filasSinIdentificar.length) return;
+  const filas = filasSinIdentificar.slice(0, 20).map(f =>
+    `<li><strong>${escHtml(f.trabajador)}</strong>${f.empresa ? ' — ' + escHtml(f.empresa) : ''}${f.doc ? ' · ' + escHtml(f.doc) : ''}</li>`
+  ).join('');
+  const mas = filasSinIdentificar.length > 20
+    ? `<p style="margin:6px 0 0;">…y ${filasSinIdentificar.length - 20} más.</p>` : '';
+  document.getElementById('alertas').innerHTML += `
+    <div class="alert alert-warning" style="margin-top:10px;">
+      <strong>⚠️ Personas no identificadas (${filasSinIdentificar.length}) — NO se han calculado</strong>
+      <p style="margin:6px 0 8px;">Estas filas traen un trabajador, pero no se ha podido leer su documento de identidad (suele pasar con NIE o pasaporte escritos de forma rara). <strong>No entran en el semáforo de nadie</strong> y tampoco se han sumado a su empresa. Revisa cómo está escrito el documento en e-Coordina.</p>
+      <ul style="margin-left:18px;">${filas}</ul>${mas}
     </div>`;
 }
 

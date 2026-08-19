@@ -272,8 +272,10 @@ let falloNombresFirmantes = false;
   selector.addEventListener('change', async () => {
     obraActual = selector.value;
     localStorage.setItem(CLAVE_OBRA_ACTIVA_JEFE, obraActual);
-    const marca = selector.options[selector.selectedIndex].dataset.marca;
-    aplicarBrandingObra(marca);
+    // Sin guarda, un selector sin opcion seleccionada revienta con un
+    // TypeError y la pantalla se queda en blanco sin decir por que.
+    const optSel = selector.options[selector.selectedIndex];
+    aplicarBrandingObra(optSel ? optSel.dataset.marca : null);
     await cargarTrabajadoresObra();
     await buscar();
   });

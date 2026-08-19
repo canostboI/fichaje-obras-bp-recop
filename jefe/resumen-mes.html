@@ -621,8 +621,10 @@ function textoCalculoIncompleto(queSale) {
   selector.addEventListener('change', async () => {
     obraActual = selector.value;
     localStorage.setItem(claveObraActiva, obraActual);
-    const marca = selector.options[selector.selectedIndex].dataset.marca;
-    aplicarBrandingObra(marca);
+    // Sin guarda, un selector sin opción seleccionada revienta aquí con un
+    // TypeError y la pantalla se queda en blanco sin decir por qué.
+    const optSel = selector.options[selector.selectedIndex];
+    aplicarBrandingObra(optSel ? optSel.dataset.marca : null);
     await cargarResumen();
   });
   document.getElementById('filtro-mes').addEventListener('change', cargarResumen);
@@ -809,10 +811,19 @@ async function exportarExcelProforma() {
   btn.disabled = true; const textoOriginal = btn.textContent; btn.textContent = 'Exportando…';
 
   try {
-    // Fichajes: reutilizamos la caché si es el mismo mes ya pintado en pantalla.
-    const fichajes = (mesCargado === mes && fichajesMesCache.length > 0)
-      ? fichajesMesCache
-      : await obtenerFichajesMes(obraActual, mes);
+    // OPS-031 · Antes se reutilizaba la caché de pantalla si el mes coincidía.
+    // Esa caché puede tener minutos: alguien ficha, el encargado ajusta un día
+    // desde su móvil, y el proforma sale con lo de antes. Exportar datos
+    // rancios es facturar mal, y un proforma se firma. Se vuelve a pedir
+    // SIEMPRE: es una consulta más, una vez, al pulsar un botón.
+    //
+    // El reset de la bandera va ANTES de la descarga, no después: si se pusiera
+    // detrás, cualquier aviso levantado al traer los datos se borraría solo en
+    // la línea siguiente.
+    datosCalculoIncompletos = false;
+    motivoSinEmpresa = false;
+    const fichajes = await obtenerFichajesMes(obraActual, mes);
+    if (mesCargado === mes) { fichajesMesCache = fichajes || []; }
 
     // DAT-032 · Si los fichajes se han traído AQUÍ (mes distinto del pintado),
     // el fallback sin empresa se entera después de la guarda de arriba. Se
@@ -823,8 +834,17 @@ async function exportarExcelProforma() {
       btn.disabled = false; btn.textContent = textoOriginal; return;
     }
 
-    // Ajustes de horas fijadas: caché si es el mes en pantalla; si no, consulta.
-    const ajustes = (mesCargado === mes) ? ajustesMesMap : await obtenerAjustesMes(obraActual, mes);
+    // OPS-031 · Igual que los fichajes: las horas fijadas a mano se vuelven a
+    // pedir. Una hora fijada hace tres minutos tiene que salir en el Excel.
+    const ajustes = await obtenerAjustesMes(obraActual, mes);
+    if (mesCargado === mes) { ajustesMesMap = ajustes; }
+
+    // FICH-020 · Horas fijadas a quien no tiene NINGÚN fichaje ese mes: el
+    // proforma se construye a partir de los fichajes, así que esa gente no
+    // sale en ninguna hoja y sus horas no las paga nadie. No se bloquea la
+    // exportación (el resto del proforma es correcto), pero se dice.
+    const sinFichajes = window.ExcelProforma.idsConHorasFijadasSinFichajes
+      ? window.ExcelProforma.idsConHorasFijadasSinFichajes(fichajes, ajustes) : [];
 
     if (!fichajes || fichajes.length === 0) {
       msg.className = 'msg-info err'; msg.textContent = 'No hay fichajes en ese mes para esta obra.';
@@ -872,6 +892,26 @@ async function exportarExcelProforma() {
         });
       }
     } catch (e) { logoBase64 = null; }
+
+    // FICH-020 · Se avisa ANTES de generar, no después: si esas horas tenían
+    // que estar dentro, el proforma hay que rehacerlo, no revisarlo.
+    if (sinFichajes.length > 0) {
+      const n = sinFichajes.length;
+      const seguirSF = window.confirm(
+        `Atención: ${n} ${n === 1 ? 'persona tiene' : 'personas tienen'} horas fijadas a mano este mes ` +
+        `pero NINGÚN fichaje en esta obra.\n\n` +
+        'El proforma se construye a partir de los fichajes, así que esas horas NO van a salir en ninguna hoja ' +
+        'y no las va a cobrar nadie.\n\n' +
+        'Suele pasar cuando se fijan horas a alguien que no llegó a fichar (baja, desplazamiento) ' +
+        'o cuando se han fijado en la obra equivocada.\n\n' +
+        '¿Quieres exportar igualmente?'
+      );
+      if (!seguirSF) {
+        msg.className = 'msg-info err';
+        msg.textContent = 'Exportación cancelada: hay horas fijadas que se quedarían fuera del proforma.';
+        btn.disabled = false; btn.textContent = textoOriginal; return;
+      }
+    }
 
     const { buffer, autocierres } = await window.ExcelProforma.generar({ obra, mes, fichajes, logoBase64, ajustes, diasIntensiva: diasIntensivaSet });
 
@@ -1364,6 +1404,14 @@ async function cargarResumen() {
   // baje a medida que el jefe los va arreglando. (Antes contaba todos y
   // nunca desaparecía, así que acababa ignorándose.)
   const pendientes = autocierresPendientes();
+
+  // FICH-020 · Horas fijadas a mano a quien no tiene ningún fichaje este mes.
+  // No entra en `avisosCarga` a propósito: eso bloquea el Excel, y aquí el
+  // resto del proforma es correcto. Es un aviso, no un cerrojo. Puede llegar a
+  // cero (lo normal es que esté a cero) y por eso merece la pena escribirlo.
+  const sinFichajesPantalla = window.ExcelProforma.idsConHorasFijadasSinFichajes
+    ? window.ExcelProforma.idsConHorasFijadasSinFichajes(fichajes, ajustesMesMap) : [];
+
   const partes = [];
   if (avisosCarga.length) {
     partes.push('⛔ Estas horas pueden NO ser correctas: ' + avisosCarga.join('; ')
@@ -1371,6 +1419,10 @@ async function cargarResumen() {
   }
   if (pendientes.length > 0) {
     partes.push(`⚠️ ${pendientes.length} ${pendientes.length === 1 ? 'salida' : 'salidas'} con cierre automático sin resolver (en naranja).`);
+  }
+  if (sinFichajesPantalla.length > 0) {
+    const n = sinFichajesPantalla.length;
+    partes.push(`⚠️ ${n} ${n === 1 ? 'persona tiene horas fijadas' : 'personas tienen horas fijadas'} a mano y ningún fichaje este mes: esas horas NO salen en el proforma.`);
   }
   if (partes.length) {
     msg.className = avisosCarga.length ? 'msg-info err' : 'msg-info aviso';
