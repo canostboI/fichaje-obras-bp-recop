@@ -76,12 +76,17 @@ window.EcoordinaImport = (function () {
     return ['verde', 'naranja', 'rojo'].includes(estado) ? estado : 'naranja';
   }
 
+  // DAT-025 · Un NIE se escribe a veces con guiones (X-1234567-L) y un
+  // pasaporte puede traer espacios o puntos. Antes el filtro los rechazaba, la
+  // fila se tomaba por documento DE EMPRESA y el problema de una persona se
+  // convertia en un problema de TODA su empresa. Ahora se limpian los
+  // separadores antes de decidir. Para un DNI corriente no cambia nada.
   function extraerDniDeTrabajador(texto) {
     if (!texto) return null;
-    const partes = texto.split(' - ');
+    const partes = String(texto).split(' - ');
     if (partes.length < 2) return null;
-    const dni = partes[partes.length - 1].trim();
-    if (/^[A-Z0-9]{6,10}$/i.test(dni)) return dni.toUpperCase();
+    const dni = partes[partes.length - 1].trim().replace(/[\s.\-\/]/g, '').toUpperCase();
+    if (/^[A-Z0-9]{6,10}$/.test(dni)) return dni;
     return null;
   }
   function extraerNombreTrabajador(texto) {
@@ -143,9 +148,17 @@ window.EcoordinaImport = (function () {
     if (!regla) regla = reglas.find(r => r.aplica_a === tipoAplica && r.nombre_documento === '*' && normalizar(r.estado_ecoordina) === nEstado);
     return regla || null;
   }
+  // DAT-006 · Un estado que no reconocemos NO puede valer menos que 'verde'.
+  // Antes `orden[desconocido]` daba 0, por debajo de verde: un valor raro en
+  // `reglas_documentales.resultado` ganaba a todo y la persona salia EN VERDE
+  // sin que nadie la hubiera validado. El fallo caia siempre del lado de dejar
+  // pasar. Ahora lo desconocido pesa como 'rojo' y ademas lo que se propaga es
+  // siempre un color valido. Gemelo del de scripts/ecoordina-sync.mjs.
   function peorEstado(a, b) {
-    const orden = { rojo: 3, naranja: 2, verde: 1 };
-    return (orden[a] || 0) >= (orden[b] || 0) ? a : b;
+    const orden = { verde: 1, naranja: 2, rojo: 3 };
+    const na = orden[a] ? a : 'rojo';
+    const nb = orden[b] ? b : 'rojo';
+    return orden[na] >= orden[nb] ? na : nb;
   }
 
   function esDocSoloRP(nombreDoc) {
@@ -470,7 +483,7 @@ window.EcoordinaImport = (function () {
   // ── Cálculo del resultado para UNA obra ───────────────────────────────────
   // filasObra: filas del archivo ya filtradas para esta obra.
   // ctx: { reglas, empresasPropias, autonomosSolos, exenciones, contratosVigentes, librosVigentes, trabajadoresApp }
-  // Devuelve: { resultadoFinal, descartadosMultiEmpresa, sinRegla }
+  // Devuelve: { resultadoFinal, descartadosMultiEmpresa, sinRegla, filasSinIdentificar }
   function calcularResultado(filasObra, ctx) {
     const reglas = ctx.reglas || [];
     const empresasPropias = ctx.empresasPropias || new Set();
@@ -481,14 +494,21 @@ window.EcoordinaImport = (function () {
     const trabajadoresApp = ctx.trabajadoresApp || {};
     const sinRegla = new Set();
 
-    // Separar filas empresa / trabajador
+    // DAT-025 · Tres cestas, no dos. Una fila SIN columna Trabajador es un
+    // documento de empresa de verdad. Una fila CON trabajador cuyo documento no
+    // se sabe leer NO es un documento de empresa: es una persona que no hemos
+    // sabido identificar. Meterla en la cesta de la empresa hacia que su papel
+    // caducado tinera a todos sus companeros de empresa.
     const filasEmpresa = [];
     const filasTrabajador = [];
+    const filasSinIdentificar = [];
     for (const fila of filasObra) {
-      const trabajadorRaw = fila['Trabajador'] || '';
-      const dni = extraerDniDeTrabajador(trabajadorRaw);
+      const trabajadorRaw = String(fila['Trabajador'] || '').trim();
+      const dni = trabajadorRaw ? extraerDniDeTrabajador(trabajadorRaw) : null;
       if (dni) {
         filasTrabajador.push({ ...fila, _dni: dni, _nombreTrabajador: extraerNombreTrabajador(trabajadorRaw), _empresaRaw: String(fila['Empresa'] || '').trim(), _fechaRef: fechaMasRecienteDeFila(fila) });
+      } else if (trabajadorRaw) {
+        filasSinIdentificar.push({ trabajador: trabajadorRaw, empresa: String(fila['Empresa'] || '').trim(), doc: String(fila['Documento'] || '') });
       } else {
         filasEmpresa.push(fila);
       }
@@ -661,7 +681,7 @@ window.EcoordinaImport = (function () {
     const orden = { rojo: 0, naranja: 1, verde: 2 };
     resultadoFinal.sort((a, b) => orden[a.estadoCalculado] - orden[b.estadoCalculado]);
 
-    return { resultadoFinal, descartadosMultiEmpresa, sinRegla };
+    return { resultadoFinal, descartadosMultiEmpresa, sinRegla, filasSinIdentificar };
   }
 
   // ── Aplicar (escritura en BD) ─────────────────────────────────────────────
