@@ -116,12 +116,17 @@ function docNoAplicaPorOficio(nombreDoc, categoria) {
   }
   return false;
 }
+// DAT-025 · Un NIE se escribe a veces con guiones (X-1234567-L) y un pasaporte
+// puede traer espacios o puntos. Antes el filtro los rechazaba, la fila se
+// tomaba por documento DE EMPRESA y el problema de una persona se convertía en
+// un problema de TODA su empresa. Ahora se limpian los separadores antes de
+// decidir. Para un DNI corriente (sin separadores) esto no cambia nada.
 function extraerDniDeTrabajador(texto) {
   if (!texto) return null;
-  const partes = texto.split(' - ');
+  const partes = String(texto).split(' - ');
   if (partes.length < 2) return null;
-  const dni = partes[partes.length - 1].trim();
-  if (/^[A-Z0-9]{6,10}$/i.test(dni)) return dni.toUpperCase();
+  const dni = partes[partes.length - 1].trim().replace(/[\s.\-\/]/g, '').toUpperCase();
+  if (/^[A-Z0-9]{6,10}$/.test(dni)) return dni;
   return null;
 }
 function extraerNombreTrabajador(texto) {
@@ -146,9 +151,17 @@ function fechaMasRecienteDeFila(fila) {
   for (const c of candidatos) { const t = parsearFechaEcoordina(c); if (t !== null && t > max) max = t; }
   return max === -Infinity ? null : max;
 }
+// DAT-006 · Un estado que no reconocemos NO puede valer menos que 'verde'.
+// Antes `orden[desconocido]` daba 0, por debajo de verde: un valor raro en la
+// base o en `reglas_documentales.resultado` ganaba a todo y la persona salía
+// EN VERDE sin que nadie la hubiera validado. El fallo caía siempre del lado
+// de dejar pasar. Ahora lo desconocido se convierte en 'rojo': el fallo cae
+// del lado de parar, y además lo que se guarda es siempre un color válido.
 function peorEstado(a, b) {
-  const orden = { rojo: 3, naranja: 2, verde: 1 };
-  return (orden[a] || 0) >= (orden[b] || 0) ? a : b;
+  const orden = { verde: 1, naranja: 2, rojo: 3 };
+  const na = orden[a] ? a : 'rojo';
+  const nb = orden[b] ? b : 'rojo';
+  return orden[na] >= orden[nb] ? na : nb;
 }
 
 // ── Estado global cargado de Supabase ─────────────────────────────────────────
@@ -158,6 +171,9 @@ let autonomosSolos = new Set();
 // Exenciones documentales por empresa: Map(clave empresa -> Map(doc -> motivo)).
 let exenciones = new Map();
 let contratosVigentes = new Set();
+// DAT-025 · Filas de la ultima obra procesada cuyo Trabajador no se ha podido
+// identificar. Se rellena en calcularResultadoObra y se lee al hacer el resumen.
+let filasSinIdentificar = [];
 let librosVigentes = new Set();
 
 // M-05: día de "hoy" en España (DST correcto). El runner de GitHub Actions
@@ -264,11 +280,19 @@ function calcularResultadoObra(filasObra, trabajadoresApp) {
   // Separar filas empresa / trabajador
   const filasEmpresa = [];
   const filasTrabajador = [];
+  // DAT-025 · Tres cestas, no dos. Una fila SIN columna Trabajador es un
+  // documento de empresa de verdad. Una fila CON trabajador cuyo documento no
+  // se sabe leer NO es un documento de empresa: es una persona que no hemos
+  // sabido identificar. Meterla en la cesta de la empresa hacía que su papel
+  // caducado tiñera a todos sus compañeros.
+  filasSinIdentificar = [];
   for (const fila of filasObra) {
-    const trabajadorRaw = fila['Trabajador'] || '';
-    const dni = extraerDniDeTrabajador(trabajadorRaw);
+    const trabajadorRaw = String(fila['Trabajador'] || '').trim();
+    const dni = trabajadorRaw ? extraerDniDeTrabajador(trabajadorRaw) : null;
     if (dni) {
       filasTrabajador.push({ ...fila, _dni: dni, _nombreTrabajador: extraerNombreTrabajador(trabajadorRaw), _empresaRaw: String(fila['Empresa'] || '').trim(), _fechaRef: fechaMasRecienteDeFila(fila) });
+    } else if (trabajadorRaw) {
+      filasSinIdentificar.push({ trabajador: trabajadorRaw, empresa: String(fila['Empresa'] || '').trim(), doc: fila['Documento'] || '' });
     } else {
       filasEmpresa.push(fila);
     }
@@ -609,7 +633,18 @@ async function main() {
       .eq('obra_id', obra.id)
       .lte('valido_desde', hoy)
       .or(`valido_hasta.is.null,valido_hasta.gte.${hoy}`);
-    if (cErr) { log(`   ⚠ error cargando contratos de ${obra.nombre}:`, cErr.message); }
+    // OPS-024 · Antes esto solo se apuntaba en el log y se seguia adelante con
+    // el conjunto VACIO. Consecuencia: toda subcontrata "sin contrato vigente"
+    // → ROJO. Un fallo de red a las 00:43 dejaba la obra entera bloqueada a las
+    // 06:39, con treinta personas en la puerta. No saber si hay contrato no es
+    // lo mismo que saber que no lo hay: si no se puede leer, la obra se SALTA
+    // y se conservan los semaforos de ayer.
+    if (cErr) {
+      log(`— ${obra.nombre}: SALTADA (no se han podido leer los contratos: ${cErr.message})`);
+      resumen.push({ obra: obra.nombre, estado: 'saltada (error leyendo contratos)', rpc: 'ERROR' });
+      huboFalloGrave = true;
+      continue;
+    }
     for (const c of (contratos || [])) {
       const nNombre = normalizar(c.empresa?.nombre), nCif = normalizar(c.empresa?.cif);
       if (nNombre && nCif) contratosVigentes.add(`${nNombre}|${nCif}`);
@@ -624,7 +659,15 @@ async function main() {
       .eq('obra_id', obra.id)
       .lte('valido_desde', hoy)
       .or(`valido_hasta.is.null,valido_hasta.gte.${hoy}`);
-    if (lErr) { log(`   ⚠ error cargando libros de subcontratación de ${obra.nombre}:`, lErr.message); }
+    // OPS-024 · Mismo razonamiento que los contratos: sin libro vigente el
+    // motor manda a rojo, asi que no poder leerlos pinta la obra entera de
+    // rojo. Se salta la obra en vez de fabricar un bloqueo masivo.
+    if (lErr) {
+      log(`— ${obra.nombre}: SALTADA (no se han podido leer los libros de subcontratación: ${lErr.message})`);
+      resumen.push({ obra: obra.nombre, estado: 'saltada (error leyendo libros)', rpc: 'ERROR' });
+      huboFalloGrave = true;
+      continue;
+    }
     for (const l of (libros || [])) {
       const nNombre = normalizar(l.empresa?.nombre), nCif = normalizar(l.empresa?.cif);
       if (nNombre && nCif) librosVigentes.add(`${nNombre}|${nCif}`);
@@ -650,7 +693,17 @@ async function main() {
       if (updErr) log(`   ⚠ no se pudo marcar ultima_sync_ecoordina en ${obra.nombre}:`, updErr.message);
     }
 
-    resumen.push({ obra: obra.nombre, trabajadores: resultado.length, ...cuenta, aplicados: res.aplicados, fallosCrear: res.fallosCrear, rpc: res.mainOk ? 'OK' : 'ERROR' });
+    // DAT-025 · Las filas con un trabajador que no hemos sabido identificar se
+    // REGISTRAN. No tumban la sincronizacion (un pasaporte permanente dejaria
+    // el banner clavado en rojo y un aviso que sale siempre no lo lee nadie),
+    // pero dejan de ser invisibles: van al log, al resumen y a ecoordina_sync.
+    if (filasSinIdentificar.length) {
+      log(`   ⚠ ${filasSinIdentificar.length} fila(s) con trabajador no identificado (no se han aplicado a la empresa):`);
+      for (const f of filasSinIdentificar.slice(0, 10)) {
+        log(`      · "${f.trabajador}" · ${f.empresa || '(sin empresa)'} · ${f.doc}`);
+      }
+    }
+    resumen.push({ obra: obra.nombre, trabajadores: resultado.length, ...cuenta, aplicados: res.aplicados, fallosCrear: res.fallosCrear, rpc: res.mainOk ? 'OK' : 'ERROR', sin_identificar: filasSinIdentificar.length });
   }
 
   log('================ RESUMEN ================');
