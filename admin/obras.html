@@ -624,9 +624,23 @@ document.getElementById('btn-guardar').onclick = async () => {
   // entera sin que salte ningún aviso; uno de 50.000 la deja fichar desde casa.
   // Mismo sitio y misma forma que la validación del descanso de aquí al lado.
   if (isNaN(radio_gps))                  { mostrarError('El radio GPS es obligatorio.'); return; }
-  if (radio_gps < 10 || radio_gps > 1000) {
-    mostrarError('El radio GPS debe estar entre 10 y 1000 metros. Un radio menor deja fuera a todo el mundo y apaga la obra; uno mayor permite fichar desde lejos.');
+  // Por ABAJO se bloquea: un radio pequeno deja fuera a TODO EL MUNDO y apaga
+  // la obra entera sin que salte ningun aviso. No hay caso legitimo.
+  if (radio_gps < 10) {
+    mostrarError('El radio GPS no puede ser menor de 10 metros: dejaria fuera a todo el mundo y la obra quedaria apagada sin avisar.');
     return;
+  }
+  // Por ARRIBA se AVISA, no se bloquea. La obra de pruebas lleva un radio
+  // enorme a proposito, y bloquear aqui impediria editarla. Mismo trato que
+  // las coordenadas fuera de Espana, veinte lineas mas abajo.
+  if (radio_gps > 1000) {
+    const okRadio = confirm(
+      '⚠️ Radio GPS muy grande: ' + radio_gps + ' m (' + (radio_gps / 1000).toFixed(1) + ' km).\n\n' +
+      'Con este radio se puede fichar desde muy lejos de la obra, incluso desde casa.\n' +
+      'Lo normal en una obra son 100–800 m.\n\n' +
+      '¿Guardar de todos modos?'
+    );
+    if (!okRadio) return;
   }
   if (isNaN(minutos_descanso) || minutos_descanso < 0 || minutos_descanso > 480) {
     mostrarError('El descanso debe ser un número de minutos entre 0 y 480.'); return;
