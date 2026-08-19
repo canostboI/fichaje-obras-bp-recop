@@ -447,8 +447,10 @@
       document.getElementById('card-selector').style.display = 'block';
 
       select.addEventListener('change', async () => {
+        // Sin guarda, un selector sin opción seleccionada revienta con un
+        // TypeError y la pantalla se queda muda.
         const opt = select.options[select.selectedIndex];
-        if (!opt.value) return;
+        if (!opt || !opt.value) return;
         document.getElementById('card-selector').style.display = 'none';
         await cargarObra(opt.value, opt.text, opt.dataset.marca);
       });
@@ -717,6 +719,13 @@
 
     zona.innerHTML = html;
 
+    // FICH-020 · Horas fijadas a mano a quien no tiene ningún fichaje este mes:
+    // no salen en ninguna hoja del proforma y no las paga nadie. Aviso, no
+    // cerrojo: el resto de las horas son correctas. Lo normal es que esté a
+    // cero, así que el aviso puede apagarse y merece la pena escribirlo.
+    const sinFichajesEnc = window.ExcelProforma.idsConHorasFijadasSinFichajes
+      ? window.ExcelProforma.idsConHorasFijadasSinFichajes(fichajes, ajustesMesMap) : [];
+
     const partes = [];
     if (avisosCarga.length) {
       partes.push('⛔ Estas horas pueden NO ser correctas: ' + avisosCarga.join('; ')
@@ -724,6 +733,10 @@
     }
     if (totalAutocierres > 0) {
       partes.push(`⚠️ ${totalAutocierres} ${totalAutocierres === 1 ? 'salida' : 'salidas'} con cierre automático este mes.`);
+    }
+    if (sinFichajesEnc.length > 0) {
+      const n = sinFichajesEnc.length;
+      partes.push(`⚠️ ${n} ${n === 1 ? 'persona tiene horas fijadas' : 'personas tienen horas fijadas'} a mano y ningún fichaje este mes: esas horas NO salen en el proforma.`);
     }
     if (partes.length) {
       msg.className = avisosCarga.length ? 'msg-info err' : 'msg-info aviso';

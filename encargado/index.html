@@ -839,6 +839,9 @@
   document.getElementById('btn-elegir-obra').addEventListener('click', () => {
     const select = document.getElementById('select-obra');
     const opt = select.options[select.selectedIndex];
+    // Sin guarda, pulsar el boton con el selector vacio revienta con un
+    // TypeError y el encargado se queda sin poder entrar en ninguna obra.
+    if (!opt) return;
     const obraId = opt.value;
     const nombre = opt.text;
     const marca = opt.dataset.marca || 'bosch_pascual';

@@ -229,6 +229,7 @@
 
       select.addEventListener('change', async () => {
         const opt = select.options[select.selectedIndex];
+        if (!opt) return;
         if (!opt.value) return;
         await cargarObra(opt.value, opt.text, opt.dataset.marca, opt.dataset.fotoUrl);
       });
