@@ -195,30 +195,64 @@
         t.dias_autocierre[d] = 0;
       }
 
-      const porDia = {};
+      // Autocierres: se siguen contando por DÍA NATURAL, exactamente igual que
+      // antes del emparejado. Es un contador de avisos, no una hora que se
+      // pague, y una salida automática sin entrada delante también interesa
+      // verla. Separado a propósito del cálculo de horas.
       t.fichajes.forEach(f => {
-        const d = new Date(f.hora);
-        const dia = d.getDate();
-        if (!porDia[dia]) porDia[dia] = [];
-        porDia[dia].push({ tipo: f.tipo, hora: d, cierre_automatico: !!f.cierre_automatico });
+        if (f.tipo !== 'salida' || !f.cierre_automatico) return;
+        const dia = new Date(f.hora).getDate();
+        if (dia >= 1 && dia <= diasMes) t.dias_autocierre[dia] = (t.dias_autocierre[dia] || 0) + 1;
       });
 
-      Object.keys(porDia).forEach(diaStr => {
-        const dia = Number(diaStr);
-        const eventos = porDia[dia].sort((a, b) => a.hora - b.hora);
+      // FICH-016 + FICH-017 — CADA ENTRADA CON *SU* SALIDA, NO POR DÍA NATURAL.
+      // Antes se agrupaba por día del calendario. Una jornada que termina
+      // después de medianoche dejaba una entrada sin salida en un día y una
+      // salida sin entrada en el siguiente: los DOS días valían CERO. Quien
+      // fichó la salida a las 00:10 cobraba cero por un día entero de trabajo.
+      //
+      // Ahora los fichajes se recorren en orden y se agrupan en JORNADAS:
+      //   · una jornada ABRE con una `entrada`;
+      //   · se le van sumando los eventos siguientes;
+      //   · se CIERRA en cuanto llega una `entrada` de OTRO día natural.
+      // Dentro de la jornada se sigue tomando la PRIMERA entrada y la ÚLTIMA
+      // salida (modelo de obra: la pausa de comer no se ficha), así que un día
+      // corriente da EXACTAMENTE el mismo número que antes. La jornada se
+      // imputa al día en que EMPEZÓ.
+      //
+      // Límite conocido y aceptado: los fichajes llegan acotados al mes, así
+      // que una jornada que empieza el día 31 y termina el 1 del mes siguiente
+      // se queda sin salida y vale cero — igual que hoy, ni mejor ni peor.
+      const eventosOrdenados = t.fichajes
+        .map(f => ({ tipo: f.tipo, hora: new Date(f.hora), cierre_automatico: !!f.cierre_automatico }))
+        .filter(ev => !isNaN(ev.hora.getTime()))
+        .sort((a, b) => a.hora - b.hora);
 
-        // Modelo de obra: una entrada al llegar y una salida al irse (la pausa
-        // de comer NO se ficha). Tomamos la primera entrada y la última salida
-        // del día; el descanso se descuenta como bloque sobre el bruto.
-        let primeraEntrada = null, ultimaSalida = null, autocierresDia = 0;
-        eventos.forEach(ev => {
-          if (ev.tipo === 'entrada') {
-            if (!primeraEntrada) primeraEntrada = ev.hora;
-          } else if (ev.tipo === 'salida') {
-            ultimaSalida = ev.hora;
-            if (ev.cierre_automatico) autocierresDia++;
+      const jornadas = [];
+      let jornadaAbierta = null;
+      eventosOrdenados.forEach(ev => {
+        if (ev.tipo === 'entrada') {
+          // Una entrada de otro día quiere decir que la jornada anterior ya
+          // terminó (con salida o sin ella).
+          if (jornadaAbierta && !mismoDiaNatural(jornadaAbierta.entrada, ev.hora)) jornadaAbierta = null;
+          if (!jornadaAbierta) {
+            jornadaAbierta = { entrada: ev.hora, salida: null };
+            jornadas.push(jornadaAbierta);
           }
-        });
+          // Una segunda entrada del MISMO día no abre jornada nueva: sigue
+          // valiendo la primera, que es el modelo que ya había.
+        } else if (ev.tipo === 'salida') {
+          // Una salida sin entrada delante no se puede valorar: no se sabe
+          // cuándo empezó. Se ignora, igual que antes.
+          if (jornadaAbierta) jornadaAbierta.salida = ev.hora;
+        }
+      });
+
+      jornadas.forEach(j => {
+        const dia = j.entrada.getDate();
+        if (dia < 1 || dia > diasMes) return;
+        const primeraEntrada = j.entrada;
+        const ultimaSalida = j.salida;
 
         let netoDia = 0;
         if (primeraEntrada && ultimaSalida && ultimaSalida > primeraEntrada) {
@@ -270,7 +304,6 @@
         }
 
         t.dias[dia] = redondear2(netoDia);
-        t.dias_autocierre[dia] = autocierresDia;
       });
 
       // Horas fijadas a mano: sustituyen a las calculadas en ese día.
@@ -842,6 +875,14 @@
     return new Date(fechaRef.getFullYear(), fechaRef.getMonth(), fechaRef.getDate(), h, m, 0, 0);
   }
 
+  // ¿Dos instantes caen el mismo día del calendario (hora local)?
+  // Sirve para decidir dónde termina una jornada y empieza la siguiente.
+  function mismoDiaNatural(a, b) {
+    return a.getFullYear() === b.getFullYear()
+        && a.getMonth() === b.getMonth()
+        && a.getDate() === b.getDate();
+  }
+
   function fechaISOLocal(d) {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -859,10 +900,34 @@
     return largo;
   }
 
+  // FICH-020 · Horas fijadas a mano que NO las lee nadie.
+  // El resumen del mes (pantalla y Excel) se construye a partir de los
+  // FICHAJES: primero se agrupa por empresa y luego se recorre a los
+  // trabajadores que aparecen ahí. Quien tiene horas fijadas a mano pero
+  // ningún fichaje ese mes NO aparece en ningún grupo, así que sus horas
+  // existen en la base de datos y no salen ni en pantalla ni en el proforma.
+  // Nadie las paga y nadie se entera.
+  // Devuelve los `trabajador_id` afectados para que la pantalla avise.
+  function idsConHorasFijadasSinFichajes(fichajes, ajustes) {
+    if (!ajustes) return [];
+    const conFichaje = new Set();
+    (fichajes || []).forEach(f => {
+      const id = f.trabajador_id || (f.trabajador && f.trabajador.id);
+      if (id) conFichaje.add(String(id));
+    });
+    return Object.keys(ajustes).filter(id => {
+      if (conFichaje.has(String(id))) return false;
+      const dias = ajustes[id] || {};
+      return Object.keys(dias).length > 0;
+    });
+  }
+
   // API pública.
   // - generar: crea el Excel proforma (uso original).
   // - agruparPorEmpresa y construirResumenTrabajadores: expuestas para P-07
   //   (resumen mensual en pantalla), para que pantalla y Excel usen
   //   exactamente el mismo cálculo de horas.
-  window.ExcelProforma = { generar, agruparPorEmpresa, construirResumenTrabajadores };
+  // - idsConHorasFijadasSinFichajes: la usan las dos `resumen-mes.html` para
+  //   avisar de las horas fijadas que se quedarían fuera (FICH-020).
+  window.ExcelProforma = { generar, agruparPorEmpresa, construirResumenTrabajadores, idsConHorasFijadasSinFichajes };
 })();
