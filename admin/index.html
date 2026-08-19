@@ -149,6 +149,8 @@
   </div>
   <div class="contenido">
     <div id="banner-crons" style="display:none;margin-bottom:18px;padding:12px 16px;border-radius:10px;font-size:14px;font-weight:600;line-height:1.5;"></div>
+    <div id="banner-vigilante" style="display:none;margin-bottom:18px;padding:12px 16px;border-radius:10px;font-size:14px;font-weight:600;line-height:1.5;"></div>
+    <div id="banner-avisos-ronda" style="display:none;margin-bottom:18px;padding:12px 16px;border-radius:10px;font-size:14px;font-weight:600;line-height:1.5;"></div>
     <div id="banner-ecoordina" style="display:none;margin-bottom:18px;padding:12px 16px;border-radius:10px;font-size:14px;font-weight:600;"></div>
     <div class="stats">
       <div class="stat"><div class="numero azul" id="stat-fichajes">—</div><div class="etiqueta">Fichajes hoy</div></div>
@@ -265,9 +267,124 @@ function rangoHoyLocal() {
     cargarTablaRojos(),
     cargarIncidencias(),
     cargarSyncEcoordina(),
-    cargarSaludCrons()
+    cargarSaludCrons(),
+    cargarVigilantePermisos(),
+    cargarAvisosRonda()
   ]);
 })();
+
+// ── Vigilante de permisos: ¿corrió, y salió el aviso? ───────────────────────
+// OPS-007 · `auditoria_permisos_log` era el ÚNICO sitio donde constaba si el
+// aviso de seguridad llegó a salir, y no lo pintaba ninguna pantalla. El
+// vigilante estuvo quince días diciendo «todo bien» sin que nadie pudiera
+// verlo. Un aviso que falla se ve; uno que calla, no.
+async function cargarVigilantePermisos() {
+  const el = document.getElementById('banner-vigilante');
+  let data, error;
+  try {
+    ({ data, error } = await sb.from('auditoria_permisos_log')
+      .select('ejecutada_en, hay_desviacion, cuantas, aviso_enviado, aviso_error')
+      .order('ejecutada_en', { ascending: false }).limit(1).maybeSingle());
+  } catch (e) { error = e; }
+
+  el.style.display = 'block';
+  el.style.border = 'none';
+
+  // No poder leerlo es en sí mismo la noticia: no se pinta verde ni se calla.
+  if (error) {
+    el.style.background = 'rgba(255,152,0,0.15)'; el.style.color = '#ff9800';
+    el.textContent = '⚠️ Vigilante de permisos: no se ha podido leer su registro (' + (error.message || 'error desconocido') + ').';
+    return;
+  }
+  if (!data) {
+    el.style.background = 'rgba(255,152,0,0.15)'; el.style.color = '#ff9800';
+    el.textContent = '⚠️ Vigilante de permisos: no hay ninguna ejecución registrada.';
+    return;
+  }
+
+  const d = new Date(data.ejecutada_en);
+  const cuando = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' a las ' +
+                 d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const horas = (Date.now() - d.getTime()) / 3600000;
+
+  // Corre todos los días a las 07:00 de Madrid. Más de 30 h es que no corrió.
+  if (horas > 30) {
+    el.style.background = 'rgba(244,67,54,0.15)'; el.style.color = '#f44336';
+    el.style.border = '1px solid rgba(244,67,54,0.4)';
+    el.textContent = `🚨 Vigilante de permisos: su última comprobación es del ${cuando} — lleva ${Math.round(horas)}h sin correr.`;
+    return;
+  }
+  if (data.aviso_error) {
+    el.style.background = 'rgba(244,67,54,0.15)'; el.style.color = '#f44336';
+    el.style.border = '1px solid rgba(244,67,54,0.4)';
+    el.innerHTML = `🚨 <strong>Vigilante de permisos: encontró algo y EL AVISO NO SALIÓ</strong><br>` +
+      `Comprobación del ${esc(cuando)} · ${Number(data.cuantas) || 0} desviación(es) · error del envío: ${esc(String(data.aviso_error).slice(0, 200))}`;
+    return;
+  }
+  if (data.hay_desviacion) {
+    el.style.background = 'rgba(244,67,54,0.15)'; el.style.color = '#f44336';
+    el.style.border = '1px solid rgba(244,67,54,0.4)';
+    el.textContent = `🚨 Vigilante de permisos: ${Number(data.cuantas) || 0} permiso(s) fuera de lo esperado en la comprobación del ${cuando}` +
+      (data.aviso_enviado ? ' (aviso enviado por correo).' : '.');
+    return;
+  }
+  el.style.background = 'rgba(76,175,80,0.15)'; el.style.color = '#4caf50';
+  el.textContent = `✅ Vigilante de permisos: sin desviaciones. Última comprobación el ${cuando}.`;
+}
+
+// ── Avisos de ronda: ¿salieron los SMS y los correos? ───────────────────────
+// OPS-002 · El fallo del correo de la ronda se perdía: la respuesta de
+// `marcar_ronda` llega al navegador del encargado y se descarta, y nadie mira
+// `avisos_ronda_enviados`. Aquí se enseña lo de los últimos siete días.
+// OJO: si `marcar_ronda` no puede leer la clave de Brevo del Vault, NO escribe
+// ninguna fila. Por eso «0 envíos» no se pinta en verde: se dice tal cual.
+async function cargarAvisosRonda() {
+  const el = document.getElementById('banner-avisos-ronda');
+  const desde = new Date(Date.now() - 7 * 24 * 3600000).toISOString();
+  let data, error;
+  try {
+    ({ data, error } = await sb.from('avisos_ronda_enviados')
+      .select('nivel, telefono, status_http, respuesta, created_at')
+      .gte('created_at', desde)
+      .order('created_at', { ascending: false })
+      .limit(200));
+  } catch (e) { error = e; }
+
+  el.style.display = 'block';
+  el.style.border = 'none';
+
+  if (error) {
+    el.style.background = 'rgba(255,152,0,0.15)'; el.style.color = '#ff9800';
+    el.textContent = '⚠️ Avisos de ronda: no se ha podido leer su registro (' + (error.message || 'error desconocido') + ').';
+    return;
+  }
+
+  const filas = data || [];
+  const fallidos = filas.filter(f => f.status_http == null || Number(f.status_http) >= 300);
+
+  if (fallidos.length) {
+    const detalle = fallidos.slice(0, 5).map(f => {
+      const c = new Date(f.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+      const via = Number(f.nivel) === 4 ? 'correo' : 'SMS';
+      const cod = f.status_http == null ? 'sin respuesta' : 'HTTP ' + f.status_http;
+      return `· ${c} · aviso nivel ${esc(String(f.nivel))} por ${via} a ${esc(String(f.telefono || '—'))} — ${esc(cod)}`;
+    }).join('<br>');
+    el.style.background = 'rgba(244,67,54,0.15)'; el.style.color = '#f44336';
+    el.style.border = '1px solid rgba(244,67,54,0.4)';
+    el.innerHTML = `🚨 <strong>Avisos de ronda: ${fallidos.length} envío(s) fallido(s) en los últimos 7 días</strong><br>${detalle}` +
+      (fallidos.length > 5 ? `<br>…y ${fallidos.length - 5} más.` : '');
+    return;
+  }
+
+  if (filas.length === 0) {
+    el.style.background = 'rgba(139,144,158,0.15)'; el.style.color = '#8b909e';
+    el.textContent = 'ℹ️ Avisos de ronda: ningún envío en los últimos 7 días. Puede ser que no haya hecho falta ninguno, o que el envío ni siquiera se intentara (falta la clave de Brevo).';
+    return;
+  }
+
+  el.style.background = 'rgba(76,175,80,0.15)'; el.style.color = '#4caf50';
+  el.textContent = `✅ Avisos de ronda: ${filas.length} envío(s) en los últimos 7 días, todos aceptados.`;
+}
 
 // ── Vigilante de crons ──────────────────────────────────────────────────────
 // Llama a salud_crons() y muestra banner ROJO si algún cron falló o lleva
@@ -299,9 +416,31 @@ async function cargarSaludCrons() {
   const diaMadrid = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Madrid' })).getDay();
   const esFinDeSemanaOLunes = (diaMadrid === 0 || diaMadrid === 6 || diaMadrid === 1);
 
+  // OPS-006 · Antes esto solo miraba lo que VENÍA. Un cron borrado no aparece
+  // en la respuesta y uno desactivado se saltaba con un `return`: las dos
+  // formas de quedarse sin automatismo eran invisibles. El de las 00:30 es del
+  // que más depende todo, y si se apaga no había ninguna señal. Ahora se
+  // compara contra una línea base, en los dos sentidos, igual que hace
+  // auditoria_permisos() con los permisos.
+  const CRONS_ESPERADOS = [
+    'autocierre_nocturno',
+    'aviso_ronda_1',
+    'aviso_ronda_2',
+    'aviso_ronda_3',
+    'auditoria_permisos_diaria'
+  ];
   const problemas = [];
+  const presentes = new Set(data.map(c => c.jobname));
+  CRONS_ESPERADOS.forEach(nombre => {
+    if (!presentes.has(nombre)) problemas.push(`«${nombre}» NO EXISTE en la base de datos (se ha borrado o nunca se creó)`);
+  });
   data.forEach(c => {
-    if (!c.activo) return; // crons desactivados a propósito no alarman
+    if (!c.activo) {
+      // Desactivado no es lo mismo que ausente, pero tampoco es "todo bien":
+      // si es uno de los cinco de la lista, se dice.
+      if (CRONS_ESPERADOS.includes(c.jobname)) problemas.push(`«${c.jobname}» está DESACTIVADO`);
+      return;
+    }
     const esLaborable = (c.schedule || '').includes('1-5');
     const umbral = esLaborable && esFinDeSemanaOLunes ? 80 : 26;
 

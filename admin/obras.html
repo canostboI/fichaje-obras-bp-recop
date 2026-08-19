@@ -605,7 +605,12 @@ document.getElementById('btn-guardar').onclick = async () => {
   const entradaRaw  = document.getElementById('f-entrada').value;
   const salidaRaw   = document.getElementById('f-salida').value;
   const empresa_marca = document.getElementById('f-empresa').value;
-  const estado      = document.getElementById('f-estado').value;
+  // DAT-018 · Si el desplegable se quedara sin opción seleccionada, `.value`
+  // viene vacío y se guardaría un estado en blanco. Misma guarda que ya tiene
+  // `f-categoria` en la pantalla de trabajadores.
+  const selEstado   = document.getElementById('f-estado');
+  if (selEstado.selectedIndex === -1) selEstado.value = 'activa';
+  const estado      = selEstado.value;
   const ecoordinaCentroRaw = document.getElementById('f-ecoordina-centro').value.trim();
 
   if (!nombre)                           { mostrarError('El nombre es obligatorio.'); return; }
@@ -613,7 +618,16 @@ document.getElementById('btn-guardar').onclick = async () => {
   if (latitud < -90 || latitud > 90 || longitud < -180 || longitud > 180) {
     mostrarError('Las coordenadas no son válidas (latitud entre −90 y 90, longitud entre −180 y 180).'); return;
   }
+  // DAT-017 · Antes solo se miraba que fuera un número. El `min`/`max` del
+  // <input> no lo comprueba nadie porque esto no es un <form>: se guardaba tal
+  // cual. Un radio a 0 deja a TODO EL MUNDO fuera de la zona y apaga la obra
+  // entera sin que salte ningún aviso; uno de 50.000 la deja fichar desde casa.
+  // Mismo sitio y misma forma que la validación del descanso de aquí al lado.
   if (isNaN(radio_gps))                  { mostrarError('El radio GPS es obligatorio.'); return; }
+  if (radio_gps < 10 || radio_gps > 1000) {
+    mostrarError('El radio GPS debe estar entre 10 y 1000 metros. Un radio menor deja fuera a todo el mundo y apaga la obra; uno mayor permite fichar desde lejos.');
+    return;
+  }
   if (isNaN(minutos_descanso) || minutos_descanso < 0 || minutos_descanso > 480) {
     mostrarError('El descanso debe ser un número de minutos entre 0 y 480.'); return;
   }
@@ -730,7 +744,9 @@ async function cargarEquipo() {
         <span class="equipo-item-email">
           ${esc(item.usuario_app?.email || '')} · <span class="pill ${item.rol_en_obra === 'jefe_obra' ? 'azul' : 'naranja'}">${item.rol_en_obra === 'jefe_obra' ? 'Jefe de obra' : 'Encargado'}</span>
           ${!item.usuario_app?.auth_user_id ? ' <span class="pill naranja">⚠️ Sin vincular</span>' : ''}
-          ${!item.usuario_app?.auth_user_id ? ` <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;" onclick="editarEmail('${item.usuario_app?.id}', '${esc(item.usuario_app?.email || '')}')">Editar email</button>` : ''}
+          ${!item.usuario_app?.auth_user_id
+          ? ` <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;" onclick="editarEmail('${item.usuario_app?.id}', '${esc(item.usuario_app?.email || '')}')">Editar email</button>`
+          : ` <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;" onclick="enviarEnlaceAcceso('${esc(item.usuario_app?.email || '')}', '${esc(item.usuario_app?.nombre || '')}')">Enviar enlace de acceso</button>`}
         </span>
         <span class="equipo-item-email">
           📞 ${item.usuario_app?.telefono ? esc(item.usuario_app.telefono) : '<em>sin teléfono</em>'}
@@ -791,6 +807,32 @@ async function editarEmail(usuarioAppId, actual) {
   if (!data || data.length === 0) { mostrarErrorEquipo('Este usuario ya creó su contraseña: su email no puede cambiarse desde aquí.'); await cargarEquipo(); return; }
   mostrarOkEquipo('✓ Email actualizado. Dile que entre en la web y pulse "¿Primera vez? Crea tu contraseña" con este email.');
   await cargarEquipo();
+}
+
+// OPS-012 · Callejón sin salida operativo: la pantalla de acceso manda a los
+// usuarios a pedirle la cuenta al administrador, y el administrador no tenía
+// ningún botón que pulsar. Ahora puede lanzar el mismo correo de recuperación
+// que el usuario se lanzaría a sí mismo desde «¿Has olvidado tu contraseña?».
+//
+// El enlace va al correo DEL USUARIO, no al del administrador, y a propósito:
+// poner una contraseña por cuenta ajena necesitaría la clave de servicio de
+// Supabase, y esa clave no puede vivir en un repositorio público.
+async function enviarEnlaceAcceso(email, nombre) {
+  const limpio = String(email || '').trim().toLowerCase();
+  if (!limpio) { mostrarErrorEquipo('Ese usuario no tiene email guardado: no se le puede enviar ningún enlace.'); return; }
+  const ok = confirm(
+    `Enviar a "${nombre || limpio}" un enlace para crear una contraseña nueva.\n\n` +
+    `El correo llega a: ${limpio}\n\n` +
+    'Es el mismo enlace que sale de "¿Has olvidado tu contraseña?" en la pantalla de acceso. ' +
+    'Caduca en una hora y no cambia nada hasta que la persona lo abra.\n\n¿Enviar?'
+  );
+  if (!ok) return;
+  ocultarMensajesEquipo();
+  const { error } = await sb.auth.resetPasswordForEmail(limpio, {
+    redirectTo: 'https://canostboi.github.io/fichaje-obras-bp-recop/nueva-password.html'
+  });
+  if (error) { mostrarErrorEquipo('No se ha podido enviar el enlace: ' + error.message); return; }
+  mostrarOkEquipo(`✓ Enlace enviado a ${limpio}. Dile que lo busque también en la carpeta de spam y que lo abra antes de una hora.`);
 }
 
 async function darDeBaja(usuarioAppId, nombre) {
