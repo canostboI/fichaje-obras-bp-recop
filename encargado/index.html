@@ -1990,6 +1990,10 @@
     document.getElementById('msg-manual-err').style.display = 'none';
     document.getElementById('msg-manual-ok').style.display = 'none';
     document.getElementById('manual-fecha').value = fechaHoy();
+    // Entrada 28: techo de fecha. Se usa fechaHoyISO() (local) y NO
+    // fechaHoy() de este archivo, que va en UTC y entre las 00:00 y las
+    // 02:00 devolveria AYER, dejando al encargado sin poder elegir hoy.
+    document.getElementById('manual-fecha').max = fechaHoyISO();
     document.getElementById('manual-hora').value = horaAhora();
     document.getElementById('manual-tipo').value = 'entrada';
     document.getElementById('manual-motivo').value = '';
