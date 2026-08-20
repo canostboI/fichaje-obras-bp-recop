@@ -606,6 +606,9 @@ document.getElementById('btn-manual').addEventListener('click', async () => {
   document.getElementById('error-manual').style.display = 'none';
   document.getElementById('ok-manual').style.display = 'none';
   document.getElementById('manual-fecha').value = document.getElementById('filtro-fecha').value || fechaHoy();
+  // Entrada 28: el servidor ya rechaza el dia futuro. Que la pantalla no
+  // deje ni elegirlo. fechaHoy() de este archivo es hora LOCAL.
+  document.getElementById('manual-fecha').max = fechaHoy();
   document.getElementById('manual-hora').value = horaAhora();
   document.getElementById('manual-tipo').value = 'entrada';
   document.getElementById('manual-motivo').value = '';
