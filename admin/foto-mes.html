@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Foto del mes cerrado — Fichaje Obras</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --verde: #4caf50;
+    --naranja: #ff9800;
+    --rojo: #f44336;
+    --azul: #2196f3;
+    --bg: #111318;
+    --bg2: #1a1d24;
+    --bg3: #22262f;
+    --borde: #2e3340;
+    --texto: #e8eaf0;
+    --texto2: #8b909e;
+    --sidebar-w: 200px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
+
+  .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+  .sidebar-brand { padding: 18px 16px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: center; gap: 14px; }
+  .sidebar-brand img { height: 22px; width: auto; opacity: 0.9; }
+  .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
+  .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
+  .sidebar a:hover { background: var(--bg3); color: var(--texto); }
+  .sidebar a.activo { background: var(--bg3); color: var(--texto); font-weight: 600; }
+  .sidebar a .ico { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid var(--borde); }
+  .btn-salir { width: 100%; background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 8px; transition: background 0.15s, color 0.15s; }
+  .btn-salir:hover { background: var(--bg3); color: var(--texto); }
+
+  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+  .topbar { padding: 20px 28px 0; display: flex; align-items: center; justify-content: space-between; }
+  .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+  .topbar .usuario { font-size: 13px; color: var(--texto2); }
+  .contenido { padding: 24px 28px 60px; max-width: 1100px; }
+
+  .controles { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 18px 20px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+  .campo { display: flex; flex-direction: column; gap: 6px; }
+  .campo label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--texto2); }
+  .campo select, .campo input { background: var(--bg3); border: 1px solid var(--borde); color: var(--texto); padding: 9px 12px; border-radius: 8px; font-size: 14px; font-family: inherit; }
+  .campo select { min-width: 240px; }
+  .btn-ver { background: var(--azul); border: none; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .btn-ver:hover { background: #1a80d9; }
+  .btn-ver:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-sec { background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 8px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
+  .btn-sec:hover { background: var(--bg3); color: var(--texto); }
+
+  .caja { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 20px 22px; margin-bottom: 18px; }
+  .caja h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--texto2); margin-bottom: 14px; font-weight: 700; }
+
+  .cifras { display: flex; flex-wrap: wrap; gap: 26px; }
+  .cifra { min-width: 110px; }
+  .cifra .n { font-size: 26px; font-weight: 800; line-height: 1.1; }
+  .cifra .et { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--texto2); margin-top: 4px; }
+
+  .firma { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--borde); font-size: 13px; line-height: 1.7; color: var(--texto2); }
+  .firma b { color: var(--texto); font-weight: 700; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--borde); color: var(--texto2); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 9px 10px; border-bottom: 1px solid rgba(46,51,64,0.5); }
+  td.num, th.num { text-align: right; }
+  tr:last-child td { border-bottom: none; }
+  tr.fila-trab { cursor: pointer; }
+  tr.fila-trab:hover td { background: var(--bg3); }
+  tr.fila-trab.abierta td { background: var(--bg3); }
+  .flecha { display: inline-block; width: 14px; color: var(--texto2); }
+  .sub { background: rgba(0,0,0,0.22); }
+  .sub td { padding: 0; border-bottom: 1px solid var(--borde); }
+  .sub-in { padding: 12px 16px 16px 34px; }
+  .sub-in table { font-size: 12px; }
+  .sub-in th { font-size: 10px; }
+  .cero td { color: var(--texto2); }
+
+  .marca { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 5px; margin-right: 4px; letter-spacing: 0.3px; }
+  .m-int { background: rgba(33,150,243,0.18); color: #7ec4f7; }
+  .m-sab { background: rgba(255,152,0,0.18); color: #ffbe5c; }
+  .m-auto { background: rgba(244,67,54,0.16); color: #ff8a80; }
+  .m-man { background: rgba(76,175,80,0.16); color: #8bd98f; }
+  .m-aj { background: rgba(255,152,0,0.22); color: #ffd08a; }
+
+  .reglas-tabla td:first-child { color: var(--texto2); width: 42%; }
+  .reglas-tabla td:last-child { font-weight: 700; }
+  .dias-int { font-size: 13px; line-height: 1.7; }
+
+  .aviso { padding: 14px 18px; border-radius: 10px; font-size: 14px; margin-bottom: 14px; line-height: 1.5; }
+  .aviso-error { background: rgba(244,67,54,0.12); border: 1px solid var(--rojo); }
+  .aviso-ok { background: rgba(76,175,80,0.12); border: 1px solid var(--verde); }
+  .aviso-info { background: rgba(33,150,243,0.10); border: 1px solid var(--azul); }
+  .aviso-naranja { background: rgba(255,152,0,0.12); border: 1px solid var(--naranja); }
+  .aviso b { font-weight: 700; }
+
+  .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 15px; }
+  .pista { font-size: 12px; color: var(--texto2); margin-top: 10px; line-height: 1.5; }
+  .barra-tabla { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .buscador { background: var(--bg3); border: 1px solid var(--borde); color: var(--texto); padding: 9px 12px; border-radius: 8px; font-size: 14px; font-family: inherit; min-width: 260px; }
+  .vacio { padding: 24px 10px; text-align: center; color: var(--texto2); font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-brand">
+    <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
+    <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
+  </div>
+  <div class="sidebar-section">Administración</div>
+  <a href="index.html"><span class="ico">📊</span> Dashboard</a>
+  <a href="obras.html"><span class="ico">🏗</span> Obras</a>
+  <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
+  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
+  <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
+  <a href="cierre-mes.html"><span class="ico">🔒</span> Cierre de mes</a>
+  <a href="foto-mes.html" class="activo"><span class="ico">📷</span> Foto del mes</a>
+  <a href="incidencias.html"><span class="ico">⚠️</span> Incidencias</a>
+  <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
+  <a href="informe-rojos.html"><span class="ico">📕</span> Informe de rojos</a>
+  <a href="importar-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
+  <div class="sidebar-bottom">
+    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>Foto del mes cerrado</h1>
+    <span class="usuario" id="usuario-email"></span>
+  </div>
+  <div class="contenido">
+
+    <div class="aviso aviso-info">
+      Esto enseña <b>lo que se firmó</b>, no lo que dicen los fichajes de hoy. Los números de esta
+      pantalla no se recalculan nunca: salen tal cual de la foto que se congeló el día del cierre,
+      junto con las reglas de la obra que se usaron. Si un fichaje se ha corregido después,
+      la diferencia con esta foto es una regularización, no un error de la foto.
+    </div>
+
+    <div class="controles">
+      <div class="campo">
+        <label for="sel-obra">Obra</label>
+        <select id="sel-obra"><option value="">Cargando obras…</option></select>
+      </div>
+      <div class="campo">
+        <label for="inp-mes">Mes</label>
+        <input type="month" id="inp-mes">
+      </div>
+      <button class="btn-ver" id="btn-ver">Ver la foto</button>
+    </div>
+
+    <div id="zona">
+      <div class="cargando">Elige una obra y un mes, y pulsa «Ver la foto».</div>
+    </div>
+
+  </div>
+</div>
+
+<script src="../js/auto-logout.js"></script>
+<script src="../js/sb-paginado.js"></script>
+<script>
+const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Esta pantalla NO calcula horas. Lee números ya congelados. El motor de
+// horas vive solo en js/excel-proforma.js y aquí no pinta nada: si algún
+// día hiciera falta recalcular, sería otra pantalla, no esta.
+
+// ─────────────────────────────────────────────────────────────────────
+// Utilidades
+// ─────────────────────────────────────────────────────────────────────
+
+function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt == null ? '' : txt); return d.innerHTML; }
+function r2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+function fmtH(n) { return r2(n).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+// Las fechas de día vienen como 'YYYY-MM-DD'. Se parten a mano: pasarlas
+// por new Date() las mueve de día según la zona del navegador.
+function fmtFecha(ymd) {
+  if (!ymd) return '—';
+  const p = String(ymd).slice(0, 10).split('-');
+  if (p.length !== 3) return String(ymd);
+  return p[2] + '/' + p[1] + '/' + p[0];
+}
+const DIAS_SEMANA = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+function diaSemana(ymd) {
+  const p = String(ymd).slice(0, 10).split('-').map(Number);
+  if (p.length !== 3) return '';
+  return DIAS_SEMANA[new Date(p[0], p[1] - 1, p[2]).getDay()];
+}
+
+// Las horas son timestamptz. Se pintan SIEMPRE en Europe/Madrid, no en la
+// zona del portátil de quien mire la pantalla.
+function fmtHora(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' });
+}
+function fmtFechaHora(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('es-ES', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid'
+  });
+}
+function sinAcentos(s) {
+  return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+function nombreCompleto(d) {
+  return [d.trabajador_nombre, d.trabajador_apellidos].filter(Boolean).join(' ').trim();
+}
+
+// Lo que hay ahora mismo en pantalla.
+let vista = null;
+let filtro = '';
+let abierto = null;
+
+// ─────────────────────────────────────────────────────────────────────
+// Carga
+// ─────────────────────────────────────────────────────────────────────
+
+async function cargarObras() {
+  const sel = document.getElementById('sel-obra');
+  const { data, error } = await sb.from('obras').select('id, nombre, estado').neq('estado', 'oculta').order('nombre');
+  if (error) { sel.innerHTML = '<option value="">Error al cargar obras</option>'; return; }
+  if (!data || !data.length) { sel.innerHTML = '<option value="">No hay obras</option>'; return; }
+  sel.innerHTML = '<option value="">— Elige una obra —</option>' +
+    data.map(o => `<option value="${esc(o.id)}">${esc(o.nombre)}${(o.estado && o.estado !== 'activa') ? ` (${esc(o.estado)})` : ''}</option>`).join('');
+}
+
+// Todas las versiones del mes, la vigente y las sustituidas. Una discusión
+// con administración puede ser justamente sobre la versión vieja.
+async function traerVersiones(obraId, mes) {
+  const { data, error } = await sb.from('cierres_mes')
+    .select('id, mes, version, vigente, cerrado_por_nombre, cerrado_en, motivo, reglas, motor, total_lineas, total_horas, sustituida_por')
+    .eq('obra_id', obraId)
+    .eq('mes', mes + '-01')
+    .order('version', { ascending: false });
+  if (error) throw new Error('No se han podido leer los cierres de ese mes: ' + (error.message || 'error desconocido'));
+  return data || [];
+}
+
+// Los días, SIEMPRE por tandas: el servidor corta a 1.000 filas sin avisar.
+// Julio de Muralla fueron 634 líneas; un mes cargado se pasa de mil.
+async function traerDias(cierreId) {
+  if (!window.SbPaginado || !window.SbPaginado.traerTodo) {
+    throw new Error('No se ha cargado js/sb-paginado.js. Recarga la página.');
+  }
+  return await window.SbPaginado.traerTodo(() => sb.from('cierres_mes_dias')
+    .select('trabajador_id, trabajador_nombre, trabajador_apellidos, trabajador_dni, empresa_nombre, categoria, fecha, hora_entrada, hora_salida, horas_brutas, descanso_min, horas_netas, es_intensiva, es_sabado, hubo_autocierre, hubo_manual, ajuste_horas')
+    .eq('cierre_id', cierreId)
+    .order('trabajador_id', { ascending: true })
+    .order('fecha', { ascending: true }),
+    { etiqueta: 'días congelados' });
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Agrupar por persona
+// ─────────────────────────────────────────────────────────────────────
+
+function agrupar(dias) {
+  const mapa = new Map();
+  (dias || []).forEach(d => {
+    let t = mapa.get(d.trabajador_id);
+    if (!t) {
+      t = {
+        id: d.trabajador_id,
+        nombre: nombreCompleto(d),
+        dni: d.trabajador_dni || '',
+        empresa: d.empresa_nombre || '',
+        categoria: d.categoria || '',
+        horas: 0, conHoras: 0, aCero: 0, conAjuste: 0, dias: []
+      };
+      mapa.set(d.trabajador_id, t);
+    }
+    const h = Number(d.horas_netas) || 0;
+    t.horas += h;
+    if (h > 0) t.conHoras++; else t.aCero++;
+    if (d.ajuste_horas != null) t.conAjuste++;
+    t.dias.push(d);
+  });
+  const lista = Array.from(mapa.values());
+  lista.forEach(t => {
+    t.horas = r2(t.horas);
+    t.dias.sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
+    t.busca = sinAcentos(t.nombre + ' ' + t.dni + ' ' + t.empresa);
+  });
+  lista.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  return lista;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Pintado
+// ─────────────────────────────────────────────────────────────────────
+
+function pintarReglas(reglas) {
+  const r = reglas || {};
+  const filas = [
+    ['Entrada (día normal)', r.hora_entrada_default],
+    ['Salida (día normal)', r.hora_salida_default],
+    ['Descanso (día normal)', r.minutos_descanso == null ? null : r.minutos_descanso + ' min'],
+    ['Entrada (jornada intensiva)', r.hora_entrada_intensiva],
+    ['Salida (jornada intensiva)', r.hora_salida_intensiva],
+    ['Descanso (jornada intensiva)', r.minutos_descanso_intensiva == null ? null : r.minutos_descanso_intensiva + ' min'],
+    ['Salida (sábados)', r.hora_salida_sabado]
+  ];
+  const intensivos = Array.isArray(r.dias_intensiva) ? r.dias_intensiva : [];
+  return '<div class="caja"><h2>Reglas congeladas con esta foto</h2>' +
+    '<table class="reglas-tabla"><tbody>' +
+    filas.map(f => `<tr><td>${esc(f[0])}</td><td>${f[1] == null || f[1] === '' ? '—' : esc(f[1])}</td></tr>`).join('') +
+    '</tbody></table>' +
+    '<div class="dias-int" style="margin-top:14px">' +
+    '<span style="color:var(--texto2)">Días de jornada intensiva en el mes: </span>' +
+    (intensivos.length
+      ? '<b>' + intensivos.map(d => esc(fmtFecha(d))).join(' · ') + '</b>'
+      : '<b>ninguno</b>') +
+    '</div>' +
+    '<div class="pista">Estas son las reglas que la obra tenía <b>el día que se firmó</b>. Si hoy la ficha ' +
+    'de la obra dice otra cosa, manda esta tabla: es la que produjo estos números.</div>' +
+    '</div>';
+}
+
+function pintarCabecera(c, versiones, obraNombre, mes, personas) {
+  const sustituida = !c.vigente;
+  let avisoVersion = '';
+  if (sustituida) {
+    avisoVersion = '<div class="aviso aviso-error">Estás viendo una versión <b>sustituida</b> (v' + c.version +
+      '). Ya no es la que vale. La vigente es la v' + (versiones.find(v => v.vigente) || {}).version + '.</div>';
+  } else if (versiones.length > 1) {
+    avisoVersion = '<div class="aviso aviso-naranja">Este mes se ha cerrado <b>' + versiones.length +
+      ' veces</b>. Estás viendo la versión vigente (v' + c.version + '); las anteriores siguen guardadas.</div>';
+  }
+
+  let selVersion = '';
+  if (versiones.length > 1) {
+    selVersion = '<div class="campo" style="margin-top:16px"><label for="sel-version">Versión</label>' +
+      '<select id="sel-version">' +
+      versiones.map(v => `<option value="${esc(v.id)}"${v.id === c.id ? ' selected' : ''}>v${v.version}` +
+        `${v.vigente ? ' · vigente' : ' · sustituida'} — ${esc(fmtFechaHora(v.cerrado_en))}</option>`).join('') +
+      '</select></div>';
+  }
+
+  return avisoVersion +
+    '<div class="caja">' +
+    '<h2>' + esc(obraNombre) + ' · ' + esc(mes) + (sustituida ? ' · versión sustituida' : '') + '</h2>' +
+    '<div class="cifras">' +
+    `<div class="cifra"><div class="n">${personas}</div><div class="et">Personas</div></div>` +
+    `<div class="cifra"><div class="n">${c.total_lineas}</div><div class="et">Días-persona</div></div>` +
+    `<div class="cifra"><div class="n">${fmtH(c.total_horas)}</div><div class="et">Horas congeladas</div></div>` +
+    `<div class="cifra"><div class="n">v${c.version}</div><div class="et">Versión</div></div>` +
+    '</div>' +
+    '<div class="firma">' +
+    `Firmada por <b>${esc(c.cerrado_por_nombre)}</b> el <b>${esc(fmtFechaHora(c.cerrado_en))}</b><br>` +
+    `Motor que calculó las horas: <b>${esc(c.motor)}</b>` +
+    (c.motivo ? `<br>Motivo del recierre: <b>${esc(c.motivo)}</b>` : '') +
+    '</div>' +
+    selVersion +
+    '</div>';
+}
+
+function marcasDe(d) {
+  let m = '';
+  if (d.es_intensiva) m += '<span class="marca m-int">intensiva</span>';
+  if (d.es_sabado) m += '<span class="marca m-sab">sábado</span>';
+  if (d.hubo_autocierre) m += '<span class="marca m-auto">autocierre</span>';
+  if (d.hubo_manual) m += '<span class="marca m-man">manual</span>';
+  if (d.ajuste_horas != null) m += '<span class="marca m-aj">fijada ' + esc(fmtH(d.ajuste_horas)) + ' h</span>';
+  return m || '<span style="color:var(--texto2)">—</span>';
+}
+
+function pintarDiasDe(t) {
+  return '<tr class="sub"><td colspan="6"><div class="sub-in">' +
+    '<table><thead><tr>' +
+    '<th>Fecha</th><th>Entrada</th><th>Salida</th>' +
+    '<th class="num">Brutas</th><th class="num">Descanso</th><th class="num">Netas</th><th>Marcas</th>' +
+    '</tr></thead><tbody>' +
+    t.dias.map(d => {
+      const h = Number(d.horas_netas) || 0;
+      return `<tr${h > 0 ? '' : ' class="cero"'}>` +
+        `<td>${esc(fmtFecha(d.fecha))} <span style="color:var(--texto2)">${esc(diaSemana(d.fecha))}</span></td>` +
+        `<td>${esc(fmtHora(d.hora_entrada))}</td>` +
+        `<td>${esc(fmtHora(d.hora_salida))}</td>` +
+        `<td class="num">${d.horas_brutas == null ? '—' : esc(fmtH(d.horas_brutas))}</td>` +
+        `<td class="num">${d.descanso_min == null ? '—' : esc(d.descanso_min) + ' min'}</td>` +
+        `<td class="num"><b>${esc(fmtH(h))}</b></td>` +
+        `<td>${marcasDe(d)}</td>` +
+        '</tr>';
+    }).join('') +
+    '</tbody></table></div></td></tr>';
+}
+
+function pintarTabla() {
+  const cont = document.getElementById('tabla-personas');
+  if (!cont) return;
+  const f = sinAcentos(filtro).trim();
+  const lista = f ? vista.personas.filter(t => t.busca.indexOf(f) !== -1) : vista.personas;
+
+  if (!lista.length) {
+    cont.innerHTML = '<div class="vacio">Nadie en la foto responde a «' + esc(filtro) + '».</div>';
+    return;
+  }
+
+  cont.innerHTML = '<table><thead><tr>' +
+    '<th>Trabajador</th><th>DNI</th><th>Empresa</th>' +
+    '<th class="num">Días</th><th class="num">A cero</th><th class="num">Horas</th>' +
+    '</tr></thead><tbody>' +
+    lista.map(t => {
+      const ab = abierto === t.id;
+      return `<tr class="fila-trab${ab ? ' abierta' : ''}" data-id="${esc(t.id)}">` +
+        `<td><span class="flecha">${ab ? '▾' : '▸'}</span>${esc(t.nombre)}` +
+        (t.categoria ? ` <span style="color:var(--texto2)">· ${esc(t.categoria)}</span>` : '') + '</td>' +
+        `<td>${esc(t.dni)}</td>` +
+        `<td>${esc(t.empresa)}</td>` +
+        `<td class="num">${t.conHoras}</td>` +
+        `<td class="num">${t.aCero || '—'}</td>` +
+        `<td class="num"><b>${esc(fmtH(t.horas))}</b></td>` +
+        '</tr>' + (ab ? pintarDiasDe(t) : '');
+    }).join('') +
+    '</tbody></table>';
+
+  cont.querySelectorAll('tr.fila-trab').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const id = tr.getAttribute('data-id');
+      abierto = (abierto === id) ? null : id;
+      pintarTabla();
+    });
+  });
+}
+
+function pintar() {
+  const zona = document.getElementById('zona');
+  const c = vista.cierre;
+
+  zona.innerHTML =
+    pintarCabecera(c, vista.versiones, vista.obraNombre, vista.mes, vista.personas.length) +
+    pintarReglas(c.reglas) +
+    '<div class="caja">' +
+    '<div class="barra-tabla">' +
+    '<input class="buscador" id="buscador" type="search" placeholder="Buscar por nombre, DNI o empresa…" autocomplete="off">' +
+    '<button class="btn-sec" id="btn-csv">⬇ Descargar la foto en CSV</button>' +
+    '</div>' +
+    '<div id="tabla-personas"></div>' +
+    '<div class="pista">Pulsa sobre una persona para ver sus días congelados uno a uno. ' +
+    'La discusión siempre es sobre un día concreto.</div>' +
+    '</div>';
+
+  const buscador = document.getElementById('buscador');
+  buscador.value = filtro;
+  buscador.addEventListener('input', () => { filtro = buscador.value; pintarTabla(); });
+
+  document.getElementById('btn-csv').addEventListener('click', descargarCsv);
+
+  const selV = document.getElementById('sel-version');
+  if (selV) selV.addEventListener('change', () => cargarVersion(selV.value));
+
+  pintarTabla();
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// CSV — vuelca los números congelados tal cual. No calcula ni un decimal.
+// ─────────────────────────────────────────────────────────────────────
+
+function csvCampo(v) {
+  const s = String(v == null ? '' : v);
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+function csvNum(n) {
+  if (n == null || n === '') return '';
+  return String(r2(n)).replace('.', ',');
+}
+
+function descargarCsv() {
+  const c = vista.cierre;
+  const cab = ['Trabajador', 'DNI', 'Empresa', 'Categoria', 'Fecha', 'Entrada', 'Salida',
+    'Horas brutas', 'Descanso (min)', 'Horas netas', 'Intensiva', 'Sabado',
+    'Autocierre', 'Manual', 'Horas fijadas'];
+  const filas = [cab.map(csvCampo).join(';')];
+
+  vista.personas.forEach(t => {
+    t.dias.forEach(d => {
+      filas.push([
+        csvCampo(t.nombre), csvCampo(t.dni), csvCampo(t.empresa), csvCampo(t.categoria),
+        csvCampo(fmtFecha(d.fecha)), csvCampo(fmtHora(d.hora_entrada)), csvCampo(fmtHora(d.hora_salida)),
+        csvNum(d.horas_brutas), (d.descanso_min == null ? '' : String(d.descanso_min)), csvNum(d.horas_netas),
+        csvCampo(d.es_intensiva ? 'si' : ''), csvCampo(d.es_sabado ? 'si' : ''),
+        csvCampo(d.hubo_autocierre ? 'si' : ''), csvCampo(d.hubo_manual ? 'si' : ''),
+        csvNum(d.ajuste_horas)
+      ].join(';'));
+    });
+  });
+
+  const nombre = 'foto-' + vista.obraNombre.replace(/[^\wáéíóúñÁÉÍÓÚÑ -]/g, '').replace(/\s+/g, '_') +
+    '-' + vista.mes + '-v' + c.version + '.csv';
+  const blob = new Blob(['\ufeff' + filas.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nombre;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Flujo
+// ─────────────────────────────────────────────────────────────────────
+
+async function cargarVersion(cierreId) {
+  const zona = document.getElementById('zona');
+  const c = vista.versiones.find(v => v.id === cierreId);
+  if (!c) return;
+  zona.innerHTML = '<div class="cargando">Leyendo la foto…</div>';
+  try {
+    const dias = await traerDias(c.id);
+    if (dias.length !== c.total_lineas) {
+      zona.innerHTML = '<div class="aviso aviso-error">La foto dice que tiene <b>' + c.total_lineas +
+        '</b> líneas, pero solo se han podido leer <b>' + dias.length + '</b>. No se enseña una foto ' +
+        'incompleta: sería peor que no enseñar nada. Avisa antes de usar estos números.</div>';
+      return;
+    }
+    abierto = null;
+    filtro = '';
+    vista.cierre = c;
+    vista.personas = agrupar(dias);
+    pintar();
+  } catch (e) {
+    zona.innerHTML = '<div class="aviso aviso-error">' + esc(e.message || e) + '</div>';
+  }
+}
+
+async function verFoto() {
+  const zona = document.getElementById('zona');
+  const obraId = document.getElementById('sel-obra').value;
+  const sel = document.getElementById('sel-obra');
+  const obraNombre = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].textContent : '';
+  const mes = document.getElementById('inp-mes').value;
+
+  if (!obraId) { zona.innerHTML = '<div class="aviso aviso-naranja">Elige una obra.</div>'; return; }
+  if (!mes) { zona.innerHTML = '<div class="aviso aviso-naranja">Elige un mes.</div>'; return; }
+
+  zona.innerHTML = '<div class="cargando">Buscando la foto…</div>';
+
+  try {
+    const versiones = await traerVersiones(obraId, mes);
+    if (!versiones.length) {
+      zona.innerHTML = '<div class="aviso aviso-naranja"><b>' + esc(obraNombre) + '</b> no tiene cerrado el mes ' +
+        esc(mes) + '. No hay ninguna foto que enseñar.<br>' +
+        '<span class="pista">Mientras un mes no se cierra, los números pueden cambiar cada vez que se ' +
+        'corrige un fichaje. El cierre se hace desde <b>Cierre de mes</b>.</span></div>';
+      return;
+    }
+    vista = { obraId, obraNombre, mes, versiones, cierre: null, personas: [] };
+    const vigente = versiones.find(v => v.vigente) || versiones[0];
+    await cargarVersion(vigente.id);
+  } catch (e) {
+    zona.innerHTML = '<div class="aviso aviso-error">' + esc(e.message || e) + '</div>';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────────────────────
+
+(async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '../'; return; }
+  const { data: usuario } = await sb.from('usuarios_app').select('rol, nombre').eq('auth_user_id', session.user.id).single();
+  if (!usuario || usuario.rol !== 'admin') { window.location.href = '../'; return; }
+  document.getElementById('usuario-email').textContent = usuario.nombre || session.user.email;
+
+  if (window.AutoLogout) AutoLogout.init(sb);
+
+  // Por defecto, el mes ANTERIOR: esta pantalla se abre para mirar atrás.
+  const hoy = new Date();
+  const ant = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
+  document.getElementById('inp-mes').value =
+    ant.getFullYear() + '-' + String(ant.getMonth() + 1).padStart(2, '0');
+
+  await cargarObras();
+
+  const invalidar = () => {
+    vista = null; abierto = null; filtro = '';
+    document.getElementById('zona').innerHTML =
+      '<div class="cargando">Has cambiado la obra o el mes. Pulsa «Ver la foto».</div>';
+  };
+  document.getElementById('sel-obra').addEventListener('change', invalidar);
+  document.getElementById('inp-mes').addEventListener('change', invalidar);
+
+  document.getElementById('btn-ver').addEventListener('click', verFoto);
+  document.getElementById('btn-salir').addEventListener('click', async () => {
+    await sb.auth.signOut();
+    window.location.href = '../';
+  });
+})();
+</script>
+</body>
+</html>
