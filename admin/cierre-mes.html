@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cierre de mes — Fichaje Obras</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --verde: #4caf50;
+    --naranja: #ff9800;
+    --rojo: #f44336;
+    --azul: #2196f3;
+    --bg: #111318;
+    --bg2: #1a1d24;
+    --bg3: #22262f;
+    --borde: #2e3340;
+    --texto: #e8eaf0;
+    --texto2: #8b909e;
+    --sidebar-w: 200px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
+
+  .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+  .sidebar-brand { padding: 18px 16px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: center; gap: 14px; }
+  .sidebar-brand img { height: 22px; width: auto; opacity: 0.9; }
+  .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
+  .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
+  .sidebar a:hover { background: var(--bg3); color: var(--texto); }
+  .sidebar a.activo { background: var(--bg3); color: var(--texto); font-weight: 600; }
+  .sidebar a .ico { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid var(--borde); }
+  .btn-salir { width: 100%; background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 8px; transition: background 0.15s, color 0.15s; }
+  .btn-salir:hover { background: var(--bg3); color: var(--texto); }
+
+  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+  .topbar { padding: 20px 28px 0; display: flex; align-items: center; justify-content: space-between; }
+  .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+  .topbar .usuario { font-size: 13px; color: var(--texto2); }
+  .contenido { padding: 24px 28px 60px; max-width: 1100px; }
+
+  .controles { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 18px 20px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+  .campo { display: flex; flex-direction: column; gap: 6px; }
+  .campo label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--texto2); }
+  .campo select, .campo input, .campo textarea { background: var(--bg3); border: 1px solid var(--borde); color: var(--texto); padding: 9px 12px; border-radius: 8px; font-size: 14px; font-family: inherit; }
+  .campo select { min-width: 240px; }
+  .btn-preparar { background: var(--azul); border: none; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .btn-preparar:hover { background: #1a80d9; }
+  .btn-preparar:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-cerrar { background: var(--rojo); border: none; color: #fff; padding: 13px 26px; border-radius: 8px; font-size: 15px; font-weight: 800; cursor: pointer; font-family: inherit; letter-spacing: 0.3px; }
+  .btn-cerrar:hover { background: #d63a2f; }
+  .btn-cerrar:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .caja { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 20px 22px; margin-bottom: 18px; }
+  .caja h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--texto2); margin-bottom: 14px; font-weight: 700; }
+
+  .cifras { display: flex; flex-wrap: wrap; gap: 26px; }
+  .cifra { min-width: 120px; }
+  .cifra .n { font-size: 26px; font-weight: 800; line-height: 1.1; }
+  .cifra .et { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--texto2); margin-top: 4px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--borde); color: var(--texto2); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 9px 10px; border-bottom: 1px solid rgba(46,51,64,0.5); }
+  td.num, th.num { text-align: right; }
+  tr:last-child td { border-bottom: none; }
+
+  .aviso { padding: 14px 18px; border-radius: 10px; font-size: 14px; margin-bottom: 14px; line-height: 1.5; }
+  .aviso-error { background: rgba(244,67,54,0.12); border: 1px solid var(--rojo); }
+  .aviso-ok { background: rgba(76,175,80,0.12); border: 1px solid var(--verde); }
+  .aviso-info { background: rgba(33,150,243,0.10); border: 1px solid var(--azul); }
+  .aviso-naranja { background: rgba(255,152,0,0.12); border: 1px solid var(--naranja); }
+  .aviso b { font-weight: 700; }
+  .aviso ul { margin: 8px 0 0 18px; }
+  .aviso li { margin: 4px 0; }
+
+  .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 15px; }
+  .pista { font-size: 12px; color: var(--texto2); margin-top: 10px; line-height: 1.5; }
+  .campo-motivo { display: block; margin-top: 14px; }
+  .campo-motivo textarea { width: 100%; min-height: 70px; resize: vertical; }
+  .contador { font-size: 12px; color: var(--texto2); margin-top: 5px; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-brand">
+    <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
+    <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
+  </div>
+  <div class="sidebar-section">Administración</div>
+  <a href="index.html"><span class="ico">📊</span> Dashboard</a>
+  <a href="obras.html"><span class="ico">🏗</span> Obras</a>
+  <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
+  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
+  <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
+  <a href="cierre-mes.html" class="activo"><span class="ico">🔒</span> Cierre de mes</a>
+  <a href="incidencias.html"><span class="ico">⚠️</span> Incidencias</a>
+  <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
+  <a href="informe-rojos.html"><span class="ico">📕</span> Informe de rojos</a>
+  <a href="importar-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
+  <div class="sidebar-bottom">
+    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>Cierre de mes</h1>
+    <span class="usuario" id="usuario-email"></span>
+  </div>
+  <div class="contenido">
+
+    <div class="aviso aviso-info">
+      Cerrar un mes <b>congela el número de horas de cada persona y cada día</b>, junto con las
+      reglas de la obra que se usaron para calcularlo. Los fichajes NO se tocan: se pueden seguir
+      corrigiendo, y la diferencia con la foto será una regularización.
+      <b>Reabrir no existe:</b> si hay que rectificar, se vuelve a cerrar y nace una versión nueva.
+    </div>
+
+    <div class="controles">
+      <div class="campo">
+        <label for="sel-obra">Obra</label>
+        <select id="sel-obra"><option value="">Cargando obras…</option></select>
+      </div>
+      <div class="campo">
+        <label for="inp-mes">Mes</label>
+        <input type="month" id="inp-mes">
+      </div>
+      <button class="btn-preparar" id="btn-preparar">Preparar el cierre</button>
+    </div>
+
+    <div id="zona">
+      <div class="cargando">Elige una obra y un mes, y pulsa «Preparar el cierre».</div>
+    </div>
+
+  </div>
+</div>
+
+<script src="../js/auto-logout.js"></script>
+<script src="../js/sb-paginado.js"></script>
+<script src="../js/excel-proforma.js"></script>
+<script>
+const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Identificación del motor que calculó las horas. Se congela junto a los
+// números: dentro de un año, saber QUÉ calculó ese 8,25 vale tanto como el
+// propio 8,25.
+const MOTOR_ID = 'js/excel-proforma.js · dias_detalle v1';
+
+function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt == null ? '' : txt); return d.innerHTML; }
+function r2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+function fmtH(n) { return r2(n).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function fmtFechaHora(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+function ultimoDiaDe(mes) {
+  const [y, m] = mes.split('-').map(Number);
+  return new Date(y, m, 0).getDate();
+}
+
+// Lo preparado en pantalla. Se borra en cuanto cambia obra o mes: enviar
+// las líneas de un mes mientras la pantalla enseña otro es exactamente el
+// fallo que ya mordió en la entrada 52.
+let preparado = null;
+
+// ─────────────────────────────────────────────────────────────────────
+// Carga de datos
+// ─────────────────────────────────────────────────────────────────────
+
+async function cargarObras() {
+  const sel = document.getElementById('sel-obra');
+  const { data, error } = await sb.from('obras').select('id, nombre, estado').neq('estado', 'oculta').order('nombre');
+  if (error) { sel.innerHTML = '<option value="">Error al cargar obras</option>'; return; }
+  if (!data || !data.length) { sel.innerHTML = '<option value="">No hay obras</option>'; return; }
+  sel.innerHTML = '<option value="">— Elige una obra —</option>' +
+    data.map(o => `<option value="${esc(o.id)}">${esc(o.nombre)}${(o.estado && o.estado !== 'activa') ? ` (${esc(o.estado)})` : ''}</option>`).join('');
+}
+
+// Fichajes del mes, SIEMPRE por tandas: el servidor corta a 1.000 filas sin
+// avisar y lo que se pierde es el final del mes.
+async function traerFichajesMes(obraId, mes, bloqueos) {
+  const [year, month] = mes.split('-').map(Number);
+  const desde = new Date(year, month - 1, 1, 0, 0, 0, 0);
+  const hasta = new Date(year, month, 1, 0, 0, 0, 0);
+
+  if (!window.SbPaginado || !window.SbPaginado.traerTodo) {
+    throw new Error('No se ha cargado js/sb-paginado.js. Recarga la página.');
+  }
+
+  const SELECT_COMPLETO = `id, tipo, hora, cierre_automatico, es_manual, trabajador_id,
+      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado, empresa:empresa_id(nombre))`;
+  const SELECT_FALLBACK = `id, tipo, hora, cierre_automatico, es_manual, trabajador_id,
+      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado)`;
+
+  const consulta = (campos) => () => sb.from('fichajes')
+    .select(campos)
+    .eq('obra_id', obraId)
+    .gte('hora', desde.toISOString())
+    .lt('hora', hasta.toISOString())
+    .order('hora', { ascending: true })
+    .order('id', { ascending: true });
+
+  try {
+    return await window.SbPaginado.traerTodo(consulta(SELECT_COMPLETO), { etiqueta: 'fichajes del mes' });
+  } catch (e) {
+    console.warn('fichajes del mes (select completo):', e.message || e);
+    // Sin la empresa del trabajador, la foto congelaría a toda la obra bajo
+    // «Sin empresa». Eso no se firma.
+    bloqueos.push('no se ha podido leer la empresa de los trabajadores: la foto saldría con todos bajo «Sin empresa»');
+    return await window.SbPaginado.traerTodo(consulta(SELECT_FALLBACK), { etiqueta: 'fichajes del mes' });
+  }
+}
+
+async function traerAjustesMes(obraId, mes) {
+  const mapa = {};
+  const ultimo = ultimoDiaDe(mes);
+  if (!window.SbPaginado || !window.SbPaginado.traerTodo) {
+    throw new Error('No se ha cargado js/sb-paginado.js. Recarga la página.');
+  }
+  const ajs = await window.SbPaginado.traerTodo(() => sb.from('ajustes_horas_dia')
+    .select('trabajador_id, fecha, horas, motivo')
+    .eq('obra_id', obraId)
+    .gte('fecha', mes + '-01')
+    .lte('fecha', mes + '-' + String(ultimo).padStart(2, '0'))
+    .order('fecha', { ascending: true })
+    .order('trabajador_id', { ascending: true }),
+    { etiqueta: 'horas fijadas del mes' });
+  (ajs || []).forEach(a => {
+    const dia = Number(String(a.fecha).slice(8, 10));
+    if (!mapa[a.trabajador_id]) mapa[a.trabajador_id] = {};
+    mapa[a.trabajador_id][dia] = { horas: Number(a.horas), motivo: a.motivo || '' };
+  });
+  return mapa;
+}
+
+// Las reglas de la obra. La RPC las vuelve a leer del servidor por su
+// cuenta: aquí se leen para CALCULAR y para poder avisar antes de firmar.
+async function traerReglas(obraId, mes, bloqueos) {
+  const ultimo = ultimoDiaDe(mes);
+  const { data: o, error } = await sb.from('obras')
+    .select('nombre, hora_entrada_default, hora_salida_default, minutos_descanso, hora_entrada_intensiva, hora_salida_intensiva, minutos_descanso_intensiva, hora_salida_sabado')
+    .eq('id', obraId).single();
+  if (error || !o) {
+    bloqueos.push('no se ha podido leer el horario de la obra');
+    return null;
+  }
+  if (o.hora_entrada_default == null || o.hora_salida_default == null || o.minutos_descanso == null) {
+    bloqueos.push('la obra no tiene horario guardado (entrada, salida o descanso): las horas saldrían sin suelo ni techo');
+  }
+
+  const { data: dias, error: errD } = await sb.from('dias_intensiva_obra')
+    .select('fecha').eq('obra_id', obraId)
+    .gte('fecha', mes + '-01').lte('fecha', mes + '-' + String(ultimo).padStart(2, '0'))
+    .order('fecha', { ascending: true });
+  if (errD) {
+    bloqueos.push('no se han podido leer los días de jornada intensiva');
+    return null;
+  }
+  o.dias_intensiva = (dias || []).map(d => d.fecha);
+
+  const intensivaConfigurada = !!(o.hora_entrada_intensiva && o.hora_salida_intensiva);
+  if (o.dias_intensiva.length && !intensivaConfigurada) {
+    bloqueos.push('hay ' + o.dias_intensiva.length + ' días marcados como intensiva pero la obra no tiene horario de intensiva guardado');
+  }
+  return o;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Construcción de las líneas
+// ─────────────────────────────────────────────────────────────────────
+
+function construirLineas(fichajes, reglas, ajustes, mes, bloqueos) {
+  const diasMes = ultimoDiaDe(mes);
+  const opts = {
+    horaEntrada: reglas.hora_entrada_default,
+    horaSalida: reglas.hora_salida_default,
+    minutosDescanso: reglas.minutos_descanso,
+    horaEntradaIntensiva: reglas.hora_entrada_intensiva,
+    horaSalidaIntensiva: reglas.hora_salida_intensiva,
+    minutosDescansoIntensiva: reglas.minutos_descanso_intensiva,
+    diasIntensiva: reglas.dias_intensiva,
+    ajustes: ajustes
+  };
+
+  const grupos = window.ExcelProforma.agruparPorEmpresa(fichajes);
+  const empresas = Object.keys(grupos).sort((a, b) => a.localeCompare(b, 'es'));
+
+  const lineas = [];
+  const porEmpresa = [];
+  let personas = 0, horas = 0;
+
+  empresas.forEach(nombreEmpresa => {
+    const trabs = window.ExcelProforma.construirResumenTrabajadores(grupos[nombreEmpresa], diasMes, opts);
+    let hEmp = 0, lEmp = 0;
+    trabs.forEach(t => {
+      personas++;
+      hEmp += t.horas_mes;
+      Object.keys(t.dias_detalle).forEach(d => {
+        const x = t.dias_detalle[d];
+        lEmp++;
+        lineas.push({
+          trabajador_id: t.id,
+          fecha: x.fecha,
+          hora_entrada: x.hora_entrada,
+          hora_salida: x.hora_salida,
+          horas_brutas: x.horas_brutas,
+          descanso_min: x.descanso_min,
+          horas_netas: x.horas_netas,
+          es_intensiva: x.es_intensiva,
+          es_sabado: x.es_sabado,
+          hubo_autocierre: x.hubo_autocierre,
+          hubo_manual: x.hubo_manual,
+          ajuste_horas: x.ajuste_horas,
+          // Solo para la pantalla; la RPC ignora lo que no conoce.
+          _nombre: t.nombre,
+          _empresa: nombreEmpresa
+        });
+      });
+    });
+    horas += hEmp;
+    porEmpresa.push({ empresa: nombreEmpresa, personas: trabs.length, lineas: lEmp, horas: r2(hEmp) });
+  });
+
+  // Horas fijadas a mano a quien NO tiene ningún fichaje ese mes: no están
+  // en ningún grupo, así que no habría línea. Son horas que se pagan y que
+  // se quedarían fuera de la foto. Una foto incompleta no se firma.
+  const perdidos = window.ExcelProforma.idsConHorasFijadasSinFichajes
+    ? window.ExcelProforma.idsConHorasFijadasSinFichajes(fichajes, ajustes) : [];
+  if (perdidos.length) {
+    bloqueos.push(perdidos.length + ' trabajador(es) tienen horas fijadas a mano y ningún fichaje este mes: esas horas no entrarían en la foto');
+  }
+
+  // Jornadas abiertas: una entrada sin salida vale CERO. Si se congela así,
+  // se firma un día a cero de alguien que trabajó.
+  let abiertas = 0;
+  lineas.forEach(l => { if (l.hora_entrada && !l.hora_salida) abiertas++; });
+  if (abiertas) {
+    bloqueos.push(abiertas + ' jornada(s) del mes están abiertas (entrada sin salida) y valdrían CERO horas. Espera al cierre automático de las 00:30 o ciérralas a mano antes de firmar');
+  }
+
+  return {
+    lineas: lineas,
+    resumen: {
+      personas: personas,
+      lineas: lineas.length,
+      horas: r2(horas),
+      empresas: porEmpresa,
+      sabados: lineas.filter(l => l.es_sabado).length,
+      intensiva: lineas.filter(l => l.es_intensiva).length,
+      autocierre: lineas.filter(l => l.hubo_autocierre).length,
+      manual: lineas.filter(l => l.hubo_manual).length,
+      ajuste: lineas.filter(l => l.ajuste_horas !== null).length,
+      cero: lineas.filter(l => l.horas_netas === 0).length
+    }
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Preparar
+// ─────────────────────────────────────────────────────────────────────
+
+async function preparar() {
+  const obraId = document.getElementById('sel-obra').value;
+  const mes = document.getElementById('inp-mes').value;
+  const zona = document.getElementById('zona');
+  const btn = document.getElementById('btn-preparar');
+
+  preparado = null;
+  if (!obraId) { zona.innerHTML = '<div class="aviso aviso-error">Elige una obra.</div>'; return; }
+  if (!mes) { zona.innerHTML = '<div class="aviso aviso-error">Elige un mes.</div>'; return; }
+
+  btn.disabled = true;
+  zona.innerHTML = '<div class="cargando">Leyendo el mes entero…</div>';
+
+  const bloqueos = [];
+  try {
+    const estado = await sb.rpc('estado_mes', { p_obra_id: obraId, p_mes: mes + '-01' });
+    if (estado.error) throw new Error(estado.error.message);
+    const est = estado.data || {};
+    if (est.ok === false) throw new Error(est.error || 'sin permiso');
+
+    const reglas = await traerReglas(obraId, mes, bloqueos);
+    if (!reglas) { pintarBloqueos(zona, bloqueos); return; }
+
+    const fichajes = await traerFichajesMes(obraId, mes, bloqueos);
+    const ajustes = await traerAjustesMes(obraId, mes);
+
+    if (!fichajes.length) {
+      zona.innerHTML = '<div class="aviso aviso-error">Este mes no tiene ningún fichaje en esta obra. No hay nada que congelar.</div>';
+      return;
+    }
+
+    const { lineas, resumen } = construirLineas(fichajes, reglas, ajustes, mes, bloqueos);
+
+    const obraNombre = document.getElementById('sel-obra').selectedOptions[0].textContent;
+    preparado = { obraId, obraNombre, mes, lineas, resumen, reglas, estado: est, bloqueos };
+    pintar();
+  } catch (e) {
+    console.error('preparar:', e);
+    zona.innerHTML = '<div class="aviso aviso-error"><b>No se ha podido preparar el cierre.</b><br>' + esc(e.message || e) + '</div>';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function pintarBloqueos(zona, bloqueos) {
+  zona.innerHTML = '<div class="aviso aviso-error"><b>No se puede cerrar el mes:</b><ul>' +
+    bloqueos.map(b => '<li>' + esc(b) + '</li>').join('') + '</ul></div>';
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Pintar
+// ─────────────────────────────────────────────────────────────────────
+
+function pintar() {
+  const p = preparado;
+  const zona = document.getElementById('zona');
+  const r = p.resumen;
+  const est = p.estado;
+
+  const hoy = new Date();
+  const [y, m] = p.mes.split('-').map(Number);
+  const ultimo = new Date(y, m, 0);
+  const mesTerminado = hoy >= new Date(y, m - 1, ultimo.getDate(), 0, 0, 0, 0);
+  const recierre = !!est.cerrado;
+
+  let html = '';
+
+  if (recierre) {
+    html += '<div class="aviso aviso-naranja"><b>Este mes YA está cerrado.</b> ' +
+      'Versión ' + esc(est.version) + ', cerrada por ' + esc(est.cerrado_por) + ' el ' + esc(fmtFechaHora(est.cerrado_en)) + ': ' +
+      esc(est.total_lineas) + ' líneas y ' + esc(fmtH(est.total_horas)) + ' h.<br>' +
+      'Volver a cerrarlo <b>no borra nada</b>: nace la versión ' + esc(Number(est.version) + 1) +
+      ' y la actual queda marcada como sustituida. Hace falta un motivo.</div>';
+  }
+
+  if (!mesTerminado) {
+    html += '<div class="aviso aviso-info"><b>El mes todavía no ha terminado.</b> ' +
+      'Puedes revisar los números, pero no se podrá firmar hasta el ' + ultimo.getDate() + '. ' +
+      'Congelar un mes a medias sería un documento falso.</div>';
+  }
+
+  if (p.bloqueos.length) {
+    html += '<div class="aviso aviso-error"><b>Hay que resolver esto antes de firmar:</b><ul>' +
+      p.bloqueos.map(b => '<li>' + esc(b) + '</li>').join('') + '</ul></div>';
+  }
+
+  html += '<div class="caja"><h2>' + esc(p.obraNombre) + ' · ' + esc(p.mes) + '</h2><div class="cifras">' +
+    cifra(r.personas, 'personas') +
+    cifra(r.lineas, 'días-persona') +
+    cifra(fmtH(r.horas), 'horas') +
+    cifra(r.empresas.length, 'empresas') +
+    '</div><div class="pista">Se congela <b>día a día</b>, no el total del mes: la discusión con administración nunca es «son 168 o 170», es «el día 12 le contáis 8 y él dice 9».</div></div>';
+
+  html += '<div class="caja"><h2>De qué están hechos esos días</h2><div class="cifras">' +
+    cifra(r.intensiva, 'en intensiva') +
+    cifra(r.sabados, 'en sábado') +
+    cifra(r.autocierre, 'con autocierre') +
+    cifra(r.manual, 'fichaje manual') +
+    cifra(r.ajuste, 'horas fijadas') +
+    cifra(r.cero, 'a cero horas') +
+    '</div></div>';
+
+  html += '<div class="caja"><h2>Reparto por empresa</h2><table><thead><tr>' +
+    '<th>Empresa</th><th class="num">Personas</th><th class="num">Días</th><th class="num">Horas</th>' +
+    '</tr></thead><tbody>' +
+    r.empresas.map(e => '<tr><td>' + esc(e.empresa) + '</td><td class="num">' + e.personas +
+      '</td><td class="num">' + e.lineas + '</td><td class="num">' + fmtH(e.horas) + '</td></tr>').join('') +
+    '</tbody></table><div class="pista">El nombre de la empresa se copia <b>como texto</b> en el momento de firmar. ' +
+    'Si la sincronización nocturna mueve a alguien de empresa después, la foto no se mueve.</div></div>';
+
+  const ceros = p.lineas.filter(l => l.horas_netas === 0);
+  if (ceros.length) {
+    html += '<div class="caja"><h2>Días que se congelarían a CERO horas (' + ceros.length + ')</h2><table><thead><tr>' +
+      '<th>Fecha</th><th>Trabajador</th><th>Empresa</th><th>Entrada</th><th>Salida</th>' +
+      '</tr></thead><tbody>' +
+      ceros.slice(0, 60).map(l => '<tr><td>' + esc(l.fecha) + '</td><td>' + esc(l._nombre) + '</td><td>' + esc(l._empresa) +
+        '</td><td>' + (l.hora_entrada ? esc(new Date(l.hora_entrada).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })) : '—') +
+        '</td><td>' + (l.hora_salida ? esc(new Date(l.hora_salida).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })) : '<b style="color:var(--rojo)">sin salida</b>') +
+        '</td></tr>').join('') +
+      '</tbody></table>' +
+      (ceros.length > 60 ? '<div class="pista">Se muestran los 60 primeros de ' + ceros.length + '.</div>' : '') +
+      '<div class="pista">Un día a cero también se firma: «el día 12 le contáis cero» es una discusión que la foto tiene que poder contestar. Revísalos antes.</div></div>';
+  }
+
+  const puedeFirmar = mesTerminado && p.bloqueos.length === 0 && r.lineas > 0;
+
+  html += '<div class="caja">';
+  html += '<h2>Firmar el cierre</h2>';
+  html += '<div class="campo-motivo"><label for="inp-motivo">Motivo' + (recierre ? ' (obligatorio, mínimo 15 caracteres)' : ' (opcional)') + '</label>' +
+    '<textarea id="inp-motivo" placeholder="' + (recierre ? 'Por qué se vuelve a cerrar este mes…' : 'Opcional: una nota para dentro de un año.') + '"></textarea>' +
+    '<div class="contador" id="cont-motivo"></div></div>';
+  html += '<div style="margin-top:16px"><button class="btn-cerrar" id="btn-cerrar"' + (puedeFirmar ? '' : ' disabled') + '>' +
+    (recierre ? '🔒 Volver a cerrar — versión ' + (Number(est.version) + 1) : '🔒 Cerrar ' + esc(p.mes)) + '</button></div>';
+  html += '<div class="pista">Se enviarán <b>' + r.lineas + ' líneas</b> y ' + fmtH(r.horas) + ' h. ' +
+    'Si el servidor no puede congelar exactamente esas ' + r.lineas + ', no se cierra nada: no hay medias fotos.</div>';
+  html += '</div>';
+
+  zona.innerHTML = html;
+
+  const inp = document.getElementById('inp-motivo');
+  const cont = document.getElementById('cont-motivo');
+  const btnC = document.getElementById('btn-cerrar');
+  function repintarMotivo() {
+    const n = inp.value.trim().length;
+    if (recierre) {
+      cont.textContent = n + ' / 15 caracteres mínimos';
+      cont.style.color = n >= 15 ? 'var(--verde)' : 'var(--texto2)';
+      btnC.disabled = !puedeFirmar || n < 15;
+    } else {
+      cont.textContent = n ? n + ' caracteres' : '';
+    }
+  }
+  inp.addEventListener('input', repintarMotivo);
+  repintarMotivo();
+  btnC.addEventListener('click', cerrar);
+}
+
+function cifra(n, etiqueta) {
+  return '<div class="cifra"><div class="n">' + esc(n) + '</div><div class="et">' + esc(etiqueta) + '</div></div>';
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Cerrar
+// ─────────────────────────────────────────────────────────────────────
+
+async function cerrar() {
+  const p = preparado;
+  if (!p) return;
+
+  // La pantalla puede haber cambiado de obra o de mes después de preparar.
+  // Enviar las líneas de un mes mientras se enseña otro es el fallo del
+  // botón de exportar de la entrada 52, por otra puerta.
+  if (document.getElementById('sel-obra').value !== p.obraId ||
+      document.getElementById('inp-mes').value !== p.mes) {
+    alert('Has cambiado la obra o el mes desde que se preparó el cierre. Vuelve a pulsar «Preparar el cierre».');
+    return;
+  }
+
+  const motivo = document.getElementById('inp-motivo').value.trim();
+  const btnC = document.getElementById('btn-cerrar');
+
+  const aviso = 'Vas a congelar ' + p.resumen.lineas + ' días-persona y ' + fmtH(p.resumen.horas) +
+    ' h de ' + p.obraNombre + ' en ' + p.mes + '.\n\n' +
+    'Esto NO se puede deshacer: reabrir no existe. Si hay que rectificar, se vuelve a cerrar y nace otra versión.\n\n¿Firmamos?';
+  if (!confirm(aviso)) return;
+
+  btnC.disabled = true;
+  btnC.textContent = 'Congelando…';
+
+  try {
+    // Se manda solo lo que la RPC lee. Los campos que empiezan por «_» son
+    // de pantalla y no viajan.
+    const lineas = p.lineas.map(l => ({
+      trabajador_id: l.trabajador_id, fecha: l.fecha,
+      hora_entrada: l.hora_entrada, hora_salida: l.hora_salida,
+      horas_brutas: l.horas_brutas, descanso_min: l.descanso_min,
+      horas_netas: l.horas_netas, es_intensiva: l.es_intensiva,
+      es_sabado: l.es_sabado, hubo_autocierre: l.hubo_autocierre,
+      hubo_manual: l.hubo_manual, ajuste_horas: l.ajuste_horas
+    }));
+
+    const { data, error } = await sb.rpc('cerrar_mes', {
+      p_obra_id: p.obraId,
+      p_mes: p.mes + '-01',
+      p_motivo: motivo || null,
+      p_lineas: lineas,
+      p_motor: MOTOR_ID
+    });
+    if (error) throw new Error(error.message);
+    if (!data || data.ok === false) throw new Error((data && data.error) || 'el servidor no ha cerrado el mes');
+
+    document.getElementById('zona').innerHTML =
+      '<div class="aviso aviso-ok"><b>Mes cerrado.</b><br>' +
+      esc(data.obra) + ' · ' + esc(data.mes) + ' · versión ' + esc(data.version) + '<br>' +
+      esc(data.lineas) + ' días-persona congelados, ' + esc(fmtH(data.total_horas)) + ' h en total.<br>' +
+      'Firmado por ' + esc(data.cerrado_por) + '.' +
+      (data.sustituye_a ? '<br>La versión anterior queda marcada como sustituida.' : '') +
+      '</div><div class="pista">Los fichajes siguen siendo corregibles. Cualquier diferencia con esta foto es una regularización.</div>';
+    preparado = null;
+  } catch (e) {
+    console.error('cerrar_mes:', e);
+    document.getElementById('zona').insertAdjacentHTML('afterbegin',
+      '<div class="aviso aviso-error"><b>No se ha cerrado el mes.</b><br>' + esc(e.message || e) +
+      '<br><span class="pista">No ha quedado nada a medias: o entra la foto entera o no entra nada.</span></div>');
+    btnC.disabled = false;
+    btnC.textContent = '🔒 Reintentar';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────────────────────
+
+(async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '../'; return; }
+  const { data: usuario } = await sb.from('usuarios_app').select('rol, nombre').eq('auth_user_id', session.user.id).single();
+  if (!usuario || usuario.rol !== 'admin') { window.location.href = '../'; return; }
+  document.getElementById('usuario-email').textContent = usuario.nombre || session.user.email;
+
+  if (window.AutoLogout) AutoLogout.init(sb);
+
+  if (!window.ExcelProforma || !window.ExcelProforma.construirResumenTrabajadores) {
+    document.getElementById('zona').innerHTML =
+      '<div class="aviso aviso-error">No se ha cargado <b>js/excel-proforma.js</b>, que es quien calcula las horas. Recarga la página.</div>';
+    return;
+  }
+
+  const hoy = new Date();
+  document.getElementById('inp-mes').value =
+    hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0');
+
+  await cargarObras();
+
+  // Cambiar de obra o de mes invalida lo preparado.
+  const invalidar = () => {
+    if (!preparado) return;
+    preparado = null;
+    document.getElementById('zona').innerHTML =
+      '<div class="cargando">Has cambiado la obra o el mes. Pulsa «Preparar el cierre».</div>';
+  };
+  document.getElementById('sel-obra').addEventListener('change', invalidar);
+  document.getElementById('inp-mes').addEventListener('change', invalidar);
+
+  document.getElementById('btn-preparar').addEventListener('click', preparar);
+  document.getElementById('btn-salir').addEventListener('click', async () => {
+    await sb.auth.signOut();
+    window.location.href = '../';
+  });
+})();
+</script>
+</body>
+</html>

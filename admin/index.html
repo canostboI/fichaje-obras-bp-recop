@@ -133,6 +133,7 @@
   <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
   <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
   <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
+  <a href="cierre-mes.html"><span class="ico">🔒</span> Cierre de mes</a>
   <a href="incidencias.html"><span class="ico">⚠️</span> Incidencias</a>
   <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
   <a href="informe-rojos.html"><span class="ico">📕</span> Informe de rojos</a>
@@ -152,6 +153,7 @@
     <div id="banner-vigilante" style="display:none;margin-bottom:18px;padding:12px 16px;border-radius:10px;font-size:14px;font-weight:600;line-height:1.5;"></div>
     <div id="banner-avisos-ronda" style="display:none;margin-bottom:18px;padding:12px 16px;border-radius:10px;font-size:14px;font-weight:600;line-height:1.5;"></div>
     <div id="banner-ecoordina" style="display:none;margin-bottom:18px;padding:12px 16px;border-radius:10px;font-size:14px;font-weight:600;"></div>
+    <div id="banner-cierres" style="display:none;margin-bottom:18px;padding:12px 16px;border-radius:10px;font-size:14px;font-weight:600;line-height:1.5;"></div>
     <div class="stats">
       <div class="stat"><div class="numero azul" id="stat-fichajes">—</div><div class="etiqueta">Fichajes hoy</div></div>
       <div class="stat"><div class="numero verde" id="stat-obras">—</div><div class="etiqueta">Obras activas</div></div>
@@ -269,9 +271,117 @@ function rangoHoyLocal() {
     cargarSyncEcoordina(),
     cargarSaludCrons(),
     cargarVigilantePermisos(),
-    cargarAvisosRonda()
+    cargarAvisosRonda(),
+    cargarCierresPendientes()
   ]);
 })();
+
+// ── Meses sin cerrar ───────────────────────────────────────────────────────
+// ENTRADA 50 · La foto del mes se hace pulsando un botón, no sola. Eso es a
+// propósito: un cierre automático el día 1 congelaría un mes a medio ordenar.
+// Pero un botón que nadie pulsa es un mes que nunca se firma, así que hace
+// falta la red de seguridad: avisar desde el día 5 del mes siguiente.
+//
+// TRES REGLAS QUE ESTE CONTADOR RESPETA:
+//  1. Solo mira meses que se PUEDEN cerrar. Un mes sin ningún fichaje en esa
+//     obra no se puede congelar (la RPC lo rechaza: no hay líneas), así que
+//     avisar de él sería un contador que nunca llega a cero.
+//  2. No mira antes de agosto de 2026, que es el primer mes que factura de
+//     verdad. Lo anterior eran pruebas y no se va a firmar nunca.
+//  3. Del mes recién terminado no avisa hasta el día 5: antes de eso todavía
+//     falta cuadrar sábados y ausencias.
+const PRIMER_MES_FACTURABLE = '2026-08';
+const MESES_ATRAS_MAX = 4;   // tope de consultas; la ventana va corriendo
+
+// Devuelve los meses 'YYYY-MM' que YA deberían estar cerrados a fecha `hoy`.
+// Separada a propósito para poder probarla con cualquier fecha.
+function mesesCandidatos(hoy) {
+  const meses = [];
+  let y = hoy.getFullYear();
+  let m = hoy.getMonth();          // 0-11; el mes ANTERIOR al actual
+  if (m === 0) { m = 12; y -= 1; } // enero → diciembre del año pasado
+  // El mes recién terminado no se reclama hasta el día 5.
+  if (hoy.getDate() < 5) {
+    m -= 1;
+    if (m === 0) { m = 12; y -= 1; }
+  }
+  for (let i = 0; i < MESES_ATRAS_MAX; i++) {
+    const etiqueta = y + '-' + String(m).padStart(2, '0');
+    if (etiqueta < PRIMER_MES_FACTURABLE) break;
+    meses.push(etiqueta);
+    m -= 1;
+    if (m === 0) { m = 12; y -= 1; }
+  }
+  return meses;
+}
+
+function nombreMes(etiqueta) {
+  const [y, m] = etiqueta.split('-').map(Number);
+  const n = new Date(y, m - 1, 1).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+  return n.charAt(0).toUpperCase() + n.slice(1);
+}
+
+async function cargarCierresPendientes() {
+  const el = document.getElementById('banner-cierres');
+  const meses = mesesCandidatos(new Date());
+  // Todavía no hay ningún mes que reclamar: el banner no existe.
+  if (!meses.length) return;
+
+  let obras, cierres;
+  try {
+    const [ro, rc] = await Promise.all([
+      sb.from('obras').select('id, nombre').neq('estado', 'oculta').order('nombre'),
+      sb.from('cierres_mes').select('obra_id, mes').eq('vigente', true).gte('mes', PRIMER_MES_FACTURABLE + '-01')
+    ]);
+    if (ro.error) throw ro.error;
+    if (rc.error) throw rc.error;
+    obras = ro.data || [];
+    cierres = rc.data || [];
+  } catch (e) {
+    // No poder comprobarlo es en sí mismo la noticia: no se calla.
+    el.style.display = 'block'; el.style.border = 'none';
+    el.style.background = 'rgba(255,152,0,0.15)'; el.style.color = '#ff9800';
+    el.textContent = '⚠️ Cierre de mes: no se ha podido comprobar qué meses están cerrados (' + (e.message || 'error desconocido') + ').';
+    return;
+  }
+
+  const cerrado = new Set(cierres.map(c => c.obra_id + '|' + String(c.mes).slice(0, 7)));
+
+  // De los que faltan, solo cuentan los que se pueden cerrar de verdad: los
+  // que tienen al menos un fichaje. Se pregunta por `count`, no trayendo
+  // filas: el servidor corta a 1.000 y aquí solo importa si hay o no hay.
+  const pendientes = [];
+  for (const mes of meses) {
+    const [y, m] = mes.split('-').map(Number);
+    const desde = new Date(y, m - 1, 1, 0, 0, 0, 0).toISOString();
+    const hasta = new Date(y, m, 1, 0, 0, 0, 0).toISOString();
+    for (const o of obras) {
+      if (cerrado.has(o.id + '|' + mes)) continue;
+      const { count, error } = await sb.from('fichajes')
+        .select('id', { count: 'exact', head: true })
+        .eq('obra_id', o.id).gte('hora', desde).lt('hora', hasta);
+      if (error) { console.warn('cierres pendientes:', error.message); continue; }
+      if (count > 0) pendientes.push({ obra: o.nombre, mes: mes, fichajes: count });
+    }
+  }
+
+  el.style.display = 'block';
+  el.style.border = 'none';
+
+  if (!pendientes.length) {
+    el.style.background = 'rgba(76,175,80,0.15)'; el.style.color = '#4caf50';
+    el.textContent = '✅ Cierre de mes: todo lo facturable está cerrado (' + nombreMes(meses[0]) +
+      (meses.length > 1 ? ' y ' + (meses.length - 1) + ' mes(es) anterior(es)' : '') + ').';
+    return;
+  }
+
+  el.style.background = 'rgba(244,67,54,0.15)'; el.style.color = '#f44336';
+  const lista = pendientes.map(p => nombreMes(p.mes) + ' · ' + p.obra).join(' · ');
+  el.innerHTML = '🔒 <b>' + pendientes.length + ' mes(es) sin cerrar:</b> ' +
+    lista.replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c])) +
+    '. Mientras no se firmen, esas horas se recalculan solas cada vez que alguien mira. ' +
+    '<a href="cierre-mes.html" style="color:inherit;text-decoration:underline">Ir a Cierre de mes</a>';
+}
 
 // ── Vigilante de permisos: ¿corrió, y salió el aviso? ───────────────────────
 // OPS-007 · `auditoria_permisos_log` era el ÚNICO sitio donde constaba si el
