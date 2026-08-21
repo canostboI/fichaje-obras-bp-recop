@@ -294,10 +294,17 @@ function construirLineas(fichajes, reglas, ajustes, mes, bloqueos) {
   const lineas = [];
   const porEmpresa = [];
   let personas = 0, horas = 0;
+  const sinEmpresa = [];
 
   empresas.forEach(nombreEmpresa => {
     const trabs = window.ExcelProforma.construirResumenTrabajadores(grupos[nombreEmpresa], diasMes, opts);
     let hEmp = 0, lEmp = 0;
+    // El nombre de la empresa se congela COMO TEXTO. Si el trabajador no
+    // tiene empresa, se firman horas que luego no se pueden facturar a
+    // nadie, y reabrir no existe.
+    if (nombreEmpresa === 'Sin empresa') {
+      trabs.forEach(t => sinEmpresa.push(t.nombre || ('id ' + t.id)));
+    }
     trabs.forEach(t => {
       personas++;
       hEmp += t.horas_mes;
@@ -334,6 +341,17 @@ function construirLineas(fichajes, reglas, ajustes, mes, bloqueos) {
     ? window.ExcelProforma.idsConHorasFijadasSinFichajes(fichajes, ajustes) : [];
   if (perdidos.length) {
     bloqueos.push(perdidos.length + ' trabajador(es) tienen horas fijadas a mano y ningún fichaje este mes: esas horas no entrarían en la foto');
+  }
+
+  // Trabajadores sin empresa asignada en su ficha. No es un fallo de
+  // lectura (eso lo caza traerFichajesMes): es que la ficha está a medias.
+  // Se arregla en Trabajadores asignando la empresa, y entonces baja a cero.
+  if (sinEmpresa.length) {
+    const muestra = sinEmpresa.slice(0, 6).join(', ');
+    const resto = sinEmpresa.length > 6 ? ' y ' + (sinEmpresa.length - 6) + ' m\u00e1s' : '';
+    bloqueos.push(sinEmpresa.length + ' trabajador(es) no tienen empresa en su ficha y sus horas se ' +
+      'congelar\u00edan bajo \u00abSin empresa\u00bb, sin nadie a quien facturarlas: ' +
+      muestra + resto + '. As\u00edgnales empresa en Trabajadores antes de firmar');
   }
 
   // Jornadas abiertas: una entrada sin salida vale CERO. Si se congela así,
@@ -477,15 +495,46 @@ function pintar() {
 
   const ceros = p.lineas.filter(l => l.horas_netas === 0);
   if (ceros.length) {
+    // Un día a cero puede ser dos cosas MUY distintas:
+    //   · alguien escaneó dos veces seguidas y el cero es correcto;
+    //   · alguien estuvo horas en la obra fuera del horario oficial (entró
+    //     después del techo o salió antes del suelo) y el cero es un error
+    //     de nómina. Sin esta columna los dos casos se mezclan en la misma
+    //     lista y el grave se pierde entre los inocentes.
+    const minutosReales = (l) => {
+      if (!l.hora_entrada || !l.hora_salida) return null;
+      return Math.round((new Date(l.hora_salida) - new Date(l.hora_entrada)) / 60000);
+    };
+    const MIN_SOSPECHA = 30;
+    const pintaDuracion = (m) => {
+      if (m === null) return '<b style="color:var(--rojo)">sin salida</b>';
+      const txt = m >= 60 ? (Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') + ' min') : (m + ' min');
+      return m >= MIN_SOSPECHA ? '<b style="color:var(--rojo)">' + txt + '</b>' : txt;
+    };
+    // Los peores arriba: sin salida primero, luego de más presencia a menos.
+    const ordenados = ceros.slice().sort((a, b) => {
+      const ma = minutosReales(a), mb = minutosReales(b);
+      if (ma === null && mb === null) return 0;
+      if (ma === null) return -1;
+      if (mb === null) return 1;
+      return mb - ma;
+    });
+    const graves = ceros.filter(l => { const m = minutosReales(l); return m === null || m >= MIN_SOSPECHA; }).length;
+
     html += '<div class="caja"><h2>Días que se congelarían a CERO horas (' + ceros.length + ')</h2><table><thead><tr>' +
-      '<th>Fecha</th><th>Trabajador</th><th>Empresa</th><th>Entrada</th><th>Salida</th>' +
+      '<th>Fecha</th><th>Trabajador</th><th>Empresa</th><th>Entrada</th><th>Salida</th><th>Estuvo en la obra</th>' +
       '</tr></thead><tbody>' +
-      ceros.slice(0, 60).map(l => '<tr><td>' + esc(l.fecha) + '</td><td>' + esc(l._nombre) + '</td><td>' + esc(l._empresa) +
+      ordenados.slice(0, 60).map(l => '<tr><td>' + esc(l.fecha) + '</td><td>' + esc(l._nombre) + '</td><td>' + esc(l._empresa) +
         '</td><td>' + (l.hora_entrada ? esc(new Date(l.hora_entrada).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })) : '—') +
         '</td><td>' + (l.hora_salida ? esc(new Date(l.hora_salida).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })) : '<b style="color:var(--rojo)">sin salida</b>') +
+        '</td><td>' + pintaDuracion(minutosReales(l)) +
         '</td></tr>').join('') +
       '</tbody></table>' +
       (ceros.length > 60 ? '<div class="pista">Se muestran los 60 primeros de ' + ceros.length + '.</div>' : '') +
+      (graves ? '<div class="aviso aviso-error"><b>' + graves + ' de estos ' + ceros.length + ' estuvieron media hora o más en la obra.</b> ' +
+        'Un cero de dos minutos es un escaneo repetido; un cero de dos horas es alguien que trabajó fuera del horario oficial de la obra ' +
+        '(entró después de la hora de salida, o salió antes de la de entrada). Eso se arregla con una corrección o con horas fijadas a mano, ' +
+        'no firmándolo.</div>' : '') +
       '<div class="pista">Un día a cero también se firma: «el día 12 le contáis cero» es una discusión que la foto tiene que poder contestar. Revísalos antes.</div></div>';
   }
 
