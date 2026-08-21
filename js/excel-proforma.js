@@ -190,6 +190,11 @@
       t.dias = {};
       t.dias_autocierre = {};
       t.dias_ajuste = {};   // día -> { calculadas, fijadas, motivo }
+      // ENTRADA 50 · el detalle de cada día, para la foto del mes cerrado.
+      // Los ingredientes que explican el número YA se calculan aquí abajo;
+      // hasta ahora se tiraban y solo se guardaba el neto. Esto no cambia
+      // ningún cálculo: solo deja de tirarlos. Nadie más lo lee.
+      t.dias_detalle = {};   // día -> { fecha, hora_entrada, ... }
       for (let d = 1; d <= diasMes; d++) {
         t.dias[d] = 0;
         t.dias_autocierre[d] = 0;
@@ -224,7 +229,9 @@
       // que una jornada que empieza el día 31 y termina el 1 del mes siguiente
       // se queda sin salida y vale cero — igual que hoy, ni mejor ni peor.
       const eventosOrdenados = t.fichajes
-        .map(f => ({ tipo: f.tipo, hora: new Date(f.hora), cierre_automatico: !!f.cierre_automatico }))
+        .map(f => ({ tipo: f.tipo, hora: new Date(f.hora),
+                     cierre_automatico: !!f.cierre_automatico,
+                     es_manual: !!f.es_manual }))
         .filter(ev => !isNaN(ev.hora.getTime()))
         .sort((a, b) => a.hora - b.hora);
 
@@ -236,7 +243,8 @@
           // terminó (con salida o sin ella).
           if (jornadaAbierta && !mismoDiaNatural(jornadaAbierta.entrada, ev.hora)) jornadaAbierta = null;
           if (!jornadaAbierta) {
-            jornadaAbierta = { entrada: ev.hora, salida: null };
+            jornadaAbierta = { entrada: ev.hora, salida: null,
+                               autocierre: false, manual: !!ev.es_manual };
             jornadas.push(jornadaAbierta);
           }
           // Una segunda entrada del MISMO día no abre jornada nueva: sigue
@@ -244,7 +252,11 @@
         } else if (ev.tipo === 'salida') {
           // Una salida sin entrada delante no se puede valorar: no se sabe
           // cuándo empezó. Se ignora, igual que antes.
-          if (jornadaAbierta) jornadaAbierta.salida = ev.hora;
+          if (jornadaAbierta) {
+            jornadaAbierta.salida = ev.hora;
+            jornadaAbierta.autocierre = !!ev.cierre_automatico;
+            if (ev.es_manual) jornadaAbierta.manual = true;
+          }
         }
       });
 
@@ -255,6 +267,9 @@
         const ultimaSalida = j.salida;
 
         let netoDia = 0;
+        let brutoDia = null;      // ENTRADA 50 · ingredientes del día
+        let descansoAplicado = null;
+        let intensivaDia = false;
         if (primeraEntrada && ultimaSalida && ultimaSalida > primeraEntrada) {
           // ¿Este día fue jornada intensiva en esta obra? Si sí, se usa el
           // horario de verano (otra entrada/salida y, normalmente, sin comida).
@@ -300,10 +315,29 @@
           const bruto = (fin - inicio) / 3600000;
           if (bruto > 0 && bruto < 24) {
             netoDia = Math.max(0, bruto - descansoMin(bruto, descansoDia) / 60);
+            brutoDia = redondear2(bruto);
+            descansoAplicado = descansoMin(bruto, descansoDia);
           }
+          intensivaDia = esIntensiva;
         }
 
         t.dias[dia] = redondear2(netoDia);
+
+        // ENTRADA 50 · una línea por jornada, aunque valga cero: un día a
+        // cero también se discute a fin de mes.
+        t.dias_detalle[dia] = {
+          fecha: fechaISOLocal(primeraEntrada),
+          hora_entrada: primeraEntrada ? primeraEntrada.toISOString() : null,
+          hora_salida: ultimaSalida ? ultimaSalida.toISOString() : null,
+          horas_brutas: brutoDia,
+          descanso_min: descansoAplicado,
+          horas_netas: t.dias[dia],
+          es_intensiva: intensivaDia,
+          es_sabado: primeraEntrada.getDay() === 6,
+          hubo_autocierre: !!j.autocierre,
+          hubo_manual: !!j.manual,
+          ajuste_horas: null
+        };
       });
 
       // Horas fijadas a mano: sustituyen a las calculadas en ese día.
@@ -322,6 +356,27 @@
             motivo: aj.motivo || ''
           };
           t.dias[dia] = fijadas;
+
+          // ENTRADA 50 · un día con horas fijadas a mano y SIN fichajes no
+          // tiene jornada, así que no habría línea. Se crea aquí: esas horas
+          // se pagan igual y tienen que estar en la foto.
+          if (!t.dias_detalle[dia]) {
+            const ref0 = new Date(t.fichajes[0].hora);
+            const fRef = new Date(ref0.getFullYear(), ref0.getMonth(), dia);
+            t.dias_detalle[dia] = {
+              fecha: fechaISOLocal(fRef),
+              hora_entrada: null, hora_salida: null,
+              horas_brutas: null, descanso_min: null,
+              horas_netas: 0,
+              es_intensiva: intensivaConfigurada && diasIntensiva.has(fechaISOLocal(fRef)),
+              es_sabado: fRef.getDay() === 6,
+              hubo_autocierre: (t.dias_autocierre[dia] || 0) > 0,
+              hubo_manual: true,
+              ajuste_horas: null
+            };
+          }
+          t.dias_detalle[dia].horas_netas = fijadas;
+          t.dias_detalle[dia].ajuste_horas = fijadas;
         });
       }
 
