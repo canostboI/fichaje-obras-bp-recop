@@ -955,7 +955,86 @@ function traducirMotivo(texto, lang) {
 
 let idiomaActual = 'es';
 
-function aplicarIdioma(lang) {
+// =====================================================================
+// IDIOMA POR DNI
+// ---------------------------------------------------------------------
+// Hasta ahora el idioma se guardaba SOLO por móvil (`idioma_fichaje`).
+// Eso vale para quien usa su propio móvil, pero no para el móvil de obra:
+// si Lester ficha a tres personas seguidas, las tres ven la pantalla en el
+// idioma de la última bandera pulsada.
+//
+// Hay DOS memorias, y no son la misma cosa:
+//   · `idioma_fichaje`  → el idioma DEL MÓVIL. Lo que se ve al llegar y al
+//     volver a empezar. Solo cambia si alguien pulsa una bandera cuando NO
+//     hay ningún DNI en curso, es decir, en la pantalla del DNI.
+//   · `idiomas_por_dni` → mapa DNI → idioma. Se aprende SOLO cuando un
+//     fichaje sale bien: se guarda el idioma que había en pantalla en ese
+//     momento. Ese es el único instante en que sabemos con certeza que el
+//     idioma que se ve y la persona que ficha van juntos.
+//
+// Por qué aprender en el fichaje y no al pulsar la bandera: el trabajador
+// con móvil propio pulsa la bandera ANTES de teclear el DNI (no hay DNI
+// que aprender todavía), y quien ficha a un compañero la pulsa DESPUÉS de
+// ver la pantalla de resultado. Aprender en el fichaje recoge los dos.
+//
+// Todo esto vive en el navegador. La RPC no se toca. Si el mapa se pierde
+// o se corrompe, la valla se comporta exactamente como antes.
+// =====================================================================
+
+const IDIOMAS_DNI_CLAVE = 'idiomas_por_dni';
+const IDIOMAS_DNI_MAX   = 50;   // móvil de obra grande; más allá se poda
+
+// Lee el mapa. Nunca lanza: si el JSON está roto, devuelve mapa vacío y la
+// valla sigue funcionando con el idioma del móvil.
+function leerIdiomasPorDni() {
+  try {
+    const m = JSON.parse(localStorage.getItem(IDIOMAS_DNI_CLAVE) || '{}');
+    return (m && typeof m === 'object' && !Array.isArray(m)) ? m : {};
+  } catch (_) { return {}; }
+}
+
+// El idioma del móvil: lo que se ve al llegar y al empezar de cero.
+function idiomaDelMovil() {
+  const l = localStorage.getItem('idioma_fichaje') || 'es';
+  return TEXTOS[l] ? l : 'es';
+}
+
+// Devuelve el idioma aprendido para ese DNI, o null si no hay ninguno.
+function idiomaDeDni(dni) {
+  const limpio = normalizarDni(dni || '');
+  if (!limpio) return null;
+  const e = leerIdiomasPorDni()[limpio];
+  if (!e || !TEXTOS[e.lang]) return null;
+  return e.lang;
+}
+
+// Guarda DNI → idioma. Se llama SOLO tras un fichaje correcto.
+// Poda por antigüedad de uso: se quedan los IDIOMAS_DNI_MAX más recientes.
+function recordarIdiomaDeDni(dni, lang) {
+  const limpio = normalizarDni(dni || '');
+  if (!limpio || !TEXTOS[lang]) return;
+  const mapa = leerIdiomasPorDni();
+  mapa[limpio] = { lang: lang, ts: Date.now() };
+  const claves = Object.keys(mapa);
+  if (claves.length > IDIOMAS_DNI_MAX) {
+    claves
+      .sort((a, b) => (mapa[b].ts || 0) - (mapa[a].ts || 0))
+      .slice(IDIOMAS_DNI_MAX)
+      .forEach(k => delete mapa[k]);
+  }
+  try { localStorage.setItem(IDIOMAS_DNI_CLAVE, JSON.stringify(mapa)); } catch (_) {}
+}
+
+// Tras validar_acceso: si ese DNI tiene idioma aprendido, la pantalla
+// cambia sola. Si no lo tiene, no se toca nada (se queda el del móvil).
+function aplicarIdiomaDeDni(dni) {
+  const lang = idiomaDeDni(dni);
+  if (lang && lang !== idiomaActual) aplicarIdioma(lang, 'dni');
+}
+
+// `origen` dice de dónde viene el cambio y decide si toca el idioma DEL
+// MÓVIL:  'manual' (bandera pulsada) · 'dni' (aprendido) · 'arranque'.
+function aplicarIdioma(lang, origen) {
   if (!TEXTOS[lang]) lang = 'es';
   idiomaActual = lang;
   const t = TEXTOS[lang];
@@ -991,7 +1070,12 @@ function aplicarIdioma(lang) {
     document.getElementById('lang-' + l).classList.toggle('activo', l === lang);
   });
 
-  localStorage.setItem('idioma_fichaje', lang);
+  // El idioma DEL MÓVIL solo cambia si alguien pulsa una bandera sin tener
+  // un DNI en curso. Si Lester pulsa 🇲🇦 para ayudar a un compañero, eso es
+  // el idioma DE ESE COMPAÑERO, no el de su móvil: se aprenderá al fichar.
+  if (origen === 'manual' && !estado.dni) {
+    localStorage.setItem('idioma_fichaje', lang);
+  }
 
   if (!el.avisoGps.classList.contains('oculto')) {
     mostrarAvisoGps(ultimoCodigoGps);
@@ -1017,9 +1101,9 @@ function Tgps(clave) {
     || (TEXTOS.es.gps[clave]) || '';
 }
 
-document.getElementById('lang-es').addEventListener('click', () => aplicarIdioma('es'));
-document.getElementById('lang-ar').addEventListener('click', () => aplicarIdioma('ar'));
-document.getElementById('lang-ro').addEventListener('click', () => aplicarIdioma('ro'));
+document.getElementById('lang-es').addEventListener('click', () => aplicarIdioma('es', 'manual'));
+document.getElementById('lang-ar').addEventListener('click', () => aplicarIdioma('ar', 'manual'));
+document.getElementById('lang-ro').addEventListener('click', () => aplicarIdioma('ro', 'manual'));
 
 // ── Fondo foto obra ──
 function aplicarFotoFondo(fotoUrl) {
@@ -1031,8 +1115,7 @@ function aplicarFotoFondo(fotoUrl) {
 }
 
 (async function init() {
-  const langGuardado = localStorage.getItem('idioma_fichaje') || 'es';
-  aplicarIdioma(langGuardado);
+  aplicarIdioma(idiomaDelMovil(), 'arranque');
 
   const params = new URLSearchParams(window.location.search);
   estado.obraId = params.get('obra');
@@ -1369,6 +1452,9 @@ el.btnNuevo.addEventListener('click', () => {
   estado.dni = null; estado.validacion = null; estado.ubicacion = null;
   el.inputDni.value = '';
   ocultarAvisoGps();
+  // Se empieza de cero: la pantalla vuelve al idioma DEL MÓVIL. Si no, el
+  // móvil de obra se quedaría en el idioma del último que fichó.
+  aplicarIdioma(idiomaDelMovil(), 'arranque');
   irA(el.pasoDni);
   el.inputDni.focus();
 });
@@ -1380,6 +1466,7 @@ el.btnSrNuevo.addEventListener('click', () => {
   estado.dni = null; estado.validacion = null; estado.ubicacion = null;
   el.inputDni.value = '';
   ocultarAvisoGps();
+  aplicarIdioma(idiomaDelMovil(), 'arranque');
   irA(el.pasoDni);
   el.inputDni.focus();
 });
@@ -1411,6 +1498,7 @@ async function continuarDesdeDni() {
     }
     estado.validacion = data;
     gestionarRecordatorioDni(estado.dni, data);
+    aplicarIdiomaDeDni(estado.dni);
     mostrarResultadoValidacion(data);
   } catch (err) {
     const info = interpretarError(err);
@@ -1442,6 +1530,7 @@ async function reintentarGps() {
     }
     estado.validacion = data;
     gestionarRecordatorioDni(estado.dni, data);
+    aplicarIdiomaDeDni(estado.dni);
     mostrarResultadoValidacion(data);
   } catch (err) {
     const info = interpretarError(err);
@@ -1582,6 +1671,10 @@ function mostrarConfirmacionFinal(r) {
   } else {
     el.finalOlvido.classList.add('oculto');
   }
+
+  // El fichaje ha salido bien: el idioma que hay en pantalla es el de esta
+  // persona. Es el único momento en que idioma y DNI van juntos con certeza.
+  recordarIdiomaDeDni(estado.dni, idiomaActual);
 
   const historial = registrarHistorialDni(estado.dni);
   detectarMovilCompartido(estado.obraId, historial);
