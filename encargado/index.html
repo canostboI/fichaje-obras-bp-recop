@@ -269,6 +269,16 @@
     .panel-avisos .aviso-botones { display: flex; gap: 8px; align-items: center; }
     .panel-avisos .btn-corregir-aviso { background: #fff; color: #b26a00; border: 1px solid #ff9800; padding: 0.4rem 0.9rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; white-space: nowrap; }
     .panel-avisos .btn-corregir-aviso:hover { background: #fff3e0; }
+    .panel-avisos .btn-correctas { background: #1b5e20; color: white; border: none; padding: 0.4rem 0.9rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; white-space: nowrap; }
+    .panel-avisos .btn-correctas:hover { background: #2e7d32; }
+    .panel-avisos .btn-correctas:disabled, .panel-avisos .btn-corregir-aviso:disabled { background: #ccc; color: #666; border-color: #ccc; cursor: not-allowed; }
+    .panel-avisos .caja-correccion { flex-basis: 100%; margin-top: 0.6rem; padding: 0.7rem; background: #fffdf5; border: 1px solid #ffcc80; border-radius: 8px; }
+    .panel-avisos .caja-correccion .fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 0.5rem; }
+    .panel-avisos .caja-correccion label { font-size: 0.85rem; color: #5d4500; font-weight: bold; }
+    .panel-avisos .caja-correccion input[type=time] { padding: 0.35rem 0.5rem; border: 1px solid #ffb74d; border-radius: 6px; font-size: 0.95rem; }
+    .panel-avisos .caja-correccion input[type=text] { flex: 1; min-width: 180px; padding: 0.35rem 0.5rem; border: 1px solid #ffb74d; border-radius: 6px; font-size: 0.9rem; }
+    .panel-avisos .caja-correccion .msg-err { color: #c62828; font-size: 0.85rem; margin-top: 0.3rem; }
+    .panel-avisos .nota-plazo { font-size: 0.82rem; color: #8a6d00; margin-top: 0.6rem; font-style: italic; }
 
     .panel-bloqueos {
       background: #fff5f5; border: 1px solid #ffcdd2;
@@ -1231,47 +1241,242 @@
     document.getElementById('modal-accesos-overlay').classList.remove('visible');
   }
 
+  // PLAZO DEL ENCARGADO. `corregir_fichaje`, `fijar_horas_dia` y
+  // `confirmar_autocierre` le dejan tocar hoy y los 5 días anteriores.
+  // Este panel enseña EXACTAMENTE esa ventana: un aviso que él no puede
+  // apagar no se le pone delante. Lo que se pasa de plazo no desaparece
+  // del sistema — sale en el panel del jefe, que sí puede resolverlo.
+  const DIAS_PLAZO_ENCARGADO = 5;
+
+  // Los autocierres se leen de FICHAJES, no de incidencias.
+  //
+  // Antes se leían de `incidencias`, y de ahí venía el fallo de fondo:
+  // "✓ Visto" marcaba la incidencia, pero el panel del jefe mira el
+  // FICHAJE (corregido_por / horas fijadas / confirmado_por). El
+  // encargado apagaba la luz y la avería seguía. Además la incidencia no
+  // lleva el id del fichaje, así que "Corregir" solo podía soltarte en
+  // resumen-mes.html sin decirte a quién ni qué día.
+  //
+  // La incidencia se sigue buscando, pero solo para marcarla vista de
+  // paso. Se casa por la marca 'Jornada del DD/MM/YYYY', que
+  // autocerrar_jornadas escribe a propósito como DATO (su propio
+  // guardarraíl la usa para no duplicar). Si no se encuentra, no pasa
+  // nada: el fichaje manda.
   async function cargarAvisosAutocierre() {
     const panel = document.getElementById('panel-avisos');
     if (!obraActualId) { panel.style.display = 'none'; return; }
 
-    const { data, error } = await sb
-      .from('incidencias')
-      .select('id, tipo, detalle, created_at, trabajador_id, trabajadores(nombre, apellidos)')
+    const desde = new Date();
+    desde.setDate(desde.getDate() - DIAS_PLAZO_ENCARGADO);
+    const desdeISO = fechaISO(desde);
+
+    // 1. Autocierres pendientes: ni corregidos ni confirmados.
+    const { data: autos, error: errAutos } = await sb
+      .from('fichajes')
+      .select('id, hora, trabajador_id, trabajadores(nombre, apellidos)')
       .eq('obra_id', obraActualId)
-      .in('tipo', ['autocierre', 'movil_compartido'])
+      .eq('tipo', 'salida')
+      .eq('cierre_automatico', true)
+      .is('corregido_por', null)
+      .is('confirmado_por', null)
+      .gte('hora', desdeISO + 'T00:00:00')
+      .order('hora', { ascending: false });
+
+    // 2. Móvil compartido: sigue viniendo de incidencias, es otra cosa.
+    const { data: incs, error: errIncs } = await sb
+      .from('incidencias')
+      .select('id, tipo, detalle, created_at')
+      .eq('obra_id', obraActualId)
+      .eq('tipo', 'movil_compartido')
       .eq('estado', 'nueva')
       .order('created_at', { ascending: false });
 
-    if (error) { panel.style.display = 'none'; return; }
-    if (!data || data.length === 0) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
+    // Un error de lectura NO se pinta como "no hay avisos": sería un
+    // verde falso, la misma trampa que ya se corrigió en la presencia.
+    if (errAutos || errIncs) {
+      console.error('avisos:', errAutos || errIncs);
+      panel.innerHTML = '<h2>⚠️ Avisos</h2><div class="aviso-item"><div class="aviso-info">' +
+        'No se han podido leer los avisos. <strong>Esta lista NO es fiable.</strong> ' +
+        'Vuelve a intentarlo con 🔄 Actualizar.</div></div>';
+      panel.style.display = 'block';
+      return;
+    }
 
-    let html = `<h2>⚠️ Avisos (${data.length})</h2>`;
+    const listaAutos = autos || [];
+    const listaIncs  = incs  || [];
 
-    data.forEach(inc => {
-      let textoAviso = '';
-      if (inc.tipo === 'autocierre') {
-        const t = inc.trabajadores;
-        const nombre = t ? `${t.nombre || ''} ${t.apellidos || ''}`.trim() || 'Trabajador desconocido' : 'Trabajador desconocido';
-        textoAviso = `<strong>${esc(nombre)}</strong><br>
-          <span class="aviso-fecha">${esc(formatFecha(inc.created_at))}</span> — ${esc(inc.detalle || 'Cierre automático de jornada')}`;
-      } else if (inc.tipo === 'movil_compartido') {
-        textoAviso = `<strong>📱 Posible móvil compartido</strong><br>
-          <span class="aviso-fecha">${esc(formatFecha(inc.created_at))}</span> — ${esc(inc.detalle || '')}`;
-      }
-      const btnCorregir = (inc.tipo === 'autocierre')
-        ? `<button class="btn-corregir-aviso" onclick="window.location.href='resumen-mes.html'">✏ Corregir</button>`
-        : '';
+    // 3. Casar cada autocierre con su incidencia, si la hay.
+    const incAuto = {};
+    if (listaAutos.length > 0) {
+      const { data: incAutos } = await sb
+        .from('incidencias')
+        .select('id, trabajador_id, detalle')
+        .eq('obra_id', obraActualId)
+        .eq('tipo', 'autocierre')
+        .eq('estado', 'nueva');
+      (incAutos || []).forEach(i => {
+        const m = /^Jornada del (\d{2}\/\d{2}\/\d{4})/.exec(i.detalle || '');
+        if (m) incAuto[i.trabajador_id + '|' + m[1]] = i.id;
+      });
+    }
+
+    const total = listaAutos.length + listaIncs.length;
+    if (total === 0) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
+
+    let html = `<h2>⚠️ Avisos (${total})</h2>`;
+
+    listaAutos.forEach(f => {
+      const t = f.trabajadores;
+      const nombre = t ? `${t.nombre || ''} ${t.apellidos || ''}`.trim() || 'Trabajador desconocido'
+                       : 'Trabajador desconocido';
+      const d = new Date(f.hora);
+      const hhmm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+      const marca = String(d.getDate()).padStart(2, '0') + '/' +
+                    String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+      const incId = incAuto[f.trabajador_id + '|' + marca] || '';
 
       html += `
-        <div class="aviso-item" data-id="${inc.id}">
-          <div class="aviso-info">${textoAviso}</div>
-          <div class="aviso-botones">${btnCorregir}<button class="btn-visto" onclick="marcarVisto('${inc.id}')">✓ Visto</button></div>
+        <div class="aviso-item" data-fichaje="${f.id}">
+          <div class="aviso-info">
+            <strong>${esc(nombre)}</strong><br>
+            <span class="aviso-fecha">${esc(formatFecha(f.hora))}</span> —
+            el sistema cerró la jornada a las <strong>${hhmm}</strong> (no fichó salida)
+          </div>
+          <div class="aviso-botones">
+            <button class="btn-corregir-aviso" onclick="abrirCorreccion('${f.id}','${hhmm}')">✏ Se fue antes</button>
+            <button class="btn-correctas" onclick="confirmarAutocierre('${f.id}','${incId}')">✓ Correctas</button>
+          </div>
         </div>`;
     });
 
+    listaIncs.forEach(inc => {
+      html += `
+        <div class="aviso-item" data-id="${inc.id}">
+          <div class="aviso-info">
+            <strong>📱 Posible móvil compartido</strong><br>
+            <span class="aviso-fecha">${esc(formatFecha(inc.created_at))}</span> — ${esc(inc.detalle || '')}
+          </div>
+          <div class="aviso-botones"><button class="btn-visto" onclick="marcarVisto('${inc.id}')">✓ Visto</button></div>
+        </div>`;
+    });
+
+    if (listaAutos.length > 0) {
+      html += `<div class="nota-plazo">Solo se muestran los últimos ${DIAS_PLAZO_ENCARGADO} días.
+        Lo anterior lo resuelve el jefe de obra desde el resumen del mes.</div>`;
+    }
+
     panel.innerHTML = html;
     panel.style.display = 'block';
+  }
+
+  // Fecha local en YYYY-MM-DD. No se usa toISOString(): eso pasa a UTC y
+  // en verano resta dos horas, así que de madrugada daría el día anterior.
+  function fechaISO(d) {
+    return d.getFullYear() + '-' +
+           String(d.getMonth() + 1).padStart(2, '0') + '-' +
+           String(d.getDate()).padStart(2, '0');
+  }
+
+  function refrescarPanelAvisos() {
+    const panel = document.getElementById('panel-avisos');
+    const restantes = panel.querySelectorAll('.aviso-item').length;
+    if (restantes === 0) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
+    const titulo = panel.querySelector('h2');
+    if (titulo) titulo.textContent = `⚠️ Avisos (${restantes})`;
+  }
+
+  // "✓ Correctas": la hora del autocierre es la buena. No mueve la hora;
+  // deja el nombre de quien responde por ella. El aviso se apaga aquí y
+  // también en el panel del jefe, porque los dos miran el mismo fichaje.
+  async function confirmarAutocierre(fichajeId, incidenciaId) {
+    const item = document.querySelector(`.aviso-item[data-fichaje="${fichajeId}"]`);
+    const btns = item ? item.querySelectorAll('button') : [];
+    btns.forEach(b => b.disabled = true);
+
+    const { data, error } = await sb.rpc('confirmar_autocierre', {
+      p_fichaje_id: fichajeId, p_confirmar: true
+    });
+
+    if (error || (data && data.success === false)) {
+      btns.forEach(b => b.disabled = false);
+      alert('No se ha podido confirmar: ' + (error?.message || data?.error || 'error desconocido'));
+      return;
+    }
+
+    // La incidencia es rastro: si falla, el trabajo real ya está hecho.
+    if (incidenciaId) {
+      try { await sb.rpc('marcar_incidencia_vista', { p_incidencia_id: incidenciaId }); }
+      catch (_) {}
+    }
+
+    if (item) item.remove();
+    refrescarPanelAvisos();
+  }
+
+  // "✏ Se fue antes": corrige la HORA de verdad. `corregir_fichaje` no
+  // deja cambiar el día, solo hh:mm, así que el campo se rellena con la
+  // hora inventada y el encargado la mueve.
+  function abrirCorreccion(fichajeId, hhmmActual) {
+    const item = document.querySelector(`.aviso-item[data-fichaje="${fichajeId}"]`);
+    if (!item || item.querySelector('.caja-correccion')) return;
+
+    const caja = document.createElement('div');
+    caja.className = 'caja-correccion';
+    caja.innerHTML = `
+      <div class="fila">
+        <label>Salió a las</label>
+        <input type="time" class="corr-hora" value="${hhmmActual}">
+        <input type="text" class="corr-motivo" placeholder="Motivo (obligatorio): p. ej. se fue a comer y no volvió" maxlength="200">
+      </div>
+      <div class="fila">
+        <button class="btn-correctas corr-guardar">Guardar hora</button>
+        <button class="btn-corregir-aviso corr-cancelar">Cancelar</button>
+      </div>
+      <div class="msg-err" style="display:none"></div>`;
+    item.appendChild(caja);
+
+    caja.querySelector('.corr-cancelar').onclick = () => caja.remove();
+    caja.querySelector('.corr-guardar').onclick  = () => guardarCorreccion(fichajeId, caja);
+    caja.querySelector('.corr-hora').focus();
+  }
+
+  async function guardarCorreccion(fichajeId, caja) {
+    const hora   = caja.querySelector('.corr-hora').value;
+    const motivo = caja.querySelector('.corr-motivo').value.trim();
+    const err    = caja.querySelector('.msg-err');
+    const mostrar = t => { err.textContent = t; err.style.display = 'block'; };
+    err.style.display = 'none';
+
+    if (!hora)            return mostrar('Pon la hora a la que se fue.');
+    if (motivo.length < 3) return mostrar('El motivo es obligatorio (mínimo 3 caracteres).');
+
+    // El DÍA sale del fichaje original, nunca de la pantalla: corregir
+    // cambia la hora, no la fecha (la RPC lo hace cumplir igualmente).
+    const item = document.querySelector(`.aviso-item[data-fichaje="${fichajeId}"]`);
+    const { data: fila, error: errLee } = await sb
+      .from('fichajes').select('hora').eq('id', fichajeId).single();
+    if (errLee || !fila) return mostrar('No se ha podido leer el fichaje. Inténtalo de nuevo.');
+
+    const d = new Date(fila.hora);
+    const [hh, mm] = hora.split(':').map(Number);
+    d.setHours(hh, mm, 0, 0);
+
+    const botones = caja.querySelectorAll('button');
+    botones.forEach(b => b.disabled = true);
+
+    const { data, error } = await sb.rpc('corregir_fichaje', {
+      p_fichaje_id: fichajeId,
+      p_nueva_hora: d.toISOString(),
+      p_motivo: motivo
+    });
+
+    if (error || (data && data.success === false)) {
+      botones.forEach(b => b.disabled = false);
+      return mostrar('No se ha podido corregir: ' + (error?.message || data?.error || 'error desconocido'));
+    }
+
+    if (item) item.remove();
+    refrescarPanelAvisos();
   }
 
   async function marcarVisto(incidenciaId) {
