@@ -344,7 +344,7 @@
         <div class="pc-paso" id="pc-paso-3">
           <div class="pc-cab"><span class="pc-num" id="pc-icono-3">3</span>
             <div>
-              <div class="pc-tit">Revisar las reentradas seguidas</div>
+              <div class="pc-tit">Revisar los dobles pases del QR</div>
               <div class="pc-desc" id="pc-desc-3">—</div>
             </div>
           </div>
@@ -716,9 +716,9 @@ async function obtenerFichajesMes(obraId, mes) {
     throw new Error('No se ha cargado js/sb-paginado.js. Recarga la página.');
   }
 
-  const SELECT_COMPLETO = `id, tipo, hora, cierre_automatico, es_manual, corregido_por, motivo_correccion, trabajador_id,
+  const SELECT_COMPLETO = `id, tipo, hora, cierre_automatico, es_manual, corregido_por, motivo_correccion, confirmado_por, trabajador_id,
       trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado, empresa:empresa_id(nombre))`;
-  const SELECT_FALLBACK = `id, tipo, hora, cierre_automatico, es_manual, corregido_por, motivo_correccion, trabajador_id,
+  const SELECT_FALLBACK = `id, tipo, hora, cierre_automatico, es_manual, corregido_por, motivo_correccion, confirmado_por, trabajador_id,
       trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado)`;
 
   // El orden es OBLIGATORIO para paginar: sin él, las tandas pueden
@@ -1442,11 +1442,15 @@ async function cargarResumen() {
 // =====================================================================
 
 // Un autocierre está "pendiente" mientras su hora inventada siga
-// decidiendo las horas de ese día. Deja de estarlo por DOS vías:
+// decidiendo las horas de ese día SIN que nadie haya respondido por ella.
+// Deja de estarlo por TRES vías:
 //   1) alguien corrigió esa salida (`corregido_por`), o
 //   2) ese día lleva HORAS FIJADAS para ese trabajador: entonces el
 //      proforma cobra la cifra fijada y la hora del autocierre ya no
-//      decide nada.
+//      decide nada, o
+//   3) el encargado CONFIRMÓ que esa hora es la buena (`confirmado_por`).
+//      La hora sigue siendo la que puso el sistema, pero ya no es
+//      anónima: hay un nombre detrás. Eso era el problema de fondo.
 // Es el MISMO criterio de cero que usa el paso 3 (reentradas). Tenerlo
 // en un paso y no en el otro dejaba un aviso que no se podía apagar
 // haciendo lo correcto.
@@ -1457,7 +1461,7 @@ async function cargarResumen() {
 function autocierresPendientes() {
   return fichajesMesCache
     .filter(f => {
-      if (!f.cierre_automatico || f.corregido_por) return false;
+      if (!f.cierre_automatico || f.corregido_por || f.confirmado_por) return false;
       const t = resumenTrabajadores[f.trabajador_id];
       const dia = new Date(f.hora).getDate();
       if (t && t.dias_ajuste && t.dias_ajuste[dia] !== undefined) return false;
@@ -1509,6 +1513,69 @@ function reentradasSospechosas() {
       if (t && t.dias_ajuste && t.dias_ajuste[dia] !== undefined) continue;
 
       encontradas.push({ trabajador_id: tid, dia, minutos, dSal, dEnt });
+    }
+  });
+
+  return encontradas.sort((a, b) => a.dEnt - b.dEnt);
+}
+
+// Una JORNADA DEMASIADO CORTA es una salida que llega muy poco después de
+// la entrada del mismo trabajador y el mismo día. Es el ESPEJO exacto de
+// la reentrada sospechosa: el mismo doble pase del QR, pero leído al
+// entrar en vez de al salir. Cierra la jornada en minutos y el día vale
+// cero sin que salte ninguna otra alarma (Escola, 7/8/2026: dos hombres
+// entran a las 07:06 y "salen" a las 07:12; trabajaron el día entero).
+//
+// El umbral sale de los datos reales (abr-ago 2026): de las 40 jornadas
+// de menos de 4 h de toda la historia, las 20 que bajan de 26 minutos son
+// TODAS pases accidentales del QR — ni una es un día de trabajo. La
+// primera parada legítima (un encargado visitando la obra) está en 30.
+const JORNADA_CORTA_MIN = 30;
+
+// Mismo criterio de CERO que los pasos 1 y 3: la línea desaparece si
+// alguien ya tocó uno de los dos fichajes o si el día lleva horas fijadas
+// a mano. Dos pasos del mismo panel que tratan el mismo problema no
+// pueden apagarse de maneras distintas.
+//
+// `yaAvisados` son las reentradas ya encontradas: cuando el doble pase
+// abre una jornada fantasma, el MISMO día saldría por los dos lados. Se
+// cuenta una sola vez, y se queda con la reentrada, que es el diagnóstico
+// más preciso.
+function jornadasDemasiadoCortas(yaAvisados) {
+  const vistos = new Set();
+  (yaAvisados || []).forEach(r => vistos.add(r.trabajador_id + '|' + r.dia));
+
+  const porTrabajador = {};
+  fichajesMesCache.forEach(f => {
+    if (!porTrabajador[f.trabajador_id]) porTrabajador[f.trabajador_id] = [];
+    porTrabajador[f.trabajador_id].push(f);
+  });
+
+  const encontradas = [];
+  Object.keys(porTrabajador).forEach(tid => {
+    const lista = porTrabajador[tid]
+      .slice()
+      .sort((a, b) => new Date(a.hora) - new Date(b.hora));
+
+    for (let i = 1; i < lista.length; i++) {
+      const ant = lista[i - 1], act = lista[i];
+      if (ant.tipo !== 'entrada' || act.tipo !== 'salida') continue;
+
+      const dEnt = new Date(ant.hora), dSal = new Date(act.hora);
+      // Mismo día natural (local). Si cruza medianoche no es este caso.
+      if (dEnt.getDate() !== dSal.getDate() || dEnt.getMonth() !== dSal.getMonth()) continue;
+
+      const minutos = Math.round((dSal - dEnt) / 60000);
+      if (minutos >= JORNADA_CORTA_MIN) continue;
+
+      if (ant.corregido_por || act.corregido_por) continue;
+      const t = resumenTrabajadores[tid];
+      const dia = dEnt.getDate();
+      if (t && t.dias_ajuste && t.dias_ajuste[dia] !== undefined) continue;
+      if (vistos.has(tid + '|' + dia)) continue;
+
+      vistos.add(tid + '|' + dia);
+      encontradas.push({ trabajador_id: tid, dia, minutos, dEnt, dSal });
     }
   });
 
@@ -1777,39 +1844,67 @@ function actualizarPanelCierre() {
       partes.join(' · ') + '. Repásalos: son horas que no salen del fichaje real.';
   }
 
-  // --- Paso 3: reentradas seguidas (doble pase del QR) ---
+  // --- Paso 3: dobles pases del QR, en los DOS sentidos ---
+  // Misma causa (el QR leído dos veces) y mismo arreglo, así que van en el
+  // mismo paso: leído al SALIR abre una jornada de más (reentrada); leído
+  // al ENTRAR la cierra en minutos y el día vale cero (jornada corta).
   const reentradas = reentradasSospechosas();
+  const cortas = jornadasDemasiadoCortas(reentradas);
   const paso3 = document.getElementById('pc-paso-3');
   const chips3 = document.getElementById('pc-chips-3');
   chips3.innerHTML = '';
 
-  if (reentradas.length === 0) {
+  const hhmm = d => String(d.getHours()).padStart(2, '0') + ':' +
+                    String(d.getMinutes()).padStart(2, '0');
+
+  if (reentradas.length + cortas.length === 0) {
     paso3.className = 'pc-paso hecho';
     document.getElementById('pc-icono-3').textContent = '✓';
     document.getElementById('pc-desc-3').textContent =
-      'Ninguna entrada llega pegada a una salida anterior.';
+      'Ningún fichaje llega pegado a otro: ni entradas de más ni jornadas de minutos.';
   } else {
     paso3.className = 'pc-paso alerta';
     document.getElementById('pc-icono-3').textContent = '3';
+
+    const partes3 = [];
+    if (reentradas.length > 0) {
+      partes3.push(reentradas.length + (reentradas.length === 1
+          ? ' entrada llega justo después de una salida (menos de '
+          : ' entradas llegan justo después de una salida (menos de ') +
+        HUECO_REENTRADA_MIN + ' min): abre una jornada de más. ' +
+        'Si sobra, corrige esa entrada; si de verdad volvió a trabajar, déjalo.');
+    }
+    if (cortas.length > 0) {
+      partes3.push(cortas.length + (cortas.length === 1
+          ? ' jornada dura menos de ' : ' jornadas duran menos de ') +
+        JORNADA_CORTA_MIN + ' min: el QR se leyó dos veces al entrar y ' +
+        'cerró la jornada al momento. Mira ese día: si las horas que salen ' +
+        'no son las que trabajó, fíjaselas a mano.');
+    }
     document.getElementById('pc-desc-3').textContent =
-      reentradas.length + (reentradas.length === 1
-        ? ' entrada llega justo después de una salida (menos de '
-        : ' entradas llegan justo después de una salida (menos de ') +
-      HUECO_REENTRADA_MIN + ' min). Suele ser el QR pasado dos veces al salir, ' +
-      'y abre una jornada de más. Míralas: si sobra, corrige esa entrada. ' +
-      'Si de verdad volvió a trabajar, déjalo como está.';
+      partes3.join(' · ') + ' Suele ser el QR pasado dos veces.';
 
     reentradas.forEach(r => {
       const t = resumenTrabajadores[r.trabajador_id];
-      const hh = d => String(d.getHours()).padStart(2, '0') + ':' +
-                      String(d.getMinutes()).padStart(2, '0');
       const b = document.createElement('button');
       b.className = 'pc-chip';
       b.textContent = (t ? t.nombre : 'Trabajador') + ' · ' +
                       r.dia + '/' + (r.dEnt.getMonth() + 1) + ' · ' +
-                      hh(r.dSal) + '→' + hh(r.dEnt) +
-                      ' (' + r.minutos + ' min)';
+                      hhmm(r.dSal) + '→' + hhmm(r.dEnt) +
+                      ' (' + r.minutos + ' min, entrada de más)';
       b.onclick = () => abrirDetalleDia(r.trabajador_id, r.dia);
+      chips3.appendChild(b);
+    });
+
+    cortas.forEach(c => {
+      const t = resumenTrabajadores[c.trabajador_id];
+      const b = document.createElement('button');
+      b.className = 'pc-chip';
+      b.textContent = (t ? t.nombre : 'Trabajador') + ' · ' +
+                      c.dia + '/' + (c.dEnt.getMonth() + 1) + ' · ' +
+                      hhmm(c.dEnt) + '→' + hhmm(c.dSal) +
+                      ' (' + c.minutos + ' min, jornada de minutos)';
+      b.onclick = () => abrirDetalleDia(c.trabajador_id, c.dia);
       chips3.appendChild(b);
     });
   }
@@ -1890,13 +1985,19 @@ function actualizarPanelCierre() {
   }
 
   // --- Estado general + si el panel se abre solo ---
-  // Los autocierres mandan: su hora es inventada. Después los sábados,
-  // que son horas que FALTAN por pagar. Las reentradas avisan de horas
-  // que sobran, pero pueden ser legítimas. Ninguno bloquea el export.
+  // Los autocierres mandan: su hora es inventada. Después las jornadas de
+  // minutos, que suelen dejar el día muy corto: horas que FALTAN. Luego los
+  // sábados, también horas que faltan. Las reentradas van al final: avisan
+  // de horas que sobran y pueden ser legítimas. Ninguno bloquea el export.
   const estado = document.getElementById('pc-estado');
   if (pendientes.length > 0) {
     estado.className = 'pc-estado pendiente';
     estado.textContent = '· ' + pendientes.length + ' por corregir';
+    panel.open = true;
+  } else if (cortas.length > 0) {
+    estado.className = 'pc-estado pendiente';
+    estado.textContent = '· ' + cortas.length +
+      (cortas.length === 1 ? ' jornada de minutos por revisar' : ' jornadas de minutos por revisar');
     panel.open = true;
   } else if (sab.pendientes.length > 0) {
     estado.className = 'pc-estado pendiente';
