@@ -2157,7 +2157,20 @@ async function ejecutarFichaje(tipo) {
       p_obra_id: estado.obraId,
       p_latitud: estado.ubicacion.lat,
       p_longitud: estado.ubicacion.lng,
-      p_tipo: tipo
+      p_tipo: tipo,
+      // PRECISION-GPS (50a, 23/8/2026)
+      // La valla ya calculaba el accuracy de cada lectura para elegir la
+      // mejor, y luego lo tiraba al mandar el fichaje. Un dato que se tira
+      // no se puede echar de menos: sin el, un rechazo a 1.700 m no se
+      // distingue de otro a 1.700 m, y uno es real y el otro es de antena.
+      //
+      // Infinity (movil que no informa de precision) se manda como null
+      // explicito. JSON tambien lo convertiria solo, pero eso es un efecto
+      // colateral, no una decision: si manana alguien cambia como se serializa,
+      // el fallo seria mudo.
+      p_precision: Number.isFinite(estado.ubicacion.precision)
+                     ? estado.ubicacion.precision
+                     : null
     });
     if (error) {
       const info = interpretarError(error);
