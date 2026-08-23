@@ -679,6 +679,26 @@ const TEXTOS = {
     timeout_red:         'La conexión tardó demasiado. Inténtelo de nuevo.',
     error_generico:      'No se pudo completar la operación. Inténtelo de nuevo.',
     fichaje_rechazado:   'No se pudo registrar el fichaje.',
+
+    // --- Errores que devuelve registrar_fichaje (51ª, 23/8/2026) ----
+    // La RPC manda un 'codigo' corto y estable; aquí se traduce. La
+    // frase castellana sigue viajando en 'error' como red de seguridad.
+    // La clave es siempre err_ + el código en minúsculas: si algún día
+    // falta una, se ve de un vistazo cuál.
+    // {m} en err_fuera_de_zona es el hueco de los metros. Si no llega
+    // el número, textoErrorRpc quita el paréntesis entero.
+    err_dni_vacio:             'Introduzca su DNI o NIE.',
+    err_dni_no_encontrado:     'DNI no encontrado. Revise números y letra.',
+    err_trabajador_baja:       'Este DNI está dado de baja. Avise al encargado.',
+    err_obra_no_encontrada:    'Obra no encontrada. Vuelva a escanear el QR.',
+    err_obra_inactiva:         'Esta obra no está activa. Avise al encargado.',
+    err_sin_ubicacion:         'Ubicación no disponible. Active el GPS y permita el acceso a la ubicación.',
+    err_fuera_de_zona:         'Fuera de la zona de la obra (a {m} m). Avise al encargado.',
+    err_acceso_denegado:       'Acceso denegado.',
+    err_tipo_no_valido:        'No se pudo registrar el fichaje. Vuelva a intentarlo.',
+    err_sin_entrada_abierta:   'No tienes ninguna entrada abierta hoy en esta obra. No se puede fichar salida.',
+    err_ya_hay_entrada_abierta:'Ya tienes una entrada abierta en esta obra. Ficha la salida primero.',
+    err_jornada_abierta_otra_obra: 'Tienes una jornada abierta en otra obra. Debes fichar la salida allí antes de fichar aquí.',
     reintentar:          'Reintentar',
     aviso_autocierre_titulo: '⚠ Atención: ayer no fichaste la salida',
     aviso_autocierre_texto1: 'El sistema cerró tu jornada automáticamente a la hora de cierre de la obra.',
@@ -770,6 +790,18 @@ const TEXTOS = {
     timeout_red:         'La connexió ha trigat massa. Torneu-ho a provar.',
     error_generico:      "No s'ha pogut completar l'operació. Torneu-ho a provar.",
     fichaje_rechazado:   "No s'ha pogut registrar el fitxatge.",
+    err_dni_vacio:             'Introduïu el vostre DNI o NIE.',
+    err_dni_no_encontrado:     'DNI no trobat. Reviseu números i lletra.',
+    err_trabajador_baja:       "Aquest DNI està donat de baixa. Aviseu l'encarregat.",
+    err_obra_no_encontrada:    'Obra no trobada. Torneu a escanejar el QR.',
+    err_obra_inactiva:         "Aquesta obra no està activa. Aviseu l'encarregat.",
+    err_sin_ubicacion:         "Ubicació no disponible. Activeu el GPS i permeteu l'accés a la ubicació.",
+    err_fuera_de_zona:         "Fora de la zona de l'obra (a {m} m). Aviseu l'encarregat.",
+    err_acceso_denegado:       'Accés denegat.',
+    err_tipo_no_valido:        "No s'ha pogut registrar el fitxatge. Torneu-ho a provar.",
+    err_sin_entrada_abierta:   'No tens cap entrada oberta avui en aquesta obra. No es pot fitxar la sortida.',
+    err_ya_hay_entrada_abierta:'Ja tens una entrada oberta en aquesta obra. Fitxa primer la sortida.',
+    err_jornada_abierta_otra_obra: 'Tens una jornada oberta en una altra obra. Has de fitxar la sortida allà abans de fitxar aquí.',
     reintentar:          'Tornar a provar',
     aviso_autocierre_titulo: '⚠ Atenció: ahir no vau fitxar la sortida',
     aviso_autocierre_texto1: "El sistema va tancar la vostra jornada automàticament a l'hora de tancament de l'obra.",
@@ -860,6 +892,18 @@ const TEXTOS = {
     timeout_red:         'استغرق الاتصال وقتاً طويلاً. أعد المحاولة.',
     error_generico:      'تعذّر إتمام العملية. أعد المحاولة.',
     fichaje_rechazado:   'تعذّر تسجيل الحضور.',
+    err_dni_vacio:             'أدخل رقم الهوية أو NIE.',
+    err_dni_no_encontrado:     'الهوية غير موجودة. تحقق من الأرقام والحرف.',
+    err_trabajador_baja:       'هذه الهوية موقوفة. أبلغ المسؤول.',
+    err_obra_no_encontrada:    'الورشة غير موجودة. امسح رمز QR مجدداً.',
+    err_obra_inactiva:         'هذه الورشة غير نشطة. أبلغ المسؤول.',
+    err_sin_ubicacion:         'الموقع غير متاح. فعّل GPS واسمح بالوصول إلى الموقع.',
+    err_fuera_de_zona:         'أنت خارج نطاق الورشة (على بعد {m} م). أبلغ المسؤول.',
+    err_acceso_denegado:       'الدخول ممنوع.',
+    err_tipo_no_valido:        'تعذّر تسجيل الحضور. حاول مرة أخرى.',
+    err_sin_entrada_abierta:   'ليس لديك دخول مفتوح اليوم في هذه الورشة. لا يمكن تسجيل الخروج.',
+    err_ya_hay_entrada_abierta:'لديك دخول مفتوح في هذه الورشة. سجّل الخروج أولاً.',
+    err_jornada_abierta_otra_obra: 'لديك يوم عمل مفتوح في ورشة أخرى. عليك تسجيل الخروج هناك قبل التسجيل هنا.',
     reintentar:          'إعادة المحاولة',
     aviso_autocierre_titulo: '⚠ تنبيه: لم تسجّل خروجك أمس',
     aviso_autocierre_texto1: 'أغلق النظام وردة عملك تلقائياً في وقت إغلاق الموقع.',
@@ -950,6 +994,18 @@ const TEXTOS = {
     timeout_red:         'Conexiunea a durat prea mult. Reîncercați.',
     error_generico:      'Operațiunea nu a putut fi finalizată. Reîncercați.',
     fichaje_rechazado:   'Pontajul nu a putut fi înregistrat.',
+    err_dni_vacio:             'Introduceți DNI-ul sau NIE-ul.',
+    err_dni_no_encontrado:     'DNI negăsit. Verificați cifrele și litera.',
+    err_trabajador_baja:       'Acest DNI este dezactivat. Anunță responsabilul.',
+    err_obra_no_encontrada:    'Șantier negăsit. Scanați din nou codul QR.',
+    err_obra_inactiva:         'Acest șantier nu este activ. Anunță responsabilul.',
+    err_sin_ubicacion:         'Locație indisponibilă. Activați GPS-ul și permiteți accesul la locație.',
+    err_fuera_de_zona:         'În afara zonei șantierului (la {m} m). Anunță responsabilul.',
+    err_acceso_denegado:       'Acces refuzat.',
+    err_tipo_no_valido:        'Pontajul nu a putut fi înregistrat. Încercați din nou.',
+    err_sin_entrada_abierta:   'Nu ai nicio intrare deschisă azi pe acest șantier. Nu se poate ponta ieșirea.',
+    err_ya_hay_entrada_abierta:'Ai deja o intrare deschisă pe acest șantier. Pontează mai întâi ieșirea.',
+    err_jornada_abierta_otra_obra: 'Ai o zi de lucru deschisă pe alt șantier. Trebuie să pontezi ieșirea acolo înainte de a ponta aici.',
     reintentar:          'Reîncercați',
     aviso_autocierre_titulo: '⚠ Atenție: ieri nu ai înregistrat ieșirea',
     aviso_autocierre_texto1: 'Sistemul ți-a închis tura automat la ora de închidere a șantierului.',
@@ -1047,6 +1103,18 @@ const TEXTOS = {
     timeout_red:         'رابطے میں بہت دیر لگ گئی۔ دوبارہ کوشش کریں۔',
     error_generico:      'کارروائی مکمل نہیں ہو سکی۔ دوبارہ کوشش کریں۔',
     fichaje_rechazado:   'حاضری درج نہیں ہو سکی۔',
+    err_dni_vacio:             'اپنا شناختی نمبر (DNI یا NIE) درج کریں۔',
+    err_dni_no_encontrado:     'شناختی نمبر نہیں ملا۔ اعداد اور حرف دوبارہ دیکھیں۔',
+    err_trabajador_baja:       'یہ شناختی نمبر بند کر دیا گیا ہے۔ اپنے انچارج کو بتائیں۔',
+    err_obra_no_encontrada:    'سائٹ نہیں ملی۔ QR دوبارہ اسکین کریں۔',
+    err_obra_inactiva:         'یہ سائٹ فعال نہیں ہے۔ اپنے انچارج کو بتائیں۔',
+    err_sin_ubicacion:         'مقام دستیاب نہیں۔ GPS آن کریں اور مقام کی اجازت دیں۔',
+    err_fuera_de_zona:         'آپ سائٹ کے علاقے سے باہر ہیں ({m} میٹر دور)۔ اپنے انچارج کو بتائیں۔',
+    err_acceso_denegado:       'داخلہ ممنوع ہے۔',
+    err_tipo_no_valido:        'حاضری درج نہیں ہو سکی۔ دوبارہ کوشش کریں۔',
+    err_sin_entrada_abierta:   'آج اس سائٹ پر آپ کا کوئی داخلہ درج نہیں ہے۔ اخراج درج نہیں ہو سکتا۔',
+    err_ya_hay_entrada_abierta:'اس سائٹ پر آپ کا داخلہ پہلے سے درج ہے۔ پہلے اخراج درج کریں۔',
+    err_jornada_abierta_otra_obra: 'دوسری سائٹ پر آپ کا دن ابھی کھلا ہے۔ یہاں داخلہ درج کرنے سے پہلے وہاں اخراج درج کریں۔',
     reintentar:          'دوبارہ کوشش',
     aviso_autocierre_titulo: '⚠ توجہ: کل آپ نے اخراج درج نہیں کیا',
     aviso_autocierre_texto1: 'نظام نے آپ کا دن سائٹ کے بند ہونے کے وقت پر خود بخود بند کر دیا۔',
@@ -1143,6 +1211,18 @@ const TEXTOS = {
     timeout_red:         'ਜੁੜਨ ਵਿੱਚ ਬਹੁਤ ਦੇਰ ਲੱਗ ਗਈ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
     error_generico:      'ਕੰਮ ਪੂਰਾ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
     fichaje_rechazado:   'ਹਾਜ਼ਰੀ ਦਰਜ ਨਹੀਂ ਹੋ ਸਕੀ।',
+    err_dni_vacio:             'ਆਪਣਾ ਪਛਾਣ ਨੰਬਰ (DNI ਜਾਂ NIE) ਭਰੋ।',
+    err_dni_no_encontrado:     'ਪਛਾਣ ਨੰਬਰ ਨਹੀਂ ਮਿਲਿਆ। ਅੰਕ ਅਤੇ ਅੱਖਰ ਦੁਬਾਰਾ ਵੇਖੋ।',
+    err_trabajador_baja:       'ਇਹ ਪਛਾਣ ਨੰਬਰ ਬੰਦ ਕਰ ਦਿੱਤਾ ਗਿਆ ਹੈ। ਆਪਣੇ ਇੰਚਾਰਜ ਨੂੰ ਦੱਸੋ।',
+    err_obra_no_encontrada:    'ਸਾਈਟ ਨਹੀਂ ਮਿਲੀ। QR ਦੁਬਾਰਾ ਸਕੈਨ ਕਰੋ।',
+    err_obra_inactiva:         'ਇਹ ਸਾਈਟ ਚਾਲੂ ਨਹੀਂ ਹੈ। ਆਪਣੇ ਇੰਚਾਰਜ ਨੂੰ ਦੱਸੋ।',
+    err_sin_ubicacion:         'ਟਿਕਾਣਾ ਉਪਲਬਧ ਨਹੀਂ। GPS ਚਾਲੂ ਕਰੋ ਅਤੇ ਟਿਕਾਣੇ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ।',
+    err_fuera_de_zona:         'ਤੁਸੀਂ ਸਾਈਟ ਦੇ ਇਲਾਕੇ ਤੋਂ ਬਾਹਰ ਹੋ ({m} ਮੀਟਰ ਦੂਰ)। ਆਪਣੇ ਇੰਚਾਰਜ ਨੂੰ ਦੱਸੋ।',
+    err_acceso_denegado:       'ਦਾਖ਼ਲਾ ਮਨ੍ਹਾ ਹੈ।',
+    err_tipo_no_valido:        'ਹਾਜ਼ਰੀ ਦਰਜ ਨਹੀਂ ਹੋ ਸਕੀ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+    err_sin_entrada_abierta:   'ਅੱਜ ਇਸ ਸਾਈਟ ਤੇ ਤੁਹਾਡਾ ਅੰਦਰ ਆਉਣਾ ਦਰਜ ਨਹੀਂ ਹੈ। ਬਾਹਰ ਜਾਣਾ ਦਰਜ ਨਹੀਂ ਹੋ ਸਕਦਾ।',
+    err_ya_hay_entrada_abierta:'ਇਸ ਸਾਈਟ ਤੇ ਤੁਹਾਡਾ ਅੰਦਰ ਆਉਣਾ ਪਹਿਲਾਂ ਹੀ ਦਰਜ ਹੈ। ਪਹਿਲਾਂ ਬਾਹਰ ਜਾਣਾ ਦਰਜ ਕਰੋ।',
+    err_jornada_abierta_otra_obra: 'ਹੋਰ ਸਾਈਟ ਤੇ ਤੁਹਾਡਾ ਦਿਨ ਹਾਲੇ ਖੁੱਲ੍ਹਾ ਹੈ। ਇੱਥੇ ਦਰਜ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ ਉੱਥੇ ਬਾਹਰ ਜਾਣਾ ਦਰਜ ਕਰੋ।',
     reintentar:          'ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼',
     aviso_autocierre_titulo: '⚠ ਧਿਆਨ ਦਿਓ: ਕੱਲ੍ਹ ਤੁਸੀਂ ਬਾਹਰ ਜਾਣ ਦੀ ਹਾਜ਼ਰੀ ਨਹੀਂ ਲਗਾਈ',
     aviso_autocierre_texto1: 'ਸਿਸਟਮ ਨੇ ਤੁਹਾਡਾ ਦਿਨ ਸਾਈਟ ਬੰਦ ਹੋਣ ਦੇ ਸਮੇਂ ਤੇ ਆਪਣੇ ਆਪ ਬੰਦ ਕਰ ਦਿੱਤਾ।',
@@ -1835,6 +1915,49 @@ function interpretarError(err) {
 }
 
 // =====================================================================
+// ERRORES DE registrar_fichaje — por qué un código y no la frase
+// ---------------------------------------------------------------------
+// Hasta la 51ª la valla pintaba `data.error` en crudo. Esa frase la
+// escribe Postgres, y Postgres solo sabe castellano: un trabajador con
+// la pantalla en urdu leía «Tienes una jornada abierta en otra obra».
+// El único mensaje de toda la valla que se salía del diccionario.
+//
+// Ahora la RPC manda además `codigo`: una etiqueta corta y estable
+// (JORNADA_ABIERTA_OTRA_OBRA) que no es texto para leer, es una llave
+// para buscar. La frase se escribe aquí, en los seis idiomas.
+//
+// `error` sigue viajando y no se toca. Es la red: si un día se añade un
+// código en la base y aquí todavía no está su clave, el trabajador ve
+// castellano —molesto pero legible— en vez de una clave cruda. Esa es
+// la razón del orden de abajo, y por eso NO se usa T(): T() devuelve la
+// propia clave cuando no la encuentra, y «err_obra_inactiva» en una
+// pantalla de obra no es un mensaje, es un fallo a la vista.
+//
+// FUERA_DE_ZONA trae `metros` aparte porque su frase lleva un número
+// dentro. Si el número no llegara, se quita el paréntesis entero: más
+// vale una frase corta que una con un {m} a la intemperie.
+// =====================================================================
+function textoErrorRpc(data) {
+  if (!data) return T('fichaje_rechazado');
+
+  let texto = null;
+  if (data.codigo) {
+    const clave = 'err_' + String(data.codigo).toLowerCase();
+    texto = (TEXTOS[idiomaActual] && TEXTOS[idiomaActual][clave]) ||
+            TEXTOS.es[clave] || null;
+  }
+  if (!texto) return data.error || T('fichaje_rechazado');
+
+  if (texto.indexOf('{m}') !== -1) {
+    const m = Number(data.metros);
+    texto = Number.isFinite(m)
+      ? texto.replace('{m}', String(Math.round(m)))
+      : texto.replace(/\s*\([^)]*\{m\}[^)]*\)/, '');
+  }
+  return texto;
+}
+
+// =====================================================================
 // UBICACIÓN — por qué esto no es un getCurrentPosition y ya
 // ---------------------------------------------------------------------
 // El móvil no da UNA posición: da una serie que va mejorando. La primera
@@ -2182,7 +2305,7 @@ async function ejecutarFichaje(tipo) {
     if (!data || !data.success) {
       irA(el.pasoResultado);
       el.btnEntrada.disabled = false; el.btnSalida.disabled = false;
-      mostrarErrorResultado((data && data.error) || T('fichaje_rechazado'));
+      mostrarErrorResultado(textoErrorRpc(data));
       if (data && Array.isArray(data.motivos) && data.motivos.length)
         pintarMotivos(el.motivosBox, data.motivos, true);
       console.warn('[fichaje] registrar_fichaje rechazado:', data); return;
