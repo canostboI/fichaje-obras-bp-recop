@@ -399,16 +399,17 @@
 
   .selector-idioma {
     display: flex;
+    flex-wrap: wrap;          /* con seis idiomas no cabe una sola fila */
     justify-content: center;
-    gap: 12px;
+    gap: 8px 10px;
     margin-top: 14px;
   }
   .selector-idioma button {
     background: none;
     border: 2px solid transparent;
     border-radius: 8px;
-    padding: 6px 10px;
-    font-size: 30px;
+    padding: 5px 8px;
+    font-size: 26px;
     cursor: pointer;
     line-height: 1;
     transition: border-color 0.15s;
@@ -451,11 +452,9 @@
     <img id="logo-marca" class="logo-marca oculto" alt="">
     <h1 id="titulo-principal">Fichaje de obra</h1>
     <div class="obra-nombre" id="obra-nombre">Cargando…</div>
-    <div class="selector-idioma" id="selector-idioma">
-      <button type="button" id="lang-es" title="Español">🇪🇸</button>
-      <button type="button" id="lang-ar" title="عربي">🇲🇦</button>
-      <button type="button" id="lang-ro" title="Română">🇷🇴</button>
-    </div>
+    <!-- Las banderas se generan desde la lista IDIOMAS (ver el script).
+         NO añadir botones aquí a mano: un idioma se declara en un solo sitio. -->
+    <div class="selector-idioma" id="selector-idioma"></div>
   </div>
 
   <div class="tarjeta" id="paso-dni">
@@ -602,6 +601,28 @@ const el = {
 };
 
 // =====================================================================
+// IDIOMAS DISPONIBLES — EL ÚNICO SITIO DONDE SE DECLARAN
+// ---------------------------------------------------------------------
+// Añadir un idioma son DOS pasos y ninguno más:
+//   1. una línea en esta lista;
+//   2. su bloque dentro de TEXTOS (y sus entradas en MOTIVOS_DOCS).
+// De aquí salen solos: los botones de bandera, sus listeners, el marcado
+// del botón activo y la dirección del texto (rtl / ltr).
+// El orden de la lista es el orden en que se pintan las banderas.
+// La bandera es la del PAÍS de la gente que lo habla en obra, no la de
+// la lengua: por eso el árabe lleva 🇲🇦 y no una bandera panárabe.
+// =====================================================================
+const IDIOMAS = [
+  { cod: 'es', bandera: '🇪🇸', titulo: 'Español', rtl: false },
+  { cod: 'ca', bandera: '🇦🇩', titulo: 'Català',  rtl: false },
+  { cod: 'ro', bandera: '🇷🇴', titulo: 'Română',  rtl: false },
+  { cod: 'ar', bandera: '🇲🇦', titulo: 'عربي',    rtl: true  },
+  { cod: 'ur', bandera: '🇵🇰', titulo: 'اردو',    rtl: true  },
+  { cod: 'pa', bandera: '🇮🇳', titulo: 'ਪੰਜਾਬੀ',  rtl: false }
+];
+const IDIOMAS_RTL = IDIOMAS.filter(i => i.rtl).map(i => i.cod);
+
+// =====================================================================
 // TEXTOS MULTI-IDIOMA
 // =====================================================================
 const TEXTOS = {
@@ -692,6 +713,97 @@ const TEXTOS = {
         'Pulse <strong>Reintentar</strong>.'
       ],
       generico_nota:   null
+    }
+  },
+
+  // Catalán — desplegado. Dani lo repasa sobre la marcha.
+  ca: {
+    titulo:              "Fitxatge d'obra",
+    cargando:            'Carregant…',
+    obra_sin_especificar: '(obra no especificada)',
+    error_qr:            "Codi d'obra no vàlid. Escanegeu de nou el QR.",
+    label_dni:           'DNI o NIE',
+    placeholder_dni:     '00000000X',
+    dni_guardado:        'DNI desat en aquest mòbil:',
+    borrar:              'Esborrar',
+    recordar_dni:        'Recordar el meu DNI en aquest mòbil',
+    recordar_ayuda:      "Feu-ho servir només si aquest mòbil és vostre o l'utilitzeu habitualment.",
+    continuar:           'Continuar',
+    nuevo_fichaje:       'Nou fitxatge',
+    obteniendo_ubic:     'Obtenint la ubicació…',
+    validando:           "Validant l'accés…",
+    registrando:         'Registrant el fitxatge…',
+    acceso_ok:           '✓ Accés autoritzat',
+    acceso_aviso:        '⚠ Accés amb avís',
+    acceso_excepcion:    'Accés autoritzat excepcionalment avui',
+    acceso_denegado:     '✗ Accés denegat',
+    motivos_bloqueo:     'Motius del bloqueig:',
+    avisos:              'Avisos:',
+    aviso_generico_docs: 'Hi ha documentació pendent. Consulteu amb el vostre encarregat.',
+    bloqueo_generico:    'Consulteu amb el vostre encarregat per a més informació.',
+    entrar:              'Entrar',
+    salir:               'Sortir',
+    alt_entrar:          'En realitat vaig a entrar',
+    alt_salir:           'En realitat vaig a sortir',
+    volver:              'Tornar',
+    entrada_ok:          'Entrada registrada',
+    salida_ok:           'Sortida registrada',
+    olvido_salida:       "En la vostra darrera jornada us vau oblidar de fitxar la sortida i el sistema la va haver de tancar automàticament. El registre d'entrada i sortida és obligatori i serveix per calcular bé les vostres hores. Fitxeu sempre la sortida abans d'anar-vos-en. Els oblits repetits poden donar lloc a mesures disciplinàries.",
+    pie:                 "Control d'accés",
+    dni_invalido:        'Introduïu un DNI o NIE vàlid.',
+    dni_letra_mal:       'La lletra no coincideix amb els números. Reviseu el vostre DNI.',
+    dni_no_encontrado:   'DNI no trobat. Reviseu números i lletra.',
+    sr_titulo:           '✗ No consteu al sistema',
+    sr_intro:            "No us trobem amb aquest DNI. Reviseu els números i la lletra. Si el DNI és correcte i sou a l'obra, deixeu el vostre nom i empresa perquè en quedi constància i avisem l'encarregat.",
+    sr_label_nombre:     'Nom i cognoms',
+    sr_label_empresa:    'Empresa',
+    sr_placeholder_nombre: 'Nom i cognoms',
+    sr_placeholder_empresa: 'Nom de la vostra empresa',
+    sr_registrar:        'Registrar la meva presència',
+    sr_registrado_titulo: 'Presència registrada',
+    sr_registrado_texto: "N'hem deixat constància i avisarem l'encarregat. No podeu començar a treballar fins que la vostra documentació estigui en regla.",
+    sr_error:            "No s'ha pogut registrar. Torneu-ho a provar.",
+    sr_fuera_zona:       "Sou fora de la zona de l'obra. Acosteu-vos a l'entrada i torneu-ho a provar.",
+    sr_sin_gps:          'No hem pogut obtenir la vostra ubicació. Torneu enrere i permeteu el GPS.',
+    sin_conexion:        'Sense connexió a internet. Comproveu el WiFi o les dades mòbils.',
+    fallo_red:           "No s'ha pogut connectar amb el servidor. Comproveu la connexió i torneu-ho a provar.",
+    timeout_red:         'La connexió ha trigat massa. Torneu-ho a provar.',
+    error_generico:      "No s'ha pogut completar l'operació. Torneu-ho a provar.",
+    fichaje_rechazado:   "No s'ha pogut registrar el fitxatge.",
+    reintentar:          'Tornar a provar',
+    aviso_autocierre_titulo: '⚠ Atenció: ahir no vau fitxar la sortida',
+    aviso_autocierre_texto1: "El sistema va tancar la vostra jornada automàticament a l'hora de tancament de l'obra.",
+    aviso_autocierre_texto2: 'Aquesta hora és la que compta a la vostra factura.',
+    aviso_autocierre_alerta: "Si aquesta hora no és correcta, perdeu hores pagades. Aviseu l'encarregat perquè ho corregeixi.",
+    gps: {
+      denegado_titulo:   '⚠ No tenim accés a la vostra ubicació',
+      denegado_pasos:    [
+        "Toqueu el cadenat 🔒 (o ⓘ) al costat de l'adreça web, a dalt.",
+        'Obriu "Permisos" o "Configuració del lloc".',
+        'A "Ubicació", trieu <strong>Permetre</strong>.',
+        'Torneu aquí i premeu <strong>Tornar a provar</strong>.'
+      ],
+      denegado_nota:     'Si no trobeu el cadenat, tanqueu la pestanya i torneu a escanejar el QR.',
+      nodispo_titulo:    "⚠ No s'ha pogut obtenir la ubicació",
+      nodispo_pasos:     [
+        'Comproveu que el <strong>GPS</strong> del vostre mòbil està activat.',
+        'A Configuració del mòbil → <strong>Ubicació</strong> → activar.',
+        "Sortiu a l'exterior si sou sota cobert (el GPS no hi arriba bé).",
+        'Premeu <strong>Tornar a provar</strong>.'
+      ],
+      nodispo_nota:      null,
+      timeout_titulo:    '⚠ El GPS ha trigat massa',
+      timeout_pasos:     [
+        'Comproveu que teniu cobertura i el GPS activat.',
+        'Espereu uns segons i premeu <strong>Tornar a provar</strong>.'
+      ],
+      timeout_nota:      "Si sou dins d'un edifici, sortiu a l'exterior.",
+      generico_titulo:   "⚠ Error d'ubicació",
+      generico_pasos:    [
+        'Comproveu que el GPS i els permisos del navegador estan activats.',
+        'Premeu <strong>Tornar a provar</strong>.'
+      ],
+      generico_nota:     null
     }
   },
 
@@ -873,53 +985,352 @@ const TEXTOS = {
       ],
       generico_nota:   null
     }
+  },
+
+  // Urdu — traducido por Claude y desplegado SIN revisión previa de nativo.
+  // Decisión de Dani, 23/8/2026: algo legible es mejor que nada legible, y
+  // hasta hoy un urduhablante veía la valla en castellano.
+  // Pendiente de que Hussain lo lea EN OBRA. Si algo suena mal se corrige
+  // aquí y se vuelve a subir. Hoja de repaso: revision-traducciones.html.
+  // El par de botones اندر / باہر se cambió el 23/8 desde داخلہ / اخراج,
+  // porque اخراج también significa despido y el botón quedaba ambiguo.
+  ur: {
+    titulo:              'سائٹ حاضری',
+    cargando:            'لوڈ ہو رہا ہے…',
+    obra_sin_especificar: '(سائٹ متعین نہیں)',
+    error_qr:            'سائٹ کا کوڈ درست نہیں۔ براہِ کرم QR دوبارہ اسکین کریں۔',
+    label_dni:           'شناختی نمبر DNI / NIE',
+    placeholder_dni:     '00000000X',
+    dni_guardado:        'اس موبائل میں محفوظ شناختی نمبر:',
+    borrar:              'حذف کریں',
+    recordar_dni:        'میرا شناختی نمبر اس موبائل میں محفوظ کریں',
+    recordar_ayuda:      'یہ سہولت صرف اسی صورت استعمال کریں جب یہ موبائل آپ کا اپنا ہو یا آپ ہی اسے عام طور پر استعمال کرتے ہوں۔',
+    continuar:           'جاری رکھیں',
+    nuevo_fichaje:       'نیا اندراج',
+    obteniendo_ubic:     'مقام معلوم کیا جا رہا ہے…',
+    validando:           'رسائی کی تصدیق ہو رہی ہے…',
+    registrando:         'حاضری درج کی جا رہی ہے…',
+    acceso_ok:           '✓ داخلے کی اجازت ہے',
+    acceso_aviso:        '⚠ انتباہ کے ساتھ داخلہ',
+    acceso_excepcion:    'آج استثنائی طور پر داخلے کی اجازت ہے',
+    acceso_denegado:     '✗ داخلہ ممنوع',
+    motivos_bloqueo:     'پابندی کی وجوہات:',
+    avisos:              'انتباہات:',
+    aviso_generico_docs: 'کچھ دستاویزات باقی ہیں۔ اپنے انچارج سے رابطہ کریں۔',
+    bloqueo_generico:    'مزید معلومات کے لیے اپنے انچارج سے رابطہ کریں۔',
+    entrar:              'اندر',
+    salir:               'باہر',
+    alt_entrar:          'دراصل میں اندر جا رہا ہوں',
+    alt_salir:           'دراصل میں باہر جا رہا ہوں',
+    volver:              'واپس',
+    entrada_ok:          'داخلہ درج ہو گیا',
+    salida_ok:           'اخراج درج ہو گیا',
+    olvido_salida:       'اپنے پچھلے کام کے دن آپ اخراج درج کرنا بھول گئے تھے، اس لیے نظام کو آپ کا دن خود بخود بند کرنا پڑا۔ داخلے اور اخراج کا اندراج لازمی ہے اور اسی سے آپ کے کام کے گھنٹے درست شمار ہوتے ہیں۔ سائٹ چھوڑنے سے پہلے ہمیشہ اخراج درج کریں۔ بار بار بھولنے پر تادیبی کارروائی ہو سکتی ہے۔',
+    pie:                 'داخلہ کنٹرول',
+    dni_invalido:        'درست DNI یا NIE درج کریں۔',
+    dni_letra_mal:       'حرف اعداد سے میل نہیں کھاتا۔ اپنا شناختی نمبر دوبارہ دیکھیں۔',
+    dni_no_encontrado:   'شناختی نمبر نہیں ملا۔ اعداد اور حرف دوبارہ دیکھیں۔',
+    sr_titulo:           '✗ آپ نظام میں موجود نہیں ہیں',
+    sr_intro:            'اس شناختی نمبر سے آپ کا اندراج نہیں ملا۔ اعداد اور حرف دوبارہ دیکھیں۔ اگر نمبر درست ہے اور آپ سائٹ پر موجود ہیں تو اپنا نام اور کمپنی درج کریں تاکہ ریکارڈ رہے اور ہم انچارج کو اطلاع دے سکیں۔',
+    sr_label_nombre:     'نام اور خاندانی نام',
+    sr_label_empresa:    'کمپنی',
+    sr_placeholder_nombre: 'نام اور خاندانی نام',
+    sr_placeholder_empresa: 'آپ کی کمپنی کا نام',
+    sr_registrar:        'اپنی موجودگی درج کریں',
+    sr_registrado_titulo: 'موجودگی درج ہو گئی',
+    sr_registrado_texto: 'ہم نے ریکارڈ کر لیا ہے اور انچارج کو اطلاع دیں گے۔ جب تک آپ کی دستاویزات مکمل نہ ہوں، آپ کام شروع نہیں کر سکتے۔',
+    sr_error:            'اندراج نہیں ہو سکا۔ دوبارہ کوشش کریں۔',
+    sr_fuera_zona:       'آپ سائٹ کے علاقے سے باہر ہیں۔ داخلی دروازے کے قریب جا کر دوبارہ کوشش کریں۔',
+    sr_sin_gps:          'ہم آپ کا مقام معلوم نہیں کر سکے۔ واپس جا کر GPS کی اجازت دیں۔',
+    sin_conexion:        'انٹرنیٹ سے رابطہ نہیں ہے۔ اپنا WiFi یا موبائل ڈیٹا دیکھیں۔',
+    fallo_red:           'سرور سے رابطہ نہیں ہو سکا۔ اپنا کنکشن دیکھ کر دوبارہ کوشش کریں۔',
+    timeout_red:         'رابطے میں بہت دیر لگ گئی۔ دوبارہ کوشش کریں۔',
+    error_generico:      'کارروائی مکمل نہیں ہو سکی۔ دوبارہ کوشش کریں۔',
+    fichaje_rechazado:   'حاضری درج نہیں ہو سکی۔',
+    reintentar:          'دوبارہ کوشش',
+    aviso_autocierre_titulo: '⚠ توجہ: کل آپ نے اخراج درج نہیں کیا',
+    aviso_autocierre_texto1: 'نظام نے آپ کا دن سائٹ کے بند ہونے کے وقت پر خود بخود بند کر دیا۔',
+    aviso_autocierre_texto2: 'آپ کے بل میں یہی وقت شمار ہوتا ہے۔',
+    aviso_autocierre_alerta: 'اگر یہ وقت درست نہیں ہے تو آپ کے ادا شدہ گھنٹے کم ہو جائیں گے۔ درستی کے لیے انچارج کو اطلاع دیں۔',
+    gps: {
+      denegado_titulo:   '⚠ ہمیں آپ کے مقام تک رسائی نہیں ہے',
+      denegado_pasos:    [
+        'اوپر ویب پتے کے ساتھ والے تالے 🔒 (یا ⓘ) کو دبائیں۔',
+        '"اجازتیں" یا "سائٹ کی ترتیبات" کھولیں۔',
+        '"مقام" میں <strong>اجازت دیں</strong> منتخب کریں۔',
+        'یہاں واپس آ کر <strong>دوبارہ کوشش</strong> دبائیں۔'
+      ],
+      denegado_nota:     'اگر تالا نظر نہ آئے تو ٹیب بند کریں اور QR دوبارہ اسکین کریں۔',
+      nodispo_titulo:    '⚠ مقام معلوم نہیں ہو سکا',
+      nodispo_pasos:     [
+        'دیکھیں کہ آپ کے موبائل کا <strong>GPS</strong> آن ہے۔',
+        'موبائل کی ترتیبات ← <strong>مقام</strong> ← آن کریں۔',
+        'اگر آپ چھت کے نیچے ہیں تو باہر کھلی جگہ پر جائیں (GPS کا سگنل کمزور ہوتا ہے)۔',
+        '<strong>دوبارہ کوشش</strong> دبائیں۔'
+      ],
+      nodispo_nota:      null,
+      timeout_titulo:    '⚠ GPS نے بہت دیر لگا دی',
+      timeout_pasos:     [
+        'دیکھیں کہ سگنل موجود ہے اور GPS آن ہے۔',
+        'چند سیکنڈ انتظار کر کے <strong>دوبارہ کوشش</strong> دبائیں۔'
+      ],
+      timeout_nota:      'اگر آپ عمارت کے اندر ہیں تو باہر نکلیں۔',
+      generico_titulo:   '⚠ مقام کی خرابی',
+      generico_pasos:    [
+        'دیکھیں کہ GPS اور براؤزر کی اجازتیں آن ہیں۔',
+        '<strong>دوبارہ کوشش</strong> دبائیں۔'
+      ],
+      generico_nota:     null
+    }
+  },
+
+  // Panyabí (gurmují) — traducido por Claude y desplegado SIN revisión previa
+  // de nativo. Misma decisión que el urdu, 23/8/2026.
+  // Pendiente de que lo lean los Singh / Kumar EN OBRA.
+  // Ojo a la FUENTE, que no es cosa de la traducción: en Android viejo las
+  // conjuntas con ਹ subjuntiva (ਮਨ੍ਹਾ, ਖੁੱਲ੍ਹੀ) pueden salir como cuadrados ▯.
+  // Si pasa, es que al móvil le falta la fuente gurmují, no que esté mal.
+  pa: {
+    titulo:              'ਸਾਈਟ ਹਾਜ਼ਰੀ',
+    cargando:            'ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…',
+    obra_sin_especificar: '(ਸਾਈਟ ਦੱਸੀ ਨਹੀਂ ਗਈ)',
+    error_qr:            'ਸਾਈਟ ਦਾ ਕੋਡ ਸਹੀ ਨਹੀਂ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ QR ਦੁਬਾਰਾ ਸਕੈਨ ਕਰੋ।',
+    label_dni:           'ਪਛਾਣ ਨੰਬਰ DNI / NIE',
+    placeholder_dni:     '00000000X',
+    dni_guardado:        'ਇਸ ਮੋਬਾਈਲ ਵਿੱਚ ਸੰਭਾਲਿਆ ਪਛਾਣ ਨੰਬਰ:',
+    borrar:              'ਮਿਟਾਓ',
+    recordar_dni:        'ਮੇਰਾ ਪਛਾਣ ਨੰਬਰ ਇਸ ਮੋਬਾਈਲ ਵਿੱਚ ਸੰਭਾਲੋ',
+    recordar_ayuda:      'ਇਹ ਸਿਰਫ਼ ਤਾਂ ਵਰਤੋ ਜੇ ਇਹ ਮੋਬਾਈਲ ਤੁਹਾਡਾ ਆਪਣਾ ਹੈ ਜਾਂ ਤੁਸੀਂ ਇਸਨੂੰ ਆਮ ਤੌਰ ਤੇ ਵਰਤਦੇ ਹੋ।',
+    continuar:           'ਅੱਗੇ ਜਾਓ',
+    nuevo_fichaje:       'ਨਵੀਂ ਹਾਜ਼ਰੀ',
+    obteniendo_ubic:     'ਟਿਕਾਣਾ ਲੱਭਿਆ ਜਾ ਰਿਹਾ ਹੈ…',
+    validando:           'ਦਾਖ਼ਲੇ ਦੀ ਜਾਂਚ ਹੋ ਰਹੀ ਹੈ…',
+    registrando:         'ਹਾਜ਼ਰੀ ਦਰਜ ਹੋ ਰਹੀ ਹੈ…',
+    acceso_ok:           '✓ ਦਾਖ਼ਲੇ ਦੀ ਇਜਾਜ਼ਤ ਹੈ',
+    acceso_aviso:        '⚠ ਚੇਤਾਵਨੀ ਨਾਲ ਦਾਖ਼ਲਾ',
+    acceso_excepcion:    'ਅੱਜ ਖ਼ਾਸ ਛੋਟ ਵਜੋਂ ਦਾਖ਼ਲੇ ਦੀ ਇਜਾਜ਼ਤ ਹੈ',
+    acceso_denegado:     '✗ ਦਾਖ਼ਲਾ ਮਨ੍ਹਾ ਹੈ',
+    motivos_bloqueo:     'ਰੋਕ ਦੇ ਕਾਰਨ:',
+    avisos:              'ਚੇਤਾਵਨੀਆਂ:',
+    aviso_generico_docs: 'ਕੁਝ ਕਾਗ਼ਜ਼ਾਤ ਬਾਕੀ ਹਨ। ਆਪਣੇ ਇੰਚਾਰਜ ਨਾਲ ਗੱਲ ਕਰੋ।',
+    bloqueo_generico:    'ਹੋਰ ਜਾਣਕਾਰੀ ਲਈ ਆਪਣੇ ਇੰਚਾਰਜ ਨਾਲ ਗੱਲ ਕਰੋ।',
+    entrar:              'ਅੰਦਰ',
+    salir:               'ਬਾਹਰ',
+    alt_entrar:          'ਅਸਲ ਵਿੱਚ ਮੈਂ ਅੰਦਰ ਜਾ ਰਿਹਾ ਹਾਂ',
+    alt_salir:           'ਅਸਲ ਵਿੱਚ ਮੈਂ ਬਾਹਰ ਜਾ ਰਿਹਾ ਹਾਂ',
+    volver:              'ਵਾਪਸ',
+    entrada_ok:          'ਅੰਦਰ ਆਉਣਾ ਦਰਜ ਹੋ ਗਿਆ',
+    salida_ok:           'ਬਾਹਰ ਜਾਣਾ ਦਰਜ ਹੋ ਗਿਆ',
+    olvido_salida:       'ਪਿਛਲੇ ਕੰਮ ਵਾਲੇ ਦਿਨ ਤੁਸੀਂ ਬਾਹਰ ਜਾਣ ਦੀ ਹਾਜ਼ਰੀ ਦਰਜ ਕਰਨੀ ਭੁੱਲ ਗਏ ਸੀ, ਇਸ ਲਈ ਸਿਸਟਮ ਨੂੰ ਤੁਹਾਡਾ ਦਿਨ ਆਪਣੇ ਆਪ ਬੰਦ ਕਰਨਾ ਪਿਆ। ਅੰਦਰ ਆਉਣ ਅਤੇ ਬਾਹਰ ਜਾਣ ਦੀ ਹਾਜ਼ਰੀ ਲਾਜ਼ਮੀ ਹੈ ਅਤੇ ਇਸੇ ਨਾਲ ਤੁਹਾਡੇ ਘੰਟੇ ਸਹੀ ਗਿਣੇ ਜਾਂਦੇ ਹਨ। ਸਾਈਟ ਛੱਡਣ ਤੋਂ ਪਹਿਲਾਂ ਹਮੇਸ਼ਾ ਬਾਹਰ ਜਾਣ ਦੀ ਹਾਜ਼ਰੀ ਦਰਜ ਕਰੋ। ਵਾਰ-ਵਾਰ ਭੁੱਲਣ ਤੇ ਅਨੁਸ਼ਾਸਨੀ ਕਾਰਵਾਈ ਹੋ ਸਕਦੀ ਹੈ।',
+    pie:                 'ਦਾਖ਼ਲਾ ਕੰਟਰੋਲ',
+    dni_invalido:        'ਸਹੀ DNI ਜਾਂ NIE ਭਰੋ।',
+    dni_letra_mal:       'ਅੱਖਰ ਅੰਕਾਂ ਨਾਲ ਮੇਲ ਨਹੀਂ ਖਾਂਦਾ। ਆਪਣਾ ਪਛਾਣ ਨੰਬਰ ਦੁਬਾਰਾ ਵੇਖੋ।',
+    dni_no_encontrado:   'ਪਛਾਣ ਨੰਬਰ ਨਹੀਂ ਮਿਲਿਆ। ਅੰਕ ਅਤੇ ਅੱਖਰ ਦੁਬਾਰਾ ਵੇਖੋ।',
+    sr_titulo:           '✗ ਤੁਸੀਂ ਸਿਸਟਮ ਵਿੱਚ ਦਰਜ ਨਹੀਂ ਹੋ',
+    sr_intro:            'ਇਸ ਪਛਾਣ ਨੰਬਰ ਨਾਲ ਤੁਸੀਂ ਨਹੀਂ ਮਿਲੇ। ਅੰਕ ਅਤੇ ਅੱਖਰ ਦੁਬਾਰਾ ਵੇਖੋ। ਜੇ ਨੰਬਰ ਸਹੀ ਹੈ ਅਤੇ ਤੁਸੀਂ ਸਾਈਟ ਤੇ ਹੋ, ਤਾਂ ਆਪਣਾ ਨਾਮ ਅਤੇ ਕੰਪਨੀ ਲਿਖੋ ਤਾਂ ਜੋ ਰਿਕਾਰਡ ਰਹੇ ਅਤੇ ਅਸੀਂ ਇੰਚਾਰਜ ਨੂੰ ਦੱਸ ਸਕੀਏ।',
+    sr_label_nombre:     'ਨਾਮ ਅਤੇ ਉਪਨਾਮ',
+    sr_label_empresa:    'ਕੰਪਨੀ',
+    sr_placeholder_nombre: 'ਨਾਮ ਅਤੇ ਉਪਨਾਮ',
+    sr_placeholder_empresa: 'ਤੁਹਾਡੀ ਕੰਪਨੀ ਦਾ ਨਾਮ',
+    sr_registrar:        'ਮੇਰੀ ਹਾਜ਼ਰੀ ਦਰਜ ਕਰੋ',
+    sr_registrado_titulo: 'ਹਾਜ਼ਰੀ ਦਰਜ ਹੋ ਗਈ',
+    sr_registrado_texto: 'ਅਸੀਂ ਰਿਕਾਰਡ ਕਰ ਲਿਆ ਹੈ ਅਤੇ ਇੰਚਾਰਜ ਨੂੰ ਦੱਸ ਦੇਵਾਂਗੇ। ਜਦ ਤੱਕ ਤੁਹਾਡੇ ਕਾਗ਼ਜ਼ਾਤ ਪੂਰੇ ਨਹੀਂ ਹੁੰਦੇ, ਤੁਸੀਂ ਕੰਮ ਸ਼ੁਰੂ ਨਹੀਂ ਕਰ ਸਕਦੇ।',
+    sr_error:            'ਦਰਜ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+    sr_fuera_zona:       'ਤੁਸੀਂ ਸਾਈਟ ਦੇ ਇਲਾਕੇ ਤੋਂ ਬਾਹਰ ਹੋ। ਦਰਵਾਜ਼ੇ ਦੇ ਨੇੜੇ ਜਾ ਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+    sr_sin_gps:          'ਅਸੀਂ ਤੁਹਾਡਾ ਟਿਕਾਣਾ ਨਹੀਂ ਲੱਭ ਸਕੇ। ਵਾਪਸ ਜਾ ਕੇ GPS ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ।',
+    sin_conexion:        'ਇੰਟਰਨੈੱਟ ਨਹੀਂ ਚੱਲ ਰਿਹਾ। ਆਪਣਾ WiFi ਜਾਂ ਮੋਬਾਈਲ ਡਾਟਾ ਵੇਖੋ।',
+    fallo_red:           'ਸਰਵਰ ਨਾਲ ਜੁੜ ਨਹੀਂ ਸਕੇ। ਆਪਣਾ ਕਨੈਕਸ਼ਨ ਵੇਖ ਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+    timeout_red:         'ਜੁੜਨ ਵਿੱਚ ਬਹੁਤ ਦੇਰ ਲੱਗ ਗਈ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+    error_generico:      'ਕੰਮ ਪੂਰਾ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+    fichaje_rechazado:   'ਹਾਜ਼ਰੀ ਦਰਜ ਨਹੀਂ ਹੋ ਸਕੀ।',
+    reintentar:          'ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼',
+    aviso_autocierre_titulo: '⚠ ਧਿਆਨ ਦਿਓ: ਕੱਲ੍ਹ ਤੁਸੀਂ ਬਾਹਰ ਜਾਣ ਦੀ ਹਾਜ਼ਰੀ ਨਹੀਂ ਲਗਾਈ',
+    aviso_autocierre_texto1: 'ਸਿਸਟਮ ਨੇ ਤੁਹਾਡਾ ਦਿਨ ਸਾਈਟ ਬੰਦ ਹੋਣ ਦੇ ਸਮੇਂ ਤੇ ਆਪਣੇ ਆਪ ਬੰਦ ਕਰ ਦਿੱਤਾ।',
+    aviso_autocierre_texto2: 'ਤੁਹਾਡੇ ਬਿੱਲ ਵਿੱਚ ਇਹੀ ਸਮਾਂ ਗਿਣਿਆ ਜਾਂਦਾ ਹੈ।',
+    aviso_autocierre_alerta: 'ਜੇ ਇਹ ਸਮਾਂ ਸਹੀ ਨਹੀਂ ਹੈ ਤਾਂ ਤੁਹਾਡੇ ਪੈਸੇ ਵਾਲੇ ਘੰਟੇ ਘਟ ਜਾਣਗੇ। ਠੀਕ ਕਰਵਾਉਣ ਲਈ ਇੰਚਾਰਜ ਨੂੰ ਦੱਸੋ।',
+    gps: {
+      denegado_titulo:   '⚠ ਸਾਨੂੰ ਤੁਹਾਡੇ ਟਿਕਾਣੇ ਤੱਕ ਪਹੁੰਚ ਨਹੀਂ ਹੈ',
+      denegado_pasos:    [
+        'ਉੱਪਰ ਵੈੱਬ ਪਤੇ ਦੇ ਕੋਲ ਵਾਲੇ ਜਿੰਦਰੇ 🔒 (ਜਾਂ ⓘ) ਨੂੰ ਦਬਾਓ।',
+        '"ਇਜਾਜ਼ਤਾਂ" ਜਾਂ "ਸਾਈਟ ਸੈਟਿੰਗਾਂ" ਖੋਲ੍ਹੋ।',
+        '"ਟਿਕਾਣਾ" ਵਿੱਚ <strong>ਇਜਾਜ਼ਤ ਦਿਓ</strong> ਚੁਣੋ।',
+        'ਇੱਥੇ ਵਾਪਸ ਆ ਕੇ <strong>ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼</strong> ਦਬਾਓ।'
+      ],
+      denegado_nota:     'ਜੇ ਜਿੰਦਰਾ ਨਾ ਲੱਭੇ ਤਾਂ ਟੈਬ ਬੰਦ ਕਰੋ ਅਤੇ QR ਦੁਬਾਰਾ ਸਕੈਨ ਕਰੋ।',
+      nodispo_titulo:    '⚠ ਟਿਕਾਣਾ ਨਹੀਂ ਲੱਭ ਸਕਿਆ',
+      nodispo_pasos:     [
+        'ਵੇਖੋ ਕਿ ਤੁਹਾਡੇ ਮੋਬਾਈਲ ਦਾ <strong>GPS</strong> ਚਾਲੂ ਹੈ।',
+        'ਮੋਬਾਈਲ ਸੈਟਿੰਗਾਂ → <strong>ਟਿਕਾਣਾ</strong> → ਚਾਲੂ ਕਰੋ।',
+        'ਜੇ ਤੁਸੀਂ ਛੱਤ ਹੇਠਾਂ ਹੋ ਤਾਂ ਬਾਹਰ ਖੁੱਲ੍ਹੀ ਥਾਂ ਤੇ ਜਾਓ (GPS ਦਾ ਸਿਗਨਲ ਕਮਜ਼ੋਰ ਹੁੰਦਾ ਹੈ)।',
+        '<strong>ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼</strong> ਦਬਾਓ।'
+      ],
+      nodispo_nota:      null,
+      timeout_titulo:    '⚠ GPS ਨੇ ਬਹੁਤ ਦੇਰ ਲਗਾ ਦਿੱਤੀ',
+      timeout_pasos:     [
+        'ਵੇਖੋ ਕਿ ਸਿਗਨਲ ਹੈ ਅਤੇ GPS ਚਾਲੂ ਹੈ।',
+        'ਕੁਝ ਸਕਿੰਟ ਉਡੀਕ ਕੇ <strong>ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼</strong> ਦਬਾਓ।'
+      ],
+      timeout_nota:      'ਜੇ ਤੁਸੀਂ ਇਮਾਰਤ ਦੇ ਅੰਦਰ ਹੋ ਤਾਂ ਬਾਹਰ ਨਿਕਲੋ।',
+      generico_titulo:   '⚠ ਟਿਕਾਣੇ ਦੀ ਗੜਬੜ',
+      generico_pasos:    [
+        'ਵੇਖੋ ਕਿ GPS ਅਤੇ ਬ੍ਰਾਊਜ਼ਰ ਦੀਆਂ ਇਜਾਜ਼ਤਾਂ ਚਾਲੂ ਹਨ।',
+        '<strong>ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼</strong> ਦਬਾਓ।'
+      ],
+      generico_nota:     null
+    }
   }
 };
 
 const MOTIVOS_DOCS = {
   docs: {
-    'Apto médico':
-      { ar: 'الكشف الطبي', ro: 'Apt medical' },
-    'Equipos de Protección Individual (EPI)':
-      { ar: 'معدات الحماية الشخصية (EPI)', ro: 'Echipament de Protecție Individuală (EPI)' },
-    'Formación 20 horas específica':
-      { ar: 'تدريب 20 ساعة خاص', ro: 'Formare 20 ore specifică' },
-    'Formación 60 horas (Nivel básico) del Recurso preventivo':
-      { ar: 'تدريب 60 ساعة (المستوى الأساسي) للمورد الوقائي', ro: 'Formare 60 ore (nivel de bază) a Resurselor preventive' },
-    'Nombramiento del Recurso Preventivo':
-      { ar: 'تعيين المورد الوقائي', ro: 'Numirea Responsabilului cu Prevenția' },
-    'Autorización de uso de maquinaria':
-      { ar: 'إذن استخدام الآليات', ro: 'Autorizație de utilizare a utilajelor' },
-    'Certificado de PAGO DE RECIBOS de los trabajadores AUTÓNOMOS.':
-      { ar: 'شهادة دفع اشتراكات العمال المستقلين', ro: 'Certificat de PLATĂ A CONTRIBUȚIILOR lucrătorilor INDEPENDENȚI' },
-    'ITA (Informe de Trabajadores en Alta)':
-      { ar: 'ITA (تقرير العمال المسجلين)', ro: 'ITA (Raport Lucrători Înregistrați)' },
-    'TC2 (subir el documento original desde el botón CARGAR TC2) o Alta de nuevo trabajador':
-      { ar: 'TC2 (تحميل المستند الأصلي) أو تسجيل عامل جديد', ro: 'TC2 (încărcați documentul original) sau Înregistrare lucrător nou' }
+    'Apto médico': {
+      ca: 'Apte mèdic',
+      ro: 'Apt medical',
+      ar: 'الكشف الطبي',
+      ur: 'طبی معائنہ',
+      pa: 'ਡਾਕਟਰੀ ਜਾਂਚ'
+    },
+    'Equipos de Protección Individual (EPI)': {
+      ca: 'Equips de Protecció Individual (EPI)',
+      ro: 'Echipament de Protecție Individuală (EPI)',
+      ar: 'معدات الحماية الشخصية (EPI)',
+      ur: 'ذاتی حفاظتی سامان (EPI)',
+      pa: 'ਨਿੱਜੀ ਸੁਰੱਖਿਆ ਸਾਮਾਨ (EPI)'
+    },
+    'Formación 20 horas específica': {
+      ca: 'Formació 20 hores específica',
+      ro: 'Formare 20 ore specifică',
+      ar: 'تدريب 20 ساعة خاص',
+      ur: '20 گھنٹے کی مخصوص تربیت',
+      pa: '20 ਘੰਟੇ ਦੀ ਖ਼ਾਸ ਸਿਖਲਾਈ'
+    },
+    'Formación 60 horas (Nivel básico) del Recurso preventivo': {
+      ca: 'Formació 60 hores (Nivell bàsic) del Recurs preventiu',
+      ro: 'Formare 60 ore (nivel de bază) a Resurselor preventive',
+      ar: 'تدريب 60 ساعة (المستوى الأساسي) للمورد الوقائي',
+      ur: 'حفاظتی ذمہ دار کی 60 گھنٹے کی تربیت (بنیادی سطح)',
+      pa: 'ਸੁਰੱਖਿਆ ਜ਼ਿੰਮੇਵਾਰ ਦੀ 60 ਘੰਟੇ ਦੀ ਸਿਖਲਾਈ (ਮੁੱਢਲਾ ਪੱਧਰ)'
+    },
+    'Nombramiento del Recurso Preventivo': {
+      ca: 'Nomenament del Recurs Preventiu',
+      ro: 'Numirea Responsabilului cu Prevenția',
+      ar: 'تعيين المورد الوقائي',
+      ur: 'حفاظتی ذمہ دار کی تقرری',
+      pa: 'ਸੁਰੱਖਿਆ ਜ਼ਿੰਮੇਵਾਰ ਦੀ ਨਿਯੁਕਤੀ'
+    },
+    'Autorización de uso de maquinaria': {
+      ca: "Autorització d'ús de maquinària",
+      ro: 'Autorizație de utilizare a utilajelor',
+      ar: 'إذن استخدام الآليات',
+      ur: 'مشینری کے استعمال کی اجازت',
+      pa: 'ਮਸ਼ੀਨਰੀ ਵਰਤਣ ਦੀ ਇਜਾਜ਼ਤ'
+    },
+    'Certificado de PAGO DE RECIBOS de los trabajadores AUTÓNOMOS.': {
+      ca: 'Certificat de PAGAMENT DE REBUTS dels treballadors AUTÒNOMS.',
+      ro: 'Certificat de PLATĂ A CONTRIBUȚIILOR lucrătorilor INDEPENDENȚI',
+      ar: 'شهادة دفع اشتراكات العمال المستقلين',
+      ur: 'خود روزگار کارکنوں کی ادائیگی کا سرٹیفکیٹ',
+      pa: 'ਖ਼ੁਦ-ਰੁਜ਼ਗਾਰ ਕਾਮਿਆਂ ਦੀ ਅਦਾਇਗੀ ਦਾ ਸਰਟੀਫਿਕੇਟ'
+    },
+    'ITA (Informe de Trabajadores en Alta)': {
+      ca: 'ITA (Informe de Treballadors en Alta)',
+      ro: 'ITA (Raport Lucrători Înregistrați)',
+      ar: 'ITA (تقرير العمال المسجلين)',
+      ur: 'ITA (رجسٹرڈ کارکنوں کی رپورٹ)',
+      pa: 'ITA (ਰਜਿਸਟਰ ਕਾਮਿਆਂ ਦੀ ਰਿਪੋਰਟ)'
+    },
+    'TC2 (subir el documento original desde el botón CARGAR TC2) o Alta de nuevo trabajador': {
+      ca: 'TC2 (pugeu el document original des del botó CARREGAR TC2) o Alta de nou treballador',
+      ro: 'TC2 (încărcați documentul original) sau Înregistrare lucrător nou',
+      ar: 'TC2 (تحميل المستند الأصلي) أو تسجيل عامل جديد',
+      ur: 'TC2 (اصل دستاویز اپلوڈ کریں) یا نئے کارکن کا اندراج',
+      pa: 'TC2 (ਅਸਲ ਦਸਤਾਵੇਜ਼ ਅੱਪਲੋਡ ਕਰੋ) ਜਾਂ ਨਵੇਂ ਕਾਮੇ ਦਾ ਇੰਦਰਾਜ'
+    }
   },
   estados: {
-    'Caducado':            { ar: 'منتهي الصلاحية', ro: 'Expirat' },
-    'Sin presentar':       { ar: 'غير مقدَّم',      ro: 'Neprezent' },
-    'No válido':           { ar: 'غير صالح',        ro: 'Nevalid' },
-    'Validación pendiente':{ ar: 'في انتظار التحقق', ro: 'Validare în așteptare' }
+    'Caducado': {
+      ca: 'Caducat',
+      ro: 'Expirat',
+      ar: 'منتهي الصلاحية',
+      ur: 'میعاد ختم',
+      pa: 'ਮਿਆਦ ਪੁੱਗੀ'
+    },
+    'Sin presentar': {
+      ca: 'Sense presentar',
+      ro: 'Neprezent',
+      ar: 'غير مقدَّم',
+      ur: 'جمع نہیں کرایا',
+      pa: 'ਜਮ੍ਹਾਂ ਨਹੀਂ ਕੀਤਾ'
+    },
+    'No válido': {
+      ca: 'No vàlid',
+      ro: 'Nevalid',
+      ar: 'غير صالح',
+      ur: 'غیر درست',
+      pa: 'ਸਹੀ ਨਹੀਂ'
+    },
+    'Validación pendiente': {
+      ca: 'Validació pendent',
+      ro: 'Validare în așteptare',
+      ar: 'في انتظار التحقق',
+      ur: 'تصدیق باقی',
+      pa: 'ਪੜਤਾਲ ਬਾਕੀ'
+    }
   },
   resultados: {
-    'rojo':   { ar: 'محظور',  ro: 'blocat' },
-    'naranja':{ ar: 'تحذير', ro: 'avertisment' }
+    'rojo': {
+      ca: 'bloquejat',
+      ro: 'blocat',
+      ar: 'محظور',
+      ur: 'ممنوع',
+      pa: 'ਰੋਕ'
+    },
+    'naranja': {
+      ca: 'avís',
+      ro: 'avertisment',
+      ar: 'تحذير',
+      ur: 'تنبیہ',
+      pa: 'ਚੇਤਾਵਨੀ'
+    }
   },
   especiales: {
-    'Trabajador dado de baja en el sistema':
-      { ar: 'العامل غير نشط في النظام', ro: 'Lucrător dezactivat în sistem' },
-    'Sin validación documental registrada para esta obra':
-      { ar: 'لا توجد وثائق مسجلة لهذه الورشة', ro: 'Nicio validare documentară înregistrată pentru acest șantier' }
+    'Trabajador dado de baja en el sistema': {
+      ca: 'Treballador donat de baixa al sistema',
+      ro: 'Lucrător dezactivat în sistem',
+      ar: 'العامل غير نشط في النظام',
+      ur: 'کارکن نظام میں غیر فعال ہے',
+      pa: 'ਕਾਮਾ ਸਿਸਟਮ ਵਿੱਚ ਬੰਦ ਹੈ'
+    },
+    'Sin validación documental registrada para esta obra': {
+      ca: 'Sense validació documental registrada per a aquesta obra',
+      ro: 'Nicio validare documentară înregistrată pentru acest șantier',
+      ar: 'لا توجد وثائق مسجلة لهذه الورشة',
+      ur: 'اس سائٹ کے لیے کوئی دستاویزی تصدیق درج نہیں',
+      pa: 'ਇਸ ਸਾਈਟ ਲਈ ਕੋਈ ਕਾਗ਼ਜ਼ੀ ਪੜਤਾਲ ਦਰਜ ਨਹੀਂ'
+    }
   },
   prefijos: {
-    '[Empresa]':         { ar: '[الشركة]',        ro: '[Companie]' },
-    '[Cambio de empresa]':{ ar: '[تغيير الشركة]', ro: '[Schimbare companie]' }
+    '[Empresa]': {
+      ca: '[Empresa]',
+      ro: '[Companie]',
+      ar: '[الشركة]',
+      ur: '[کمپنی]',
+      pa: '[ਕੰਪਨੀ]'
+    },
+    '[Cambio de empresa]': {
+      ca: "[Canvi d'empresa]",
+      ro: '[Schimbare companie]',
+      ar: '[تغيير الشركة]',
+      ur: '[کمپنی کی تبدیلی]',
+      pa: '[ਕੰਪਨੀ ਦੀ ਤਬਦੀਲੀ]'
+    }
   },
   cambio_empresa_texto: {
+    ca: "S'han ignorat els documents de:",
+    ro: 'Au fost ignorate documentele de la:',
     ar: 'تم تجاهل وثائق:',
-    ro: 'Au fost ignorate documentele de la:'
+    ur: 'ان کی دستاویزات نظرانداز کی گئیں:',
+    pa: 'ਇਹਨਾਂ ਦੇ ਕਾਗ਼ਜ਼ਾਤ ਨਜ਼ਰਅੰਦਾਜ਼ ਕੀਤੇ ਗਏ:'
   }
 };
 
@@ -1039,7 +1450,7 @@ function aplicarIdioma(lang, origen) {
   idiomaActual = lang;
   const t = TEXTOS[lang];
 
-  document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+  document.documentElement.setAttribute('dir', IDIOMAS_RTL.includes(lang) ? 'rtl' : 'ltr');
   document.documentElement.setAttribute('lang', lang);
 
   document.getElementById('titulo-principal').textContent     = t.titulo;
@@ -1066,8 +1477,9 @@ function aplicarIdioma(lang, origen) {
     el.pieMarca.textContent = t.pie;
   }
 
-  ['es', 'ar', 'ro'].forEach(l => {
-    document.getElementById('lang-' + l).classList.toggle('activo', l === lang);
+  IDIOMAS.forEach(i => {
+    const b = document.getElementById('lang-' + i.cod);
+    if (b) b.classList.toggle('activo', i.cod === lang);
   });
 
   // El idioma DEL MÓVIL solo cambia si alguien pulsa una bandera sin tener
@@ -1101,9 +1513,26 @@ function Tgps(clave) {
     || (TEXTOS.es.gps[clave]) || '';
 }
 
-document.getElementById('lang-es').addEventListener('click', () => aplicarIdioma('es', 'manual'));
-document.getElementById('lang-ar').addEventListener('click', () => aplicarIdioma('ar', 'manual'));
-document.getElementById('lang-ro').addEventListener('click', () => aplicarIdioma('ro', 'manual'));
+// Las banderas se pintan desde IDIOMAS, no desde el HTML. Se llama aquí,
+// antes del primer aplicarIdioma() de arranque, porque ese necesita que los
+// botones ya existan para poder marcar el activo.
+function pintarBotonesIdioma() {
+  const caja = document.getElementById('selector-idioma');
+  if (!caja) return;
+  caja.innerHTML = '';
+  IDIOMAS.forEach(i => {
+    if (!TEXTOS[i.cod]) return;   // idioma declarado sin textos: no se pinta
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.id = 'lang-' + i.cod;
+    b.title = i.titulo;
+    b.setAttribute('aria-label', i.titulo);
+    b.textContent = i.bandera;
+    b.addEventListener('click', () => aplicarIdioma(i.cod, 'manual'));
+    caja.appendChild(b);
+  });
+}
+pintarBotonesIdioma();
 
 // ── Fondo foto obra ──
 function aplicarFotoFondo(fotoUrl) {
@@ -1405,24 +1834,123 @@ function interpretarError(err) {
   return { mensajeUsuario: msg ? 'Error: ' + msg : T('error_generico'), etiquetaLog: 'otro' };
 }
 
-function obtenerUbicacion() {
+// =====================================================================
+// UBICACIÓN — por qué esto no es un getCurrentPosition y ya
+// ---------------------------------------------------------------------
+// El móvil no da UNA posición: da una serie que va mejorando. La primera
+// suele venir de la antena o del wifi, con cientos o miles de metros de
+// error, y la de satélite llega unos segundos después. Cada lectura trae
+// su `accuracy`: el radio de error en metros.
+//
+// La versión anterior pedía getCurrentPosition, se quedaba con la primera
+// que llegara, TIRABA el accuracy, y encima aceptaba posiciones de hasta
+// un minuto de antigüedad (dos en el reintento). Resultado medido entre
+// el 11/6 y el 21/8: 54 fichajes denegados por «fuera de zona», y de los
+// 35 que caían entre 800 m y 2 km, 27 volvieron a intentarlo cuatro
+// minutos después y entraron a 73 m de media. Nunca se habían movido: la
+// primera lectura era de antena.
+//
+// Lo que hace ahora:
+//   · maximumAge 0 — nunca una posición guardada, siempre recién tomada.
+//   · watchPosition — escucha la serie entera en vez de la primera.
+//   · Se queda con la primera lectura que baje del objetivo de precisión;
+//     si a los 7 s hay una razonable, la da por buena y no hace esperar más.
+//   · Si se agota el presupuesto, usa LA MEJOR que haya visto. Nunca falla
+//     por no tener nada: en el peor caso se comporta como antes.
+//   · clearWatch en todos los caminos, o el GPS se queda encendido.
+//
+// Los umbrales van holgados a propósito: el radio de las obras es de
+// 800 m, así que una lectura de ±100 m no puede sacar a nadie de la zona.
+// Lo que se quiere echar fuera son las de ±1.500 m, que son las que hacen
+// daño.
+// =====================================================================
+const GPS_OBJETIVO_M    = 100;    // por debajo de esto, lectura aceptada ya
+const GPS_ACEPTABLE_M   = 300;    // ...o esto, si ya se ha esperado bastante
+const GPS_ESPERA_MIN_MS = 7000;   // cuánto es «bastante»
+const GPS_PRESUPUESTO_MS = 20000; // tope duro; luego se usa la mejor que haya
+
+function obtenerUbicacion(alProgresar) {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) return reject({ codigo: null, mensaje: 'GPS no soportado.' });
-    navigator.geolocation.getCurrentPosition(
-      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      err => {
-        if (err.code === 3) {
-          console.log('[GPS] Timeout en intento 1, reintentando con baja precisión…');
-          navigator.geolocation.getCurrentPosition(
-            pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-            err2 => reject({ codigo: err2.code || null, mensaje: err2.message || 'Error de ubicación.' }),
-            { enableHighAccuracy: false, timeout: 15000, maximumAge: 120000 }
-          );
-        } else {
-          reject({ codigo: err.code || null, mensaje: err.message || 'Error de ubicación.' });
+
+    let idVigilancia = null;
+    let temporizador = null;
+    let tempMedio    = null;
+    let mejor        = null;   // la lectura menos mala vista hasta ahora
+    let ultimoError  = null;
+    let cerrado      = false;
+    const arranque   = Date.now();
+
+    function limpiar() {
+      if (idVigilancia !== null) {
+        try { navigator.geolocation.clearWatch(idVigilancia); } catch (_) {}
+        idVigilancia = null;
+      }
+      if (temporizador !== null) { clearTimeout(temporizador); temporizador = null; }
+      if (tempMedio !== null) { clearTimeout(tempMedio); tempMedio = null; }
+    }
+
+    function terminar(salida, valor) {
+      if (cerrado) return;      // una sola salida, pase lo que pase
+      cerrado = true;
+      limpiar();
+      salida(valor);
+    }
+
+    temporizador = setTimeout(() => {
+      if (mejor) {
+        console.log('[GPS] presupuesto agotado, uso la mejor: ±' + Math.round(mejor.precision) + ' m');
+        terminar(resolve, mejor);
+      } else {
+        terminar(reject, {
+          codigo:  ultimoError ? (ultimoError.code || null) : 3,
+          mensaje: ultimoError ? (ultimoError.message || 'Error de ubicación.')
+                               : 'No se pudo obtener la ubicación a tiempo.'
+        });
+      }
+    }, GPS_PRESUPUESTO_MS);
+
+    // Un móvil puede mandar UNA lectura razonable y luego callarse. Sin esto
+    // se quedaría esperando el presupuesto entero para nada.
+    tempMedio = setTimeout(() => {
+      if (mejor && mejor.precision <= GPS_ACEPTABLE_M) {
+        console.log('[GPS] razonable a los ' + GPS_ESPERA_MIN_MS + ' ms: ±' + Math.round(mejor.precision) + ' m');
+        terminar(resolve, mejor);
+      }
+    }, GPS_ESPERA_MIN_MS);
+
+    idVigilancia = navigator.geolocation.watchPosition(
+      pos => {
+        const p = pos && pos.coords ? pos.coords.accuracy : null;
+        const lectura = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          // Un móvil que no informa de precisión se trata como el peor caso:
+          // vale para no romper nada, pero no gana ninguna comparación.
+          precision: (typeof p === 'number' && isFinite(p) && p >= 0) ? p : Infinity
+        };
+        if (!mejor || lectura.precision < mejor.precision) mejor = lectura;
+        if (typeof alProgresar === 'function' && isFinite(mejor.precision)) {
+          try { alProgresar(mejor.precision); } catch (_) {}
+        }
+        const esperado = Date.now() - arranque;
+        if (mejor.precision <= GPS_OBJETIVO_M ||
+            (esperado >= GPS_ESPERA_MIN_MS && mejor.precision <= GPS_ACEPTABLE_M)) {
+          console.log('[GPS] lectura buena tras ' + esperado + ' ms: ±' + Math.round(mejor.precision) + ' m');
+          terminar(resolve, mejor);
         }
       },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+      err => {
+        ultimoError = err || null;
+        // Permiso denegado: esperar no lo arregla, y hay un aviso que explica
+        // cómo darlo. Cualquier otro error puede ser pasajero (el satélite
+        // aún no engancha), así que se sigue escuchando hasta el presupuesto.
+        if (err && err.code === 1) {
+          return terminar(reject, { codigo: 1, mensaje: err.message || 'Permiso de ubicación denegado.' });
+        }
+        console.log('[GPS] error pasajero (código ' + (err && err.code) + '), seguimos escuchando');
+      },
+      { enableHighAccuracy: true, timeout: GPS_PRESUPUESTO_MS, maximumAge: 0 }
     );
   });
 }
@@ -1482,7 +2010,9 @@ async function continuarDesdeDni() {
   irA(el.pasoCargando);
 
   try {
-    estado.ubicacion = await obtenerUbicacion();
+    estado.ubicacion = await obtenerUbicacion(p => {
+      el.cargandoTexto.textContent = T('obteniendo_ubic') + ' · ±' + Math.round(p) + ' m';
+    });
   } catch (err) {
     irA(el.pasoDni); mostrarAvisoGps(err && err.codigo);
     console.error('[fichaje] error_gps:', err); return;
@@ -1514,7 +2044,9 @@ async function reintentarGps() {
   irA(el.pasoCargando);
 
   try {
-    estado.ubicacion = await obtenerUbicacion();
+    estado.ubicacion = await obtenerUbicacion(p => {
+      el.cargandoTexto.textContent = T('obteniendo_ubic') + ' · ±' + Math.round(p) + ' m';
+    });
   } catch (err) {
     irA(el.pasoDni); mostrarAvisoGps(err && err.codigo);
     console.error('[fichaje] error_gps reintento:', err); return;
