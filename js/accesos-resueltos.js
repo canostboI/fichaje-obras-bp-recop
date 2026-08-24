@@ -45,6 +45,22 @@
 window.AccesosResueltos = (function () {
   'use strict';
 
+  // ------------------------------------------------- dependencia declarada
+  // La regla de limpieza de motivos vive en `js/motivos.js` y NO se copia
+  // aquí. Si ese archivo no está cargado, este módulo se NIEGA A ARRANCAR en
+  // vez de clasificar mal en silencio: sin la limpieza, `clasificarMotivos`
+  // no ve el «→ naranja» que lleva la nota del motor detrás y cuenta como
+  // CAUSA DEL BLOQUEO lo que solo era un aviso (medido el 23/8/2026: 15
+  // bloqueos con la causa equivocada y 1.256 avisos con una sección
+  // «BLOQUEA» inventada). Un panel que no carga se ve; un panel que miente
+  // no se ve. Por eso aquí se rompe fuerte y con el arreglo escrito.
+  if (!window.Motivos || typeof window.Motivos.normalizar !== 'function') {
+    throw new Error(
+      'accesos-resueltos.js necesita js/motivos.js. Ponlo con ' +
+      '<script src="../js/motivos.js"><' + '/script> ANTES de este archivo.'
+    );
+  }
+
   // Ventana de gracia, en minutos. Acordado con Dani el 27/7/2026.
   var MINUTOS_GRACIA = 30;
 
@@ -77,34 +93,17 @@ window.AccesosResueltos = (function () {
   /**
    * Quita de la cadena lo que NO es el motivo, antes de que nadie la lea.
    *
-   * Un motivo lleva su gravedad escrita AL FINAL («… → naranja», «… → rojo»)
-   * y media aplicación decide mirando ese final. Cualquier cosa pegada detrás
-   * rompe la cuenta, no solo el texto. Medido el 23/8/2026 sobre la base:
+   * LA REGLA NO ESTÁ AQUÍ: vive en `js/motivos.js`, que es su única casa.
+   * Hasta la 53ª sesión (24/8/2026) estaba escrita dos veces, aquí y en
+   * `fichaje/index.html`, idénticas palabra por palabra. Se dejó de copiar.
+   * El porqué, los dos casos que limpia y las cifras medidas están en el
+   * cabecero de `js/motivos.js`.
    *
-   *   · 464 motivos en 448 incidencias llevan detrás la nota del motor
-   *     `[sin regla definida, revisar Admin → Reglas]`. Es un recado PARA EL
-   *     ADMINISTRADOR, escrito por `js/ecoordina-import.js` y
-   *     `scripts/ecoordina-sync.mjs` después del `→ naranja`. Consecuencia:
-   *     `clasificarMotivos` no veía el «naranja» y contaba como CAUSA DEL
-   *     BLOQUEO un documento que el propio motor había marcado como aviso.
-   *
-   *   · El objeto JSON serializado (formato anterior al 5/6/2026). Hoy hay
-   *     0 en `incidencias` y 4 en `validaciones_obra`. Se desenvuelve igual:
-   *     esta función y su gemela de `fichaje/index.html` tienen que hacer lo
-   *     MISMO, o dentro de tres meses son dos reglas distintas.
-   *
-   * Las filas viejas no se reescriben: un registro del pasado no se toca para
-   * que encaje con una convención de hoy. Se normaliza al leer.
+   * Se conserva este envoltorio porque el módulo la exporta como parte de su
+   * API pública (`AccesosResueltos.normalizarMotivo`) desde antes.
    */
   function normalizarMotivo(crudo) {
-    var t = String(crudo == null ? '' : crudo);
-    if (t.charAt(0) === '{') {
-      try {
-        var o = JSON.parse(t);
-        if (o && typeof o.motivo === 'string') t = o.motivo;
-      } catch (e) { /* no era JSON: se queda como estaba */ }
-    }
-    return t.replace(/\s*\[sin regla definida[^\]]*\]\s*$/i, '').trim();
+    return window.Motivos.normalizar(crudo);
   }
 
   function limpiarMotivo(texto) {
