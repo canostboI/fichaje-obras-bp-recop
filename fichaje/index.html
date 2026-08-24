@@ -1357,6 +1357,37 @@ const MOTIVOS_DOCS = {
       pa: 'ਪੜਤਾਲ ਬਾਕੀ'
     }
   },
+  // Motivos que son una FRASE ENTERA, sin «(estado)» en medio. Ojo a la
+  // diferencia con `docs`: los nombres de documento los manda e-Coordina y la
+  // lista nunca puede estar completa, pero estas frases **las escribe nuestro
+  // propio código** (`js/ecoordina-import.js` y `scripts/ecoordina-sync.mjs`).
+  // Por eso esta lista SÍ puede llegar a cero. Si añades un `motivos.push()`
+  // de frase suelta en cualquiera de los dos motores, añádelo también aquí.
+  frases: {
+    'Sin contrato entre empresas': {
+      ca: 'Sense contracte entre empreses',
+      ro: 'Fără contract între firme',
+      ar: 'لا يوجد عقد بين الشركتين',
+      ur: 'کمپنیوں کے درمیان معاہدہ نہیں ہے',
+      pa: 'ਕੰਪਨੀਆਂ ਵਿਚਕਾਰ ਇਕਰਾਰਨਾਮਾ ਨਹੀਂ ਹੈ'
+    },
+    'No ha firmado el libro de subcontratación': {
+      ca: 'No ha signat el llibre de subcontractació',
+      ro: 'Nu a semnat registrul de subcontractare',
+      ar: 'لم يوقّع على سجل التعاقد من الباطن',
+      ur: 'سب کنٹریکٹ رجسٹر پر دستخط نہیں کیے',
+      pa: 'ਸਬ-ਕੰਟਰੈਕਟ ਰਜਿਸਟਰ ਉੱਤੇ ਦਸਤਖ਼ਤ ਨਹੀਂ ਕੀਤੇ'
+    },
+    // Formato anterior al 5/6/2026. Ver `normalizarMotivo`.
+    'Trabajador no aparece en el último Excel de e-Coordina': {
+      ca: "El treballador no surt a l'últim Excel d'e-Coordina",
+      ro: 'Lucrătorul nu apare în ultimul Excel de la e-Coordina',
+      ar: 'العامل غير مدرج في آخر ملف Excel من e-Coordina',
+      ur: 'کارکن e-Coordina کی تازہ ترین فہرست میں نہیں ہے',
+      pa: 'ਕਾਮਾ e-Coordina ਦੀ ਤਾਜ਼ਾ ਸੂਚੀ ਵਿੱਚ ਨਹੀਂ ਹੈ'
+    }
+  },
+
   resultados: {
     'rojo': {
       ca: 'bloquejat',
@@ -1403,6 +1434,17 @@ const MOTIVOS_DOCS = {
       ar: '[تغيير الشركة]',
       ur: '[کمپنی کی تبدیلی]',
       pa: '[ਕੰਪਨੀ ਦੀ ਤਬਦੀਲੀ]'
+    },
+    // Lo escribe `jefe/documentos-ecoordina.html` (y lo lee de vuelta por
+    // `startsWith('[Exención]')`, así que la cadena es una interfaz: no se
+    // toca sin mirar allí). Lo que va detrás lo escribe una persona a mano
+    // explicando por qué no aplica: eso no se puede traducir y se deja tal cual.
+    '[Exención]': {
+      ca: '[Exempció]',
+      ro: '[Scutire]',
+      ar: '[إعفاء]',
+      ur: '[استثنیٰ]',
+      pa: '[ਛੋਟ]'
     }
   },
   cambio_empresa_texto: {
@@ -1414,7 +1456,49 @@ const MOTIVOS_DOCS = {
   }
 };
 
+// =====================================================================
+// normalizarMotivo — quitar de la cadena lo que no es el motivo (52ª)
+// ---------------------------------------------------------------------
+// Un motivo viaja como frase, y por el camino se le han ido pegando cosas
+// que no son el motivo. Cuatro sitios distintos leen el FINAL de esa
+// cadena para decidir algo, así que lo pegado al final rompe cuentas, no
+// solo la traducción. Aquí se limpia una vez, antes de nada.
+//
+// Dos casos, los dos medidos contra la base el 23/8/2026:
+//
+//   1. Objeto JSON serializado (4 validaciones, del 1 y el 5 de junio).
+//      Se pintaba literal —con llaves y comillas— **en los seis idiomas,
+//      castellano incluido**. Ya no se genera: no hay ningún escritor en
+//      el repo. No se reescriben esas filas: un registro viejo no se toca
+//      para que encaje con una convención de hoy. Se desenvuelve al leer.
+//
+//   2. La nota `[sin regla definida, revisar Admin → Reglas]` (46 en
+//      `validaciones_obra`, 464 en `incidencias`). Es un recado del motor
+//      PARA EL ADMINISTRADOR y va DESPUÉS del `→ naranja`. Al trabajador
+//      no le dice nada: «Admin → Reglas» no es cosa suya, y encima deja
+//      el resultado sin traducir porque «naranja [sin regla…]» no está en
+//      el diccionario.
+//
+// ⚠️ El mismo sufijo rompe `clasificarMotivos` en `js/accesos-resueltos.js`,
+//    que reparte rojo/naranja con /→\s*naranja\s*$/ y por tanto NO ve el
+//    «naranja» cuando lleva la nota detrás. Eso es otro archivo y otra
+//    pantalla: anotado en ESTADO.md, sin tocar aquí.
+// =====================================================================
+function normalizarMotivo(crudo) {
+  var t = String(crudo == null ? '' : crudo);
+  if (t.charAt(0) === '{') {
+    try {
+      var o = JSON.parse(t);
+      if (o && typeof o.motivo === 'string') t = o.motivo;
+    } catch (e) { /* no era JSON: se queda como estaba */ }
+  }
+  return t.replace(/\s*\[sin regla definida[^\]]*\]\s*$/i, '').trim();
+}
+
 function traducirMotivo(texto, lang) {
+  // La limpieza va ANTES del atajo del castellano: los dos casos de arriba
+  // salen rotos también en castellano, que es de donde vienen.
+  texto = normalizarMotivo(texto);
   if (!texto || lang === 'es') return texto;
   const d = MOTIVOS_DOCS;
   if (d.especiales[texto]) return d.especiales[texto][lang] || texto;
@@ -1441,6 +1525,18 @@ function traducirMotivo(texto, lang) {
     const resTrad    = (d.resultados[resultado] && d.resultados[resultado][lang]) || resultado;
     return prefijo + docTrad + ' (' + estadoTrad + ') → ' + resTrad;
   }
+  // Frase entera con resultado, sin «(estado)»: «Sin contrato entre empresas → rojo».
+  // Va DESPUÉS del bloque de arriba a propósito: si hubiera ido antes, se
+  // habría quedado con los motivos de documento y les habría comido el estado.
+  const suelto = resto.match(/^(.+) → (.+)$/);
+  if (suelto) {
+    const [, frase, resultado] = suelto;
+    const fraseTrad = (d.frases[frase]        && d.frases[frase][lang])        || frase;
+    const resTrad   = (d.resultados[resultado] && d.resultados[resultado][lang]) || resultado;
+    return prefijo + fraseTrad + ' → ' + resTrad;
+  }
+  // Frase entera sin resultado (el caso del objeto JSON ya desenvuelto).
+  if (d.frases[resto]) return prefijo + (d.frases[resto][lang] || resto);
   return prefijo + resto;
 }
 
