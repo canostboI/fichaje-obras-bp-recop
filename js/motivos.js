@@ -44,11 +44,48 @@
    cadena y devuelve una cadena. La traducción vive en `fichaje/index.html`
    y el reparto rojo/naranja en `js/accesos-resueltos.js`.
 
+   QUÉ MÁS VIVE AQUÍ (54ª, 24/8/2026): EL CRITERIO DE «ESTO ES UNA EXENCIÓN»
+   Una exención dice que un documento NO le aplica a una empresa. Se escribe
+   como una línea más dentro de los motivos, con este molde EXACTO:
+
+       [Exención] {nombre del documento} — no aplica: {explicación a mano}
+
+   La escriben DOS sitios, y ninguno de los dos es una pantalla:
+   `js/ecoordina-import.js:654` y `scripts/ecoordina-sync.mjs:426`. Usan
+   plantillas idénticas byte a byte, raya «—» en U+2014 incluida.
+   ⚠️ Hasta la 54ª, el comentario de `js/accesos-resueltos.js` y el de
+   `fichaje/index.html` decían que la escribía `jefe/documentos-ecoordina.html`.
+   Era FALSO: esa pantalla solo la LEE. Corregido en los dos.
+
+   POR QUÉ EL CRITERIO ESTÁ AQUÍ Y NO EN CADA LECTOR
+   Había DOS puertas al mismo problema con criterios distintos:
+   `js/accesos-resueltos.js` con `/^\s*\[Exención\]/i` (tolerante) y
+   `jefe/documentos-ecoordina.html` con `startsWith('[Exención]')` (exacto).
+   No mordía porque los escritores son exactos, pero es la regla de la casa:
+   dos puertas al mismo problema no pueden tener criterios de cero distintos.
+
+   ⚠️ Y POR ESO `exencionDe()` DEVUELVE EL NOMBRE, NO UN SÍ/NO
+   `jefe/documentos-ecoordina.html` no solo detectaba: además CORTABA por
+   longitud fija (`slice('[Exención]'.length)`) para sacar el nombre del
+   documento. Un detector tolerante a mayúsculas y espacios seguido de un
+   corte fijo casa y devuelve basura. Aquí detectar y cortar son la MISMA
+   operación, así que no pueden separarse nunca.
+
    QUIÉN LO CARGA
    fichaje/index.html · admin/index.html · jefe/index.html ·
-   encargado/index.html.
+   encargado/index.html · jefe/documentos-ecoordina.html.
    ⚠️ Tiene que ir ANTES que `js/accesos-resueltos.js`, que lo necesita para
    arrancar y se niega a hacerlo sin él.
+
+   LOS TRES LECTORES FALLAN DISTINTO, A PROPÓSITO
+     · `js/accesos-resueltos.js`      → se NIEGA a arrancar (allí decide
+                                        rojo/naranja en el panel).
+     · `fichaje/index.html`           → degrada (allí solo pinta; quien
+                                        decide es `registrar_fichaje`).
+     · `jefe/documentos-ecoordina.html` → degrada (allí solo cuenta para un
+                                        cartel, y la página ya tiene puesto
+                                        el aviso naranja de «ninguna casó»).
+   No los «unifiques»: la consecuencia de fallar es distinta en cada uno.
    ========================================================================== */
 
 window.Motivos = (function () {
@@ -74,7 +111,53 @@ window.Motivos = (function () {
     return t.replace(/\s*\[sin regla definida[^\]]*\]\s*$/i, '').trim();
   }
 
+  // ------------------------------------------------------------- exenciones
+
+  // Tolerante a propósito al leer, EXACTO al escribir. Los escritores de hoy
+  // son byte a byte idénticos; esto protege de un futuro copiado a mano o de
+  // un acento perdido en una recodificación, sin abrir la puerta a otra cosa.
+  var RE_EXENCION = /^\s*\[\s*exenci[óo]n\s*\]\s*/i;
+
+  // Separador del molde. Va con la raya larga U+2014, tal cual la escriben
+  // `js/ecoordina-import.js` y `scripts/ecoordina-sync.mjs`.
+  var SEP_NO_APLICA = ' — no aplica:';
+
+  /**
+   * Lee una línea de exención y la parte en sus dos trozos.
+   *
+   * @param {*} crudo  un elemento de `validaciones_obra.motivos` o de
+   *                   `incidencias.detalle` ya parseado, o una línea de los
+   *                   `motivos` que acaba de calcular el importador.
+   * @returns {{doc: string, motivo: string}|null}
+   *          `null` si la línea NO es una exención. Si lo es:
+   *            · `doc`    → nombre del documento, tal cual lo escribe e-Coordina
+   *            · `motivo` → la explicación que tecleó un administrador
+   *                         (cadena vacía si la línea viene sin ella)
+   */
+  function exencionDe(crudo) {
+    var t = normalizar(crudo);
+    if (!RE_EXENCION.test(t)) return null;
+    var resto = t.replace(RE_EXENCION, '');
+    var i = resto.indexOf(SEP_NO_APLICA);
+    if (i === -1) return { doc: resto.trim(), motivo: '' };
+    return {
+      doc: resto.slice(0, i).trim(),
+      motivo: resto.slice(i + SEP_NO_APLICA.length).trim()
+    };
+  }
+
+  /**
+   * ¿Esta línea es una exención?
+   * Definida SOBRE `exencionDe` a propósito: así el sí/no no puede
+   * separarse nunca del corte, que es justo el fallo que se venía a evitar.
+   */
+  function esExencion(crudo) {
+    return exencionDe(crudo) !== null;
+  }
+
   return {
-    normalizar: normalizar
+    normalizar: normalizar,
+    exencionDe: exencionDe,
+    esExencion: esExencion
   };
 })();
