@@ -54,10 +54,17 @@ window.AccesosResueltos = (function () {
   // bloqueos con la causa equivocada y 1.256 avisos con una sección
   // «BLOQUEA» inventada). Un panel que no carga se ve; un panel que miente
   // no se ve. Por eso aquí se rompe fuerte y con el arreglo escrito.
-  if (!window.Motivos || typeof window.Motivos.normalizar !== 'function') {
+  // ⚠️ Se comprueban las DOS funciones que se usan, no solo una. Si aquí
+  // solo se mirara `normalizar`, una copia vieja de `motivos.js` (sin
+  // `esExencion`, añadida en la 54ª) pasaría el chequeo y reventaría con un
+  // TypeError opaco tres funciones más adelante, dentro de un forEach.
+  if (!window.Motivos ||
+      typeof window.Motivos.normalizar !== 'function' ||
+      typeof window.Motivos.esExencion !== 'function') {
     throw new Error(
-      'accesos-resueltos.js necesita js/motivos.js. Ponlo con ' +
-      '<script src="../js/motivos.js"><' + '/script> ANTES de este archivo.'
+      'accesos-resueltos.js necesita js/motivos.js (54ª o posterior, con ' +
+      'esExencion). Ponlo con <script src="../js/motivos.js"><' + '/script> ' +
+      'ANTES de este archivo, y comprueba que no es una copia en caché.'
     );
   }
 
@@ -143,9 +150,20 @@ window.AccesosResueltos = (function () {
         // `else` de abajo —que cuenta como bloqueo A PROPÓSITO, por si acaso—
         // y el panel acababa diciendo que a alguien le impidió entrar justo el
         // papel del que estaba exento. Medido: 15 en incidencias el 23/8/2026.
-        // La cadena `[Exención]` la escribe `jefe/documentos-ecoordina.html`,
-        // que además la lee de vuelta con startsWith: es una interfaz.
-        if (/^\s*\[Exención\]/i.test(crudo) || /→\s*naranja\s*$/i.test(crudo)) {
+        //
+        // ⚠️ CORRECCIÓN DE LA 54ª. Hasta hoy este comentario decía que la
+        // cadena `[Exención]` la escribe `jefe/documentos-ecoordina.html`.
+        // Es FALSO y llevaba meses aquí: esa pantalla solo la LEE. Los dos
+        // escritores son `js/ecoordina-import.js:654` y
+        // `scripts/ecoordina-sync.mjs:426`. Sigue siendo una interfaz —tres
+        // sitios la parsean—, pero no la de quien creíamos.
+        //
+        // El criterio de «esto es una exención» ya NO está escrito aquí:
+        // vive en `js/motivos.js`, una sola vez. Había dos puertas al mismo
+        // problema con criterios distintos (esta, tolerante; la del
+        // importador, exacta). Dos puertas al mismo problema no pueden tener
+        // criterios de cero distintos.
+        if (window.Motivos.esExencion(crudo) || /→\s*naranja\s*$/i.test(crudo)) {
           if (!vistoN[txt]) { vistoN[txt] = true; naranjas.push(txt); }
         } else {
           if (!vistoR[txt]) { vistoR[txt] = true; rojos.push(txt); }
