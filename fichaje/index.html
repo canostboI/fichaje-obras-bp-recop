@@ -606,7 +606,9 @@ const el = {
 // ---------------------------------------------------------------------
 // Añadir un idioma son DOS pasos y ninguno más:
 //   1. una línea en esta lista;
-//   2. su bloque dentro de TEXTOS (y sus entradas en MOTIVOS_DOCS).
+//   2. su bloque dentro de TEXTOS (y sus entradas en MOTIVOS_DOCS:
+//      estados, resultados, frases, especiales y prefijos —los
+//      NOMBRES de documento ya no se traducen; ver MOTIVOS_DOCS).
 // De aquí salen solos: los botones de bandera, sus listeners, el marcado
 // del botón activo y la dirección del texto (rtl / ltr).
 // El orden de la lista es el orden en que se pintan las banderas.
@@ -1262,72 +1264,58 @@ const TEXTOS = {
   }
 };
 
+// =====================================================================
+// MOTIVOS_DOCS — traducción del motivo que ve el trabajador en la valla
+// ---------------------------------------------------------------------
+// 🔴 AQUÍ NO HAY DICCIONARIO DE NOMBRES DE DOCUMENTO, Y ES A PROPÓSITO.
+//    NO LO VUELVAS A AÑADIR SIN LEER ESTO ENTERO.
+//
+// Un motivo tiene esta forma:
+//     [Empresa] Evaluación de riesgos (Sin presentar) → naranja
+//                ^^^^^^^^^^^^^^^^^^^^
+//                esto lo escribe e-Coordina, no nosotros
+//
+// Hasta la 54ª había un bloque `docs:` con nueve nombres traducidos a los
+// cinco idiomas. Se ha quitado entero. Decisión de Dani del 24/8/2026,
+// después de medir. Las tres razones, por orden de peso:
+//
+//   1. LA LISTA NO PUEDE CERRARSE. Los nombres los inventa e-Coordina.
+//      En la base hay 21 distintos y había 9 traducidos. Poner los 12 que
+//      faltaban no impide que aparezca el 22 mañana. Regla de la casa: un
+//      diccionario de cadenas que escribe otro sistema no llega a cero.
+//
+//   2. EL NOMBRE ES UN IDENTIFICADOR, NO UN MENSAJE. Es lo que el
+//      trabajador tendrá que repetirle al encargado, y lo que el encargado
+//      tiene en su pantalla y en e-Coordina, en castellano. Traducirlo
+//      rompe esa conversación: el paquistaní leía «میڈیکل سرٹیفکیٹ» y no
+//      podía nombrar el papel que le faltaba.
+//
+//   3. VARIOS NO SON NOMBRES NI ESTÁN EN CASTELLANO. e-Coordina mezcla
+//      idiomas («Contracte compromís prevenció i medi ambient», 795 veces;
+//      «FORMACIO I INFORMACIO INICIAL (ART 18 I 19)», 388) y a veces mete
+//      instrucciones dentro del campo del nombre («TC2 (subir el documento
+//      original desde el botón CARGAR TC2) o Alta de nuevo trabajador»).
+//
+// LO QUE SE PIERDE, MEDIDO Y ACEPTADO. Del total de instancias de motivo
+// de la base, 1.298 eran documentos PERSONALES con el nombre traducido y
+// ahora salen en su idioma original. A cambio, 2.258 instancias de
+// documentos DE EMPRESA dejan de ser una traducción a medias, y el
+// porcentaje sin traducir pasa a ser cero por construcción, no por lista.
+// Y el 85 % de lo que quedaba sin traducir eran papeles de la empresa:
+// cosas que el trabajador no puede arreglar y que solo necesita poder
+// nombrar para decírselo a su jefe.
+//
+// LO QUE SÍ SE SIGUE TRADUCIENDO, y llega a cero porque lo escribimos
+// nosotros: el prefijo (`[Empresa]`…), el estado del documento
+// (`Caducado`…), el resultado (`rojo` / `naranja`) y las frases enteras
+// que genera nuestro código (`frases`, `especiales`).
+//
+// EL DESTINO, SI ALGÚN DÍA SE HACE. Estructurar el motivo como
+// {doc, estado, resultado} en vez de una frase, y matar de golpe la regex
+// y los seis sitios que hoy parsean el nombre. Toca cuatro escritores y
+// 505 filas: sesión propia. Mientras tanto, esto ya llega a cero.
+// =====================================================================
 const MOTIVOS_DOCS = {
-  docs: {
-    'Apto médico': {
-      ca: 'Apte mèdic',
-      ro: 'Apt medical',
-      ar: 'الكشف الطبي',
-      ur: 'طبی معائنہ',
-      pa: 'ਡਾਕਟਰੀ ਜਾਂਚ'
-    },
-    'Equipos de Protección Individual (EPI)': {
-      ca: 'Equips de Protecció Individual (EPI)',
-      ro: 'Echipament de Protecție Individuală (EPI)',
-      ar: 'معدات الحماية الشخصية (EPI)',
-      ur: 'ذاتی حفاظتی سامان (EPI)',
-      pa: 'ਨਿੱਜੀ ਸੁਰੱਖਿਆ ਸਾਮਾਨ (EPI)'
-    },
-    'Formación 20 horas específica': {
-      ca: 'Formació 20 hores específica',
-      ro: 'Formare 20 ore specifică',
-      ar: 'تدريب 20 ساعة خاص',
-      ur: '20 گھنٹے کی مخصوص تربیت',
-      pa: '20 ਘੰਟੇ ਦੀ ਖ਼ਾਸ ਸਿਖਲਾਈ'
-    },
-    'Formación 60 horas (Nivel básico) del Recurso preventivo': {
-      ca: 'Formació 60 hores (Nivell bàsic) del Recurs preventiu',
-      ro: 'Formare 60 ore (nivel de bază) a Resurselor preventive',
-      ar: 'تدريب 60 ساعة (المستوى الأساسي) للمورد الوقائي',
-      ur: 'حفاظتی ذمہ دار کی 60 گھنٹے کی تربیت (بنیادی سطح)',
-      pa: 'ਸੁਰੱਖਿਆ ਜ਼ਿੰਮੇਵਾਰ ਦੀ 60 ਘੰਟੇ ਦੀ ਸਿਖਲਾਈ (ਮੁੱਢਲਾ ਪੱਧਰ)'
-    },
-    'Nombramiento del Recurso Preventivo': {
-      ca: 'Nomenament del Recurs Preventiu',
-      ro: 'Numirea Responsabilului cu Prevenția',
-      ar: 'تعيين المورد الوقائي',
-      ur: 'حفاظتی ذمہ دار کی تقرری',
-      pa: 'ਸੁਰੱਖਿਆ ਜ਼ਿੰਮੇਵਾਰ ਦੀ ਨਿਯੁਕਤੀ'
-    },
-    'Autorización de uso de maquinaria': {
-      ca: "Autorització d'ús de maquinària",
-      ro: 'Autorizație de utilizare a utilajelor',
-      ar: 'إذن استخدام الآليات',
-      ur: 'مشینری کے استعمال کی اجازت',
-      pa: 'ਮਸ਼ੀਨਰੀ ਵਰਤਣ ਦੀ ਇਜਾਜ਼ਤ'
-    },
-    'Certificado de PAGO DE RECIBOS de los trabajadores AUTÓNOMOS.': {
-      ca: 'Certificat de PAGAMENT DE REBUTS dels treballadors AUTÒNOMS.',
-      ro: 'Certificat de PLATĂ A CONTRIBUȚIILOR lucrătorilor INDEPENDENȚI',
-      ar: 'شهادة دفع اشتراكات العمال المستقلين',
-      ur: 'خود روزگار کارکنوں کی ادائیگی کا سرٹیفکیٹ',
-      pa: 'ਖ਼ੁਦ-ਰੁਜ਼ਗਾਰ ਕਾਮਿਆਂ ਦੀ ਅਦਾਇਗੀ ਦਾ ਸਰਟੀਫਿਕੇਟ'
-    },
-    'ITA (Informe de Trabajadores en Alta)': {
-      ca: 'ITA (Informe de Treballadors en Alta)',
-      ro: 'ITA (Raport Lucrători Înregistrați)',
-      ar: 'ITA (تقرير العمال المسجلين)',
-      ur: 'ITA (رجسٹرڈ کارکنوں کی رپورٹ)',
-      pa: 'ITA (ਰਜਿਸਟਰ ਕਾਮਿਆਂ ਦੀ ਰਿਪੋਰਟ)'
-    },
-    'TC2 (subir el documento original desde el botón CARGAR TC2) o Alta de nuevo trabajador': {
-      ca: 'TC2 (pugeu el document original des del botó CARREGAR TC2) o Alta de nou treballador',
-      ro: 'TC2 (încărcați documentul original) sau Înregistrare lucrător nou',
-      ar: 'TC2 (تحميل المستند الأصلي) أو تسجيل عامل جديد',
-      ur: 'TC2 (اصل دستاویز اپلوڈ کریں) یا نئے کارکن کا اندراج',
-      pa: 'TC2 (ਅਸਲ ਦਸਤਾਵੇਜ਼ ਅੱਪਲੋਡ ਕਰੋ) ਜਾਂ ਨਵੇਂ ਕਾਮੇ ਦਾ ਇੰਦਰਾਜ'
-    }
-  },
   estados: {
     'Caducado': {
       ca: 'Caducat',
@@ -1436,10 +1424,16 @@ const MOTIVOS_DOCS = {
       ur: '[کمپنی کی تبدیلی]',
       pa: '[ਕੰਪਨੀ ਦੀ ਤਬਦੀਲੀ]'
     },
-    // Lo escribe `jefe/documentos-ecoordina.html` (y lo lee de vuelta por
-    // `startsWith('[Exención]')`, así que la cadena es una interfaz: no se
-    // toca sin mirar allí). Lo que va detrás lo escribe una persona a mano
-    // explicando por qué no aplica: eso no se puede traducir y se deja tal cual.
+    // ⚠️ CORRECCIÓN DE LA 54ª. Este comentario decía que la cadena
+    // `[Exención]` la escribe `jefe/documentos-ecoordina.html`. Es FALSO:
+    // esa pantalla solo la LEE. La escriben `js/ecoordina-import.js:654` y
+    // `scripts/ecoordina-sync.mjs:426`, con plantillas idénticas byte a
+    // byte, raya «—» en U+2014 incluida.
+    // Sigue siendo una INTERFAZ, y de las serias: tres sitios la parsean.
+    // El criterio de «esto es una exención» vive en `js/motivos.js`
+    // (`esExencion` / `exencionDe`), una sola vez. Aquí solo se traduce el
+    // prefijo. Lo que va detrás lo escribe una persona a mano explicando
+    // por qué no aplica: eso no se traduce y se deja tal cual.
     '[Exención]': {
       ca: '[Exempció]',
       ro: '[Scutire]',
@@ -1509,10 +1503,13 @@ function traducirMotivo(texto, lang) {
   const match = resto.match(/^(.+) \(([^)]+)\) → (.+)$/);
   if (match) {
     const [, nombreDoc, estadoDoc, resultado] = match;
-    const docTrad    = (d.docs[nombreDoc]      && d.docs[nombreDoc][lang])      || nombreDoc;
+    // ⚠️ `nombreDoc` NO se traduce, y no es un olvido: es un identificador
+    // que escribe e-Coordina y que el trabajador tiene que poder repetirle
+    // al encargado. El porqué completo está arriba, donde estaba el
+    // diccionario `docs`. Lo que sí se traduce es todo lo demás.
     const estadoTrad = (d.estados[estadoDoc]   && d.estados[estadoDoc][lang])   || estadoDoc;
     const resTrad    = (d.resultados[resultado] && d.resultados[resultado][lang]) || resultado;
-    return prefijo + docTrad + ' (' + estadoTrad + ') → ' + resTrad;
+    return prefijo + nombreDoc + ' (' + estadoTrad + ') → ' + resTrad;
   }
   // Frase entera con resultado, sin «(estado)»: «Sin contrato entre empresas → rojo».
   // Va DESPUÉS del bloque de arriba a propósito: si hubiera ido antes, se
