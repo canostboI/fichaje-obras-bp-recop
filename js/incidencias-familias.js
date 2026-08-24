@@ -38,6 +38,28 @@
     otro:                   ALERTA,  // sin clasificar → que se vea
 
     // --- RASTRO: solo registro, sin acción pendiente ---
+    // ⚠️ MEDIDO EN LA 54ª (24/8/2026). NO ES UNA BANDEJA ATRASADA.
+    // Una consulta directa a la tabla enseña «1.438 nuevas, 0 revisadas»
+    // desde abril y parece una bandeja que nadie abre. No lo es, por dos
+    // motivos, los dos comprobados:
+    //   · `incidencias.estado` tiene DEFAULT 'nueva' y en las filas de
+    //     RASTRO no significa nada: `admin/incidencias.html` las manda a
+    //     su pestaña, el contador de pendientes solo cuenta ALERTA y el
+    //     botón de «marcar revisadas» solo sale en la otra pestaña. Esas
+    //     1.438 «nuevas» NO salen en ninguna pantalla. (Prueba de que es
+    //     residuo heredado: `fuera_de_zona`, también RASTRO, tiene 17
+    //     «revisadas» de antes de que existiera este reparto.)
+    //   · Y NO se pueden dejar de escribir. Las escribe solo
+    //     `registrar_fichaje`, y su `detalle` es la FOTO CONGELADA de los
+    //     motivos en el momento del fichaje. `validaciones_obra` no vale
+    //     como sustituto: tiene una sola fila por persona y obra (237 filas
+    //     para 237 pares) y se sobrescribe, así que solo sabe el estado de
+    //     HOY. Comparado como conjunto: 991 de 1.075 filas comparables
+    //     dicen algo DISTINTO de lo que dice hoy `validaciones_obra`, y 392
+    //     son de gente que ya no está en naranja. Sin esta fila no quedaría
+    //     rastro de por qué lo estuvo aquel día.
+    // Conclusión: es un libro de registro, no un aviso. No archivarlas, no
+    // dejar de escribirlas, y no volver a abrir esto como si fuera P-02.
     aviso_naranja:          RASTRO,  // entró con aviso; ya quedó constancia
     excepcion_autorizada:   RASTRO,  // el jefe ya autorizó
     fichaje_corregido:      RASTRO,  // ya se corrigió
