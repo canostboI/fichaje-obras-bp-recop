@@ -74,6 +74,39 @@ window.AccesosResueltos = (function () {
     return m === 0 ? h + ' h' : h + ' h ' + m + ' min';
   }
 
+  /**
+   * Quita de la cadena lo que NO es el motivo, antes de que nadie la lea.
+   *
+   * Un motivo lleva su gravedad escrita AL FINAL («… → naranja», «… → rojo»)
+   * y media aplicación decide mirando ese final. Cualquier cosa pegada detrás
+   * rompe la cuenta, no solo el texto. Medido el 23/8/2026 sobre la base:
+   *
+   *   · 464 motivos en 448 incidencias llevan detrás la nota del motor
+   *     `[sin regla definida, revisar Admin → Reglas]`. Es un recado PARA EL
+   *     ADMINISTRADOR, escrito por `js/ecoordina-import.js` y
+   *     `scripts/ecoordina-sync.mjs` después del `→ naranja`. Consecuencia:
+   *     `clasificarMotivos` no veía el «naranja» y contaba como CAUSA DEL
+   *     BLOQUEO un documento que el propio motor había marcado como aviso.
+   *
+   *   · El objeto JSON serializado (formato anterior al 5/6/2026). Hoy hay
+   *     0 en `incidencias` y 4 en `validaciones_obra`. Se desenvuelve igual:
+   *     esta función y su gemela de `fichaje/index.html` tienen que hacer lo
+   *     MISMO, o dentro de tres meses son dos reglas distintas.
+   *
+   * Las filas viejas no se reescriben: un registro del pasado no se toca para
+   * que encaje con una convención de hoy. Se normaliza al leer.
+   */
+  function normalizarMotivo(crudo) {
+    var t = String(crudo == null ? '' : crudo);
+    if (t.charAt(0) === '{') {
+      try {
+        var o = JSON.parse(t);
+        if (o && typeof o.motivo === 'string') t = o.motivo;
+      } catch (e) { /* no era JSON: se queda como estaba */ }
+    }
+    return t.replace(/\s*\[sin regla definida[^\]]*\]\s*$/i, '').trim();
+  }
+
   function limpiarMotivo(texto) {
     if (!texto) return '';
     return String(texto).replace(/\s*→\s*(verde|naranja|rojo)\s*$/i, '').trim();
@@ -103,9 +136,17 @@ window.AccesosResueltos = (function () {
       } catch (e) { /* detalle genérico antiguo, no es JSON */ }
       if (!lista) return;
       lista.forEach(function (m) {
-        var txt = limpiarMotivo(m);
+        var crudo = normalizarMotivo(m);
+        var txt = limpiarMotivo(crudo);
         if (!txt) return;
-        if (/→\s*naranja\s*$/i.test(String(m))) {
+        // Una exención dice que un documento NO aplica a esa empresa: es una
+        // nota explicativa, no una causa de bloqueo. Sin este caso cae en el
+        // `else` de abajo —que cuenta como bloqueo A PROPÓSITO, por si acaso—
+        // y el panel acababa diciendo que a alguien le impidió entrar justo el
+        // papel del que estaba exento. Medido: 15 en incidencias el 23/8/2026.
+        // La cadena `[Exención]` la escribe `jefe/documentos-ecoordina.html`,
+        // que además la lee de vuelta con startsWith: es una interfaz.
+        if (/^\s*\[Exención\]/i.test(crudo) || /→\s*naranja\s*$/i.test(crudo)) {
           if (!vistoN[txt]) { vistoN[txt] = true; naranjas.push(txt); }
         } else {
           if (!vistoR[txt]) { vistoR[txt] = true; rojos.push(txt); }
@@ -336,6 +377,7 @@ window.AccesosResueltos = (function () {
     clasificar: clasificar,
     clasificarMotivos: clasificarMotivos,
     limpiarMotivo: limpiarMotivo,
+    normalizarMotivo: normalizarMotivo,
     etiquetas: etiquetas,
     textoDesenlace: textoDesenlace,
     textoDuracion: textoDuracion,
