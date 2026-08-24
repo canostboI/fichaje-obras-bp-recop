@@ -7,6 +7,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/branding.js"></script>
+<script src="../js/motivos.js"></script>
 
 <style>
   :root {
@@ -1457,42 +1458,30 @@ const MOTIVOS_DOCS = {
 };
 
 // =====================================================================
-// normalizarMotivo — quitar de la cadena lo que no es el motivo (52ª)
+// normalizarMotivo — quitar de la cadena lo que no es el motivo
 // ---------------------------------------------------------------------
-// Un motivo viaja como frase, y por el camino se le han ido pegando cosas
-// que no son el motivo. Cuatro sitios distintos leen el FINAL de esa
-// cadena para decidir algo, así que lo pegado al final rompe cuentas, no
-// solo la traducción. Aquí se limpia una vez, antes de nada.
+// LA REGLA NO ESTÁ AQUÍ. Vive en `js/motivos.js`, cargado arriba, y ese
+// es su único sitio. Hasta la 53ª (24/8/2026) estaba escrita dos veces
+// —aquí y en `js/accesos-resueltos.js`— idénticas palabra por palabra.
+// El porqué, los dos casos que limpia y las cifras están allí.
 //
-// Dos casos, los dos medidos contra la base el 23/8/2026:
-//
-//   1. Objeto JSON serializado (4 validaciones, del 1 y el 5 de junio).
-//      Se pintaba literal —con llaves y comillas— **en los seis idiomas,
-//      castellano incluido**. Ya no se genera: no hay ningún escritor en
-//      el repo. No se reescriben esas filas: un registro viejo no se toca
-//      para que encaje con una convención de hoy. Se desenvuelve al leer.
-//
-//   2. La nota `[sin regla definida, revisar Admin → Reglas]` (46 en
-//      `validaciones_obra`, 464 en `incidencias`). Es un recado del motor
-//      PARA EL ADMINISTRADOR y va DESPUÉS del `→ naranja`. Al trabajador
-//      no le dice nada: «Admin → Reglas» no es cosa suya, y encima deja
-//      el resultado sin traducir porque «naranja [sin regla…]» no está en
-//      el diccionario.
-//
-// ⚠️ El mismo sufijo rompe `clasificarMotivos` en `js/accesos-resueltos.js`,
-//    que reparte rojo/naranja con /→\s*naranja\s*$/ y por tanto NO ve el
-//    «naranja» cuando lleva la nota detrás. Eso es otro archivo y otra
-//    pantalla: anotado en ESTADO.md, sin tocar aquí.
+// ⚠️ LA GUARDA ES A PROPÓSITO, y es distinta de la del panel.
+// Aquí la limpieza solo PINTA: alimenta a `traducirMotivo`, que compone el
+// mensaje que ve el trabajador. No decide nada; quien deja entrar o no es
+// `registrar_fichaje` en el servidor. Si `js/motivos.js` no llegara a
+// cargar, un trabajador RECHAZADO vería su motivo sin limpiar —feo, con la
+// nota del administrador detrás— en vez de encontrarse la valla rota. Esa
+// es la pantalla más crítica que hay: el camino de fallo no puede ser peor
+// que el normal.
+// En `js/accesos-resueltos.js` la MISMA limpieza sí decide (reparte
+// rojo/naranja), así que allí no hay guarda: se niega a arrancar. Fallar
+// distinto está bien cuando la consecuencia de fallar es distinta.
 // =====================================================================
 function normalizarMotivo(crudo) {
-  var t = String(crudo == null ? '' : crudo);
-  if (t.charAt(0) === '{') {
-    try {
-      var o = JSON.parse(t);
-      if (o && typeof o.motivo === 'string') t = o.motivo;
-    } catch (e) { /* no era JSON: se queda como estaba */ }
+  if (window.Motivos && typeof window.Motivos.normalizar === 'function') {
+    return window.Motivos.normalizar(crudo);
   }
-  return t.replace(/\s*\[sin regla definida[^\]]*\]\s*$/i, '').trim();
+  return String(crudo == null ? '' : crudo).trim();
 }
 
 function traducirMotivo(texto, lang) {
