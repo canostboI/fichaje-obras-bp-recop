@@ -6,6 +6,15 @@
   <title>Importar e-Coordina</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- La limpieza de motivos y el criterio de «esto es una exención» viven
+       en js/motivos.js. Esta página lo usa en resumenExencionesAplicadas().
+       ⚠️ Si falta, la página NO se rompe: degrada y salta el aviso naranja
+       de «hay exenciones configuradas y no ha entrado ninguna», que ya
+       existía. Es a propósito, y es distinto de js/accesos-resueltos.js,
+       que sí se niega a arrancar. Aquí la limpieza solo alimenta un cartel;
+       allí decide rojo/naranja. El importador no puede quedarse bloqueado:
+       es quien alimenta el semáforo entero. -->
+  <script src="../js/motivos.js"></script>
   <script src="../js/ecoordina-import.js"></script>
   <script src="../js/branding.js"></script>
   <script src="../js/auto-logout.js"></script>
@@ -737,19 +746,49 @@ async function contarExencionesActivas() {
 }
 
 // Cuenta las exenciones que de verdad han entrado en ESTE cálculo, leyendo las
-// líneas "[Exención] ..." que el motor escribió en los motivos.
+// líneas "[Exención] ..." que el motor acaba de escribir en los motivos.
+//
+// ⚠️ QUIÉN ESCRIBE ESAS LÍNEAS (corregido en la 54ª). No esta pantalla: las
+// escriben `js/ecoordina-import.js:654` y `scripts/ecoordina-sync.mjs:426`.
+// Aquí solo se LEEN. Durante meses el comentario de `js/accesos-resueltos.js`
+// dijo lo contrario y mandó a rastrear al sitio equivocado.
+//
+// ⚠️ POR QUÉ YA NO SE CORTA A MANO. Antes esto detectaba con
+// `startsWith('[Exención]')` y luego cortaba por longitud fija. El panel
+// detectaba lo mismo con una regex tolerante. Dos puertas al mismo problema
+// con criterios de cero distintos: hoy no mordía porque los dos escritores
+// son byte a byte idénticos, pero un detector tolerante seguido de un corte
+// fijo devuelve basura en cuanto dejen de serlo. Detectar y cortar son ahora
+// la MISMA operación, `Motivos.exencionDe()`, y viven en un solo sitio.
 function resumenExencionesAplicadas() {
   const porDoc = new Map();   // "empresa ‖ documento" -> nº de personas
   let personas = 0;
+
+  // Degradación deliberada: ver el comentario del <script> en la cabecera.
+  // Sin motivos.js este resumen sale vacío y `renderAlertaExenciones()` de
+  // abajo enseña el aviso naranja de «ninguna casó», que es una pista
+  // visible y ya diseñada. Lo que NO se hace es bloquear el importador.
+  const M = window.Motivos;
+  if (!M || typeof M.exencionDe !== 'function') {
+    console.error(
+      'documentos-ecoordina.html: falta js/motivos.js (54ª o posterior). ' +
+      'Añade <script src="../js/motivos.js"><' + '/script> en la cabecera. ' +
+      'Mientras tanto el resumen de exenciones sale vacío y salta el aviso ' +
+      'naranja de «ninguna ha entrado»: el cálculo de abajo es correcto.'
+    );
+    return { personas, porDoc };
+  }
+
   for (const r of resultadoFinal) {
-    const lineas = (r.motivos || []).filter(m => typeof m === 'string' && m.startsWith('[Exención]'));
-    if (!lineas.length) continue;
-    personas++;
-    for (const l of lineas) {
-      const doc = l.slice('[Exención]'.length).split(' — no aplica:')[0].trim();
-      const clave = `${r.empresa || '(sin empresa)'} ‖ ${doc}`;
+    let tieneAlguna = false;
+    for (const linea of (r.motivos || [])) {
+      const ex = M.exencionDe(linea);
+      if (!ex) continue;
+      tieneAlguna = true;
+      const clave = `${r.empresa || '(sin empresa)'} ‖ ${ex.doc}`;
       porDoc.set(clave, (porDoc.get(clave) || 0) + 1);
     }
+    if (tieneAlguna) personas++;
   }
   return { personas, porDoc };
 }
