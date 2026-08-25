@@ -293,15 +293,32 @@
           // que el resultado siga cayendo en cuartos limpios.
           const sueloReal = limiteDelDia(primeraEntrada, entradaDia);
           const techoReal = limiteDelDia(primeraEntrada, salidaDia);
-          let salidaEfectiva = ultimaSalida;
-          if (sueloReal && techoReal &&
-              primeraEntrada < sueloReal && ultimaSalida < techoReal) {
-            const colchon = Math.min(sueloReal - primeraEntrada, COMPENSACION_MAX_MS);
-            const deficit = techoReal - ultimaSalida;
-            salidaEfectiva = new Date(ultimaSalida.getTime() + Math.min(colchon, deficit));
+
+          // TOLERANCIA DE JORNADA (25/8/2026) — se aplica ANTES de todo lo
+          // demas: si la entrada o la salida caen a menos de
+          // TOLERANCIA_JORNADA_MS del horario oficial, cuenta el horario
+          // oficial. Solo acerca al horario, nunca lo pasa.
+          // Los fichajes REALES no se tocan: `primeraEntrada` y
+          // `ultimaSalida` se siguen guardando tal cual en dias_detalle.
+          let entradaEfectiva = primeraEntrada;
+          let salidaEfectiva  = ultimaSalida;
+          if (sueloReal && primeraEntrada > sueloReal &&
+              (primeraEntrada - sueloReal) <= TOLERANCIA_JORNADA_MS) {
+            entradaEfectiva = sueloReal;
+          }
+          if (techoReal && ultimaSalida < techoReal &&
+              (techoReal - ultimaSalida) <= TOLERANCIA_JORNADA_MS) {
+            salidaEfectiva = techoReal;
           }
 
-          let inicio = redondearEntrada(primeraEntrada);
+          if (sueloReal && techoReal &&
+              entradaEfectiva < sueloReal && salidaEfectiva < techoReal) {
+            const colchon = Math.min(sueloReal - entradaEfectiva, COMPENSACION_MAX_MS);
+            const deficit = techoReal - salidaEfectiva;
+            salidaEfectiva = new Date(salidaEfectiva.getTime() + Math.min(colchon, deficit));
+          }
+
+          let inicio = redondearEntrada(entradaEfectiva);
           let fin    = redondearSalida(salidaEfectiva);
 
           // Suelo: no se paga antes de la hora oficial de entrada de la obra.
@@ -899,9 +916,23 @@
   // - Compensación (añadida 9/7/2026): entrar antes de la hora oficial no
   //   suma, pero compensa hasta 15 min de salida anticipada. Solo aplica si
   //   la obra tiene hora oficial de entrada Y de salida definidas.
+  // - Tolerancia de jornada (añadida 25/8/2026): entrar o salir dentro de
+  //   TOLERANCIA_JORNADA_MS del horario OFICIAL cuenta como el horario
+  //   oficial. Se aplica ANTES de la compensación y del redondeo, y nunca
+  //   puede pagar más que la jornada completa (el suelo y el techo siguen).
   const CUARTO_MS   = 15 * 60 * 1000;
   const CORTESIA_MS = 3 * 60 * 1000;
   const COMPENSACION_MAX_MS = 15 * 60 * 1000;
+  // TOLERANCIA DE JORNADA (25/8/2026). La cortesia de 3 min mide contra el
+  // CUARTO DE HORA, que es un accidente del redondeo; esta mide contra el
+  // HORARIO OFICIAL de la obra, que es lo que la gente cumple o no cumple.
+  // Quien entra o sale dentro de este margen del horario oficial cobra el
+  // horario oficial. NUNCA paga de mas: el suelo y el techo del dia siguen
+  // mandando, asi que el maximo posible sigue siendo la jornada completa.
+  // Medido sobre agosto 2026 (445 jornadas, las dos obras): sin tolerancia
+  // 294 dias daban 8,00 y 90 se quedaban en 7,75/7,50 saliendo de media 8
+  // minutos antes del techo. Con 10 min, 49 de esos 90 pasan a 8,00.
+  const TOLERANCIA_JORNADA_MS = 10 * 60 * 1000;
 
   function redondearEntrada(fecha) {
     const ms = fecha.getTime();
