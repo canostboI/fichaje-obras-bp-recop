@@ -157,6 +157,29 @@
   .btn-sin-actividad-jefe:disabled { opacity: 0.5; cursor: not-allowed; }
   .banner-ronda.oculto { display: none; }
 
+  /* Peticiones de acceso desde la puerta */
+  .panel-sol { background: rgba(244,67,54,0.10); border: 1px solid rgba(244,67,54,0.45); border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; }
+  .panel-sol.oculto { display: none; }
+  .panel-sol h3 { font-size: 14px; font-weight: 700; color: var(--rojo); margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .panel-sol-sub { font-size: 12px; color: var(--texto2); margin-bottom: 12px; }
+  .sol-item { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+  .sol-item:last-child { margin-bottom: 0; }
+  .sol-quien { font-size: 15px; font-weight: 700; color: var(--texto); }
+  .sol-datos { font-size: 12px; color: var(--texto2); margin-top: 3px; }
+  .sol-causa { font-size: 12px; color: var(--rojo); margin-top: 7px; line-height: 1.5; }
+  .sol-nuevo { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; background: rgba(255,152,0,0.18); color: var(--naranja); border: 1px solid rgba(255,152,0,0.45); border-radius: 5px; padding: 2px 7px; margin-left: 8px; vertical-align: middle; }
+  .sol-empresa-sel { width: 100%; margin-top: 10px; background: var(--bg3); border: 1px solid var(--naranja); color: var(--texto); border-radius: 8px; padding: 9px 10px; font-size: 13px; font-family: inherit; }
+  .sol-acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .sol-btn { flex: 1 1 auto; min-width: 140px; border: none; border-radius: 8px; padding: 11px 13px; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; text-align: center; }
+  .sol-btn:disabled { opacity: 0.5; cursor: default; }
+  .sol-btn.regla { background: rgba(76,175,80,0.15); border: 1px solid rgba(76,175,80,0.5); color: var(--verde); }
+  .sol-btn.riesgo { background: rgba(255,152,0,0.15); border: 1px solid rgba(255,152,0,0.5); color: var(--naranja); }
+  .sol-btn.no { background: transparent; border: 1px solid var(--borde); color: var(--texto2); }
+  .sol-estado { font-size: 12px; margin-top: 9px; }
+  .sol-estado.ok { color: var(--verde); }
+  .sol-estado.mal { color: var(--rojo); }
+  .sol-resuelta { opacity: 0.55; }
+
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
   .modal-overlay.visible { display: flex; }
   .modal-qr { background: white; color: #111; border-radius: 14px; padding: 32px; max-width: 380px; width: 90%; text-align: center; }
@@ -319,6 +342,11 @@
     </div>
   </div>
   <div class="contenido">
+    <div class="panel-sol oculto" id="panel-sol">
+      <h3>🔴 <span>Piden autorización en la puerta</span></h3>
+      <div class="panel-sol-sub">El encargado tiene a estas personas paradas en la valla. Solo tú puedes darles paso, y solo por hoy.</div>
+      <div id="sol-lista"></div>
+    </div>
     <div class="banner-sin-rp oculto" id="banner-sin-rp">
       ⚠ Esta obra no tiene ningún Recurso Preventivo designado.
       <a onclick="irATrabaladoresRP()">Designar desde Trabajadores →</a>
@@ -764,6 +792,7 @@ async function cargarEmpresasPropias() {
 
   await cargarPresencia();
   await cargarBloqueos();
+  await cargarSolicitudes();
   await cargarAvisosAutocierre();
   await cargarRondaEncargado();
   await comprobarRP();
@@ -784,6 +813,7 @@ async function cargarEmpresasPropias() {
     document.getElementById('btn-foto').style.display = obraActual ? 'flex' : 'none';
     await cargarPresencia();
     await cargarBloqueos();
+    await cargarSolicitudes();
     await cargarAvisosAutocierre();
     await cargarRondaEncargado();
     await comprobarRP();
@@ -942,6 +972,126 @@ function irATrabaladoresRP() {
   window.location.href = 'trabajadores.html';
 }
 
+/* ═══ PETICIONES DE ACCESO DESDE LA PUERTA ═══════════════════════════════
+   El encargado NO decide. Ve el rojo, lo manda, y la persona espera. Quien
+   asume dejarle pasar es el jefe, con su nombre y con la fecha escritos.
+   La autorización no se escribe aquí: se delega en autorizar_excepcion_roja,
+   que ya estaba probada. Una sola puerta para dejar entrar a alguien.        */
+
+async function cargarSolicitudes() {
+  const panel = document.getElementById('panel-sol');
+  const lista = document.getElementById('sol-lista');
+  if (!panel || !lista) return;
+  if (!obraActual) { panel.classList.add('oculto'); return; }
+
+  const { data, error } = await sb.rpc('listar_solicitudes_hoy', { p_obra_id: obraActual });
+  if (error || !data || data.ok !== true) { panel.classList.add('oculto'); return; }
+
+  // El criterio de cero: se enseña lo que sigue estando pendiente DE VERDAD.
+  // Si la sync de la noche ya puso a esa persona en verde, la petición se
+  // apaga sola. Un aviso que solo se apaga con un botón acaba ignorándose.
+  const vivas = (data.solicitudes || []).filter(
+    x => x.estado === 'pendiente' && x.sigue_pendiente_de_verdad === true
+  );
+
+  if (!vivas.length) { panel.classList.add('oculto'); lista.innerHTML = ''; return; }
+
+  lista.innerHTML = vivas.map(x => {
+    const hora = new Date(x.created_at).toLocaleTimeString('es-ES',
+      { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' });
+    const nueva = x.clase === 'desconocido';
+
+    let causa = '';
+    if (nueva) {
+      causa = '<div class="sol-causa">No está dado de alta en la app. Si le das paso se le crea la ficha ' +
+              '<strong>en rojo</strong> y mañana volverá a estar bloqueado.</div>';
+    } else {
+      let motivos = [];
+      try {
+        const m = JSON.parse(x.motivo_rojo || '[]');
+        motivos = Array.isArray(m) ? m : [String(x.motivo_rojo)];
+      } catch (e) { motivos = x.motivo_rojo ? [String(x.motivo_rojo)] : []; }
+      causa = '<div class="sol-causa">Rojo por: ' +
+              (motivos.length ? motivos.map(esc).join(' · ') : 'sin motivo registrado') + '</div>';
+    }
+
+    return '<div class="sol-item" id="sol-' + esc(x.id) + '"' +
+      ' data-nueva="' + (nueva ? '1' : '0') + '"' +
+      ' data-empresa="' + esc(x.empresa || '') + '">' +
+      '<div class="sol-quien">' + esc(x.quien || '—') +
+        (nueva ? '<span class="sol-nuevo">No está en la app</span>' : '') + '</div>' +
+      '<div class="sol-datos">' + esc(x.dni || '—') + ' · ' + esc(x.empresa || 'sin empresa') +
+        ' · ' + hora + ' · lo pide ' + esc(x.pedida_por || '—') + '</div>' +
+      causa +
+      '<div class="sol-acciones">' +
+        '<button class="sol-btn regla" onclick="resolverSol(\'' + esc(x.id) + '\',\'autorizar\',\'regla\')">✓ Ya está en regla</button>' +
+        '<button class="sol-btn riesgo" onclick="resolverSol(\'' + esc(x.id) + '\',\'autorizar\',\'riesgo\')">⚠ Asumo el riesgo</button>' +
+        '<button class="sol-btn no" onclick="resolverSol(\'' + esc(x.id) + '\',\'denegar\',\'no\')">✕ No entra</button>' +
+      '</div>' +
+      '<div class="sol-estado" id="sol-msg-' + esc(x.id) + '"></div>' +
+    '</div>';
+  }).join('');
+
+  panel.classList.remove('oculto');
+}
+
+const MOTIVOS_SOL = {
+  regla: 'Ya está en regla: la documentación me consta, e-Coordina aún no lo refleja.',
+  riesgo: 'Asumo personalmente el riesgo de dejarle pasar hoy.',
+  no: 'No se le da paso: debe resolver su documentación antes de entrar.'
+};
+
+async function resolverSol(id, accion, clave) {
+  const item = document.getElementById('sol-' + id);
+  const msg  = document.getElementById('sol-msg-' + id);
+  if (!item || !msg) return;
+
+  // El aviso dice QUÉ se asume y a QUIÉN, con nombre y empresa dentro. Un
+  // confirm genérico se pulsa sin leer, y este es el punto donde el jefe
+  // acepta la responsabilidad: tiene que costar leerlo, no pulsarlo.
+  const quien = ((item.querySelector('.sol-quien') || {}).textContent || 'esta persona')
+    .replace('No está en la app', '').trim();
+  if (accion === 'autorizar') {
+    const extra = item.dataset.nueva === '1'
+      ? '\n\nNo está dado de alta: se le creará una ficha EN ROJO para ' +
+        (item.dataset.empresa || 'su empresa') +
+        ', sin documentación validada. Mañana volverá a estar bloqueado.'
+      : '';
+    const aviso = 'Vas a autorizar la entrada de ' + quien +
+      ' SOLO PARA HOY.\n\nQuedará escrito con tu nombre y la fecha, y tú asumes la responsabilidad.' +
+      extra + '\n\n¿Le das paso?';
+    if (!window.confirm(aviso)) return;
+  }
+
+  item.querySelectorAll('.sol-btn').forEach(b => { b.disabled = true; });
+  msg.className = 'sol-estado';
+  msg.textContent = 'Enviando…';
+
+  const { data, error } = await sb.rpc('resolver_solicitud_acceso', {
+    p_solicitud_id: id, p_accion: accion, p_motivo: MOTIVOS_SOL[clave]
+  });
+
+  if (error || !data || data.ok !== true) {
+    msg.className = 'sol-estado mal';
+    msg.textContent = (data && data.error) ? data.error : 'No se ha podido registrar. Inténtalo otra vez.';
+    item.querySelectorAll('.sol-btn').forEach(b => { b.disabled = false; });
+    return;
+  }
+
+  item.classList.add('sol-resuelta');
+  msg.className = 'sol-estado ok';
+  let txt = '✕ Denegado. Queda escrito.';
+  if (accion === 'autorizar') {
+    txt = '✓ Paso autorizado solo por hoy. Ya puede fichar en la valla.';
+    if (data.ficha_creada === true) txt += ' Ficha creada EN ROJO.';
+    if (data.empresa_creada === true) txt += ' Empresa nueva dada de alta.';
+  }
+  msg.textContent = txt;
+
+  await cargarBloqueos();
+  setTimeout(cargarSolicitudes, 4000);
+}
+
 function iniciarRefrescoPresencia() {
   if (intervalPresencia) { clearInterval(intervalPresencia); intervalPresencia = null; }
   intervalPresencia = setInterval(async () => {
@@ -952,6 +1102,7 @@ function iniciarRefrescoPresencia() {
     // si no, el contador se queda congelado en el de primera hora y sigue
     // enseñando en rojo a gente que ya está dentro trabajando.
     await cargarBloqueos();
+    await cargarSolicitudes();
     cargarRondaEncargado();
   }, 60 * 1000);
 }
@@ -960,6 +1111,7 @@ document.addEventListener('visibilitychange', async () => {
   if (!document.hidden && obraActual) {
     await cargarPresencia();
     await cargarBloqueos();
+    await cargarSolicitudes();
     cargarRondaEncargado();
   }
 });
