@@ -301,6 +301,8 @@
 
     /* Peticiones de autorizacion al jefe */
     .panel-solenc { background: #fff8e1; border: 1px solid #ffcc80; border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 1rem; }
+    .panel-solenc.solo-boton { background: transparent; border: none; padding: 0 0 0.4rem 0; margin-bottom: 0.6rem; }
+    .panel-solenc.solo-boton .btn-anadir-sf { margin-top: 0; }
     .panel-solenc h2 { font-size: 1rem; color: #e65100; margin-bottom: 0.3rem; display: flex; align-items: center; gap: 8px; }
     .panel-solenc .solenc-sub { font-size: 0.83rem; color: #bf5000; margin-bottom: 0.8rem; }
     .solenc-item { padding: 0.6rem 0; border-bottom: 1px solid #ffe0b2; font-size: 0.92rem; color: #6d3200; }
@@ -317,8 +319,8 @@
     .etq-sol.ok   { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
     .etq-sol.esp  { background: #fff3e0; color: #e65100; border: 1px solid #ffb74d; }
     .etq-sol.no   { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
-    .grupo-yapueden { margin-top: 1rem; padding-top: 0.9rem; border-top: 2px solid #c8e6c9; }
-    .grupo-yapueden h3 { font-size: 0.95rem; color: #2e7d32; margin-bottom: 0.25rem; }
+    .panel-yapueden { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 1rem; }
+    .panel-yapueden h2 { font-size: 1rem; color: #2e7d32; margin-bottom: 0.25rem; }
     .yapueden-sub { font-size: 0.83rem; color: #4a7c4e; margin-bottom: 0.7rem; }
     .yapueden-item { padding: 0.5rem 0.7rem; background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 8px; margin-bottom: 0.5rem; font-size: 0.93rem; color: #1b5e20; }
     .yapueden-meta { font-size: 0.82rem; color: #4a7c4e; margin-top: 2px; }
@@ -510,6 +512,7 @@
     </div>
 
     <div id="panel-bloqueos" class="panel-bloqueos" style="display:none"></div>
+    <div id="panel-yapueden" class="panel-yapueden" style="display:none"></div>
     <div id="panel-solenc" class="panel-solenc" style="display:none"></div>
     <div id="panel-avisos" class="panel-avisos" style="display:none"></div>
 
@@ -975,7 +978,7 @@
   // email al jefe. Quien acabó fichando NO debe contar ahí.
   async function cargarBloqueos() {
     const panel = document.getElementById('panel-bloqueos');
-    if (!obraActualId) { panel.style.display = 'none'; rojosHoyCache = 0; return; }
+    if (!obraActualId) { panel.style.display = 'none'; rojosHoyCache = 0; pintarYaPueden([]); return; }
 
     const { desdeISO, hastaISO } = rangoHoyLocal();
 
@@ -1011,6 +1014,7 @@
         + '<p class="bloqueo-subtitulo">La consulta de accesos denegados ha fallado, '
         + 'así que esta lista no está. Antes de confirmar el recuento, cuenta tú a quien '
         + 'no haya podido fichar.</p>';
+      pintarYaPueden([]);
       return;
     }
 
@@ -1061,28 +1065,25 @@
     let indiceSol = 0;
     await traerSolicitudesHoy();
     const porRevisar = clas.pendientes.filter(g => g.pendientes > 0);
-    if (porRevisar.length === 0) {
-      if (avisoSR) { panel.style.display = 'block'; panel.innerHTML = avisoSR; }
-      else { panel.style.display = 'none'; panel.innerHTML = ''; }
-      return;
-    }
 
     // Los que el jefe de obra ya ha autorizado NO son "sin poder entrar":
-    // ya pueden fichar. Van en su propio grupo, en verde.
+    // ya pueden fichar. Se pintan en su propio panel verde, aparte.
     const yaPueden = porRevisar.filter(g => {
       const q = solicitudDe(g.dni, g.trabajador_id);
       return q && q.estado === 'autorizada';
     });
     const bloqueados = porRevisar.filter(g => yaPueden.indexOf(g) === -1);
 
-    const totalIntentos = bloqueados.reduce((s, g) => s + g.intentos, 0);
-    let html = '';
+    pintarYaPueden(yaPueden);
 
-    if (bloqueados.length) {
-      html += `<h2>🚫 Sin poder entrar (${bloqueados.length} ${bloqueados.length === 1 ? 'persona' : 'personas'} · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'})</h2>`;
-    } else {
-      html += `<h2>🚫 Sin poder entrar (nadie ahora mismo)</h2>`;
+    if (bloqueados.length === 0) {
+      if (avisoSR) { panel.style.display = 'block'; panel.innerHTML = avisoSR; }
+      else { panel.style.display = 'none'; panel.innerHTML = ''; }
+      return;
     }
+
+    const totalIntentos = bloqueados.reduce((s, g) => s + g.intentos, 0);
+    let html = `<h2>🚫 Sin poder entrar (${bloqueados.length} ${bloqueados.length === 1 ? 'persona' : 'personas'} · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'})</h2>`;
     html += avisoSR;
     html += `<p class="bloqueo-subtitulo">Personas que hoy lo han intentado y NO han llegado a fichar. Quien lo intentó y después entró no aparece aquí; está en el detalle.</p>`;
 
@@ -1132,23 +1133,28 @@
         </div>`;
     });
 
-    if (yaPueden.length) {
-      html += `<div class="grupo-yapueden"><h3>✅ Ya pueden fichar (${yaPueden.length})</h3>`
-           +  `<p class="yapueden-sub">El jefe de obra les ha dado paso solo por hoy. Diles que fichen en la valla; en cuanto lo hagan desaparecen de aquí.</p>`;
-      yaPueden.forEach(g => {
-        const esSR2 = g.clase === 'sin_registrar';
-        const l2 = esSR2
-          ? `${g.empresa ? esc(g.empresa) + ' · ' : ''}${g.dni ? esc(g.dni) : ''}`
-          : (g.dni ? esc(g.dni) : '');
-        html += `<div class="yapueden-item"><strong>${esc(g.nombre || '—')}</strong>`
-             +  (l2 ? `<div class="yapueden-meta">${l2}</div>` : '')
-             +  `</div>`;
-      });
-      html += `</div>`;
-    }
-
     panel.innerHTML = html;
     panel.style.display = 'block';
+  }
+
+  // Panel propio. Si no hay nadie autorizado esperando a fichar, no existe.
+  function pintarYaPueden(lista) {
+    const p = document.getElementById('panel-yapueden');
+    if (!p) return;
+    if (!lista.length) { p.style.display = 'none'; p.innerHTML = ''; return; }
+
+    let h = `<h2>✅ Ya pueden fichar (${lista.length})</h2>`
+          + `<p class="yapueden-sub">El jefe de obra les ha dado paso solo por hoy. Diles que fichen en la valla; en cuanto lo hagan desaparecen de aquí.</p>`;
+    lista.forEach(g => {
+      const l2 = (g.clase === 'sin_registrar')
+        ? `${g.empresa ? esc(g.empresa) + ' · ' : ''}${g.dni ? esc(g.dni) : ''}`
+        : (g.dni ? esc(g.dni) : '');
+      h += `<div class="yapueden-item"><strong>${esc(g.nombre || '—')}</strong>`
+        +  (l2 ? `<div class="yapueden-meta">${l2}</div>` : '')
+        +  `</div>`;
+    });
+    p.innerHTML = h;
+    p.style.display = 'block';
   }
 
   /* ═══ PEDIR AUTORIZACION AL JEFE DE OBRA ══════════════════════════════════════
@@ -1233,27 +1239,26 @@
 
     const lista = await traerSolicitudesHoy();
 
-    let html = '<h2>📨 Pedido al jefe de obra hoy</h2>';
-    html += '<p class="solenc-sub">Mientras el jefe de obra no conteste, esa persona <strong>no entra</strong>. '
-          + 'Si está en rojo no entra bajo ningún concepto: no es cosa tuya decidirlo.</p>';
+    // Solo lo que sigue ESPERANDO respuesta. Lo autorizado ya sale en el
+    // panel verde y lo denegado sigue en el rojo: repetirlo aquí solo añade
+    // ruido, y un panel con ruido se deja de mirar.
+    const esperando = lista.filter(x =>
+      x.estado === 'pendiente' && x.sigue_pendiente_de_verdad !== false);
 
-    if (!lista.length) {
-      html += '<p class="solenc-sub" style="margin:0">Hoy no has pedido nada.</p>';
-    } else {
-      lista.forEach(x => {
-        let pill = '<span class="solenc-pill pend">⏳ Esperando al jefe de obra — NO entra</span>'
-                 + '<button class="btn-sefue" onclick="marcarSeFue(\'' + esc(x.id) + '\', this)">Se ha ido</button>';
-        if (x.estado === 'autorizada') pill = '<span class="solenc-pill ok">✓ Autorizado solo por hoy — ya puede fichar</span>';
-        else if (x.estado === 'denegada') pill = '<span class="solenc-pill no">✕ Denegado — NO entra</span>';
-        else if (x.estado === 'caducada') pill = '<span class="solenc-pill no">Caducado</span>';
-        else if (x.estado === 'retirada') pill = '<span class="solenc-pill no">Se fue de la puerta</span>';
-        else if (x.sigue_pendiente_de_verdad === false) pill = '<span class="solenc-pill ok">✓ Ya no está en rojo — puede fichar</span>';
+    let html = '';
+    if (esperando.length) {
+      html += '<h2>📨 Esperando al jefe de obra (' + esperando.length + ')</h2>';
+      html += '<p class="solenc-sub">Mientras el jefe de obra no conteste, esa persona <strong>no entra</strong>. '
+            + 'Si está en rojo no entra bajo ningún concepto: no es cosa tuya decidirlo.</p>';
 
+      esperando.forEach(x => {
         const hora = formatHora(x.created_at);
         html += '<div class="solenc-item">'
               + '<strong>' + esc(x.quien || '—') + '</strong>'
               + '<div class="solenc-meta">' + esc(x.dni || '—') + ' · ' + esc(x.empresa || 'sin empresa') + ' · ' + esc(hora) + '</div>'
-              + pill + '</div>';
+              + '<span class="solenc-pill pend">⏳ Esperando al jefe de obra — NO entra</span>'
+              + '<button class="btn-sefue" onclick="marcarSeFue(\'' + esc(x.id) + '\', this)">Se ha ido</button>'
+              + '</div>';
       });
     }
 
@@ -1262,6 +1267,7 @@
 
     panel.innerHTML = html;
     panel.style.display = 'block';
+    panel.classList.toggle('solo-boton', esperando.length === 0);
   }
 
   async function abrirFormSinFichar() {
