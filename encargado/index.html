@@ -313,6 +313,15 @@
     .solenc-pill.no   { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
     .btn-sefue { background: transparent; border: 1px solid #ffb74d; color: #a05000; padding: 0.3rem 0.7rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-family: inherit; margin-top: 6px; margin-left: 8px; }
     .btn-sefue:disabled { opacity: 0.5; cursor: default; }
+    .etq-sol { display: inline-block; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.82rem; font-weight: bold; text-align: center; white-space: normal; max-width: 190px; }
+    .etq-sol.ok   { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .etq-sol.esp  { background: #fff3e0; color: #e65100; border: 1px solid #ffb74d; }
+    .etq-sol.no   { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+    .grupo-yapueden { margin-top: 1rem; padding-top: 0.9rem; border-top: 2px solid #c8e6c9; }
+    .grupo-yapueden h3 { font-size: 0.95rem; color: #2e7d32; margin-bottom: 0.25rem; }
+    .yapueden-sub { font-size: 0.83rem; color: #4a7c4e; margin-bottom: 0.7rem; }
+    .yapueden-item { padding: 0.5rem 0.7rem; background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 8px; margin-bottom: 0.5rem; font-size: 0.93rem; color: #1b5e20; }
+    .yapueden-meta { font-size: 0.82rem; color: #4a7c4e; margin-top: 2px; }
     .btn-pedir { background: #fb8c00; color: white; border: none; padding: 0.4rem 0.9rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; white-space: nowrap; flex-shrink: 0; }
     .btn-pedir:hover { background: #e65100; }
     .btn-pedir:disabled { background: #ccc; cursor: not-allowed; }
@@ -1050,6 +1059,7 @@
     // El panel rojo solo saca a quien SIGUE fuera y no se ha marcado visto.
     window.__gruposSol = {};
     let indiceSol = 0;
+    await traerSolicitudesHoy();
     const porRevisar = clas.pendientes.filter(g => g.pendientes > 0);
     if (porRevisar.length === 0) {
       if (avisoSR) { panel.style.display = 'block'; panel.innerHTML = avisoSR; }
@@ -1057,12 +1067,26 @@
       return;
     }
 
-    const totalIntentos = porRevisar.reduce((s, g) => s + g.intentos, 0);
-    let html = `<h2>🚫 Sin poder entrar (${porRevisar.length} ${porRevisar.length === 1 ? 'persona' : 'personas'} · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'})</h2>`;
+    // Los que el jefe de obra ya ha autorizado NO son "sin poder entrar":
+    // ya pueden fichar. Van en su propio grupo, en verde.
+    const yaPueden = porRevisar.filter(g => {
+      const q = solicitudDe(g.dni, g.trabajador_id);
+      return q && q.estado === 'autorizada';
+    });
+    const bloqueados = porRevisar.filter(g => yaPueden.indexOf(g) === -1);
+
+    const totalIntentos = bloqueados.reduce((s, g) => s + g.intentos, 0);
+    let html = '';
+
+    if (bloqueados.length) {
+      html += `<h2>🚫 Sin poder entrar (${bloqueados.length} ${bloqueados.length === 1 ? 'persona' : 'personas'} · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'})</h2>`;
+    } else {
+      html += `<h2>🚫 Sin poder entrar (nadie ahora mismo)</h2>`;
+    }
     html += avisoSR;
     html += `<p class="bloqueo-subtitulo">Personas que hoy lo han intentado y NO han llegado a fichar. Quien lo intentó y después entró no aparece aquí; está en el detalle.</p>`;
 
-    porRevisar.forEach(g => {
+    bloqueados.forEach(g => {
       const horaUltimo = formatHora(g.ultimoIntento);
       const intentosTexto = g.intentos === 1 ? '1 intento' : `${g.intentos} intentos`;
       const esSR = g.clase === 'sin_registrar';
@@ -1077,7 +1101,22 @@
         trabajador_id: g.trabajador_id || null,
         nombre: g.nombre || '', dni: g.dni || '', empresa: g.empresa || ''
       };
-      const botonPedir = `<button class="btn-pedir" onclick="pedirAutorizacion('${claveSol}', this)">📨 Pedir autorización</button>`;
+      // Esta persona sigue AQUI aunque el jefe ya la haya autorizado, y eso
+      // es correcto: la tarjeta cuenta "gente presente que no ha fichado" y
+      // hasta que fiche sigue siendo verdad. Lo que no puede ser es que le
+      // ofrezca pedir algo que ya esta concedido. Cambia el boton, no el
+      // numero. Al fichar desaparece sola, por el camino que ya existia.
+      const solYa = solicitudDe(g.dni, g.trabajador_id);
+      let botonPedir;
+      if (solYa && solYa.estado === 'autorizada') {
+        botonPedir = '<span class="etq-sol ok">✓ Autorizado — que fiche en la valla</span>';
+      } else if (solYa && solYa.estado === 'pendiente') {
+        botonPedir = '<span class="etq-sol esp">⏳ Esperando al jefe de obra — NO entra</span>';
+      } else if (solYa && solYa.estado === 'denegada') {
+        botonPedir = '<span class="etq-sol no">✕ Denegado por el jefe de obra — NO entra</span>';
+      } else {
+        botonPedir = `<button class="btn-pedir" onclick="pedirAutorizacion('${claveSol}', this)">📨 Pedir permiso al jefe de obra</button>`;
+      }
       const botonVisto = g.incidencia_id
         ? `<button class="btn-visto-rojo" onclick="marcarVistoBloqueo('${g.incidencia_id}', this)">✓ Visto</button>`
         : '';
@@ -1093,16 +1132,49 @@
         </div>`;
     });
 
+    if (yaPueden.length) {
+      html += `<div class="grupo-yapueden"><h3>✅ Ya pueden fichar (${yaPueden.length})</h3>`
+           +  `<p class="yapueden-sub">El jefe de obra les ha dado paso solo por hoy. Diles que fichen en la valla; en cuanto lo hagan desaparecen de aquí.</p>`;
+      yaPueden.forEach(g => {
+        const esSR2 = g.clase === 'sin_registrar';
+        const l2 = esSR2
+          ? `${g.empresa ? esc(g.empresa) + ' · ' : ''}${g.dni ? esc(g.dni) : ''}`
+          : (g.dni ? esc(g.dni) : '');
+        html += `<div class="yapueden-item"><strong>${esc(g.nombre || '—')}</strong>`
+             +  (l2 ? `<div class="yapueden-meta">${l2}</div>` : '')
+             +  `</div>`;
+      });
+      html += `</div>`;
+    }
+
     panel.innerHTML = html;
     panel.style.display = 'block';
   }
 
-  /* ═══ PEDIR AUTORIZACION AL JEFE ══════════════════════════════════════
+  /* ═══ PEDIR AUTORIZACION AL JEFE DE OBRA ══════════════════════════════════════
      Regla en la puerta, una sola y sin excepciones: si esta en ROJO, NO ENTRA.
      El encargado no valora, no decide y no abre. Solo lo manda. Quien asume
      dejarle pasar es el jefe, y queda escrito con su nombre y la fecha.       */
 
   let empresasSolCache = null;
+  let solicitudesHoy = [];
+
+  async function traerSolicitudesHoy() {
+    if (!obraActualId) { solicitudesHoy = []; return solicitudesHoy; }
+    const { data, error } = await sb.rpc('listar_solicitudes_hoy', { p_obra_id: obraActualId });
+    solicitudesHoy = (error || !data || data.ok !== true) ? [] : (data.solicitudes || []);
+    return solicitudesHoy;
+  }
+
+  // Empareja por ficha si la hay, y si no por DNI: la persona que hoy no
+  // estaba en la app puede tenerla ya, creada al autorizarla hace un minuto.
+  function solicitudDe(dni, trabajadorId) {
+    const d = String(dni || '').toUpperCase().trim();
+    return solicitudesHoy.find(x =>
+      (trabajadorId && x.trabajador_id === trabajadorId) ||
+      (d && String(x.dni || '').toUpperCase().trim() === d)
+    ) || null;
+  }
 
   async function cargarEmpresasSol() {
     if (empresasSolCache) return empresasSolCache;
@@ -1130,12 +1202,12 @@
 
     if (error || !data || data.ok !== true) {
       btn.disabled = false;
-      btn.textContent = '📨 Pedir autorización';
+      btn.textContent = '📨 Pedir permiso al jefe de obra';
       alert('No se ha podido enviar: ' + ((data && data.error) || (error && error.message) || 'error desconocido'));
       return;
     }
 
-    btn.textContent = data.ya_existia ? '✓ Ya estaba pedido' : '✓ Pedido al jefe';
+    btn.textContent = data.ya_existia ? '✓ Ya estaba pedido' : '✓ Pedido al jefe de obra';
     await cargarSolicitudesEnc();
   }
 
@@ -1159,24 +1231,23 @@
     if (!panel) return;
     if (!obraActualId) { panel.style.display = 'none'; return; }
 
-    const { data, error } = await sb.rpc('listar_solicitudes_hoy', { p_obra_id: obraActualId });
-    const lista = (error || !data || data.ok !== true) ? [] : (data.solicitudes || []);
+    const lista = await traerSolicitudesHoy();
 
-    let html = '<h2>📨 Pedido al jefe hoy</h2>';
-    html += '<p class="solenc-sub">Mientras el jefe no conteste, esa persona <strong>no entra</strong>. '
-          + 'Si esta en rojo no entra bajo ningun concepto: no es cosa tuya decidirlo.</p>';
+    let html = '<h2>📨 Pedido al jefe de obra hoy</h2>';
+    html += '<p class="solenc-sub">Mientras el jefe de obra no conteste, esa persona <strong>no entra</strong>. '
+          + 'Si está en rojo no entra bajo ningún concepto: no es cosa tuya decidirlo.</p>';
 
     if (!lista.length) {
       html += '<p class="solenc-sub" style="margin:0">Hoy no has pedido nada.</p>';
     } else {
       lista.forEach(x => {
-        let pill = '<span class="solenc-pill pend">⏳ Esperando al jefe — NO entra</span>'
+        let pill = '<span class="solenc-pill pend">⏳ Esperando al jefe de obra — NO entra</span>'
                  + '<button class="btn-sefue" onclick="marcarSeFue(\'' + esc(x.id) + '\', this)">Se ha ido</button>';
         if (x.estado === 'autorizada') pill = '<span class="solenc-pill ok">✓ Autorizado solo por hoy — ya puede fichar</span>';
         else if (x.estado === 'denegada') pill = '<span class="solenc-pill no">✕ Denegado — NO entra</span>';
         else if (x.estado === 'caducada') pill = '<span class="solenc-pill no">Caducado</span>';
         else if (x.estado === 'retirada') pill = '<span class="solenc-pill no">Se fue de la puerta</span>';
-        else if (x.sigue_pendiente_de_verdad === false) pill = '<span class="solenc-pill ok">✓ Ya no esta en rojo — puede fichar</span>';
+        else if (x.sigue_pendiente_de_verdad === false) pill = '<span class="solenc-pill ok">✓ Ya no está en rojo — puede fichar</span>';
 
         const hora = formatHora(x.created_at);
         html += '<div class="solenc-item">'
@@ -1205,10 +1276,10 @@
       + '<input id="sf-nombre" type="text" placeholder="Nombre y apellidos" autocomplete="off">'
       + '<input id="sf-dni" type="text" placeholder="DNI o NIE" autocomplete="off" style="text-transform:uppercase">'
       + '<select id="sf-empresa"><option value="">— Empresa para la que viene —</option>' + opts
-      + '<option value="__otra">Otra (no esta en la lista)</option></select>'
+      + '<option value="__otra">Otra (no está en la lista)</option></select>'
       + '<input id="sf-empresa-otra" type="text" placeholder="Nombre de la empresa" style="display:none">'
       + '<div class="form-sf-btns">'
-      + '<button style="background:#fb8c00;color:white" onclick="enviarSinFichar(this)">Enviar al jefe</button>'
+      + '<button style="background:#fb8c00;color:white" onclick="enviarSinFichar(this)">Enviar al jefe de obra</button>'
       + '<button style="background:#eee;color:#555" onclick="document.getElementById(\'form-sf-hueco\').innerHTML=\'\'">Cancelar</button>'
       + '</div><div class="form-sf-msg" id="sf-msg"></div></div>';
 
@@ -1237,7 +1308,7 @@
 
     msg.style.color = '#c62828';
     if (nombre.length < 3) { msg.textContent = 'Falta el nombre.'; return; }
-    if (!dniValidoSF(dni)) { msg.textContent = 'Ese DNI/NIE no es valido. Revisalo con el documento delante.'; return; }
+    if (!dniValidoSF(dni)) { msg.textContent = 'Ese DNI/NIE no es válido. Revísalo con el documento delante.'; return; }
     if (!empSel) { msg.textContent = 'Falta la empresa.'; return; }
     if (empSel === '__otra' && empOtra.length < 2) { msg.textContent = 'Escribe el nombre de la empresa.'; return; }
 
@@ -1900,7 +1971,7 @@
 
   document.getElementById('btn-sin-actividad').addEventListener('click', async () => {
     if (!obraActualId) return;
-    const ok = confirm('¿Marcar HOY como día sin actividad en esta obra?\n\nSe silenciarán los avisos de ronda restantes del día y el jefe verá "Sin actividad hoy".');
+    const ok = confirm('¿Marcar HOY como día sin actividad en esta obra?\n\nSe silenciarán los avisos de ronda restantes del día y el jefe de obra verá "Sin actividad hoy".');
     if (!ok) return;
 
     const btn = document.getElementById('btn-sin-actividad');
