@@ -299,6 +299,31 @@
     .panel-bloqueos .btn-visto-rojo:hover { background: #b71c1c; }
     .panel-bloqueos .btn-visto-rojo:disabled { background: #ccc; cursor: not-allowed; }
 
+    /* Peticiones de autorizacion al jefe */
+    .panel-solenc { background: #fff8e1; border: 1px solid #ffcc80; border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 1rem; }
+    .panel-solenc h2 { font-size: 1rem; color: #e65100; margin-bottom: 0.3rem; display: flex; align-items: center; gap: 8px; }
+    .panel-solenc .solenc-sub { font-size: 0.83rem; color: #bf5000; margin-bottom: 0.8rem; }
+    .solenc-item { padding: 0.6rem 0; border-bottom: 1px solid #ffe0b2; font-size: 0.92rem; color: #6d3200; }
+    .solenc-item:last-of-type { border-bottom: none; }
+    .solenc-item strong { color: #e65100; }
+    .solenc-meta { font-size: 0.82rem; color: #a05000; margin-top: 2px; }
+    .solenc-pill { display: inline-block; font-size: 0.75rem; font-weight: bold; border-radius: 5px; padding: 2px 8px; margin-top: 5px; }
+    .solenc-pill.pend { background: #fff3e0; color: #e65100; border: 1px solid #ffb74d; }
+    .solenc-pill.ok   { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .solenc-pill.no   { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+    .btn-sefue { background: transparent; border: 1px solid #ffb74d; color: #a05000; padding: 0.3rem 0.7rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-family: inherit; margin-top: 6px; margin-left: 8px; }
+    .btn-sefue:disabled { opacity: 0.5; cursor: default; }
+    .btn-pedir { background: #fb8c00; color: white; border: none; padding: 0.4rem 0.9rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; white-space: nowrap; flex-shrink: 0; }
+    .btn-pedir:hover { background: #e65100; }
+    .btn-pedir:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-anadir-sf { width: 100%; margin-top: 0.6rem; background: transparent; border: 1px dashed #ffb74d; color: #e65100; padding: 0.6rem; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-weight: bold; font-family: inherit; }
+    .form-sf { margin-top: 0.7rem; background: white; border: 1px solid #ffcc80; border-radius: 8px; padding: 0.8rem; }
+    .form-sf input, .form-sf select { width: 100%; margin-bottom: 0.5rem; padding: 0.55rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.92rem; font-family: inherit; box-sizing: border-box; }
+    .form-sf .form-sf-btns { display: flex; gap: 8px; }
+    .form-sf .form-sf-btns button { flex: 1; padding: 0.55rem; border-radius: 6px; border: none; font-size: 0.88rem; font-weight: bold; font-family: inherit; cursor: pointer; }
+    .form-sf-msg { font-size: 0.83rem; margin-top: 0.4rem; }
+    .bloqueo-botones { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+
     .modal-accesos { background: white; color: #222; border-radius: 14px; padding: 1.4rem; max-width: 720px; width: 92%; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.35); }
     .modal-accesos-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 0.4rem; }
     .modal-accesos-cab h2 { margin: 0; color: #b71c1c; }
@@ -476,6 +501,7 @@
     </div>
 
     <div id="panel-bloqueos" class="panel-bloqueos" style="display:none"></div>
+    <div id="panel-solenc" class="panel-solenc" style="display:none"></div>
     <div id="panel-avisos" class="panel-avisos" style="display:none"></div>
 
     <div id="contador-presencia" class="contador-presencia estado-vacio" style="display:none">
@@ -892,6 +918,7 @@
     await cargarTrabajadoresObra();
     await cargarPresencia(obraId, fechaHoyISO());
     await cargarBloqueos();
+    await cargarSolicitudesEnc();
     await cargarAvisosAutocierre();
     await cargarUltimaRonda();
 
@@ -913,6 +940,7 @@
       // Y con la presencia recién leída, recalcular quién sigue sin entrar.
       // Si no, el contador se queda congelado en el de las 7 de la mañana.
       await cargarBloqueos();
+      await cargarSolicitudesEnc();
     }, 60 * 1000);
   }
 
@@ -922,6 +950,7 @@
       if (!esHoy(fechaActual)) return;
       await cargarPresencia(obraActualId, fechaActual);
       await cargarBloqueos();
+      await cargarSolicitudesEnc();
     }
   });
 
@@ -1019,6 +1048,8 @@
     if (statRojos) statRojos.textContent = clas.totales.personasPendientes;
 
     // El panel rojo solo saca a quien SIGUE fuera y no se ha marcado visto.
+    window.__gruposSol = {};
+    let indiceSol = 0;
     const porRevisar = clas.pendientes.filter(g => g.pendientes > 0);
     if (porRevisar.length === 0) {
       if (avisoSR) { panel.style.display = 'block'; panel.innerHTML = avisoSR; }
@@ -1038,9 +1069,19 @@
       const linea2 = esSR
         ? `Sin registrar${g.empresa ? ' · ' + esc(g.empresa) : ''}${g.dni ? ' — ' + esc(g.dni) : ''}`
         : (g.dni ? esc(g.dni) : '');
-      const boton = g.incidencia_id
+      // El encargado NO decide. Este boton solo PIDE: la persona sigue fuera
+      // hasta que el jefe conteste. La orden en la puerta es una sola y no
+      // admite matices: si esta en rojo, no entra.
+      const claveSol = 'g' + (indiceSol++);
+      window.__gruposSol[claveSol] = {
+        trabajador_id: g.trabajador_id || null,
+        nombre: g.nombre || '', dni: g.dni || '', empresa: g.empresa || ''
+      };
+      const botonPedir = `<button class="btn-pedir" onclick="pedirAutorizacion('${claveSol}', this)">📨 Pedir autorización</button>`;
+      const botonVisto = g.incidencia_id
         ? `<button class="btn-visto-rojo" onclick="marcarVistoBloqueo('${g.incidencia_id}', this)">✓ Visto</button>`
         : '';
+      const boton = `<div class="bloqueo-botones">${botonPedir}${botonVisto}</div>`;
       html += `
         <div class="bloqueo-item" data-id="${esc(g.incidencia_id || '')}">
           <div class="bloqueo-info">
@@ -1056,6 +1097,171 @@
     panel.style.display = 'block';
   }
 
+  /* ═══ PEDIR AUTORIZACION AL JEFE ══════════════════════════════════════
+     Regla en la puerta, una sola y sin excepciones: si esta en ROJO, NO ENTRA.
+     El encargado no valora, no decide y no abre. Solo lo manda. Quien asume
+     dejarle pasar es el jefe, y queda escrito con su nombre y la fecha.       */
+
+  let empresasSolCache = null;
+
+  async function cargarEmpresasSol() {
+    if (empresasSolCache) return empresasSolCache;
+    const { data, error } = await sb.from('empresas').select('id,nombre').order('nombre');
+    empresasSolCache = (error || !data) ? [] : data;
+    return empresasSolCache;
+  }
+
+  async function pedirAutorizacion(clave, btn) {
+    const g = (window.__gruposSol || {})[clave];
+    if (!g) return;
+    btn.disabled = true;
+    btn.textContent = 'Enviando…';
+
+    const params = { p_obra_id: obraActualId };
+    if (g.trabajador_id) {
+      params.p_trabajador_id = g.trabajador_id;
+    } else {
+      params.p_nombre = g.nombre;
+      params.p_dni = g.dni;
+      params.p_empresa_texto = g.empresa || 'Sin especificar';
+    }
+
+    const { data, error } = await sb.rpc('pedir_autorizacion_acceso', params);
+
+    if (error || !data || data.ok !== true) {
+      btn.disabled = false;
+      btn.textContent = '📨 Pedir autorización';
+      alert('No se ha podido enviar: ' + ((data && data.error) || (error && error.message) || 'error desconocido'));
+      return;
+    }
+
+    btn.textContent = data.ya_existia ? '✓ Ya estaba pedido' : '✓ Pedido al jefe';
+    await cargarSolicitudesEnc();
+  }
+
+  // Retirar NO deja entrar a nadie: solo dice que esa persona ya no esta en
+  // la valla. Por eso puede hacerlo el encargado, que es el unico que lo ve.
+  async function marcarSeFue(id, btn) {
+    btn.disabled = true;
+    btn.textContent = 'Quitando…';
+    const { data, error } = await sb.rpc('retirar_solicitud_acceso', { p_solicitud_id: id });
+    if (error || !data || data.ok !== true) {
+      btn.disabled = false;
+      btn.textContent = 'Se ha ido';
+      alert('No se ha podido quitar: ' + ((data && data.error) || (error && error.message) || 'error'));
+      return;
+    }
+    await cargarSolicitudesEnc();
+  }
+
+  async function cargarSolicitudesEnc() {
+    const panel = document.getElementById('panel-solenc');
+    if (!panel) return;
+    if (!obraActualId) { panel.style.display = 'none'; return; }
+
+    const { data, error } = await sb.rpc('listar_solicitudes_hoy', { p_obra_id: obraActualId });
+    const lista = (error || !data || data.ok !== true) ? [] : (data.solicitudes || []);
+
+    let html = '<h2>📨 Pedido al jefe hoy</h2>';
+    html += '<p class="solenc-sub">Mientras el jefe no conteste, esa persona <strong>no entra</strong>. '
+          + 'Si esta en rojo no entra bajo ningun concepto: no es cosa tuya decidirlo.</p>';
+
+    if (!lista.length) {
+      html += '<p class="solenc-sub" style="margin:0">Hoy no has pedido nada.</p>';
+    } else {
+      lista.forEach(x => {
+        let pill = '<span class="solenc-pill pend">⏳ Esperando al jefe — NO entra</span>'
+                 + '<button class="btn-sefue" onclick="marcarSeFue(\'' + esc(x.id) + '\', this)">Se ha ido</button>';
+        if (x.estado === 'autorizada') pill = '<span class="solenc-pill ok">✓ Autorizado solo por hoy — ya puede fichar</span>';
+        else if (x.estado === 'denegada') pill = '<span class="solenc-pill no">✕ Denegado — NO entra</span>';
+        else if (x.estado === 'caducada') pill = '<span class="solenc-pill no">Caducado</span>';
+        else if (x.estado === 'retirada') pill = '<span class="solenc-pill no">Se fue de la puerta</span>';
+        else if (x.sigue_pendiente_de_verdad === false) pill = '<span class="solenc-pill ok">✓ Ya no esta en rojo — puede fichar</span>';
+
+        const hora = formatHora(x.created_at);
+        html += '<div class="solenc-item">'
+              + '<strong>' + esc(x.quien || '—') + '</strong>'
+              + '<div class="solenc-meta">' + esc(x.dni || '—') + ' · ' + esc(x.empresa || 'sin empresa') + ' · ' + esc(hora) + '</div>'
+              + pill + '</div>';
+      });
+    }
+
+    html += '<button class="btn-anadir-sf" onclick="abrirFormSinFichar()">+ Alguien que no ha podido fichar</button>';
+    html += '<div id="form-sf-hueco"></div>';
+
+    panel.innerHTML = html;
+    panel.style.display = 'block';
+  }
+
+  async function abrirFormSinFichar() {
+    const hueco = document.getElementById('form-sf-hueco');
+    if (!hueco) return;
+    if (hueco.innerHTML) { hueco.innerHTML = ''; return; }
+
+    const empresas = await cargarEmpresasSol();
+    const opts = empresas.map(e => '<option value="' + esc(e.id) + '">' + esc(e.nombre) + '</option>').join('');
+
+    hueco.innerHTML = '<div class="form-sf">'
+      + '<input id="sf-nombre" type="text" placeholder="Nombre y apellidos" autocomplete="off">'
+      + '<input id="sf-dni" type="text" placeholder="DNI o NIE" autocomplete="off" style="text-transform:uppercase">'
+      + '<select id="sf-empresa"><option value="">— Empresa para la que viene —</option>' + opts
+      + '<option value="__otra">Otra (no esta en la lista)</option></select>'
+      + '<input id="sf-empresa-otra" type="text" placeholder="Nombre de la empresa" style="display:none">'
+      + '<div class="form-sf-btns">'
+      + '<button style="background:#fb8c00;color:white" onclick="enviarSinFichar(this)">Enviar al jefe</button>'
+      + '<button style="background:#eee;color:#555" onclick="document.getElementById(\'form-sf-hueco\').innerHTML=\'\'">Cancelar</button>'
+      + '</div><div class="form-sf-msg" id="sf-msg"></div></div>';
+
+    document.getElementById('sf-empresa').addEventListener('change', function () {
+      document.getElementById('sf-empresa-otra').style.display = (this.value === '__otra') ? 'block' : 'none';
+    });
+  }
+
+  // Letra de control del DNI/NIE. Un DNI mal tecleado a las 07:00 crea una
+  // ficha duplicada y parte las horas de esa persona en dos.
+  function dniValidoSF(dni) {
+    const L = 'TRWAGMYFPDXBNJZSQVHLCKE';
+    let d = String(dni || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+    if (/^[XYZ]/.test(d)) d = String('XYZ'.indexOf(d[0])) + d.slice(1);
+    const m = d.match(/^(\d{8})([A-Z])$/);
+    if (!m) return false;
+    return L[parseInt(m[1], 10) % 23] === m[2];
+  }
+
+  async function enviarSinFichar(btn) {
+    const msg = document.getElementById('sf-msg');
+    const nombre = (document.getElementById('sf-nombre').value || '').trim();
+    const dni = (document.getElementById('sf-dni').value || '').trim().toUpperCase();
+    const empSel = document.getElementById('sf-empresa').value;
+    const empOtra = (document.getElementById('sf-empresa-otra').value || '').trim();
+
+    msg.style.color = '#c62828';
+    if (nombre.length < 3) { msg.textContent = 'Falta el nombre.'; return; }
+    if (!dniValidoSF(dni)) { msg.textContent = 'Ese DNI/NIE no es valido. Revisalo con el documento delante.'; return; }
+    if (!empSel) { msg.textContent = 'Falta la empresa.'; return; }
+    if (empSel === '__otra' && empOtra.length < 2) { msg.textContent = 'Escribe el nombre de la empresa.'; return; }
+
+    btn.disabled = true;
+    msg.style.color = '#666';
+    msg.textContent = 'Enviando…';
+
+    const params = { p_obra_id: obraActualId, p_nombre: nombre, p_dni: dni };
+    if (empSel === '__otra') params.p_empresa_texto = empOtra;
+    else params.p_empresa_id = empSel;
+
+    const { data, error } = await sb.rpc('pedir_autorizacion_acceso', params);
+
+    if (error || !data || data.ok !== true) {
+      btn.disabled = false;
+      msg.style.color = '#c62828';
+      msg.textContent = (data && data.error) || (error && error.message) || 'No se ha podido enviar.';
+      return;
+    }
+
+    document.getElementById('form-sf-hueco').innerHTML = '';
+    await cargarSolicitudesEnc();
+  }
+
   async function marcarVistoBloqueo(incidenciaId, btn) {
     btn.disabled = true;
     btn.textContent = 'Marcando…';
@@ -1067,6 +1273,7 @@
       return;
     }
     await cargarBloqueos();
+    await cargarSolicitudesEnc();
   }
 
   // ── Modal "Accesos denegados hoy" ──────────────────────────────────────
@@ -1598,6 +1805,7 @@
       if (esHoy(fechaActual)) {
         await cargarPresencia(obraActualId, fechaActual);
         await cargarBloqueos();
+        await cargarSolicitudesEnc();
       }
     } finally {
       btn.disabled = false;
