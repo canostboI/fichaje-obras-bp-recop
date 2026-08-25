@@ -78,19 +78,22 @@
 
     /* ── Tabla mensual con scroll horizontal y nombre fijo ── */
     .tabla-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    table.mes { border-collapse: collapse; font-size: 0.78rem; width: max-content; min-width: 100%; }
+    /* COLUMNAS ALINEADAS ENTRE EMPRESAS (25/8/2026). Mismo criterio que
+       jefe/resumen-mes.html: los anchos los manda la fila de cabecera,
+       que es identica en todas las tablas del mes. */
+    table.mes { border-collapse: collapse; font-size: 0.78rem; table-layout: fixed; width: max-content; min-width: 100%; }
     table.mes th, table.mes td { border-bottom: 1px solid #ececec; padding: 5px 6px; text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
     table.mes thead th { font-size: 0.66rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.3px; background: white; position: sticky; top: 0; }
     table.mes th.col-nombre, table.mes td.col-nombre {
       position: sticky; left: 0; z-index: 2; background: white;
       text-align: left; padding-left: 12px; padding-right: 10px;
-      min-width: 130px; max-width: 170px; overflow: hidden; text-overflow: ellipsis;
+      width: 170px; min-width: 170px; max-width: 170px; overflow: hidden; text-overflow: ellipsis;
       box-shadow: 2px 0 0 #ececec;
     }
     table.mes thead th.col-nombre { z-index: 3; }
     table.mes td.col-nombre .nombre { font-weight: 600; color: #222; font-size: 0.78rem; white-space: normal; line-height: 1.25; }
     table.mes td.col-nombre .sub { font-size: 0.66rem; color: #999; }
-    table.mes th.dia { min-width: 32px; }
+    table.mes th.dia { width: 38px; }
     table.mes th.dia .num { display: block; font-size: 0.72rem; color: #444; }
     table.mes th.dia .letra { display: block; font-size: 0.6rem; color: #aaa; }
     table.mes td.celda { color: #222; cursor: pointer; }
@@ -104,7 +107,7 @@
     table.mes td.celda.fijado::after { content: ''; position: absolute; bottom: 0; right: 0; border-bottom: 9px solid #1565c0; border-left: 9px solid transparent; }
     table.mes th.col-total, table.mes td.col-total {
       position: sticky; right: 0; z-index: 2; background: #f6f6f6;
-      font-weight: 700; min-width: 56px; box-shadow: -2px 0 0 #ececec;
+      font-weight: 700; width: 62px; min-width: 62px; max-width: 62px; box-shadow: -2px 0 0 #ececec;
     }
     table.mes thead th.col-total { z-index: 3; }
     table.mes tr.fila-total td { background: #f6f6f6; font-weight: 700; border-top: 2px solid #ddd; cursor: default; }
@@ -162,7 +165,7 @@
       header { flex-direction: column; align-items: flex-start; }
       .header-right { width: 100%; }
       main { padding: 0 0.5rem; }
-      table.mes th.col-nombre, table.mes td.col-nombre { min-width: 110px; max-width: 130px; }
+      table.mes th.col-nombre, table.mes td.col-nombre { width: 120px; min-width: 120px; max-width: 120px; }
       .modal { padding: 18px; }
     }
     table.mes th.intensiva { box-shadow: inset 0 -3px 0 #ff9800; }
