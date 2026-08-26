@@ -9,11 +9,15 @@ name: Recordatorio · cambio de hora en crons
 # Minuto "raro" a propósito (congestión de GitHub Actions).
 # También se puede lanzar a mano desde la pestaña Actions.
 #
+# ⚠️ ACTUALIZADO 26/8/2026: sacado `autocierre_nocturno` de las tablas.
+# Desde hoy corre a `0 2 * * *` UTC (04:00 Madrid verano / 03:00
+# invierno). A esa hora SIEMPRE es "el día siguiente" en Madrid, así
+# que fecha_objetivo = ayer siempre apunta bien. No necesita ajuste
+# estacional. El cron viejo (30 22) en invierno caía a las 23:30 del
+# MISMO día y fecha_objetivo apuntaba al día equivocado.
+#
 # ⚠️ ACTUALIZADO 3/8/2026: añadido `auditoria_permisos_diaria` (el
-# vigilante de permisos, creado el 2/8). Sin esta línea la issue de
-# octubre habría hecho cambiar 4 crons de pg_cron de los 5 que hay, y
-# el vigilante se habría quedado corriendo a las 06:00 de Madrid en vez
-# de a las 07:00: no falla, solo se adelanta, y nadie se entera.
+# vigilante de permisos, creado el 2/8).
 #
 # ⚠️ ACTUALIZADO 31/7/2026: `ecoordina.yml` tiene DOS líneas `cron:`
 # desde el 30/7 (SYNC-TARDE). Antes aquí solo figuraba una, la de
@@ -48,7 +52,6 @@ jobs:
           |------|----------------|----------------------|
           | GitHub · \`ecoordina.yml\` (1ª línea, la buena) | \`43 22 * * 0-4\` | \`43 23 * * 0-4\` |
           | GitHub · \`ecoordina.yml\` (2ª línea, refuerzo) | \`43 1 * * 1-5\` | \`43 2 * * 1-5\` |
-          | pg_cron · \`autocierre_nocturno\` | \`30 22 * * *\` | \`30 23 * * *\` |
           | pg_cron · \`aviso_ronda_1\` | \`30 7 * * 1-5\` | \`30 8 * * 1-5\` |
           | pg_cron · \`aviso_ronda_2\` | \`0 8 * * 1-5\` | \`0 9 * * 1-5\` |
           | pg_cron · \`aviso_ronda_3\` | \`0 9 * * 1-5\` | \`0 10 * * 1-5\` |
@@ -60,7 +63,6 @@ jobs:
           |------|------------------|--------------------|
           | GitHub · \`ecoordina.yml\` (1ª línea, la buena) | \`43 23 * * 0-4\` | \`43 22 * * 0-4\` |
           | GitHub · \`ecoordina.yml\` (2ª línea, refuerzo) | \`43 2 * * 1-5\` | \`43 1 * * 1-5\` |
-          | pg_cron · \`autocierre_nocturno\` | \`30 23 * * *\` | \`30 22 * * *\` |
           | pg_cron · \`aviso_ronda_1\` | \`30 8 * * 1-5\` | \`30 7 * * 1-5\` |
           | pg_cron · \`aviso_ronda_2\` | \`0 9 * * 1-5\` | \`0 8 * * 1-5\` |
           | pg_cron · \`aviso_ronda_3\` | \`0 10 * * 1-5\` | \`0 9 * * 1-5\` |
@@ -79,7 +81,7 @@ jobs:
 
           **Cómo:**
           - [ ] \`ecoordina.yml\`: editar **las DOS líneas** \`cron:\` en el repo.
-          - [ ] pg_cron (los 5): en Supabase → SQL Editor, un \`SELECT cron.alter_job(jobid, schedule => '...')\` por cada uno, o desde la UI de Integrations → Cron.
+          - [ ] pg_cron (los 4): en Supabase → SQL Editor, un \`SELECT cron.alter_job(jobid, schedule => '...')\` por cada uno, o desde la UI de Integrations → Cron. (\`autocierre_nocturno\` ya no necesita ajuste: corre a \`0 2 * * *\` y funciona en ambas estaciones.)
           - [ ] Verificar al día siguiente que la sync nocturna y los SMS de ronda llegan a su hora española habitual.
           - [ ] Comprobar en \`ecoordina_sync\` que la ejecución buena sigue terminando de madrugada, muy por delante de los fichajes de las 06:39 en Muralla.
 
