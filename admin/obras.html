@@ -856,7 +856,10 @@ async function darDeBaja(usuarioAppId, nombre) {
   const ok = confirm(
     `⚠️ BAJA TOTAL de "${nombre}".\n\n` +
     'No es quitarlo de esta obra: se desactiva del TODO.\n' +
-    '• No podrá entrar en la app (aunque tenga la sesión abierta).\n' +
+    '• No podrá volver a entrar en la app.\n' +
+    '• Si ahora mismo tiene la sesión abierta, las pantallas le seguirán ' +
+    'cargando hasta que cierre sesión, pero le saldrán vacías: la base de ' +
+    'datos ya no le deja leer ni escribir nada.\n' +
     '• Dejará de recibir SMS y emails de avisos.\n' +
     '• Desaparecerá del selector de "Añadir usuario existente".\n\n' +
     'Se puede deshacer con el botón "Reactivar".\n\n¿Dar de baja?'
