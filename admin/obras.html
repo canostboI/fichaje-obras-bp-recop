@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Obras — Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/guardian.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
 <style>
   :root {
@@ -366,11 +367,12 @@ let vistaActual    = 'obras';
 let miUsuarioAppId = null;
 
 (async function init() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) { window.location.href = '../'; return; }
-  const { data: u } = await sb.from('usuarios_app').select('id, rol').eq('auth_user_id', session.user.id).single();
-  if (!u || u.rol !== 'admin') { window.location.href = '../'; return; }
-  miUsuarioAppId = u.id;
+  // El guardián de sesión vive en js/guardian.js, igual en las 20 pantallas.
+  // Separa "no tienes permiso" de "ha fallado la red" y de "estás de baja",
+  // que antes se confundían en un mismo redirect mudo al login.
+  const g = await Guardian.entrar(sb, { rol: 'admin', campos: 'id', volver: '../' });
+  if (!g) return;
+  miUsuarioAppId = g.usuario.id;
   await cargarObras();
   await cargarUsuarios();
 })();

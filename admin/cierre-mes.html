@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cierre de mes — Fichaje Obras</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/guardian.js"></script>
 <style>
   :root {
     --verde: #4caf50;
@@ -649,10 +650,13 @@ async function cerrar() {
 // ─────────────────────────────────────────────────────────────────────
 
 (async function init() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) { window.location.href = '../'; return; }
-  const { data: usuario } = await sb.from('usuarios_app').select('rol, nombre').eq('auth_user_id', session.user.id).single();
-  if (!usuario || usuario.rol !== 'admin') { window.location.href = '../'; return; }
+  // El guardián de sesión vive en js/guardian.js, igual en las 20 pantallas.
+  // Separa "no tienes permiso" de "ha fallado la red" y de "estás de baja",
+  // que antes se confundían en un mismo redirect mudo al login.
+  const g = await Guardian.entrar(sb, { rol: 'admin', campos: 'nombre', volver: '../' });
+  if (!g) return;
+  const session = g.session;
+  const usuario = g.usuario;
   document.getElementById('usuario-email').textContent = usuario.nombre || session.user.email;
 
   if (window.AutoLogout) AutoLogout.init(sb);
