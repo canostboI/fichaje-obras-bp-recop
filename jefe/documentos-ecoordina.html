@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Importar e-Coordina</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/guardian.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- La limpieza de motivos y el criterio de «esto es una exención» viven
        en js/motivos.js. Esta página lo usa en resumenExencionesAplicadas().
@@ -334,18 +335,13 @@ function escHtml(valor) {
 // ── AUTH + carga inicial ───────────────────────────────────────────────────
 async function init() {
   try {
-    const { data: { session: s }, error: sessionError } = await sb.auth.getSession();
-    if (sessionError) console.error('Error leyendo sesión:', sessionError);
-    if (!s) { window.location.href = '../index.html'; return; }
-    session = s;
-
-    const { data: ua, error: uaError } = await sb.from('usuarios_app')
-      .select('id, rol')
-      .eq('auth_user_id', s.user.id)
-      .maybeSingle();
-
-    if (uaError) { console.error('Error leyendo usuarios_app:', uaError); alert('No se ha podido comprobar tu usuario.'); return; }
-    if (!ua) { alert('Tu usuario no está encontrado en usuarios_app.'); return; }
+    // Sesión, fallo de red y cuenta de baja los resuelve el guardián.
+    // El aviso de rol se queda aquí: esta pantalla admite tres roles y
+    // explica cuál ha detectado.
+    const g = await Guardian.entrar(sb, { campos: 'id', volver: '../index.html' });
+    if (!g) return;
+    session = g.session;
+    const ua = g.usuario;
     if (!['admin', 'jefe_obra', 'jefe'].includes(ua.rol)) {
       alert('Tu usuario no tiene permiso para entrar en e-Coordina. Rol detectado: ' + ua.rol); return;
     }
