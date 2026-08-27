@@ -117,6 +117,7 @@
             grupos[nombreEmpresa], diasMes,
             { horaEntrada: obra && obra.hora_entrada_default, horaSalida: obra && obra.hora_salida_default, ajustes, minutosDescanso: obra && obra.minutos_descanso,
               horaEntradaIntensiva: obra && obra.hora_entrada_intensiva, horaSalidaIntensiva: obra && obra.hora_salida_intensiva, minutosDescansoIntensiva: obra && obra.minutos_descanso_intensiva,
+              finAlmuerzo: obra && obra.fin_almuerzo, finComida: obra && obra.fin_comida,
               diasIntensiva }
           );
           trabajadores.forEach(t => { totalAutocierres += (t.autocierres_mes || 0); });
@@ -158,6 +159,8 @@
     // dos, ese dia es un dia normal ENTERO (entrada, salida y descanso).
     const intensivaConfigurada = !!(horaEntradaIntensiva && horaSalidaIntensiva);
     const minutosDescansoIntensiva = (opts && opts.minutosDescansoIntensiva != null) ? opts.minutosDescansoIntensiva : null;
+    const finAlmuerzo = (opts && opts.finAlmuerzo) ? String(opts.finAlmuerzo).slice(0,5) : '09:30';
+    const finComida   = (opts && opts.finComida)   ? String(opts.finComida).slice(0,5)   : '14:30';
     const diasIntensiva = (opts && opts.diasIntensiva)
       ? (opts.diasIntensiva instanceof Set ? opts.diasIntensiva : new Set(opts.diasIntensiva))
       : new Set();
@@ -331,9 +334,9 @@
 
           const bruto = (fin - inicio) / 3600000;
           if (bruto > 0 && bruto < 24) {
-            netoDia = Math.max(0, bruto - descansoMin(bruto, descansoDia) / 60);
+            descansoAplicado = descansoMin(inicio, fin, finAlmuerzo, finComida, descansoDia);
+            netoDia = Math.max(0, bruto - descansoAplicado / 60);
             brutoDia = redondear2(bruto);
-            descansoAplicado = descansoMin(bruto, descansoDia);
           }
           intensivaDia = esIntensiva;
         }
@@ -912,7 +915,9 @@
   //   está permitido, pero no suma): suelo = hora_entrada_default.
   // - No se pagan horas después de la hora oficial de salida (las extra las
   //   confirma el jefe aparte): techo = hora_salida_default.
-  // - Descanso proporcional sobre horas brutas: ≤4h → 0 · 4–7h → 30 · ≥7h → 90.
+  // - Descanso por pausas atravesadas (60ª, 27/8/2026): −30 si trabajó hasta después
+  //   del almuerzo (fin 09:30), −60 si trabajó hasta después de la comida (fin 14:30).
+  //   En intensiva descansoDia=0 → nada. Los horarios salen de obras.fin_almuerzo/fin_comida.
   // - Compensación (añadida 9/7/2026): entrar antes de la hora oficial no
   //   suma, pero compensa hasta 15 min de salida anticipada. Solo aplica si
   //   la obra tiene hora oficial de entrada Y de salida definidas.
@@ -976,14 +981,30 @@
     return `${y}-${m}-${dd}`;
   }
 
-  function descansoMin(brutoH, descansoLargo) {
-    // descansoLargo = minutos de descanso en jornada completa (≥7h).
-    // Por defecto 90 (comportamiento histórico). La media jornada resta 30
-    // pero nunca más que el descanso de la obra (si es 0, no resta nada).
-    const largo = (descansoLargo == null) ? 90 : descansoLargo;
-    if (brutoH <= 4) return 0;
-    if (brutoH < 7) return Math.min(30, largo);
-    return largo;
+  function descansoMin(inicio, fin, finAlmuerzoStr, finComidaStr, descansoDia) {
+    // Regla decidida (60ª sesión, 27/8/2026): se descuenta una pausa si el
+    // trabajador seguía en obra cuando esa pausa TERMINÓ.
+    // inicio/fin: Date (ya redondeados y con suelo/techo aplicados).
+    // finAlmuerzoStr / finComidaStr: 'HH:MM' procedentes de obras.fin_almuerzo
+    //   y obras.fin_comida (defaults BD: '09:30' y '14:30').
+    // descansoDia: minutos (0 en intensiva → nada que descontar).
+    if (!descansoDia) return 0;   // intensiva o descanso explícitamente 0
+
+    function pausaAtravesada(horaStr, minutos) {
+      if (!horaStr) return 0;
+      const partes = String(horaStr).split(':');
+      const h = Number(partes[0]);
+      const m = Number(partes[1] || 0);
+      if (isNaN(h)) return 0;
+      const finPausa = new Date(
+        inicio.getFullYear(), inicio.getMonth(), inicio.getDate(), h, m, 0, 0
+      );
+      // 'Seguía en obra cuando la pausa terminó' = entró antes de que
+      // terminara Y salió después. Si fin === finPausa, no había nadie ya.
+      return (inicio < finPausa && fin > finPausa) ? minutos : 0;
+    }
+
+    return pausaAtravesada(finAlmuerzoStr, 30) + pausaAtravesada(finComidaStr, 60);
   }
 
   // FICH-020 · Horas fijadas a mano que NO las lee nadie.
