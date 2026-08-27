@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Importar e-Coordina (todas) — Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/guardian.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -180,13 +181,11 @@ document.getElementById('btn-salir').onclick = async () => {
 
 async function init() {
   try {
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) { window.location.href = '../index.html'; return; }
-
-    const { data: ua, error: uaErr } = await sb.from('usuarios_app')
-      .select('id, rol').eq('auth_user_id', session.user.id).maybeSingle();
-    if (uaErr) { console.error('Error leyendo usuarios_app:', uaErr); alert('No se ha podido comprobar tu usuario.'); return; }
-    if (!ua) { alert('Tu usuario no está en usuarios_app.'); return; }
+    // Sesión, fallo de red y cuenta de baja los resuelve el guardián.
+    // El aviso de rol se queda aquí: esta pantalla explica el rol detectado.
+    const g = await Guardian.entrar(sb, { campos: 'id', volver: '../index.html' });
+    if (!g) return;
+    const ua = g.usuario;
     if (ua.rol !== 'admin') {
       alert('Esta pantalla es solo para administradores. Rol detectado: ' + ua.rol);
       window.location.href = 'index.html';

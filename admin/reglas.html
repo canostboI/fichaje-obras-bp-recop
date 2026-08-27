@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reglas documentales — Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/guardian.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -229,11 +230,11 @@ AutoLogout.init(sb);
 let reglas = [];
 let eliminadas = [];
 
+// Devuelve true solo si se puede seguir. Antes no devolvía nada: aunque
+// redirigiera, cargarReglas() se ejecutaba igual justo detrás.
 async function checkAdmin() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) { location.href = '../index.html'; return; }
-  const { data } = await sb.from('usuarios_app').select('rol').eq('auth_user_id', session.user.id).single();
-  if (!data || data.rol !== 'admin') { location.href = '../index.html'; }
+  const g = await Guardian.entrar(sb, { rol: 'admin', volver: '../index.html' });
+  return !!g;
 }
 
 async function cargarReglas() {
@@ -516,7 +517,7 @@ async function quitarExencion(id) {
 
 document.getElementById('btn-salir').addEventListener('click', async (e) => { e.preventDefault(); await sb.auth.signOut(); location.href = '../index.html'; });
 
-(async () => { await checkAdmin(); await cargarReglas(); })();
+(async () => { if (!await checkAdmin()) return; await cargarReglas(); })();
 </script>
 </body>
 </html>
