@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fichajes — Jefe de Obra</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/guardian.js"></script>
 <script src="../js/branding.js"></script>
 <script src="../js/auto-logout.js"></script>
 <style>
@@ -232,13 +233,13 @@ let nombresFirmantes = {};
 let falloNombresFirmantes = false;
 
 (async function init() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) { window.location.href = '../'; return; }
-
-  const { data: miUsuario } = await sb
-    .from('usuarios_app').select('id, nombre')
-    .eq('auth_user_id', session.user.id).single();
-  if (!miUsuario) { window.location.href = '../'; return; }
+  // El guardián de sesión vive en js/guardian.js, igual en las 20 pantallas.
+  // Separa "no tienes permiso" de "ha fallado la red" y de "estás de baja",
+  // que antes se confundían en un mismo redirect mudo al login.
+  const g = await Guardian.entrar(sb, { campos: 'id, nombre', volver: '../' });
+  if (!g) return;
+  const session = g.session;
+  const miUsuario = g.usuario;
 
   miUsuarioAppId = miUsuario.id;
   document.getElementById('usuario-nombre').textContent = miUsuario.nombre || session.user.email;
