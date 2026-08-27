@@ -596,8 +596,11 @@ function abrirModalQuitar(trabajadorId) {
   quitarCtx = { trabajador_id: trabajadorId, obra_id: obraId };
   document.getElementById('quitar-intro').innerHTML =
     `Vas a quitar a <strong>${esc(t.nombre)} ${esc(t.apellidos)}</strong> de la obra <strong>${esc(obraNombre)}</strong>.<br><br>` +
-    `Dejará de poder fichar con el QR de esta obra y desaparecerá de su listado. ` +
-    `Su histórico de fichajes se conserva. Si vuelve a aparecer en un Excel de e-Coordina, se reincorporará automáticamente.`;
+    `Dejará de poder fichar con el QR de esta obra. ` +
+    `Seguirá saliendo en el listado, en <strong>rojo</strong> y marcado como quitado a mano, para que quede constancia. ` +
+    `Su histórico de fichajes se conserva.<br><br>` +
+    `La sincronización nocturna de e-Coordina <strong>ya no lo reincorporará</strong>, aunque su empresa lo siga teniendo apuntado. ` +
+    `Para deshacerlo, usa «Quitar el forzado» en la pantalla de trabajadores del jefe de obra.`;
   const msg = document.getElementById('quitar-msg');
   msg.className = ''; msg.textContent = '';
   document.getElementById('btn-confirmar-quitar').disabled = false;
@@ -632,7 +635,7 @@ document.getElementById('btn-confirmar-quitar').addEventListener('click', async 
     msg.className = 'msg-error'; msg.textContent = 'Error: ' + (data.error || 'No se pudo quitar');
     btn.disabled = false; return;
   }
-  msg.className = 'msg-ok'; msg.textContent = 'Trabajador quitado de la obra.';
+  msg.className = 'msg-ok'; msg.textContent = 'Quitado de la obra. Queda en rojo en el listado.';
   setTimeout(() => { cerrarModalQuitar(); cargarTrabajadores(); }, 700);
 });
 </script>
