@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Habilitaciones — Panel Encargado</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/guardian.js"></script>
   <script src="../js/branding.js"></script>
   <script src="../js/auto-logout.js"></script>
   <script src="../js/fechas.js"></script>
@@ -177,16 +178,14 @@
   }
 
   async function init() {
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) { window.location.href = '../index.html'; return; }
+    // Sesión, fallo de red y cuenta de baja los resuelve el guardián.
+    // La comprobación de rol se queda aquí: esta pantalla MUESTRA el aviso
+    // en vez de redirigir, y así sigue.
+    const g = await Guardian.entrar(sb, { campos: 'id', volver: '../index.html' });
+    if (!g) return;
+    const usuario = g.usuario;
 
-    const { data: usuario, error } = await sb
-      .from('usuarios_app')
-      .select('id, rol')
-      .eq('auth_user_id', session.user.id)
-      .single();
-
-    if (error || !usuario || usuario.rol !== 'encargado') {
+    if (usuario.rol !== 'encargado') {
       mostrarError('Acceso denegado. No tienes rol de encargado.');
       return;
     }
