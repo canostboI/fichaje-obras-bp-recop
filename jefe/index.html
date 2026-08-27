@@ -6,6 +6,7 @@
 <title>Jefe de Obra — Fichaje Obras</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+<script src="../js/guardian.js"></script>
 <script src="../js/branding.js"></script>
 <script src="../js/auto-logout.js"></script>
 <script src="../js/motivos.js"></script>
@@ -739,22 +740,17 @@ async function cargarEmpresasPropias() {
 }
 
 (async function init() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) { window.location.href = '../'; return; }
+  // El guardián de sesión vive en js/guardian.js, igual en las 20 pantallas.
+  // Distingue "no tienes permiso" de "ha fallado la red" y de "estás de baja",
+  // que antes se confundían en un mismo redirect mudo al login.
+  const g = await Guardian.entrar(sb, {
+    campos: 'id, nombre',
+    volver: '../'
+  });
+  if (!g) return;
 
-  const { data: miUsuario, error: errUsuario } = await sb
-    .from('usuarios_app')
-    .select('id, nombre')
-    .eq('auth_user_id', session.user.id)
-    .single();
-
-  // Antes cualquier fallo de lectura echaba al login sin decir nada, y parecía
-  // una sesión caducada cuando no lo era.
-  if (errUsuario) {
-    document.body.innerHTML = '<div style="max-width:520px;margin:80px auto;padding:22px;border:1px solid #f4433677;border-radius:12px;color:#f44336;font-family:system-ui,sans-serif;line-height:1.5">No se ha podido cargar tu usuario. La sesión sigue abierta: es un fallo de conexión con la base de datos.<br><br>Vuelve a cargar la página (Ctrl+Shift+R). Si sigue igual, avisa.</div>';
-    return;
-  }
-  if (!miUsuario) { window.location.href = '../'; return; }
+  const session = g.session;
+  const miUsuario = g.usuario;
 
   document.getElementById('usuario-nombre').textContent = miUsuario.nombre || session.user.email;
   actualizarFechaHoy();
