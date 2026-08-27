@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fichajes — Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/guardian.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -123,10 +124,11 @@ if (!window.Fechas || !window.Hab) {
 }
 
 (async function init() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) { window.location.href = '../'; return; }
-  const { data: u } = await sb.from('usuarios_app').select('rol').eq('auth_user_id', session.user.id).single();
-  if (!u || u.rol !== 'admin') { window.location.href = '../'; return; }
+  // El guardián de sesión vive en js/guardian.js, igual en las 20 pantallas.
+  // Separa "no tienes permiso" de "ha fallado la red" y de "estás de baja",
+  // que antes se confundían en un mismo redirect mudo al login.
+  const g = await Guardian.entrar(sb, { rol: 'admin', volver: '../' });
+  if (!g) return;
   document.getElementById('filtro-fecha').value = fechaHoy();
   await cargarObras();
   await buscar();
