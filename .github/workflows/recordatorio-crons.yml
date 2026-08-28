@@ -9,6 +9,14 @@ name: Recordatorio · cambio de hora en crons
 # Minuto "raro" a propósito (congestión de GitHub Actions).
 # También se puede lanzar a mano desde la pestaña Actions.
 #
+# ⚠️ ACTUALIZADO 28/8/2026: añadido `recordatorio_solicitudes_acceso`
+# (jobid=7), el segundo SMS al jefe de obra cuando una petición de acceso
+# lleva 30 minutos sin respuesta. **NO necesita ajuste estacional**: corre
+# cada 10 minutos todo el día y decide si es horario de obra leyendo la
+# hora de Madrid DENTRO de la función (06:00–21:00), no el cron. Figura
+# aquí igualmente para que la lista sea completa: un recordatorio que no
+# nombra un cron hace creer que ese cron no existe.
+#
 # ⚠️ ACTUALIZADO 26/8/2026: sacado `autocierre_nocturno` de las tablas.
 # Desde hoy corre a `0 2 * * *` UTC (04:00 Madrid verano / 03:00
 # invierno). A esa hora SIEMPRE es "el día siguiente" en Madrid, así
@@ -81,7 +89,8 @@ jobs:
 
           **Cómo:**
           - [ ] \`ecoordina.yml\`: editar **las DOS líneas** \`cron:\` en el repo.
-          - [ ] pg_cron (los 4): en Supabase → SQL Editor, un \`SELECT cron.alter_job(jobid, schedule => '...')\` por cada uno, o desde la UI de Integrations → Cron. (\`autocierre_nocturno\` ya no necesita ajuste: corre a \`0 2 * * *\` y funciona en ambas estaciones.)
+          - [ ] pg_cron (los 4 de la tabla): en Supabase → SQL Editor, un \`SELECT cron.alter_job(jobid, schedule => '...')\` por cada uno, o desde la UI de Integrations → Cron.
+          - [ ] **NO tocar estos dos, que funcionan en ambas estaciones:** \`autocierre_nocturno\` (\`0 2 * * *\`) y \`recordatorio_solicitudes_acceso\` (\`*/10 * * * *\`, decide el horario de obra leyendo la hora de Madrid por dentro).
           - [ ] Verificar al día siguiente que la sync nocturna y los SMS de ronda llegan a su hora española habitual.
           - [ ] Comprobar en \`ecoordina_sync\` que la ejecución buena sigue terminando de madrugada, muy por delante de los fichajes de las 06:39 en Muralla.
 
