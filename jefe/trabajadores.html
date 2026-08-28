@@ -329,7 +329,10 @@
           <option value="gruista">Gruista</option>
           <option value="electricista">Electricista</option>
           <option value="restaurador">Restaurador</option>
+          <option value="otra">Otra…</option>
         </select>
+        <input type="text" id="modal-categoria-otra" placeholder="Escribe la categoría"
+               maxlength="40" style="display:none;margin-top:6px;">
       </div>
       <div class="campo">
         <label>Precio hora</label>
@@ -948,7 +951,7 @@ async function cargarTrabajadores() {
     cargarLibros(),
     sb.from('validaciones_obra').select(`
       trabajador_id, obra_id, estado, estado_forzado, motivo_forzado, motivos, forzado_en,
-      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado, empresa:empresa_id(id, nombre))
+      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, categoria_otra, precio_hora_personalizado, empresa:empresa_id(id, nombre))
     `).in('obra_id', obraIds)
   ]);
 
@@ -962,7 +965,7 @@ async function cargarTrabajadores() {
   let validaciones = validacionesResult.data;
   if (validacionesResult.error) {
     const fallback = await sb.from('validaciones_obra')
-      .select('trabajador_id, obra_id, estado, estado_forzado, motivo_forzado, motivos, forzado_en, trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado)')
+      .select('trabajador_id, obra_id, estado, estado_forzado, motivo_forzado, motivos, forzado_en, trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, categoria_otra, precio_hora_personalizado)')
       .in('obra_id', obraIds);
     // Si también falla el plan B, la tabla saldría VACÍA y parecería que no hay
     // trabajadores. Hay que decirlo, no enseñar una lista en blanco.
@@ -993,6 +996,7 @@ async function cargarTrabajadores() {
       porTrabajador[v.trabajador_id] = {
         id: v.trabajador.id, nombre: v.trabajador.nombre, apellidos: v.trabajador.apellidos,
         dni: v.trabajador.dni, categoria: v.trabajador.categoria,
+        categoria_otra: v.trabajador.categoria_otra,
         precio_hora_personalizado: v.trabajador.precio_hora_personalizado,
         empresa: v.trabajador.empresa || null, obras: []
       };
@@ -1044,7 +1048,7 @@ function aplicarFiltrosTabla() {
   }
   if (q) {
     lista = lista.filter(t => {
-      const texto = [nombreCompleto(t), t.dni || '', t.categoria || '', t.empresa?.nombre || '',
+      const texto = [nombreCompleto(t), t.dni || '', etiquetaCategoria(t), t.empresa?.nombre || '',
         ...(t.obras || []).map(o => o.nombre || '')].join(' ').toLowerCase();
       return texto.includes(q);
     });
@@ -1143,7 +1147,7 @@ function renderTabla(lista) {
         <tr class="${filaClase}" data-grupo="${esc(empresa)}">
           <td><strong>${esc(nombreCompleto(t))}</strong>${habSpan}</td>
           <td style="font-family:monospace">${esc(t.dni)}</td>
-          <td>${esc(t.categoria || '—')}</td>
+          <td>${esc(etiquetaCategoria(t) || '—')}</td>
           <td>${formatearPrecio(t.precio_hora_personalizado)}</td>
           <td>${t.obras.map(o => pillObra(t, o)).join('')}</td>
           <td><div class="acciones"><button class="btn-accion primario" onclick="abrirEdicion('${t.id}')">Editar</button>${obraFiltroTrabajadores ? `<button class="btn-accion peligro" onclick="abrirModalQuitar('${t.id}')">Quitar de la obra</button>` : ''}</div></td>
@@ -1210,6 +1214,20 @@ function toggleMarcado(checkbox) {
   checkbox.closest('.check-obra').classList.toggle('marcado', checkbox.checked);
 }
 
+// Etiqueta de categoría para pintar y para buscar: con "otra" manda el texto libre.
+function etiquetaCategoria(t) {
+  if (t.categoria === 'otra') return t.categoria_otra || 'Otra';
+  return t.categoria || '';
+}
+
+// El campo de texto libre solo se ve (y solo se guarda) con la opción "Otra…".
+function sincronizarCategoriaOtra() {
+  const sel = document.getElementById('modal-categoria');
+  const txt = document.getElementById('modal-categoria-otra');
+  txt.style.display = (sel.value === 'otra') ? 'block' : 'none';
+}
+document.getElementById('modal-categoria').addEventListener('change', sincronizarCategoriaOtra);
+
 document.getElementById('btn-nuevo').addEventListener('click', () => {
   modoEdicion = null;
   document.getElementById('modal-titulo').textContent = 'Nuevo trabajador';
@@ -1217,6 +1235,8 @@ document.getElementById('btn-nuevo').addEventListener('click', () => {
   document.getElementById('modal-apellidos').value = '';
   document.getElementById('modal-dni').value = '';
   document.getElementById('modal-categoria').value = 'peon';
+  document.getElementById('modal-categoria-otra').value = '';
+  sincronizarCategoriaOtra();
   document.getElementById('modal-precio-hora').value = '';
   document.getElementById('modal-msg').textContent = '';
   document.getElementById('btn-guardar').disabled = false;
@@ -1238,6 +1258,8 @@ async function abrirEdicion(trabajadorId) {
   const selCat = document.getElementById('modal-categoria');
   selCat.value = t.categoria || 'peon';
   if (selCat.selectedIndex === -1) selCat.value = 'peon';
+  document.getElementById('modal-categoria-otra').value = t.categoria_otra || '';
+  sincronizarCategoriaOtra();
   document.getElementById('modal-precio-hora').value = t.precio_hora_personalizado ?? '';
   poblarSelectorEmpresas(t.empresa?.id || '');
   const { data: vals, error: errVals } = await sb.from('validaciones_obra').select('obra_id')
@@ -1272,10 +1294,14 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   const apellidos = document.getElementById('modal-apellidos').value.trim();
   const dni = document.getElementById('modal-dni').value.trim().toUpperCase();
   const categoria = document.getElementById('modal-categoria').value.trim();
+  const categoriaOtra = document.getElementById('modal-categoria-otra').value.trim();
   const precioHoraRaw = document.getElementById('modal-precio-hora').value.trim().replace(',', '.');
   const empresaId = document.getElementById('modal-empresa').value || null;
   if (!nombre || !apellidos || !dni) {
     msg.className = 'msg-error'; msg.textContent = 'Nombre, apellidos y DNI son obligatorios.'; btn.disabled = false; return;
+  }
+  if (categoria === 'otra' && !categoriaOtra) {
+    msg.className = 'msg-error'; msg.textContent = 'Has elegido «Otra…»: escribe el nombre de la categoría.'; btn.disabled = false; return;
   }
   let precio_hora_personalizado = null;
   if (precioHoraRaw !== '') {
@@ -1317,7 +1343,9 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
 
   const { data: rpcData, error: rpcError } = await sb.rpc('crear_o_actualizar_trabajador', {
     p_nombre: nombre, p_apellidos: apellidos, p_dni: dni,
-    p_categoria: categoria || null, p_precio_hora: precio_hora_personalizado,
+    p_categoria: categoria || null,
+    p_categoria_otra: categoria === 'otra' ? categoriaOtra : null,
+    p_precio_hora: precio_hora_personalizado,
     p_obra_ids: obrasSeleccionadas.map(id => id.trim()), p_empresa_id: empresaId
   });
   if (rpcError) { msg.className = 'msg-error'; msg.textContent = 'Error: ' + rpcError.message; btn.disabled = false; return; }
@@ -1857,7 +1885,7 @@ function aplicarFiltrosSinRender() {
   }
   if (q) {
     lista = lista.filter(t => {
-      const texto = [nombreCompleto(t), t.dni || '', t.categoria || '', t.empresa?.nombre || '',
+      const texto = [nombreCompleto(t), t.dni || '', etiquetaCategoria(t), t.empresa?.nombre || '',
         ...(t.obras || []).map(o => o.nombre || '')].join(' ').toLowerCase();
       return texto.includes(q);
     });
