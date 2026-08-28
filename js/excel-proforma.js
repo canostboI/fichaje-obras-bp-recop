@@ -18,7 +18,7 @@
  *
  *      Cada fichaje debe traer al menos:
  *        { id, tipo, hora, cierre_automatico, trabajador_id,
- *          trabajador: { id, nombre, apellidos, dni, categoria,
+ *          trabajador: { id, nombre, apellidos, dni, categoria, categoria_otra,
  *                        precio_hora_personalizado,
  *                        empresa: { nombre } } }
  *
@@ -61,13 +61,37 @@
   const COLOR_BORDE  = 'BFBFBF';
 
   const CATEGORIA_COLORES = {
-    'peon':    'E8E8E8',
-    'peón':    'E8E8E8',
-    'oficial': 'D6E4F7',
-    'capataz': 'D5F5E3',
-    'tecnico': 'FDEBD0',
-    'técnico': 'FDEBD0',
+    'peon':         'E8E8E8',
+    'peón':         'E8E8E8',
+    'oficial':      'D6E4F7',
+    'encargado':    'D5F5E3',
+    'capataz':      'D5F5E3',
+    'gruista':      'E8DAEF',
+    'electricista': 'FCF3CF',
+    'restaurador':  'FADBD8',
+    'tecnico':      'FDEBD0',
+    'técnico':      'FDEBD0',
+    'otra':         'EAECEE',
   };
+
+  // Cómo se escribe cada categoría en el papel. La base de datos las guarda
+  // en minúscula y sin acentos; el Excel lo lee una persona.
+  const CATEGORIA_ETIQUETAS = {
+    'peon':         'Peón',
+    'oficial':      'Oficial',
+    'encargado':    'Encargado',
+    'gruista':      'Gruista',
+    'electricista': 'Electricista',
+    'restaurador':  'Restaurador',
+  };
+
+  // Con la categoría "otra" manda el texto libre que escribió el jefe.
+  // Si estuviera vacío (no debería: la BD lo impide), cae en "Otra".
+  function etiquetaCategoria(t) {
+    const clave = (t.categoria || '').toLowerCase().trim();
+    if (clave === 'otra') return String(t.categoria_otra || '').trim() || 'Otra';
+    return CATEGORIA_ETIQUETAS[clave] || (t.categoria || '');
+  }
 
   // ===== Helper para obtener dimensiones reales del PNG =====
   // Decodifica la cabecera del PNG para leer width/height sin Image()
@@ -178,6 +202,7 @@
           nombre: nombreCompleto(t),
           dni: t.dni || '',
           categoria: t.categoria || '',
+          categoria_otra: t.categoria_otra || '',
           precio_hora: t.precio_hora_personalizado ?? null,
           fichajes: []
         });
@@ -452,20 +477,39 @@
         const imageId = workbook.addImage({ base64: base64Data, extension: ext });
 
         // Calcular tamaño en píxeles manteniendo aspect ratio.
-        // Altura objetivo: ~46px (encaja en una fila de 40 con un poco de margen).
-        const ALTURA_PX = 46;
+        // La fila 1 mide 40 puntos (~53 px); 44 px de logo caben con margen.
+        const ALTURA_PX = 44;
         const dims = dimensionesPng(base64Data);
         let widthPx = 130; // valor por defecto si no se pudo leer la cabecera
         if (dims && dims.h > 0) {
           widthPx = Math.round((dims.w / dims.h) * ALTURA_PX);
         }
 
-        // Anclar la esquina inferior-derecha del logo al final del título
-        // y dejar que ExcelJS calcule la esquina superior según el tamaño.
+        // ANCLAJE POR LA ESQUINA SUPERIOR IZQUIERDA.
+        // La versión anterior colgaba el logo desde abajo con desplazamientos
+        // NEGATIVOS (nativeColOff/nativeRowOff en negativo). Excel no los
+        // respeta: el logo caía fuera de la fila 1 y tapaba la fila del MES.
+        // Aquí se busca hacia atrás, sumando anchos reales de columna, en qué
+        // punto hay que empezar para que el logo termine junto al borde
+        // derecho. Todos los desplazamientos son positivos.
+        const anchoPxDeColumna = (i) => Math.round(((ws.getColumn(i).width || 8.43) * 7) + 5);
+        let restante = widthPx + 8;   // 8 px de aire contra el borde derecho
+        let colIni = 0;               // índice 0-based que espera ExcelJS
+        for (let c = totalCols; c >= 1; c--) {
+          const ancho = anchoPxDeColumna(c);
+          if (ancho >= restante) {
+            colIni = (c - 1) + ((ancho - restante) / ancho);
+            restante = 0;
+            break;
+          }
+          restante -= ancho;
+          colIni = c - 1;
+        }
+
         ws.addImage(imageId, {
-          tl: { col: totalCols - 0.05, row: 0.95, nativeColOff: -widthPx * 9525, nativeRowOff: -ALTURA_PX * 9525 },
+          tl: { col: colIni, row: 0, nativeRowOff: 4 * 9525 },
           ext: { width: widthPx, height: ALTURA_PX },
-          editAs: 'oneCell'
+          editAs: 'absolute'
         });
       } catch (e) {
         console.warn('ExcelProforma: logo no insertado:', e.message);
@@ -485,10 +529,21 @@
       ws.getCell(3, c).fill = fillSolid(COLOR_BLANCO);
     }
 
-    const colEmpresaLabel = colDenomFin + 1;
-    const colEmpresaVal   = colDenomFin + 2;
-    const colEmpresaFin   = Math.min(totalCols - 2, colEmpresaVal + 3);
+    // La etiqueta cae sobre columnas de día (estrechas): necesita DOS.
+    // El valor necesita bastantes más: "BAMSA Y OBRAS, SLU" no entra en 16
+    // caracteres, que es lo que daban las 4 columnas de antes.
+    const colEmpresaLabel    = colDenomFin + 1;
+    const colEmpresaLabelFin = Math.min(totalCols - 3, colEmpresaLabel + 1);
+    const colEmpresaVal      = colEmpresaLabelFin + 1;
+    const colEmpresaFin      = Math.min(totalCols - 2, colEmpresaVal + 6);
     pintarLabel(ws.getCell(3, colEmpresaLabel), 'EMPRESA', paleta.medio);
+    if (colEmpresaLabelFin > colEmpresaLabel) {
+      ws.mergeCells(3, colEmpresaLabel, 3, colEmpresaLabelFin);
+      for (let c = colEmpresaLabel; c <= colEmpresaLabelFin; c++) {
+        ws.getCell(3, c).fill = fillSolid(paleta.medio);
+        ws.getCell(3, c).border = borderThinGris();
+      }
+    }
     if (colEmpresaFin > colEmpresaVal) ws.mergeCells(3, colEmpresaVal, 3, colEmpresaFin);
     pintarValor(ws.getCell(3, colEmpresaVal), nombreEmpresa);
     for (let c = colEmpresaVal; c <= colEmpresaFin; c++) {
@@ -562,7 +617,7 @@
         const cC = row.getCell(3);
         const catKey = (t.categoria || '').toLowerCase().trim();
         const catColor = CATEGORIA_COLORES[catKey] || bandColor;
-        cC.value = t.categoria || '';
+        cC.value = etiquetaCategoria(t);
         cC.font = { name: FUENTE_EXCEL, size: 10, bold: !!CATEGORIA_COLORES[catKey] };
         cC.fill = fillSolid(catColor);
         cC.alignment = { horizontal: 'left', vertical: 'middle' };
@@ -576,7 +631,7 @@
           const cell = row.getCell(col);
           cell.value = v ? v : null;
           cell.numFmt = '0.00;-0.00;';
-          cell.font = { name: FUENTE_EXCEL, size: 9 };
+          cell.font = { name: FUENTE_EXCEL, size: 8 };
           cell.fill = fillSolid(ajuste ? COLOR_AJUSTE : autocierre ? COLOR_ALERTA : dasFinde.has(d) ? COLOR_FINDE : bandColor);
           cell.alignment = { horizontal: 'center', vertical: 'middle' };
           cell.border = borderThinGris();
@@ -733,6 +788,102 @@
       rowIndex++;
     }
 
+    // ===== RESUMEN POR CATEGORÍA =====
+    // Va DEBAJO de TOTALES, no a la derecha: con 31 columnas de día, todo lo
+    // que se ponga a la derecha de la columna € se sale del papel.
+    // Las cifras son FÓRMULAS (SUMIF/COUNTIF) sobre las filas de arriba: si
+    // alguien corrige una categoría en la hoja, el resumen se recalcula solo.
+    if (trabajadores.length > 0) {
+      rowIndex += 1;
+
+      const catsOrdenadas = [...new Set(trabajadores.map(etiquetaCategoria).filter(Boolean))]
+        .map(etq => ({
+          etq,
+          horas: trabajadores
+            .filter(t => etiquetaCategoria(t) === etq)
+            .reduce((suma, t) => suma + Object.values(t.dias || {}).reduce((a, b) => a + (b || 0), 0), 0)
+        }))
+        .sort((a, b) => b.horas - a.horas || a.etq.localeCompare(b.etq, 'es'));
+
+      const colResPersonas = 2;
+      const colResHoras    = 3;
+      const colResImporteI = 4;
+      const colResImporteF = Math.min(totalCols, 8);
+      const refCats  = `$${letraExcel(3)}$${filaInicio}:$${letraExcel(3)}$${filaFin}`;
+      const refHoras = `$${letraExcel(colHoras)}$${filaInicio}:$${letraExcel(colHoras)}$${filaFin}`;
+      const refTotal = `$${letraExcel(colTotal)}$${filaInicio}:$${letraExcel(colTotal)}$${filaFin}`;
+
+      // Cabecera del bloque
+      ws.getRow(rowIndex).height = 22;
+      ws.mergeCells(rowIndex, 1, rowIndex, 1);
+      const cRT = ws.getCell(rowIndex, 1);
+      cRT.value = 'RESUMEN POR CATEGORÍA';
+      cRT.font = { name: FUENTE_EXCEL, bold: true, size: 10, color: { argb: COLOR_BLANCO } };
+      cRT.fill = fillSolid(paleta.oscuro);
+      cRT.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+      cRT.border = borderThinGris();
+
+      const cabeceras = [
+        [colResPersonas, colResPersonas, 'PERSONAS'],
+        [colResHoras,    colResHoras,    'HORAS'],
+        [colResImporteI, colResImporteF, 'IMPORTE']
+      ];
+      cabeceras.forEach(([ini, fin, texto]) => {
+        if (fin > ini) ws.mergeCells(rowIndex, ini, rowIndex, fin);
+        const c = ws.getCell(rowIndex, ini);
+        c.value = texto;
+        c.font = { name: FUENTE_EXCEL, bold: true, size: 9, color: { argb: COLOR_BLANCO } };
+        c.alignment = { horizontal: 'center', vertical: 'middle' };
+        for (let x = ini; x <= fin; x++) {
+          ws.getCell(rowIndex, x).fill = fillSolid(paleta.oscuro);
+          ws.getCell(rowIndex, x).border = borderThinGris();
+        }
+      });
+      rowIndex++;
+
+      catsOrdenadas.forEach(({ etq }) => {
+        // Las comillas dentro de un criterio de fórmula se escriben dobladas.
+        const criterio = '"' + etq.replace(/"/g, '""') + '"';
+        const colorCat = CATEGORIA_COLORES[(etq || '').toLowerCase()] || COLOR_BLANCO;
+        ws.getRow(rowIndex).height = 20;
+
+        const cE = ws.getCell(rowIndex, 1);
+        cE.value = etq;
+        cE.font = { name: FUENTE_EXCEL, bold: true, size: 10 };
+        cE.fill = fillSolid(colorCat);
+        cE.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+        cE.border = borderThinGris();
+
+        const cN = ws.getCell(rowIndex, colResPersonas);
+        cN.value = { formula: `COUNTIF(${refCats},${criterio})` };
+        cN.numFmt = '0';
+        cN.font = { name: FUENTE_EXCEL, size: 10 };
+        cN.fill = fillSolid(COLOR_TOTAL);
+        cN.alignment = { horizontal: 'center', vertical: 'middle' };
+        cN.border = borderThinGris();
+
+        const cHo = ws.getCell(rowIndex, colResHoras);
+        cHo.value = { formula: `SUMIF(${refCats},${criterio},${refHoras})` };
+        cHo.numFmt = '0.00';
+        cHo.font = { name: FUENTE_EXCEL, bold: true, size: 10 };
+        cHo.fill = fillSolid(COLOR_TOTAL);
+        cHo.alignment = { horizontal: 'center', vertical: 'middle' };
+        cHo.border = borderThinGris();
+
+        if (colResImporteF > colResImporteI) ws.mergeCells(rowIndex, colResImporteI, rowIndex, colResImporteF);
+        const cIm = ws.getCell(rowIndex, colResImporteI);
+        cIm.value = { formula: `SUMIF(${refCats},${criterio},${refTotal})` };
+        cIm.numFmt = '#,##0.00 €;-#,##0.00 €;-';
+        cIm.font = { name: FUENTE_EXCEL, bold: true, size: 10 };
+        cIm.alignment = { horizontal: 'center', vertical: 'middle' };
+        for (let x = colResImporteI; x <= colResImporteF; x++) {
+          ws.getCell(rowIndex, x).fill = fillSolid(COLOR_TOTAL);
+          ws.getCell(rowIndex, x).border = borderThinGris();
+        }
+        rowIndex++;
+      });
+    }
+
     rowIndex += 1;
 
     // ===== TEXTO LEGAL =====
@@ -865,12 +1016,14 @@
     const cols = [
       { width: 30 },
       { width: 13 },
-      { width: 14 },
+      { width: 16 },   // 14 era corto: "DENOMINACIÓN" en negrita no cabía
     ];
-    for (let d = 1; d <= diasMes; d++) cols.push({ width: 4 });
+    // 4 era corto: "7,75" salía como ##### . La hoja se imprime con
+    // fitToWidth: 1, así que ensanchar no rompe el papel.
+    for (let d = 1; d <= diasMes; d++) cols.push({ width: 5.4 });
     cols.push({ width: 13 });
     cols.push({ width: 14 });
-    cols.push({ width: 14 });
+    cols.push({ width: 17 });   // aquí cae "AGOSTO DE 2026"
     return cols;
   }
 
