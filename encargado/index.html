@@ -619,7 +619,8 @@
     <div class="msg-modal ok" id="msg-manual-ok"></div>
     <div class="campo">
       <label>Trabajador</label>
-      <select id="manual-trabajador"><option value="">Cargando trabajadores…</option></select>
+      <input type="text" id="manual-buscar" placeholder="Buscar por nombre, apellido o DNI…" autocomplete="off" style="margin-bottom:0.4rem;">
+      <select id="manual-trabajador"><option value="">Selecciona trabajador…</option></select>
     </div>
     <div class="campo">
       <label>Tipo de fichaje</label>
@@ -2488,23 +2489,37 @@
     document.getElementById('manual-tipo').value = 'entrada';
     document.getElementById('manual-motivo').value = '';
     document.getElementById('btn-guardar-manual').disabled = false;
+    document.getElementById('manual-buscar').value = '';
     rellenarSelectTrabajadoresManual();
     document.getElementById('modal-manual').classList.add('visible');
   });
 
-  function rellenarSelectTrabajadoresManual() {
+  function rellenarSelectTrabajadoresManual(filtro) {
     const select = document.getElementById('manual-trabajador');
+    const q = (filtro || '').toLowerCase().trim();
+    const lista = q
+      ? trabajadoresObra.filter(t => {
+          const haystack = `${t.apellidos} ${t.nombre} ${t.dni}`.toLowerCase();
+          return haystack.includes(q);
+        })
+      : trabajadoresObra;
     select.innerHTML = '<option value="">Selecciona trabajador…</option>';
-    trabajadoresObra.forEach(t => {
+    lista.forEach(t => {
       const opt = document.createElement('option');
       opt.value = t.id;
       opt.textContent = `${t.apellidos ? t.apellidos + ', ' : ''}${t.nombre} — ${t.dni} (${t.estado})`;
       select.appendChild(opt);
     });
-    if (trabajadoresObra.length === 0) {
+    if (lista.length === 0 && q) {
+      select.innerHTML = '<option value="">Sin resultados para «' + q + '»</option>';
+    } else if (trabajadoresObra.length === 0) {
       select.innerHTML = '<option value="">No hay trabajadores asociados a esta obra</option>';
     }
   }
+
+  document.getElementById('manual-buscar').addEventListener('input', function() {
+    rellenarSelectTrabajadoresManual(this.value);
+  });
 
   document.getElementById('btn-cancelar-manual').addEventListener('click', () => {
     document.getElementById('modal-manual').classList.remove('visible');
