@@ -171,7 +171,10 @@
           <option value="gruista">Gruista</option>
           <option value="electricista">Electricista</option>
           <option value="restaurador">Restaurador</option>
+          <option value="otra">Otra…</option>
         </select>
+        <input type="text" id="f-categoria-otra" placeholder="Escribe la categoría"
+               maxlength="40" style="display:none;margin-top:6px;">
       </div>
       <div class="campo">
         <label>Precio hora</label>
@@ -250,7 +253,7 @@ async function cargarTrabajadores() {
   const { data, error } = await sb
     .from('trabajadores')
     .select(`
-      id, nombre, apellidos, dni, telefono, activo, categoria, precio_hora_personalizado,
+      id, nombre, apellidos, dni, telefono, activo, categoria, categoria_otra, precio_hora_personalizado,
       empresa:empresa_id(id, nombre),
       validaciones_obra ( estado, obra:obra_id ( id, nombre ) )
     `)
@@ -426,7 +429,7 @@ function renderTabla(data) {
           <td><strong>${esc(t.nombre)} ${esc(t.apellidos)}</strong>${iconosHtml}</td>
           <td>${esc(t.dni)}</td>
           <td>${esc(t.telefono || '—')}</td>
-          <td>${esc(t.categoria || '—')}</td>
+          <td>${esc(t.categoria === 'otra' ? (t.categoria_otra || 'Otra') : (t.categoria || '—'))}</td>
           <td>${formatearPrecio(t.precio_hora_personalizado)}</td>
           <td><span class="pill ${estadoGeneral}">${estadoGeneral}</span></td>
           <td>${obras}</td>
@@ -484,6 +487,8 @@ document.getElementById('btn-nuevo').onclick = () => {
   document.getElementById('f-dni').value = '';
   document.getElementById('f-telefono').value = '';
   document.getElementById('f-categoria').value = 'peon';
+  document.getElementById('f-categoria-otra').value = '';
+  sincronizarCategoriaOtra();
   document.getElementById('f-precio-hora').value = '';
   document.getElementById('f-activo').value = 'true';
   ocultarError();
@@ -502,11 +507,21 @@ function abrirEditarPorId(id) {
   const selCat = document.getElementById('f-categoria');
   selCat.value = t.categoria || 'peon';
   if (selCat.selectedIndex === -1) selCat.value = 'peon';
+  document.getElementById('f-categoria-otra').value = t.categoria_otra || '';
+  sincronizarCategoriaOtra();
   document.getElementById('f-precio-hora').value = t.precio_hora_personalizado ?? '';
   document.getElementById('f-activo').value = String(t.activo);
   ocultarError();
   document.getElementById('modal-trabajador').classList.add('visible');
 }
+
+// El campo de texto libre solo se ve (y solo se guarda) con la opción "Otra…".
+function sincronizarCategoriaOtra() {
+  const sel = document.getElementById('f-categoria');
+  const txt = document.getElementById('f-categoria-otra');
+  txt.style.display = (sel.value === 'otra') ? 'block' : 'none';
+}
+document.getElementById('f-categoria').addEventListener('change', sincronizarCategoriaOtra);
 
 document.getElementById('btn-cancelar').onclick = () => {
   document.getElementById('modal-trabajador').classList.remove('visible');
@@ -518,11 +533,16 @@ document.getElementById('btn-guardar').onclick = async () => {
   const dni = document.getElementById('f-dni').value.trim().toUpperCase();
   const telefono = document.getElementById('f-telefono').value.trim();
   const categoria = document.getElementById('f-categoria').value.trim();
+  const categoriaOtra = document.getElementById('f-categoria-otra').value.trim();
   const precioHoraRaw = document.getElementById('f-precio-hora').value.trim().replace(',', '.');
   const activo = document.getElementById('f-activo').value === 'true';
 
   if (!nombre) { mostrarError('El nombre es obligatorio.'); return; }
   if (!dni) { mostrarError('El DNI es obligatorio.'); return; }
+  if (categoria === 'otra' && !categoriaOtra) {
+    mostrarError('Has elegido «Otra…»: escribe el nombre de la categoría.');
+    return;
+  }
 
   let precio_hora_personalizado = null;
   if (precioHoraRaw !== '') {
@@ -537,6 +557,7 @@ document.getElementById('btn-guardar').onclick = async () => {
     nombre, apellidos, dni, activo,
     telefono: telefono || null,
     categoria: categoria || null,
+    categoria_otra: categoria === 'otra' ? categoriaOtra : null,
     precio_hora_personalizado
   };
 
