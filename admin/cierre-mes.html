@@ -196,9 +196,9 @@ async function traerFichajesMes(obraId, mes, bloqueos) {
   }
 
   const SELECT_COMPLETO = `id, tipo, hora, cierre_automatico, es_manual, trabajador_id,
-      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado, empresa:empresa_id(nombre))`;
+      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, categoria_otra, precio_hora_personalizado, empresa:empresa_id(nombre))`;
   const SELECT_FALLBACK = `id, tipo, hora, cierre_automatico, es_manual, trabajador_id,
-      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado)`;
+      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, categoria_otra, precio_hora_personalizado)`;
 
   const consulta = (campos) => () => sb.from('fichajes')
     .select(campos)
