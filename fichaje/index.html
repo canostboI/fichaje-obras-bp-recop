@@ -392,7 +392,7 @@
 
   .selector-idioma {
     display: flex;
-    flex-wrap: wrap;          /* con seis idiomas no cabe una sola fila */
+    flex-wrap: wrap;          /* con siete idiomas no cabe una sola fila */
     justify-content: center;
     gap: 8px 10px;
     margin-top: 14px;
@@ -611,7 +611,11 @@ const IDIOMAS = [
   { cod: 'ro', bandera: '🇷🇴', titulo: 'Română',  rtl: false },
   { cod: 'ar', bandera: '🇲🇦', titulo: 'عربي',    rtl: true  },
   { cod: 'ur', bandera: '🇵🇰', titulo: 'اردو',    rtl: true  },
-  { cod: 'pa', bandera: '🇮🇳', titulo: 'ਪੰਜਾਬੀ',  rtl: false }
+  { cod: 'pa', bandera: '🇮🇳', titulo: 'ਪੰਜਾਬੀ',  rtl: false },
+  // El inglés rompe a propósito la regla de "bandera del país": no hay una
+  // nacionalidad detrás, es la lengua puente para quien no domina ninguna
+  // de las otras seis. Por eso 🇬🇧 y no la bandera de ningún país de obra.
+  { cod: 'en', bandera: '🇬🇧', titulo: 'English', rtl: false }
 ];
 const IDIOMAS_RTL = IDIOMAS.filter(i => i.rtl).map(i => i.cod);
 
@@ -1250,6 +1254,109 @@ const TEXTOS = {
         '<strong>ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼</strong> ਦਬਾਓ।'
       ],
       generico_nota:     null
+    }
+  },
+
+  // Inglés — añadido el 28/8/2026. Lengua puente, no de un país concreto.
+  en: {
+    titulo:              'Site clock-in',
+    cargando:            'Loading…',
+    obra_sin_especificar:'(site not specified)',
+    error_qr:            'Invalid site code. Please scan the QR code again.',
+    label_dni:           'ID number (DNI or NIE)',
+    placeholder_dni:     '00000000X',
+    dni_guardado:        'ID saved on this phone:',
+    borrar:              'Delete',
+    recordar_dni:        'Remember my ID on this phone',
+    recordar_ayuda:      'Only use this if the phone is yours or you use it regularly.',
+    continuar:           'Continue',
+    nuevo_fichaje:       'New clock-in',
+    obteniendo_ubic:     'Getting your location…',
+    validando:           'Checking access…',
+    registrando:         'Recording clock-in…',
+    acceso_ok:           '✓ Access granted',
+    acceso_aviso:        '⚠ Access granted with a warning',
+    acceso_excepcion:    'Access granted as an exception, today only',
+    acceso_denegado:     '✗ Access denied',
+    motivos_bloqueo:     'Reasons for the block:',
+    avisos:              'Warnings:',
+    aviso_generico_docs: 'Some paperwork is missing. Speak to your supervisor.',
+    bloqueo_generico:    'Speak to your supervisor for more information.',
+    entrar:              'Clock in',
+    salir:               'Clock out',
+    alt_entrar:          'Actually, I am clocking in',
+    alt_salir:           'Actually, I am clocking out',
+    volver:              'Back',
+    entrada_ok:          'Clock-in recorded',
+    salida_ok:           'Clock-out recorded',
+    olvido_l1:           '⚠ Last time you did not clock out',
+    olvido_l2:           'You may not be paid for all the hours you worked.',
+    olvido_l3:           'Your last shift had to be closed by the system.',
+    olvido_l4a:          'Speak to your supervisor',
+    olvido_l4b:          'and always clock out before you leave.',
+    pie:                 'Access control',
+    dni_invalido:        'Please enter a valid ID number (DNI or NIE).',
+    dni_letra_mal:       'The letter does not match the numbers. Please check your ID.',
+    dni_no_encontrado:   'ID not found. Please check the numbers and the letter.',
+    sr_titulo:           '✗ You are not in the system',
+    sr_intro:            'We cannot find you with that ID. Please check the numbers and the letter. If the ID is correct and you are on site, leave your name and company so it is on record and we can notify the supervisor.',
+    sr_label_nombre:     'Full name',
+    sr_label_empresa:    'Company',
+    sr_placeholder_nombre: 'Full name',
+    sr_placeholder_empresa: 'Your company name',
+    sr_registrar:        'Register my presence',
+    sr_registrado_titulo:'Presence recorded',
+    sr_registrado_texto: 'We have recorded it and will notify the supervisor. You cannot start work until your paperwork is in order.',
+    sr_error:            'Could not register. Please try again.',
+    sr_fuera_zona:       'You are outside the site area. Move closer to the entrance and try again.',
+    sr_sin_gps:          'We could not get your location. Go back and allow GPS access.',
+    sin_conexion:        'No internet connection. Please check your WiFi or mobile data.',
+    fallo_red:           'Could not reach the server. Please check your connection and try again.',
+    timeout_red:         'The connection took too long. Please try again.',
+    error_generico:      'The operation could not be completed. Please try again.',
+    fichaje_rechazado:   'The clock-in could not be recorded.',
+    err_dni_vacio:             'Please enter your ID number.',
+    err_dni_no_encontrado:     'ID not found. Please check the numbers and the letter.',
+    err_trabajador_baja:       'This ID has been deactivated. Speak to your supervisor.',
+    err_obra_no_encontrada:    'Site not found. Please scan the QR code again.',
+    err_obra_inactiva:         'This site is not active. Speak to your supervisor.',
+    err_sin_ubicacion:         'Location not available. Turn on GPS and allow access to your location.',
+    err_fuera_de_zona:         'Outside the site area ({m} m away). Speak to your supervisor.',
+    err_acceso_denegado:       'Access denied.',
+    err_tipo_no_valido:        'The clock-in could not be recorded. Please try again.',
+    err_sin_entrada_abierta:   'You have no open clock-in today at this site, so you cannot clock out.',
+    err_ya_hay_entrada_abierta:'You already have an open clock-in at this site. Clock out first.',
+    err_jornada_abierta_otra_obra: 'You have an open shift at another site. You must clock out there before clocking in here.',
+    reintentar:          'Try again',
+    gps: {
+      denegado_titulo: '⚠ We do not have access to your location',
+      denegado_pasos:  [
+        'Tap the padlock 🔒 (or ⓘ) next to the web address at the top.',
+        'Open "Permissions" or "Site settings".',
+        'Under "Location", choose <strong>Allow</strong>.',
+        'Come back here and tap <strong>Try again</strong>.'
+      ],
+      denegado_nota:   'If you cannot find the padlock, close the tab and scan the QR code again.',
+      nodispo_titulo:  '⚠ Could not get your location',
+      nodispo_pasos:   [
+        'Check that <strong>GPS</strong> is turned on on your phone.',
+        'Go to phone Settings → <strong>Location</strong> → turn it on.',
+        'Step outside if you are indoors (GPS does not reach well).',
+        'Tap <strong>Try again</strong>.'
+      ],
+      nodispo_nota:    null,
+      timeout_titulo:  '⚠ GPS took too long',
+      timeout_pasos:   [
+        'Check that you have signal and GPS is turned on.',
+        'Wait a few seconds and tap <strong>Try again</strong>.'
+      ],
+      timeout_nota:    'If you are inside a building, step outside.',
+      generico_titulo: '⚠ Location error',
+      generico_pasos:  [
+        'Check that GPS and your browser permissions are turned on.',
+        'Tap <strong>Try again</strong>.'
+      ],
+      generico_nota:   null
     }
   }
 };
