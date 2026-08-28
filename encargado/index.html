@@ -617,10 +617,11 @@
     <div class="sub">Registra una entrada o salida manual en la obra actual.</div>
     <div class="msg-modal err" id="msg-manual-err"></div>
     <div class="msg-modal ok" id="msg-manual-ok"></div>
-    <div class="campo">
+    <div class="campo" style="position:relative">
       <label>Trabajador</label>
-      <input type="text" id="manual-buscar" placeholder="Buscar por nombre, apellido o DNI…" autocomplete="off" style="margin-bottom:0.4rem;">
-      <select id="manual-trabajador"><option value="">Selecciona trabajador…</option></select>
+      <input type="text" id="manual-buscar" placeholder="Buscar por nombre, apellido o DNI…" autocomplete="off">
+      <div id="manual-sugerencias" style="display:none;position:absolute;left:0;right:0;background:#fff;border:1px solid #ccc;border-radius:6px;max-height:200px;overflow-y:auto;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+      <input type="hidden" id="manual-trabajador" value="">
     </div>
     <div class="campo">
       <label>Tipo de fichaje</label>
@@ -2490,36 +2491,58 @@
     document.getElementById('manual-motivo').value = '';
     document.getElementById('btn-guardar-manual').disabled = false;
     document.getElementById('manual-buscar').value = '';
-    rellenarSelectTrabajadoresManual();
+    document.getElementById('manual-trabajador').value = '';
+    document.getElementById('manual-sugerencias').style.display = 'none';
     document.getElementById('modal-manual').classList.add('visible');
   });
 
-  function rellenarSelectTrabajadoresManual(filtro) {
-    const select = document.getElementById('manual-trabajador');
-    const q = (filtro || '').toLowerCase().trim();
-    const lista = q
-      ? trabajadoresObra.filter(t => {
-          const haystack = `${t.apellidos} ${t.nombre} ${t.dni}`.toLowerCase();
-          return haystack.includes(q);
-        })
-      : trabajadoresObra;
-    select.innerHTML = '<option value="">Selecciona trabajador…</option>';
-    lista.forEach(t => {
-      const opt = document.createElement('option');
-      opt.value = t.id;
-      opt.textContent = `${t.apellidos ? t.apellidos + ', ' : ''}${t.nombre} — ${t.dni} (${t.estado})`;
-      select.appendChild(opt);
-    });
-    if (lista.length === 0 && q) {
-      select.innerHTML = '<option value="">Sin resultados para «' + q + '»</option>';
-    } else if (trabajadoresObra.length === 0) {
-      select.innerHTML = '<option value="">No hay trabajadores asociados a esta obra</option>';
-    }
-  }
+  function rellenarSelectTrabajadoresManual() { /* no-op, compatibilidad */ }
 
-  document.getElementById('manual-buscar').addEventListener('input', function() {
-    rellenarSelectTrabajadoresManual(this.value);
-  });
+  (function() {
+    const inputBuscar  = document.getElementById('manual-buscar');
+    const inputHidden  = document.getElementById('manual-trabajador');
+    const divSug       = document.getElementById('manual-sugerencias');
+
+    function mostrarSugerencias(q) {
+      const filtro = (q || '').toLowerCase().trim();
+      const lista = filtro
+        ? trabajadoresObra.filter(t =>
+            `${t.apellidos} ${t.nombre} ${t.dni}`.toLowerCase().includes(filtro))
+        : trabajadoresObra;
+
+      divSug.innerHTML = '';
+      if (lista.length === 0) {
+        const vacio = document.createElement('div');
+        vacio.textContent = filtro ? 'Sin resultados' : 'No hay trabajadores en esta obra';
+        vacio.style.cssText = 'padding:10px 14px;color:#888;font-size:.9rem';
+        divSug.appendChild(vacio);
+      } else {
+        lista.forEach(t => {
+          const item = document.createElement('div');
+          item.textContent = `${t.apellidos ? t.apellidos + ', ' : ''}${t.nombre} — ${t.dni}`;
+          item.style.cssText = 'padding:10px 14px;cursor:pointer;font-size:.92rem;border-bottom:1px solid #f0f0f0';
+          item.addEventListener('mousedown', () => {
+            inputHidden.value = t.id;
+            inputBuscar.value = `${t.apellidos ? t.apellidos + ', ' : ''}${t.nombre}`;
+            divSug.style.display = 'none';
+          });
+          item.addEventListener('mouseover', () => { item.style.background = '#f5f5f5'; });
+          item.addEventListener('mouseout',  () => { item.style.background = ''; });
+          divSug.appendChild(item);
+        });
+      }
+      divSug.style.display = 'block';
+    }
+
+    inputBuscar.addEventListener('focus', () => mostrarSugerencias(inputBuscar.value));
+    inputBuscar.addEventListener('input', () => {
+      inputHidden.value = '';
+      mostrarSugerencias(inputBuscar.value);
+    });
+    inputBuscar.addEventListener('blur', () => {
+      setTimeout(() => { divSug.style.display = 'none'; }, 150);
+    });
+  })();
 
   document.getElementById('btn-cancelar-manual').addEventListener('click', () => {
     document.getElementById('modal-manual').classList.remove('visible');
