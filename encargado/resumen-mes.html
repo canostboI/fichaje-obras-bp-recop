@@ -511,9 +511,9 @@
     }
 
     const SELECT_COMPLETO = `id, tipo, hora, cierre_automatico, es_manual, corregido_por, motivo_correccion, trabajador_id,
-        trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, empresa:empresa_id(nombre))`;
+        trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, categoria_otra, empresa:empresa_id(nombre))`;
     const SELECT_FALLBACK = `id, tipo, hora, cierre_automatico, es_manual, corregido_por, motivo_correccion, trabajador_id,
-        trabajador:trabajador_id(id, nombre, apellidos, dni, categoria)`;
+        trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, categoria_otra)`;
 
     // El orden es OBLIGATORIO para paginar: sin él, las tandas pueden
     // duplicar filas y perder otras.
