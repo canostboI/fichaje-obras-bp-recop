@@ -12,6 +12,17 @@
 <script src="../js/fechas.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="../js/excel-proforma.js"></script>
+<script>
+// Cómo se escribe una categoría en pantalla. Con "otra" manda el texto libre.
+// El motor del proforma tiene la suya; esta es solo para la lista de esta página.
+function etiquetaCat(t) {
+  const ETQ = { peon:'Peón', oficial:'Oficial', encargado:'Encargado',
+                gruista:'Gruista', electricista:'Electricista', restaurador:'Restaurador' };
+  const clave = String((t && t.categoria) || '').toLowerCase().trim();
+  if (clave === 'otra') return String((t && t.categoria_otra) || '').trim() || 'Otra';
+  return ETQ[clave] || ((t && t.categoria) || '');
+}
+</script>
 <script src="../js/listado-dia.js"></script>
 <style>
   :root {
@@ -724,9 +735,9 @@ async function obtenerFichajesMes(obraId, mes) {
   }
 
   const SELECT_COMPLETO = `id, tipo, hora, cierre_automatico, es_manual, corregido_por, motivo_correccion, confirmado_por, trabajador_id,
-      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado, empresa:empresa_id(nombre))`;
+      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, categoria_otra, precio_hora_personalizado, empresa:empresa_id(nombre))`;
   const SELECT_FALLBACK = `id, tipo, hora, cierre_automatico, es_manual, corregido_por, motivo_correccion, confirmado_por, trabajador_id,
-      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, precio_hora_personalizado)`;
+      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, categoria_otra, precio_hora_personalizado)`;
 
   // El orden es OBLIGATORIO para paginar: sin él, las tandas pueden
   // duplicar filas y perder otras.
@@ -2114,7 +2125,7 @@ function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
     filas += `<tr>
       <td class="col-nombre">
         <div class="nombre">${escapeHtml(t.nombre)}</div>
-        <div class="sub">${escapeHtml(t.dni || '')}${t.categoria ? ' · ' + escapeHtml(t.categoria) : ''}</div>
+        <div class="sub">${escapeHtml(t.dni || '')}${etiquetaCat(t) ? ' · ' + escapeHtml(etiquetaCat(t)) : ''}</div>
       </td>
       ${celdas}
       <td class="col-total">${formatHoras(t.horas_mes)}</td>
