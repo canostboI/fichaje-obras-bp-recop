@@ -263,41 +263,33 @@
 
   .aviso-olvido {
     background: #fdecea;
-    border: 2px solid var(--rojo);
+    border: 3px solid var(--rojo);
     color: var(--rojo);
-    padding: 14px 16px;
-    margin: 14px 0 0;
-    border-radius: 6px;
+    padding: 16px;
+    margin: 16px 0 0;
+    border-radius: 8px;
     font-size: 15px;
-    font-weight: 600;
-    line-height: 1.4;
+    line-height: 1.45;
     text-align: left;
   }
-
-  .aviso-autocierre {
-    background: #fff4e6;
-    border: 2px solid var(--naranja);
-    border-radius: 10px;
-    padding: 16px;
-    margin: 14px 0;
-    font-size: 15px;
-    line-height: 1.5;
-  }
-  .aviso-autocierre .aviso-titulo {
-    display: block;
-    font-weight: 700;
-    font-size: 16px;
+  .aviso-olvido span { display: block; }
+  .aviso-olvido .olvido-l1 {
+    font-weight: 800;
+    font-size: 17px;
     margin-bottom: 8px;
-    color: var(--naranja);
   }
-  .aviso-autocierre p {
-    margin: 6px 0;
-    color: #555;
+  .aviso-olvido .olvido-l2 {
+    font-weight: 800;
+    margin-bottom: 10px;
   }
-  .aviso-autocierre .aviso-alerta {
-    font-weight: 700;
-    color: var(--rojo);
+  .aviso-olvido .olvido-l3,
+  .aviso-olvido .olvido-l4 {
+    font-weight: 500;
+    color: #7a2018;
+    margin-bottom: 4px;
   }
+  .aviso-olvido .olvido-l4 strong { color: var(--rojo); }
+
 
   .confirmacion-final {
     text-align: center;
@@ -429,7 +421,7 @@
   }
   html[dir="rtl"] .motivos.criticos { border-right-color: var(--rojo); }
   html[dir="rtl"] .aviso-gps        { text-align: right; }
-  html[dir="rtl"] .aviso-autocierre { text-align: right; }
+  html[dir="rtl"] .aviso-olvido     { text-align: right; }
   html[dir="rtl"] .ultimo-dni .btn-borrar-dni {
     margin-left: 0;
     margin-right: 8px;
@@ -490,7 +482,6 @@
 
   <div class="tarjeta oculto" id="paso-resultado">
     <div class="estado-box" id="estado-box"></div>
-    <div class="aviso-autocierre oculto" id="aviso-autocierre-box"></div>
     <div class="motivos oculto" id="motivos-box"></div>
     <div class="error-banner oculto" id="error-resultado"></div>
     <div class="botones-fichaje" id="botones-fichaje">
@@ -568,7 +559,6 @@ const el = {
   chkRecordarDni:     document.getElementById('chk-recordar-dni'),
   errorDni:           document.getElementById('error-dni'),
   avisoGps:           document.getElementById('aviso-gps'),
-  avisoAutocierreBox: document.getElementById('aviso-autocierre-box'),
   errorResultado:     document.getElementById('error-resultado'),
   cargandoTexto:      document.getElementById('cargando-texto'),
   estadoBox:          document.getElementById('estado-box'),
@@ -660,7 +650,11 @@ const TEXTOS = {
     volver:              'Volver',
     entrada_ok:          'Entrada registrada',
     salida_ok:           'Salida registrada',
-    olvido_salida:       'En tu última jornada olvidaste fichar la salida y el sistema tuvo que cerrarla automáticamente. El registro de entrada y salida es obligatorio y sirve para calcular bien tus horas. Ficha siempre la salida antes de irte. Los olvidos repetidos pueden dar lugar a medidas disciplinarias.',
+    olvido_l1:           '⚠ El último día no fichaste la salida',
+    olvido_l2:           'Puede que no se te paguen todas las horas que trabajaste.',
+    olvido_l3:           'Tu última jornada la tuvo que cerrar el sistema.',
+    olvido_l4a:          'Consulta con tu encargado',
+    olvido_l4b:          'y ficha siempre la salida antes de irte.',
     pie:                 'Control de acceso',
     dni_invalido:        'Introduzca un DNI o NIE válido.',
     dni_letra_mal:       'La letra no coincide con los números. Revise su DNI.',
@@ -703,10 +697,6 @@ const TEXTOS = {
     err_ya_hay_entrada_abierta:'Ya tienes una entrada abierta en esta obra. Ficha la salida primero.',
     err_jornada_abierta_otra_obra: 'Tienes una jornada abierta en otra obra. Debes fichar la salida allí antes de fichar aquí.',
     reintentar:          'Reintentar',
-    aviso_autocierre_titulo: '⚠ Atención: ayer no fichaste la salida',
-    aviso_autocierre_texto1: 'El sistema cerró tu jornada automáticamente a la hora de cierre de la obra.',
-    aviso_autocierre_texto2: 'Esa hora es la que cuenta en tu factura.',
-    aviso_autocierre_alerta: 'Si esa hora no es correcta, pierdes horas pagadas. Avisa al encargado para que lo corrija.',
     gps: {
       denegado_titulo: '⚠ No tenemos acceso a su ubicación',
       denegado_pasos:  [
@@ -771,7 +761,11 @@ const TEXTOS = {
     volver:              'Tornar',
     entrada_ok:          'Entrada registrada',
     salida_ok:           'Sortida registrada',
-    olvido_salida:       "En la vostra darrera jornada us vau oblidar de fitxar la sortida i el sistema la va haver de tancar automàticament. El registre d'entrada i sortida és obligatori i serveix per calcular bé les vostres hores. Fitxeu sempre la sortida abans d'anar-vos-en. Els oblits repetits poden donar lloc a mesures disciplinàries.",
+    olvido_l1:           '⚠ El darrer dia no vau fitxar la sortida',
+    olvido_l2:           'Pot ser que no us paguin totes les hores que vau treballar.',
+    olvido_l3:           'La vostra darrera jornada la va haver de tancar el sistema.',
+    olvido_l4a:          'Consulteu amb el vostre encarregat',
+    olvido_l4b:          'i fitxeu sempre la sortida abans d\'anar-vos-en.',
     pie:                 "Control d'accés",
     dni_invalido:        'Introduïu un DNI o NIE vàlid.',
     dni_letra_mal:       'La lletra no coincideix amb els números. Reviseu el vostre DNI.',
@@ -806,10 +800,6 @@ const TEXTOS = {
     err_ya_hay_entrada_abierta:'Ja tens una entrada oberta en aquesta obra. Fitxa primer la sortida.',
     err_jornada_abierta_otra_obra: 'Tens una jornada oberta en una altra obra. Has de fitxar la sortida allà abans de fitxar aquí.',
     reintentar:          'Tornar a provar',
-    aviso_autocierre_titulo: '⚠ Atenció: ahir no vau fitxar la sortida',
-    aviso_autocierre_texto1: "El sistema va tancar la vostra jornada automàticament a l'hora de tancament de l'obra.",
-    aviso_autocierre_texto2: 'Aquesta hora és la que compta a la vostra factura.',
-    aviso_autocierre_alerta: "Si aquesta hora no és correcta, perdeu hores pagades. Aviseu l'encarregat perquè ho corregeixi.",
     gps: {
       denegado_titulo:   '⚠ No tenim accés a la vostra ubicació',
       denegado_pasos:    [
@@ -873,7 +863,11 @@ const TEXTOS = {
     volver:              'رجوع',
     entrada_ok:          'تم تسجيل الدخول',
     salida_ok:           'تم تسجيل الخروج',
-    olvido_salida:       'في آخر يوم عمل نسيت تسجيل الخروج، فاضطر النظام إلى إغلاق يوم عملك تلقائيًا. تسجيل الدخول والخروج إلزامي ويُستخدم لحساب ساعات عملك بشكل صحيح. سجّل الخروج دائمًا قبل مغادرة الموقع. قد يؤدي تكرار النسيان إلى اتخاذ إجراءات تأديبية.',
+    olvido_l1:           '⚠ في آخر يوم لم تسجّل الخروج',
+    olvido_l2:           'قد لا تُدفع لك جميع الساعات التي عملتها.',
+    olvido_l3:           'اضطر النظام إلى إغلاق آخر يوم عمل لك.',
+    olvido_l4a:          'راجع المسؤول عنك',
+    olvido_l4b:          'وسجّل الخروج دائماً قبل مغادرة الموقع.',
     pie:                 'مراقبة الدخول',
     dni_invalido:        'يرجى إدخال رقم هوية صحيح.',
     dni_letra_mal:       'الحرف لا يتطابق مع الأرقام. يرجى مراجعة هويتك.',
@@ -908,10 +902,6 @@ const TEXTOS = {
     err_ya_hay_entrada_abierta:'لديك دخول مفتوح في هذه الورشة. سجّل الخروج أولاً.',
     err_jornada_abierta_otra_obra: 'لديك يوم عمل مفتوح في ورشة أخرى. عليك تسجيل الخروج هناك قبل التسجيل هنا.',
     reintentar:          'إعادة المحاولة',
-    aviso_autocierre_titulo: '⚠ تنبيه: لم تسجّل خروجك أمس',
-    aviso_autocierre_texto1: 'أغلق النظام وردة عملك تلقائياً في وقت إغلاق الموقع.',
-    aviso_autocierre_texto2: 'هذا هو الوقت الذي يُحتسب في فاتورتك.',
-    aviso_autocierre_alerta: 'إذا كان الوقت غير صحيح، ستخسر ساعات مدفوعة. أخبر المسؤول ليصحح ذلك.',
     gps: {
       denegado_titulo: '⚠ لا يمكننا الوصول إلى موقعك',
       denegado_pasos:  [
@@ -975,7 +965,11 @@ const TEXTOS = {
     volver:              'Înapoi',
     entrada_ok:          'Intrare înregistrată',
     salida_ok:           'Ieșire înregistrată',
-    olvido_salida:       'La ultima ta tură ai uitat să înregistrezi ieșirea, iar sistemul a fost nevoit să o închidă automat. Înregistrarea intrării și ieșirii este obligatorie și servește la calcularea corectă a orelor tale. Înregistrează întotdeauna ieșirea înainte de a pleca. Uitările repetate pot duce la măsuri disciplinare.',
+    olvido_l1:           '⚠ În ultima zi nu ai înregistrat ieșirea',
+    olvido_l2:           'Este posibil să nu ți se plătească toate orele lucrate.',
+    olvido_l3:           'Ultima ta tură a trebuit să fie închisă de sistem.',
+    olvido_l4a:          'Vorbește cu responsabilul tău',
+    olvido_l4b:          'și înregistrează întotdeauna ieșirea înainte de a pleca.',
     pie:                 'Control acces',
     dni_invalido:        'Introduceți un DNI sau NIE valid.',
     dni_letra_mal:       'Litera nu corespunde cu cifrele. Verificați DNI-ul.',
@@ -1010,10 +1004,6 @@ const TEXTOS = {
     err_ya_hay_entrada_abierta:'Ai deja o intrare deschisă pe acest șantier. Pontează mai întâi ieșirea.',
     err_jornada_abierta_otra_obra: 'Ai o zi de lucru deschisă pe alt șantier. Trebuie să pontezi ieșirea acolo înainte de a ponta aici.',
     reintentar:          'Reîncercați',
-    aviso_autocierre_titulo: '⚠ Atenție: ieri nu ai înregistrat ieșirea',
-    aviso_autocierre_texto1: 'Sistemul ți-a închis tura automat la ora de închidere a șantierului.',
-    aviso_autocierre_texto2: 'Aceasta este ora care se contabilizează în factura ta.',
-    aviso_autocierre_alerta: 'Dacă ora nu este corectă, pierzi ore plătite. Anunță responsabilul pentru a corecta.',
     gps: {
       denegado_titulo: '⚠ Nu avem acces la locația dvs.',
       denegado_pasos:  [
@@ -1084,7 +1074,11 @@ const TEXTOS = {
     volver:              'واپس',
     entrada_ok:          'داخلہ درج ہو گیا',
     salida_ok:           'اخراج درج ہو گیا',
-    olvido_salida:       'اپنے پچھلے کام کے دن آپ اخراج درج کرنا بھول گئے تھے، اس لیے نظام کو آپ کا دن خود بخود بند کرنا پڑا۔ داخلے اور اخراج کا اندراج لازمی ہے اور اسی سے آپ کے کام کے گھنٹے درست شمار ہوتے ہیں۔ سائٹ چھوڑنے سے پہلے ہمیشہ اخراج درج کریں۔ بار بار بھولنے پر تادیبی کارروائی ہو سکتی ہے۔',
+    olvido_l1:           '⚠ پچھلے دن آپ نے اخراج درج نہیں کیا',
+    olvido_l2:           'ہو سکتا ہے آپ کو کام کیے ہوئے تمام گھنٹوں کی اجرت نہ ملے۔',
+    olvido_l3:           'آپ کا پچھلا کام کا دن نظام کو بند کرنا پڑا۔',
+    olvido_l4a:          'اپنے انچارج سے رابطہ کریں',
+    olvido_l4b:          'اور جانے سے پہلے ہمیشہ اخراج درج کریں۔',
     pie:                 'داخلہ کنٹرول',
     dni_invalido:        'درست DNI یا NIE درج کریں۔',
     dni_letra_mal:       'حرف اعداد سے میل نہیں کھاتا۔ اپنا شناختی نمبر دوبارہ دیکھیں۔',
@@ -1119,10 +1113,6 @@ const TEXTOS = {
     err_ya_hay_entrada_abierta:'اس سائٹ پر آپ کا داخلہ پہلے سے درج ہے۔ پہلے اخراج درج کریں۔',
     err_jornada_abierta_otra_obra: 'دوسری سائٹ پر آپ کا دن ابھی کھلا ہے۔ یہاں داخلہ درج کرنے سے پہلے وہاں اخراج درج کریں۔',
     reintentar:          'دوبارہ کوشش',
-    aviso_autocierre_titulo: '⚠ توجہ: کل آپ نے اخراج درج نہیں کیا',
-    aviso_autocierre_texto1: 'نظام نے آپ کا دن سائٹ کے بند ہونے کے وقت پر خود بخود بند کر دیا۔',
-    aviso_autocierre_texto2: 'آپ کے بل میں یہی وقت شمار ہوتا ہے۔',
-    aviso_autocierre_alerta: 'اگر یہ وقت درست نہیں ہے تو آپ کے ادا شدہ گھنٹے کم ہو جائیں گے۔ درستی کے لیے انچارج کو اطلاع دیں۔',
     gps: {
       denegado_titulo:   '⚠ ہمیں آپ کے مقام تک رسائی نہیں ہے',
       denegado_pasos:    [
@@ -1192,7 +1182,11 @@ const TEXTOS = {
     volver:              'ਵਾਪਸ',
     entrada_ok:          'ਅੰਦਰ ਆਉਣਾ ਦਰਜ ਹੋ ਗਿਆ',
     salida_ok:           'ਬਾਹਰ ਜਾਣਾ ਦਰਜ ਹੋ ਗਿਆ',
-    olvido_salida:       'ਪਿਛਲੇ ਕੰਮ ਵਾਲੇ ਦਿਨ ਤੁਸੀਂ ਬਾਹਰ ਜਾਣ ਦੀ ਹਾਜ਼ਰੀ ਦਰਜ ਕਰਨੀ ਭੁੱਲ ਗਏ ਸੀ, ਇਸ ਲਈ ਸਿਸਟਮ ਨੂੰ ਤੁਹਾਡਾ ਦਿਨ ਆਪਣੇ ਆਪ ਬੰਦ ਕਰਨਾ ਪਿਆ। ਅੰਦਰ ਆਉਣ ਅਤੇ ਬਾਹਰ ਜਾਣ ਦੀ ਹਾਜ਼ਰੀ ਲਾਜ਼ਮੀ ਹੈ ਅਤੇ ਇਸੇ ਨਾਲ ਤੁਹਾਡੇ ਘੰਟੇ ਸਹੀ ਗਿਣੇ ਜਾਂਦੇ ਹਨ। ਸਾਈਟ ਛੱਡਣ ਤੋਂ ਪਹਿਲਾਂ ਹਮੇਸ਼ਾ ਬਾਹਰ ਜਾਣ ਦੀ ਹਾਜ਼ਰੀ ਦਰਜ ਕਰੋ। ਵਾਰ-ਵਾਰ ਭੁੱਲਣ ਤੇ ਅਨੁਸ਼ਾਸਨੀ ਕਾਰਵਾਈ ਹੋ ਸਕਦੀ ਹੈ।',
+    olvido_l1:           '⚠ ਪਿਛਲੇ ਦਿਨ ਤੁਸੀਂ ਬਾਹਰ ਜਾਣ ਦੀ ਹਾਜ਼ਰੀ ਨਹੀਂ ਲਗਾਈ',
+    olvido_l2:           'ਹੋ ਸਕਦਾ ਹੈ ਤੁਹਾਨੂੰ ਕੀਤੇ ਸਾਰੇ ਘੰਟਿਆਂ ਦੀ ਤਨਖਾਹ ਨਾ ਮਿਲੇ।',
+    olvido_l3:           'ਤੁਹਾਡਾ ਪਿਛਲਾ ਕੰਮ ਵਾਲਾ ਦਿਨ ਸਿਸਟਮ ਨੂੰ ਬੰਦ ਕਰਨਾ ਪਿਆ।',
+    olvido_l4a:          'ਆਪਣੇ ਇੰਚਾਰਜ ਨਾਲ ਗੱਲ ਕਰੋ',
+    olvido_l4b:          'ਅਤੇ ਜਾਣ ਤੋਂ ਪਹਿਲਾਂ ਹਮੇਸ਼ਾ ਬਾਹਰ ਜਾਣ ਦੀ ਹਾਜ਼ਰੀ ਦਰਜ ਕਰੋ।',
     pie:                 'ਦਾਖ਼ਲਾ ਕੰਟਰੋਲ',
     dni_invalido:        'ਸਹੀ DNI ਜਾਂ NIE ਭਰੋ।',
     dni_letra_mal:       'ਅੱਖਰ ਅੰਕਾਂ ਨਾਲ ਮੇਲ ਨਹੀਂ ਖਾਂਦਾ। ਆਪਣਾ ਪਛਾਣ ਨੰਬਰ ਦੁਬਾਰਾ ਵੇਖੋ।',
@@ -1227,10 +1221,6 @@ const TEXTOS = {
     err_ya_hay_entrada_abierta:'ਇਸ ਸਾਈਟ ਤੇ ਤੁਹਾਡਾ ਅੰਦਰ ਆਉਣਾ ਪਹਿਲਾਂ ਹੀ ਦਰਜ ਹੈ। ਪਹਿਲਾਂ ਬਾਹਰ ਜਾਣਾ ਦਰਜ ਕਰੋ।',
     err_jornada_abierta_otra_obra: 'ਹੋਰ ਸਾਈਟ ਤੇ ਤੁਹਾਡਾ ਦਿਨ ਹਾਲੇ ਖੁੱਲ੍ਹਾ ਹੈ। ਇੱਥੇ ਦਰਜ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ ਉੱਥੇ ਬਾਹਰ ਜਾਣਾ ਦਰਜ ਕਰੋ।',
     reintentar:          'ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼',
-    aviso_autocierre_titulo: '⚠ ਧਿਆਨ ਦਿਓ: ਕੱਲ੍ਹ ਤੁਸੀਂ ਬਾਹਰ ਜਾਣ ਦੀ ਹਾਜ਼ਰੀ ਨਹੀਂ ਲਗਾਈ',
-    aviso_autocierre_texto1: 'ਸਿਸਟਮ ਨੇ ਤੁਹਾਡਾ ਦਿਨ ਸਾਈਟ ਬੰਦ ਹੋਣ ਦੇ ਸਮੇਂ ਤੇ ਆਪਣੇ ਆਪ ਬੰਦ ਕਰ ਦਿੱਤਾ।',
-    aviso_autocierre_texto2: 'ਤੁਹਾਡੇ ਬਿੱਲ ਵਿੱਚ ਇਹੀ ਸਮਾਂ ਗਿਣਿਆ ਜਾਂਦਾ ਹੈ।',
-    aviso_autocierre_alerta: 'ਜੇ ਇਹ ਸਮਾਂ ਸਹੀ ਨਹੀਂ ਹੈ ਤਾਂ ਤੁਹਾਡੇ ਪੈਸੇ ਵਾਲੇ ਘੰਟੇ ਘਟ ਜਾਣਗੇ। ਠੀਕ ਕਰਵਾਉਣ ਲਈ ਇੰਚਾਰਜ ਨੂੰ ਦੱਸੋ।',
     gps: {
       denegado_titulo:   '⚠ ਸਾਨੂੰ ਤੁਹਾਡੇ ਟਿਕਾਣੇ ਤੱਕ ਪਹੁੰਚ ਨਹੀਂ ਹੈ',
       denegado_pasos:    [
@@ -1663,7 +1653,6 @@ function aplicarIdioma(lang, origen) {
     } else {
       pintarMotivos(el.motivosBox, [esCritico ? T('bloqueo_generico') : T('aviso_generico_docs')], esCritico);
     }
-    pintarAvisoAutocierre(v2.aviso_autocierre);
   }
 }
 
@@ -1959,21 +1948,6 @@ function pintarMotivos(contenedor, motivos, criticos) {
     motivos.map(m => '<li>' + escapar(traducirMotivo(m, idiomaActual)) + '</li>').join('') +
     '</ul>';
   contenedor.classList.remove('oculto');
-}
-
-function pintarAvisoAutocierre(aviso) {
-  // A-02: la RPC ahora devuelve solo true/false (sin hora)
-  if (aviso !== true) {
-    el.avisoAutocierreBox.classList.add('oculto');
-    el.avisoAutocierreBox.innerHTML = '';
-    return;
-  }
-  el.avisoAutocierreBox.innerHTML =
-    '<span class="aviso-titulo">' + escapar(T('aviso_autocierre_titulo')) + '</span>' +
-    '<p>' + escapar(T('aviso_autocierre_texto1')) + ' ' +
-    escapar(T('aviso_autocierre_texto2')) + '</p>' +
-    '<p class="aviso-alerta">' + escapar(T('aviso_autocierre_alerta')) + '</p>';
-  el.avisoAutocierreBox.classList.remove('oculto');
 }
 
 function escapar(txt) {
@@ -2318,21 +2292,18 @@ function mostrarResultadoValidacion(v) {
       el.estadoBox.classList.add('estado-verde');
       el.estadoBox.textContent = T('acceso_ok');
       pintarMotivos(el.motivosBox, null);
-      pintarAvisoAutocierre(v.aviso_autocierre);
       configurarBotonesFichaje('verde', tipoSugerido);
       break;
     case 'naranja':
       el.estadoBox.classList.add('estado-naranja');
       el.estadoBox.textContent = T('acceso_aviso');
       pintarMotivos(el.motivosBox, [T('aviso_generico_docs')], false);
-      pintarAvisoAutocierre(v.aviso_autocierre);
       configurarBotonesFichaje('naranja', tipoSugerido);
       break;
     case 'excepcion':
       el.estadoBox.classList.add('estado-naranja');
       el.estadoBox.textContent = T('acceso_excepcion');
       pintarMotivos(el.motivosBox, [T('aviso_generico_docs')], false);
-      pintarAvisoAutocierre(v.aviso_autocierre);
       configurarBotonesFichaje('naranja', tipoSugerido);
       break;
     case 'rojo':
@@ -2340,7 +2311,6 @@ function mostrarResultadoValidacion(v) {
       el.estadoBox.classList.add('estado-rojo');
       el.estadoBox.textContent = T('acceso_denegado');
       pintarMotivos(el.motivosBox, [T('bloqueo_generico')], true);
-      el.avisoAutocierreBox.classList.add('oculto');
       el.botonesFichaje.classList.add('oculto');
       el.btnEntrada.disabled = true;
       el.btnSalida.disabled  = true;
@@ -2416,9 +2386,15 @@ function mostrarConfirmacionFinal(r) {
   }
 
   if (r.aviso_olvido_salida) {
-    el.finalOlvido.textContent = T('olvido_salida');
+    el.finalOlvido.innerHTML =
+      '<span class="olvido-l1">' + escapar(T('olvido_l1')) + '</span>' +
+      '<span class="olvido-l2">' + escapar(T('olvido_l2')) + '</span>' +
+      '<span class="olvido-l3">' + escapar(T('olvido_l3')) + '</span>' +
+      '<span class="olvido-l4"><strong>' + escapar(T('olvido_l4a')) + '</strong> ' +
+      escapar(T('olvido_l4b')) + '</span>';
     el.finalOlvido.classList.remove('oculto');
   } else {
+    el.finalOlvido.innerHTML = '';
     el.finalOlvido.classList.add('oculto');
   }
 
