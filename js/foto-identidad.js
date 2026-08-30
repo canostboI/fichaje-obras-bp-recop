@@ -51,7 +51,10 @@
      FI.ver(trabajadorId)                    → Promise<{hay_foto, url}>
      FI.visor(url)                           → abre la foto a pantalla
      FI.montarCaptura(hueco, opts)           → botón + vista previa
-     FI.abrirAnadir(trabajadorId, obraId, cb)→ añadir/rehacer más tarde
+     FI.abrirAnadir(trabajadorId, obraId, cb, opts)
+                                             → añadir/rehacer más tarde
+                                               opts.tema: 'oscuro' para
+                                               la pantalla del jefe
    ============================================================ */
 
 (function () {
@@ -204,7 +207,15 @@
     + '.fi-caja .fi-btns{display:flex;gap:8px;margin-top:.9rem}'
     + '.fi-caja .fi-btns button{flex:1;padding:.55rem;border:0;border-radius:6px;'
     +   'font-family:inherit;font-size:.92rem;cursor:pointer}'
-    + '.fi-msg{font-size:.85rem;margin-top:.6rem;min-height:1.1em}';
+    + '.fi-msg{font-size:.85rem;margin-top:.6rem;min-height:1.1em}'
+    // La pantalla del jefe de obra es oscura y la del encargado clara. Un
+    // dialogo blanco sobre fondo negro se lee como un error del navegador,
+    // no como una parte de la app.
+    + '.fi-caja.fi-oscuro{background:#1a1d24;border:1px solid #2e3340}'
+    + '.fi-caja.fi-oscuro h3{color:#e8eaf0}'
+    + '.fi-caja.fi-oscuro p{color:#9aa3b2}'
+    + '.fi-oscuro .fi-btn{background:#22262f;color:#ccd2de;border-color:#2e3340}'
+    + '.fi-oscuro .fi-prev{border-color:#2e3340}';
     document.head.appendChild(s);
   }
 
@@ -271,13 +282,15 @@
   // momento de registrar a la persona, y si el encargado no la hacia
   // entonces no habia ninguna forma de anadirla. `alTerminar` se
   // llama solo cuando la foto ha quedado guardada de verdad.
-  function abrirAnadir(trabajadorId, obraId, alTerminar) {
+  function abrirAnadir(trabajadorId, obraId, alTerminar, opts) {
     estilos();
+    opts = opts || {};
+    var claseTema = (opts.tema === 'oscuro') ? ' fi-oscuro' : '';
 
     var fondo = document.createElement('div');
     fondo.className = 'fi-modal';
     fondo.innerHTML =
-        '<div class="fi-caja">'
+        '<div class="fi-caja' + claseTema + '">'
       + '<h3>Foto de la cara</h3>'
       + '<p>Sirve para saber quién entró. Enséñale a la persona para qué es antes de hacerla.</p>'
       + '<div class="fi-hueco"></div>'
