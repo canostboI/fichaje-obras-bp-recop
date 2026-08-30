@@ -334,6 +334,9 @@
     .form-sf .form-sf-btns { display: flex; gap: 8px; }
     .form-sf .form-sf-btns button { flex: 1; padding: 0.55rem; border-radius: 6px; border: none; font-size: 0.88rem; font-weight: bold; font-family: inherit; cursor: pointer; }
     .form-sf-msg { font-size: 0.83rem; margin-top: 0.4rem; }
+    .sf-foto-fila { display: flex; align-items: center; gap: 10px; margin-bottom: 0.5rem; }
+    .sf-foto-btn { flex: 1; padding: 0.55rem; border: 1px solid #ddd; border-radius: 6px; background: #fafafa; color: #444; font-size: 0.92rem; font-family: inherit; cursor: pointer; text-align: left; }
+    .sf-foto-prev { width: 46px; height: 46px; border-radius: 6px; object-fit: cover; border: 1px solid #ddd; display: none; flex: 0 0 auto; }
     .bloqueo-botones { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
 
     .modal-accesos { background: white; color: #222; border-radius: 14px; padding: 1.4rem; max-width: 720px; width: 92%; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.35); }
@@ -1263,7 +1266,7 @@
       });
     }
 
-    html += '<button class="btn-anadir-sf" onclick="abrirFormSinFichar()">+ Alguien que no ha podido fichar</button>';
+    html += '<button class="btn-anadir-sf" onclick="abrirFormSinFichar()">+ Alguien que no esta en la lista</button>';
     html += '<div id="form-sf-hueco"></div>';
 
     panel.innerHTML = html;
@@ -1274,6 +1277,7 @@
   async function abrirFormSinFichar() {
     const hueco = document.getElementById('form-sf-hueco');
     if (!hueco) return;
+    fotoSinFicharBlob = null;
     if (hueco.innerHTML) { hueco.innerHTML = ''; return; }
 
     const empresas = await cargarEmpresasSol();
@@ -1285,6 +1289,11 @@
       + '<select id="sf-empresa"><option value="">— Empresa para la que viene —</option>' + opts
       + '<option value="__otra">Otra (no está en la lista)</option></select>'
       + '<input id="sf-empresa-otra" type="text" placeholder="Nombre de la empresa" style="display:none">'
+      + '<div class="sf-foto-fila">'
+      + '<button type="button" class="sf-foto-btn" onclick="document.getElementById(\'sf-foto\').click()" id="sf-foto-btn">\uD83D\uDCF7 Foto de la cara</button>'
+      + '<img id="sf-foto-prev" class="sf-foto-prev" alt="">'
+      + '<input type="file" id="sf-foto" accept="image/*" capture="user" style="display:none">'
+      + '</div>'
       + '<div class="form-sf-btns">'
       + '<button style="background:#fb8c00;color:white" onclick="enviarSinFichar(this)">Enviar al jefe de obra</button>'
       + '<button style="background:#eee;color:#555" onclick="document.getElementById(\'form-sf-hueco\').innerHTML=\'\'">Cancelar</button>'
@@ -1293,6 +1302,71 @@
     document.getElementById('sf-empresa').addEventListener('change', function () {
       document.getElementById('sf-empresa-otra').style.display = (this.value === '__otra') ? 'block' : 'none';
     });
+
+    document.getElementById('sf-foto').addEventListener('change', async function () {
+      const f = this.files && this.files[0];
+      if (!f) return;
+      const btn = document.getElementById('sf-foto-btn');
+      btn.textContent = 'Preparando la foto\u2026';
+      try {
+        fotoSinFicharBlob = await reducirFoto(f);
+        const prev = document.getElementById('sf-foto-prev');
+        prev.src = URL.createObjectURL(fotoSinFicharBlob);
+        prev.style.display = 'block';
+        btn.textContent = '\uD83D\uDCF7 Cambiar la foto';
+      } catch (e) {
+        fotoSinFicharBlob = null;
+        btn.textContent = '\uD83D\uDCF7 Foto de la cara';
+      }
+    });
+  }
+
+  // La foto elegida, ya reducida y lista para subir. Vive fuera del
+  // formulario porque el formulario se borra al enviar.
+  let fotoSinFicharBlob = null;
+
+  // El movil hace fotos de 3-4 MB. Con la cobertura de una obra eso tarda o
+  // falla, y una subida que falla no puede llevarse por delante un registro.
+  // Se reduce AQUI, antes de subir, a ~600 px de ancho.
+  function reducirFoto(file) {
+    return new Promise(function (resolve, reject) {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = function () {
+        URL.revokeObjectURL(url);
+        const maxLado = 600;
+        let w = img.width, h = img.height;
+        if (w > h && w > maxLado) { h = Math.round(h * maxLado / w); w = maxLado; }
+        else if (h >= w && h > maxLado) { w = Math.round(w * maxLado / h); h = maxLado; }
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        c.toBlob(function (b) {
+          if (b) resolve(b); else reject(new Error('sin blob'));
+        }, 'image/jpeg', 0.8);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('no es imagen')); };
+      img.src = url;
+    });
+  }
+
+  // NUNCA lanza. La ficha ya esta creada cuando esto corre: si la foto no
+  // sube, se ha perdido una foto, no un registro.
+  async function subirFotoTrabajador(trabajadorId, blob) {
+    if (!trabajadorId || !blob) return false;
+    try {
+      const ruta = trabajadorId + '/cara.jpg';
+      const { error } = await sb.storage.from('identidad')
+        .upload(ruta, blob, { contentType: 'image/jpeg', upsert: true });
+      if (error) { console.warn('[foto] subida:', error); return false; }
+      const { error: e2 } = await sb.from('trabajadores')
+        .update({ foto_path: ruta }).eq('id', trabajadorId);
+      if (e2) { console.warn('[foto] guardar ruta:', e2); return false; }
+      return true;
+    } catch (err) {
+      console.warn('[foto] excepcion:', err);
+      return false;
+    }
   }
 
   // Letra de control del DNI/NIE. Un DNI mal tecleado a las 07:00 crea una
@@ -1336,8 +1410,23 @@
       return;
     }
 
+    // El orden importa: la ficha ya esta creada arriba. La foto va DESPUES y
+    // no puede tumbar nada. Si falla, se avisa y se sigue.
+    let fotoOk = true;
+    if (fotoSinFicharBlob && data.trabajador_id) {
+      msg.style.color = '#666';
+      msg.textContent = 'Registrado. Subiendo la foto\u2026';
+      fotoOk = await subirFotoTrabajador(data.trabajador_id, fotoSinFicharBlob);
+    }
+    fotoSinFicharBlob = null;
+
     document.getElementById('form-sf-hueco').innerHTML = '';
     await cargarSolicitudesEnc();
+
+    if (!fotoOk) {
+      alert('La persona ha quedado registrada y el jefe de obra ya tiene el aviso.\n\n'
+          + 'La foto no se ha podido subir. Se puede anadir mas tarde desde su ficha.');
+    }
   }
 
   async function marcarVistoBloqueo(incidenciaId, btn) {
