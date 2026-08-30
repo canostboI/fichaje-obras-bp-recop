@@ -159,6 +159,29 @@
   .banner-ronda.oculto { display: none; }
 
   /* Peticiones de acceso desde la puerta */
+  .panel-ident { background: rgba(244,67,54,0.14); border: 2px solid rgba(244,67,54,0.6); border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; }
+  .panel-ident.oculto { display: none; }
+  .panel-ident h3 { font-size: 14px; font-weight: 700; color: var(--rojo); margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .panel-ident-sub { font-size: 12.5px; color: var(--texto2); margin-bottom: 10px; line-height: 1.5; }
+  .ident-item { background: var(--bg3); border: 1px solid var(--borde); border-radius: 9px; padding: 11px 13px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 12px; }
+  .ident-item:last-child { margin-bottom: 0; }
+  .ident-foto { width: 52px; height: 52px; border-radius: 8px; object-fit: cover; border: 1px solid var(--borde); flex: 0 0 auto; cursor: pointer; }
+  .ident-sinfoto { width: 52px; height: 52px; border-radius: 8px; border: 1px dashed var(--borde); flex: 0 0 auto; display: flex; align-items: center; justify-content: center; font-size: 21px; color: var(--texto2); }
+  .ident-txt { flex: 1; min-width: 0; }
+  .ident-nombre { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+  .ident-meta { font-size: 12.5px; color: var(--texto2); line-height: 1.5; }
+  .ident-dias { display: inline-block; margin-top: 5px; font-size: 11.5px; font-weight: 700; color: var(--rojo); background: rgba(244,67,54,0.13); border-radius: 5px; padding: 2px 7px; }
+  .ident-cerrar { margin-top: 9px; background: transparent; border: 1px solid var(--rojo); color: var(--rojo); padding: 6px 13px; border-radius: 7px; cursor: pointer; font-size: 12.5px; font-weight: 700; font-family: inherit; }
+  .ident-cerrar:hover { background: var(--rojo); color: #fff; }
+  .ident-form { margin-top: 9px; }
+  .ident-form select, .ident-form input { width: 100%; margin-bottom: 6px; padding: 8px; border: 1px solid var(--borde); border-radius: 6px; font-size: 13px; font-family: inherit; background: var(--bg2); color: var(--texto); box-sizing: border-box; }
+  .ident-form-btns { display: flex; gap: 7px; }
+  .ident-form-btns button { flex: 1; padding: 7px; border-radius: 6px; border: none; font-size: 12.5px; font-weight: 700; font-family: inherit; cursor: pointer; }
+  .ident-msg { font-size: 12px; margin-top: 5px; }
+  .ident-visor { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 300; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .ident-visor.oculto { display: none; }
+  .ident-visor img { max-width: 92%; max-height: 88%; border-radius: 10px; }
+
   .panel-sol { background: rgba(244,67,54,0.10); border: 1px solid rgba(244,67,54,0.45); border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; }
   .panel-sol.oculto { display: none; }
   .panel-sol h3 { font-size: 14px; font-weight: 700; color: var(--rojo); margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
@@ -305,6 +328,7 @@
 </head>
 <body>
 
+<div id="ident-visor" class="ident-visor oculto" onclick="this.classList.add('oculto')"><img id="ident-visor-img" alt=""></div>
 <div id="conexion-banner" class="conexion-banner oculto">
   <span id="conexion-banner-texto">⚠ Sin conexión — Los datos pueden estar desactualizados</span>
 </div>
@@ -343,6 +367,11 @@
     </div>
   </div>
   <div class="contenido">
+    <div class="panel-ident oculto" id="panel-ident">
+      <h3>🔴 <span>Personas sin identificar en obra (<span id="ident-cuenta">0</span>)</span></h3>
+      <div class="panel-ident-sub">El encargado las registro en la puerta. Siguen aqui hasta que decidas que pasa con cada una. No desaparecen al cambiar el dia.</div>
+      <div id="ident-lista"></div>
+    </div>
     <div class="panel-sol oculto" id="panel-sol">
       <h3>🔴 <span>Piden autorización en la puerta</span></h3>
       <div class="panel-sol-sub">El encargado tiene a estas personas paradas en la valla. Solo tú puedes darles paso, y solo por hoy.</div>
@@ -787,6 +816,7 @@ async function cargarEmpresasPropias() {
   document.getElementById('btn-foto').style.display = 'flex';
 
   await cargarPresencia();
+  await cargarIdentidadesPendientes();
   await cargarBloqueos();
   await cargarSolicitudes();
   await cargarAvisosAutocierre();
@@ -808,6 +838,7 @@ async function cargarEmpresasPropias() {
     aplicarFotoFondo(fotoUrlActual);
     document.getElementById('btn-foto').style.display = obraActual ? 'flex' : 'none';
     await cargarPresencia();
+    await cargarIdentidadesPendientes();
     await cargarBloqueos();
     await cargarSolicitudes();
     await cargarAvisosAutocierre();
@@ -973,6 +1004,118 @@ function irATrabaladoresRP() {
    asume dejarle pasar es el jefe, con su nombre y con la fecha escritos.
    La autorización no se escribe aquí: se delega en autorizar_excepcion_roja,
    que ya estaba probada. Una sola puerta para dejar entrar a alguien.        */
+
+// ── Personas registradas en la puerta sobre las que nadie ha decidido aun.
+// A diferencia de las peticiones de acceso (que mueren a fin de dia porque
+// contestan "¿le dejo pasar AHORA?"), esto contesta "¿quien es esta persona?"
+// y no se apaga solo. Solo lo cierra el jefe de obra, con motivo escrito.
+async function cargarIdentidadesPendientes() {
+  const panel = document.getElementById('panel-ident');
+  const lista = document.getElementById('ident-lista');
+  if (!panel || !lista) return;
+  if (!obraActual) { panel.classList.add('oculto'); return; }
+
+  const { data, error } = await sb.rpc('listar_identidades_pendientes', { p_obra_id: obraActual });
+  if (error || !data || data.ok !== true) { panel.classList.add('oculto'); return; }
+
+  const personas = data.personas || [];
+  if (!personas.length) { panel.classList.add('oculto'); lista.innerHTML = ''; return; }
+
+  document.getElementById('ident-cuenta').textContent = personas.length;
+
+  const filas = await Promise.all(personas.map(async p => {
+    const url = await urlFotoTrabajador(p.foto_path);
+    const dias = Math.floor((Date.now() - new Date(p.desde).getTime()) / 86400000);
+    const cuando = dias <= 0 ? 'Registrado hoy'
+                 : (dias === 1 ? 'Lleva 1 dia sin resolver' : 'Lleva ' + dias + ' dias sin resolver');
+    const foto = url
+      ? '<img class="ident-foto" src="' + url + '" alt="" onclick="verFotoIdent(\'' + url + '\')">'
+      : '<div class="ident-sinfoto" title="Sin foto">\uD83D\uDC64</div>';
+    return '<div class="ident-item">'
+      + foto
+      + '<div class="ident-txt">'
+      +   '<div class="ident-nombre">' + escIdent(p.nombre || '\u2014') + '</div>'
+      +   '<div class="ident-meta">' + escIdent(p.dni || 'sin DNI')
+      +     (p.empresa ? ' \u00B7 ' + escIdent(p.empresa) : ' \u00B7 sin empresa')
+      +     (p.registrado_por ? '<br>Registrado por ' + escIdent(p.registrado_por) : '')
+      +   '</div>'
+      +   '<div class="ident-dias">' + cuando + '</div><br>'
+      +   '<button class="ident-cerrar" onclick="abrirCierreIdent(\'' + p.trabajador_id + '\', this)">Decidir que pasa con esta persona</button>'
+      +   '<div class="ident-form-hueco"></div>'
+      + '</div></div>';
+  }));
+
+  lista.innerHTML = filas.join('');
+  panel.classList.remove('oculto');
+}
+
+function escIdent(t) {
+  return String(t == null ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// El bucket es privado: la foto solo se ve con un enlace firmado y temporal.
+async function urlFotoTrabajador(ruta) {
+  if (!ruta) return null;
+  try {
+    const { data, error } = await sb.storage.from('identidad').createSignedUrl(ruta, 3600);
+    if (error || !data) return null;
+    return data.signedUrl;
+  } catch (e) { return null; }
+}
+
+function verFotoIdent(url) {
+  document.getElementById('ident-visor-img').src = url;
+  document.getElementById('ident-visor').classList.remove('oculto');
+}
+
+function abrirCierreIdent(trabajadorId, btn) {
+  const hueco = btn.parentElement.querySelector('.ident-form-hueco');
+  if (!hueco) return;
+  if (hueco.innerHTML) { hueco.innerHTML = ''; return; }
+  hueco.innerHTML = '<div class="ident-form">'
+    + '<select class="ident-motivo">'
+    +   '<option value="">\u2014 Que ha pasado con esta persona \u2014</option>'
+    +   '<option value="regularizada">Documentacion regularizada</option>'
+    +   '<option value="excepcional">Acceso excepcional autorizado</option>'
+    +   '<option value="rechazado">Rechazado, no vuelve</option>'
+    + '</select>'
+    + '<input type="text" class="ident-nota" placeholder="Que has averiguado" autocomplete="off">'
+    + '<div class="ident-form-btns">'
+    +   '<button style="background:#f44336;color:#fff" onclick="cerrarIdent(\'' + trabajadorId + '\', this)">Cerrar</button>'
+    +   '<button style="background:#444;color:#ddd" onclick="this.closest(\'.ident-form\').parentElement.innerHTML=\'\'">Cancelar</button>'
+    + '</div><div class="ident-msg"></div></div>';
+}
+
+async function cerrarIdent(trabajadorId, btn) {
+  const form   = btn.closest('.ident-form');
+  const motivo = form.querySelector('.ident-motivo').value;
+  const nota   = (form.querySelector('.ident-nota').value || '').trim();
+  const msg    = form.querySelector('.ident-msg');
+
+  msg.style.color = '#f44336';
+  if (!motivo) { msg.textContent = 'Elige que ha pasado.'; return; }
+  if (nota.length < 3) { msg.textContent = 'Escribe que has averiguado. Sin motivo no es una firma.'; return; }
+
+  btn.disabled = true;
+  msg.style.color = '#999';
+  msg.textContent = 'Cerrando\u2026';
+
+  const { data, error } = await sb.rpc('cerrar_identidad_pendiente', {
+    p_trabajador_id: trabajadorId, p_obra_id: obraActual,
+    p_motivo_cierre: motivo, p_nota: nota
+  });
+
+  if (error || !data || data.ok !== true) {
+    btn.disabled = false;
+    msg.style.color = '#f44336';
+    msg.textContent = (data && data.error) || (error && error.message) || 'No se ha podido cerrar.';
+    return;
+  }
+
+  await cargarIdentidadesPendientes();
+}
 
 async function cargarSolicitudes() {
   const panel = document.getElementById('panel-sol');
