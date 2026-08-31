@@ -112,6 +112,27 @@
     font-size: 18px;
     margin-bottom: 16px;
   }
+  .sr-autonomo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: -6px 0 18px;
+    font-size: 15px;
+    color: #555;
+    text-align: left;
+    cursor: pointer;
+  }
+  .sr-autonomo input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 auto;
+    margin: 0;
+    cursor: pointer;
+  }
+  input[type="text"].sr-input:disabled {
+    background: #f1f1f1;
+    color: #777;
+  }
   .sr-intro {
     font-size: 15px;
     color: #555;
@@ -511,6 +532,10 @@
       <input type="text" class="sr-input" id="sr-nombre" autocomplete="off" maxlength="120">
       <label for="sr-empresa" id="label-sr-empresa">Empresa</label>
       <input type="text" class="sr-input" id="sr-empresa" autocomplete="off" maxlength="120">
+      <label class="sr-autonomo" for="sr-autonomo">
+        <input type="checkbox" id="sr-autonomo">
+        <span id="label-sr-autonomo">Trabajo por mi cuenta (autónomo/a)</span>
+      </label>
       <button type="button" class="principal" id="btn-sr-registrar">Registrar mi presencia</button>
       <div class="error-banner oculto" id="error-sin-registrar"></div>
       <button type="button" class="secundario" id="btn-sr-volver" style="margin-top:10px;">Volver</button>
@@ -583,6 +608,8 @@ const el = {
   srNombre:           document.getElementById('sr-nombre'),
   labelSrEmpresa:     document.getElementById('label-sr-empresa'),
   srEmpresa:          document.getElementById('sr-empresa'),
+  srAutonomo:         document.getElementById('sr-autonomo'),
+  labelSrAutonomo:    document.getElementById('label-sr-autonomo'),
   btnSrRegistrar:     document.getElementById('btn-sr-registrar'),
   errorSinRegistrar:  document.getElementById('error-sin-registrar'),
   btnSrVolver:        document.getElementById('btn-sr-volver'),
@@ -669,6 +696,7 @@ const TEXTOS = {
     sr_label_empresa:    'Empresa',
     sr_placeholder_nombre: 'Nombre y apellidos',
     sr_placeholder_empresa: 'Nombre de tu empresa',
+    sr_autonomo:         'Trabajo por mi cuenta (autónomo/a)',
     sr_registrar:        'Registrar mi presencia',
     sr_registrado_titulo:'Presencia registrada',
     sr_registrado_texto: 'Hemos dejado constancia y avisaremos al encargado. No puedes empezar a trabajar hasta que tu documentación esté en regla.',
@@ -780,6 +808,7 @@ const TEXTOS = {
     sr_label_empresa:    'Empresa',
     sr_placeholder_nombre: 'Nom i cognoms',
     sr_placeholder_empresa: 'Nom de la vostra empresa',
+    sr_autonomo:         'Treballo pel meu compte (autònom/a)',
     sr_registrar:        'Registrar la meva presència',
     sr_registrado_titulo: 'Presència registrada',
     sr_registrado_texto: "N'hem deixat constància i avisarem l'encarregat. No podeu començar a treballar fins que la vostra documentació estigui en regla.",
@@ -882,6 +911,7 @@ const TEXTOS = {
     sr_label_empresa:    'الشركة',
     sr_placeholder_nombre: 'الاسم واللقب',
     sr_placeholder_empresa: 'اسم شركتك',
+    sr_autonomo:         'أعمل لحسابي الخاص',
     sr_registrar:        'تسجيل حضوري',
     sr_registrado_titulo:'تم تسجيل الحضور',
     sr_registrado_texto: 'تم توثيق حضورك وسنبلغ المشرف. لا يمكنك البدء بالعمل حتى تكون وثائقك سليمة.',
@@ -984,6 +1014,7 @@ const TEXTOS = {
     sr_label_empresa:    'Firma',
     sr_placeholder_nombre: 'Nume și prenume',
     sr_placeholder_empresa: 'Numele firmei tale',
+    sr_autonomo:         'Lucrez pe cont propriu',
     sr_registrar:        'Înregistrează prezența',
     sr_registrado_titulo:'Prezență înregistrată',
     sr_registrado_texto: 'Am consemnat prezența și vom anunța șeful de echipă. Nu poți începe lucrul până când documentele tale nu sunt în regulă.',
@@ -1093,6 +1124,7 @@ const TEXTOS = {
     sr_label_empresa:    'کمپنی',
     sr_placeholder_nombre: 'نام اور خاندانی نام',
     sr_placeholder_empresa: 'آپ کی کمپنی کا نام',
+    sr_autonomo:         'میں اپنا کام خود کرتا/کرتی ہوں',
     sr_registrar:        'اپنی موجودگی درج کریں',
     sr_registrado_titulo: 'موجودگی درج ہو گئی',
     sr_registrado_texto: 'ہم نے ریکارڈ کر لیا ہے اور انچارج کو اطلاع دیں گے۔ جب تک آپ کی دستاویزات مکمل نہ ہوں، آپ کام شروع نہیں کر سکتے۔',
@@ -1201,6 +1233,7 @@ const TEXTOS = {
     sr_label_empresa:    'ਕੰਪਨੀ',
     sr_placeholder_nombre: 'ਨਾਮ ਅਤੇ ਉਪਨਾਮ',
     sr_placeholder_empresa: 'ਤੁਹਾਡੀ ਕੰਪਨੀ ਦਾ ਨਾਮ',
+    sr_autonomo:         'ਮੈਂ ਆਪਣਾ ਕੰਮ ਆਪ ਕਰਦਾ/ਕਰਦੀ ਹਾਂ',
     sr_registrar:        'ਮੇਰੀ ਹਾਜ਼ਰੀ ਦਰਜ ਕਰੋ',
     sr_registrado_titulo: 'ਹਾਜ਼ਰੀ ਦਰਜ ਹੋ ਗਈ',
     sr_registrado_texto: 'ਅਸੀਂ ਰਿਕਾਰਡ ਕਰ ਲਿਆ ਹੈ ਅਤੇ ਇੰਚਾਰਜ ਨੂੰ ਦੱਸ ਦੇਵਾਂਗੇ। ਜਦ ਤੱਕ ਤੁਹਾਡੇ ਕਾਗ਼ਜ਼ਾਤ ਪੂਰੇ ਨਹੀਂ ਹੁੰਦੇ, ਤੁਸੀਂ ਕੰਮ ਸ਼ੁਰੂ ਨਹੀਂ ਕਰ ਸਕਦੇ।',
@@ -1304,6 +1337,7 @@ const TEXTOS = {
     sr_label_empresa:    'Company',
     sr_placeholder_nombre: 'Full name',
     sr_placeholder_empresa: 'Your company name',
+    sr_autonomo:         'I work for myself (self-employed)',
     sr_registrar:        'Register my presence',
     sr_registrado_titulo:'Presence recorded',
     sr_registrado_texto: 'We have recorded it and will notify the supervisor. You cannot start work until your paperwork is in order.',
@@ -1728,6 +1762,7 @@ function aplicarIdioma(lang, origen) {
   el.labelSrEmpresa.textContent = t.sr_label_empresa;
   el.srNombre.placeholder       = t.sr_placeholder_nombre;
   el.srEmpresa.placeholder      = t.sr_placeholder_empresa;
+  el.labelSrAutonomo.textContent = t.sr_autonomo;
   el.btnSrRegistrar.textContent = t.sr_registrar;
   el.btnSrVolver.textContent    = t.volver;
   el.btnSrNuevo.textContent     = t.nuevo_fichaje;
@@ -1946,6 +1981,8 @@ function irASinRegistrar() {
   el.srOk.classList.add('oculto');
   el.srNombre.value = '';
   el.srEmpresa.value = '';
+  el.srAutonomo.checked = false;
+  el.srEmpresa.disabled = false;
   ocultarErrorSinRegistrar();
   el.srTitulo.textContent       = T('sr_titulo');
   el.srIntro.textContent        = T('sr_intro');
@@ -1953,6 +1990,7 @@ function irASinRegistrar() {
   el.labelSrEmpresa.textContent = T('sr_label_empresa');
   el.srNombre.placeholder       = T('sr_placeholder_nombre');
   el.srEmpresa.placeholder      = T('sr_placeholder_empresa');
+  el.labelSrAutonomo.textContent = T('sr_autonomo');
   el.btnSrRegistrar.textContent = T('sr_registrar');
   el.btnSrVolver.textContent    = T('volver');
   el.btnSrNuevo.textContent     = T('nuevo_fichaje');
@@ -1965,7 +2003,9 @@ async function registrarSinRegistrar() {
   if (!estado.ubicacion) { mostrarErrorSinRegistrar(T('sr_sin_gps')); return; }
 
   const nombre  = (el.srNombre.value  || '').trim();
-  const empresa = (el.srEmpresa.value || '').trim();
+  const empresa = el.srAutonomo.checked
+    ? SR_AUTONOMO_VALOR
+    : (el.srEmpresa.value || '').trim();
 
   el.btnSrRegistrar.disabled = true;
   try {
@@ -2002,6 +2042,28 @@ async function registrarSinRegistrar() {
     el.btnSrRegistrar.disabled = false;
     mostrarErrorSinRegistrar(interpretarError(err).mensajeUsuario);
     console.error('[fichaje] presente_sin_registrar excepción:', err);
+  }
+}
+
+// B1 (caso Verónica, 31/8/2026). Sin esta casilla, quien trabaja por su
+// cuenta no tenía nada que poner en "Empresa" y acababa escribiendo ahí su
+// propio DNI — que es exactamente lo que paso el 31/8 y ensucio la tabla de
+// empresas. El valor que se guarda es SIEMPRE 'Autónomo/a' en castellano,
+// se marque en el idioma que se marque: quien lo lee luego es el encargado,
+// y doce grafias distintas de lo mismo no sirven de nada.
+//
+// Ojo: esto es solo una NOTA dentro de la incidencia. Nunca crea una empresa.
+// La empresa de verdad de un autónomo es el propio autónomo (su nombre y su
+// DNI como CIF) y la da de alta el encargado, no la valla.
+const SR_AUTONOMO_VALOR = 'Autónomo/a';
+
+function alMarcarAutonomo() {
+  if (el.srAutonomo.checked) {
+    el.srEmpresa.value = SR_AUTONOMO_VALOR;
+    el.srEmpresa.disabled = true;
+  } else {
+    if (el.srEmpresa.value === SR_AUTONOMO_VALOR) el.srEmpresa.value = '';
+    el.srEmpresa.disabled = false;
   }
 }
 
@@ -2274,6 +2336,7 @@ el.btnNuevo.addEventListener('click', () => {
 });
 el.btnEntrada.addEventListener('click', () => ejecutarFichaje('entrada'));
 el.btnSalida.addEventListener('click',  () => ejecutarFichaje('salida'));
+el.srAutonomo.addEventListener('change', alMarcarAutonomo);
 el.btnSrRegistrar.addEventListener('click', registrarSinRegistrar);
 el.btnSrVolver.addEventListener('click', () => { irA(el.pasoDni); el.inputDni.focus(); });
 el.btnSrNuevo.addEventListener('click', () => {
