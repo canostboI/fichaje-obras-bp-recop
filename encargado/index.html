@@ -1117,7 +1117,13 @@
       if (solYa && solYa.estado === 'autorizada') {
         botonPedir = '<span class="etq-sol ok">✓ Autorizado — que fiche en la valla</span>';
       } else if (solYa && solYa.estado === 'pendiente') {
-        botonPedir = '<span class="etq-sol esp">⏳ Esperando al jefe de obra — NO entra</span>';
+        // C1 (caso Verónica, 31/8/2026). Esta misma persona sale tambien en
+        // "Esperando al jefe de obra", y hasta hoy los dos paneles decian la
+        // frase EXACTA. Se queda en los dos — no ha fichado, y eso es justo lo
+        // que cuenta este panel — pero cada uno hace un trabajo distinto: este
+        // es la foto de quien no ha entrado, el otro es la lista de lo que hay
+        // que hacer. Aqui solo se apunta a donde esta la accion.
+        botonPedir = '<span class="etq-sol esp">⏳ Pedido — está abajo, en «Esperando al jefe de obra»</span>';
       } else if (solYa && solYa.estado === 'denegada') {
         botonPedir = '<span class="etq-sol no">✕ Denegado por el jefe de obra — NO entra</span>';
       } else {
