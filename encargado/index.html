@@ -266,6 +266,7 @@
     .panel-avisos .aviso-info { flex: 1; min-width: 0; color: #5d4500; }
     .panel-avisos .aviso-info strong { color: #3d2f00; }
     .panel-avisos .aviso-fecha { color: #8a6d00; font-size: 0.85rem; }
+    .sf-pista { font-size: 0.8rem; color: #666; line-height: 1.45; margin: -0.35rem 0 0.6rem; }
     .panel-avisos .btn-visto { background: #ff9800; color: white; border: none; padding: 0.4rem 0.9rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; white-space: nowrap; }
     .panel-avisos .btn-visto:hover { background: #f57c00; }
     .panel-avisos .btn-visto:disabled { background: #ccc; cursor: not-allowed; }
@@ -1294,16 +1295,41 @@
       + '<input id="sf-nombre" type="text" placeholder="Nombre y apellidos" autocomplete="off">'
       + '<input id="sf-dni" type="text" placeholder="DNI o NIE" autocomplete="off" style="text-transform:uppercase">'
       + '<select id="sf-empresa"><option value="">— Empresa para la que viene —</option>' + opts
+      + '<option value="__autonomo">Autónomo/a — trabaja por su cuenta</option>'
       + '<option value="__otra">Otra (no está en la lista)</option></select>'
       + '<input id="sf-empresa-otra" type="text" placeholder="Nombre de la empresa" style="display:none">'
+      + '<div class="sf-pista" id="sf-empresa-pista" style="display:none"></div>'
       + '<div id="sf-foto-hueco"></div>'
       + '<div class="form-sf-btns">'
       + '<button style="background:#fb8c00;color:white" onclick="enviarSinFichar(this)">Enviar al jefe de obra</button>'
       + '<button style="background:#eee;color:#555" onclick="document.getElementById(\'form-sf-hueco\').innerHTML=\'\'">Cancelar</button>'
       + '</div><div class="form-sf-msg" id="sf-msg"></div></div>';
 
+    // B1 (caso Verónica, 31/8/2026). Un autónomo NO es una empresa llamada
+    // "Autónomo": es una empresa con SU nombre y su DNI como CIF, y así estan
+    // dados de alta ya los que hay (JEROME ROUCH ANDREU, NOEMI JIMENEZ LOPEZ,
+    // VERONICA RODES SEGURA...). Si todos cayeran en un saco comun compartirian
+    // semáforo y documentación de e-Coordina, que es peor que el problema.
+    //
+    // Por eso "Autónomo/a" no manda un valor propio: rellena el campo de texto
+    // con el nombre que el encargado acaba de teclear arriba. El circuito busca
+    // por nombre antes de crear, así que si esa persona ya existe como empresa
+    // se reutiliza, y si no, nace bien desde el primer día.
     document.getElementById('sf-empresa').addEventListener('change', function () {
-      document.getElementById('sf-empresa-otra').style.display = (this.value === '__otra') ? 'block' : 'none';
+      const otra  = document.getElementById('sf-empresa-otra');
+      const pista = document.getElementById('sf-empresa-pista');
+      const esAutonomo = (this.value === '__autonomo');
+      otra.style.display = (esAutonomo || this.value === '__otra') ? 'block' : 'none';
+      pista.style.display = esAutonomo ? 'block' : 'none';
+      if (esAutonomo) {
+        otra.placeholder = 'Nombre y apellidos del autónomo';
+        pista.textContent = 'Un autónomo es su propia empresa. Pon su nombre y apellidos '
+                          + 'completos, tal y como salen en su DNI.';
+        const nom = (document.getElementById('sf-nombre').value || '').trim();
+        if (nom && !otra.value.trim()) otra.value = nom;
+      } else {
+        otra.placeholder = 'Nombre de la empresa';
+      }
     });
 
     // Reducir la imagen, la vista previa y el boton los pone el modulo.
@@ -1340,13 +1366,19 @@
     if (!dniValidoSF(dni)) { msg.textContent = 'Ese DNI/NIE no es válido. Revísalo con el documento delante.'; return; }
     if (!empSel) { msg.textContent = 'Falta la empresa.'; return; }
     if (empSel === '__otra' && empOtra.length < 2) { msg.textContent = 'Escribe el nombre de la empresa.'; return; }
+    if (empSel === '__autonomo' && empOtra.length < 5) {
+      msg.textContent = 'Pon el nombre y apellidos completos del autónomo: esa es su empresa.';
+      return;
+    }
 
     btn.disabled = true;
     msg.style.color = '#666';
     msg.textContent = 'Enviando…';
 
     const params = { p_obra_id: obraActualId, p_nombre: nombre, p_dni: dni };
-    if (empSel === '__otra') params.p_empresa_texto = empOtra;
+    // Autónomo y "Otra" viajan igual: como texto. La diferencia esta en QUE
+    // texto — el nombre de la persona en un caso, el de la empresa en el otro.
+    if (empSel === '__otra' || empSel === '__autonomo') params.p_empresa_texto = empOtra;
     else params.p_empresa_id = empSel;
 
     const { data, error } = await sb.rpc('pedir_autorizacion_acceso', params);
