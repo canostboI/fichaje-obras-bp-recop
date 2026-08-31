@@ -1241,13 +1241,33 @@
       alert('No se ha podido quitar: ' + ((data && data.error) || (error && error.message) || 'error'));
       return;
     }
+    // Si el formulario esta abierto, el panel no se va a rehacer (A5), asi
+    // que la fila se queda en pantalla. El boton tiene que decir por si solo
+    // que ya esta hecho, o se queda en "Quitando..." para siempre.
+    btn.textContent = '✓ Quitada';
     await cargarSolicitudesEnc();
+  }
+
+  // A5 (caso Verónica, 31/8/2026). El formulario de "alguien que no esta en
+  // la lista" vive DENTRO de este panel, y este panel se rehace entero cada
+  // 60 segundos y cada vez que la pantalla vuelve de segundo plano — es decir,
+  // justo al volver de la camara despues de hacer la foto. Rehacerlo con el
+  // formulario abierto le borraba al encargado todo lo escrito, sin aviso.
+  //
+  // Mientras el formulario este abierto, el panel NO se toca. La lista de
+  // espera puede aguantar un minuto desfasada; lo que no aguanta es que se
+  // borre el DNI que estabas copiando del carnet con la persona delante.
+  // En cuanto se envia o se cancela, el panel vuelve a refrescarse solo.
+  function formSinFicharAbierto() {
+    const h = document.getElementById('form-sf-hueco');
+    return !!(h && h.innerHTML.trim());
   }
 
   async function cargarSolicitudesEnc() {
     const panel = document.getElementById('panel-solenc');
     if (!panel) return;
     if (!obraActualId) { panel.style.display = 'none'; return; }
+    if (formSinFicharAbierto()) return;
 
     const lista = await traerSolicitudesHoy();
 
