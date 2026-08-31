@@ -1243,7 +1243,16 @@ async function resolverSol(id, accion, clave) {
   msg.textContent = txt;
 
   await cargarBloqueos();
-  setTimeout(cargarSolicitudes, 4000);
+  // Autorizar Y denegar apagan `identidad_pendiente` en la BD (las dos ramas
+  // de `resolver_solicitud_acceso`). Si no se recarga tambien ese panel, la
+  // tarjeta de "Personas sin identificar" se queda con la cara vieja hasta
+  // recargar la pagina a mano. Los dos paneles se refrescan a la vez, a los
+  // 4 s, para que el mensaje de la tarjeta se pueda leer antes de que la
+  // pantalla se mueva.
+  setTimeout(function () {
+    cargarSolicitudes();
+    cargarIdentidadesPendientes();
+  }, 4000);
 }
 
 function iniciarRefrescoPresencia() {
