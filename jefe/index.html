@@ -1200,6 +1200,9 @@ async function resolverSol(id, accion, clave) {
   const msg  = document.getElementById('sol-msg-' + id);
   if (!item || !msg) return;
 
+  let notaIdentidad = null;
+  let motivoIdentidad = null;
+
   // El aviso dice QUÉ se asume y a QUIÉN, con nombre y empresa dentro. Un
   // confirm genérico se pulsa sin leer, y este es el punto donde el jefe
   // acepta la responsabilidad: tiene que costar leerlo, no pulsarlo.
@@ -1215,15 +1218,49 @@ async function resolverSol(id, accion, clave) {
       ' SOLO PARA HOY.\n\nQuedará escrito con tu nombre y la fecha, y tú asumes la responsabilidad.' +
       extra + '\n\n¿Le das paso?';
     if (!window.confirm(aviso)) return;
+
+    // C3 (caso Verónica, 31/8/2026). Hasta hoy, autorizar apagaba la pregunta
+    // "¿quién es esta persona?" en silencio: quedaba escrito QUIÉN la dejó
+    // pasar y a qué hora, pero no QUÉ comprobó. Dentro de seis meses esa frase
+    // es lo único que explica por qué entró.
+    //
+    // Solo se pide cuando la persona no está en la app (data-nueva="1"), que
+    // es exactamente cuando su identidad está en duda. Al rojo de toda la
+    // vida, que ya tiene ficha y nombre, no se le pregunta nada.
+    //
+    // Y solo al AUTORIZAR. Denegar también cierra la pregunta, pero ahí no hay
+    // nada que explicar: no entró.
+    if (item.dataset.nueva === '1') {
+      const escrito = window.prompt(
+        '¿Qué has averiguado sobre ' + quien + '?\n\n' +
+        'Una frase basta: "le he visto el DNI", "me lo confirma su empresa por teléfono".\n' +
+        'Queda guardado con tu nombre.', '');
+      if (escrito === null) return;
+      notaIdentidad = escrito.trim();
+      if (notaIdentidad.length < 3) {
+        msg.className = 'sol-estado mal';
+        msg.textContent = 'Hace falta escribir qué has averiguado. No se ha autorizado nada.';
+        return;
+      }
+      // "Ya está en regla" y "Asumo el riesgo" no son lo mismo seis meses
+      // después: se guardan con el mismo vocabulario que usa el otro camino.
+      motivoIdentidad = (clave === 'regla') ? 'regularizada' : 'excepcional';
+    }
   }
 
   item.querySelectorAll('.sol-btn').forEach(b => { b.disabled = true; });
   msg.className = 'sol-estado';
   msg.textContent = 'Enviando…';
 
-  const { data, error } = await sb.rpc('resolver_solicitud_acceso', {
+  const parametros = {
     p_solicitud_id: id, p_accion: accion, p_motivo: MOTIVOS_SOL[clave]
-  });
+  };
+  if (notaIdentidad) {
+    parametros.p_nota_identidad   = notaIdentidad;
+    parametros.p_motivo_identidad = motivoIdentidad;
+  }
+
+  const { data, error } = await sb.rpc('resolver_solicitud_acceso', parametros);
 
   if (error || !data || data.ok !== true) {
     msg.className = 'sol-estado mal';
