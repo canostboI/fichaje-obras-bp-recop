@@ -1122,7 +1122,14 @@
       } else {
         botonPedir = `<button class="btn-pedir" onclick="pedirAutorizacion('${claveSol}', this)">📨 Pedir permiso al jefe de obra</button>`;
       }
-      const botonVisto = g.incidencia_id
+      // "Visto" solo apaga la luz: marca la incidencia como revisada y saca a
+      // la persona de este panel. NO resuelve nada. Mientras hay una peticion
+      // PENDIENTE eso es peligroso: dejaria a alguien esperando en la valla
+      // con la alerta ya apagada y nadie enterandose. En ese estado el boton
+      // no existe, y no hace falta: las dos salidas correctas estan en el
+      // panel "Esperando al jefe de obra" — que el jefe conteste, o "Se ha ido".
+      const solPendiente = !!(solYa && solYa.estado === 'pendiente');
+      const botonVisto = (g.incidencia_id && !solPendiente)
         ? `<button class="btn-visto-rojo" onclick="marcarVistoBloqueo('${g.incidencia_id}', this)">✓ Visto</button>`
         : '';
       const boton = `<div class="bloqueo-botones">${botonPedir}${botonVisto}</div>`;
