@@ -132,6 +132,19 @@
   .fi-icono.sin-dato:hover { transform: none; background: none; }
   .fi-icono.sin-dato-clicable { opacity: 0.38; filter: grayscale(1); }
   .fi-icono.sin-dato-clicable:hover { transform: scale(1.15); background: var(--bg3); opacity: 0.7; }
+  /* captura inline de foto */
+  .fic-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 4000; display: flex; align-items: center; justify-content: center; }
+  .fic-overlay.oculto { display: none; }
+  .fic-caja { background: var(--bg2); border: 1px solid var(--borde); border-radius: 14px; padding: 20px; max-width: 380px; width: 94%; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+  .fic-caja h3 { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
+  .fic-msg { font-size: 13px; min-height: 18px; margin-top: 8px; }
+  .fic-msg.mal { color: var(--rojo); }
+  .fic-msg.ok { color: var(--verde); }
+  .fic-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+  .fic-btn { border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--borde); background: var(--bg3); color: var(--texto); }
+  .fic-btn.primario { background: var(--color-acento); color: #fff; border-color: var(--color-acento); }
+  .fic-btn:hover { opacity: 0.85; }
+  .fic-btn:disabled { opacity: 0.45; cursor: not-allowed; }
   /* visor foto */
   .fiv-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 4000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
   .fiv-overlay.oculto { display: none; }
@@ -149,24 +162,22 @@
   .vfm-cab h3 { font-size: 16px; font-weight: 700; }
   .vfm-cerrar { background: none; border: none; color: var(--texto2); font-size: 22px; cursor: pointer; padding: 0 4px; }
   .vfm-cerrar:hover { color: var(--texto); }
-  .vfm-seccion { margin-bottom: 16px; }
   .vfm-label { font-size: 13px; font-weight: 600; color: var(--texto2); margin-bottom: 8px; display: block; }
-  .vfm-opciones { display: flex; flex-direction: column; gap: 8px; }
-  .vfm-opcion { display: flex; align-items: center; gap: 10px; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 10px 12px; cursor: pointer; transition: border-color 0.15s; }
-  .vfm-opcion:hover { border-color: var(--color-acento); }
+  .vfm-opciones { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .vfm-opcion { display: flex; align-items: center; gap: 10px; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 10px 12px; cursor: pointer; }
   .vfm-opcion input[type=radio] { accent-color: var(--color-acento); width: 16px; height: 16px; flex: 0 0 auto; }
   .vfm-opcion span { font-size: 13px; }
-  .vfm-check-fila { display: flex; align-items: flex-start; gap: 10px; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 10px 12px; }
+  .vfm-check-fila { display: flex; align-items: flex-start; gap: 10px; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
   .vfm-check-fila input[type=checkbox] { accent-color: var(--color-acento); width: 16px; height: 16px; flex: 0 0 auto; margin-top: 2px; }
   .vfm-check-txt { font-size: 13px; line-height: 1.5; }
   .vfm-idiomas { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .vfm-idioma { background: var(--bg3); border: 1px solid var(--borde); color: var(--texto2); border-radius: 20px; padding: 4px 12px; font-size: 12px; cursor: pointer; }
   .vfm-idioma.sel { background: var(--color-acento); border-color: var(--color-acento); color: #fff; font-weight: 700; }
-  .vfm-hoja-btn { background: none; border: 1px dashed var(--borde); color: var(--texto2); border-radius: 8px; padding: 8px 14px; font-size: 12px; cursor: pointer; margin-top: 6px; width: 100%; }
+  .vfm-hoja-btn { background: none; border: 1px dashed var(--borde); color: var(--texto2); border-radius: 8px; padding: 8px 14px; font-size: 12px; cursor: pointer; margin-top: 8px; width: 100%; }
   .vfm-hoja-btn:hover { border-color: var(--color-acento); color: var(--color-acento); }
-  .vfm-historial { margin-top: 4px; }
   .vfm-h-item { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; font-size: 12px; color: var(--texto2); line-height: 1.7; }
   .vfm-h-item strong { color: var(--texto); }
+  .vfm-sep { border: none; border-top: 1px solid var(--borde); margin: 14px 0; }
   .vfm-msg { font-size: 13px; min-height: 20px; margin-top: 8px; }
   .vfm-msg.ok { color: var(--verde); }
   .vfm-msg.mal { color: var(--rojo); }
@@ -1065,19 +1076,16 @@ async function cargarTrabajadores() {
   });
 
   todosTrabajadores = Object.values(porTrabajador);
-
-  // Cargar en paralelo foto y verificación para todos los trabajadores
-  const ids = todosTrabajadores.map(t => t.id);
+  var ids = todosTrabajadores.map(function(t) { return t.id; });
   if (ids.length) {
-    const [fotosRes, verifRes] = await Promise.all([
+    var pr = await Promise.all([
       sb.from('fotos_identidad').select('trabajador_id').in('trabajador_id', ids),
       sb.from('verificaciones_identidad').select('trabajador_id').in('trabajador_id', ids)
     ]);
-    const conFoto  = new Set((fotosRes.data  || []).map(r => r.trabajador_id));
-    const conVerif = new Set((verifRes.data  || []).map(r => r.trabajador_id));
-    todosTrabajadores.forEach(t => { t.hay_foto = conFoto.has(t.id); t.hay_verif = conVerif.has(t.id); });
+    var conFoto  = new Set((pr[0].data||[]).map(function(r){return r.trabajador_id;}));
+    var conVerif = new Set((pr[1].data||[]).map(function(r){return r.trabajador_id;}));
+    todosTrabajadores.forEach(function(t){ t.hay_foto=conFoto.has(t.id); t.hay_verif=conVerif.has(t.id); });
   }
-
   aplicarFiltrosTabla();
 }
 
@@ -1213,7 +1221,7 @@ function renderTabla(lista) {
           <td>${esc(etiquetaCategoria(t) || '—')}</td>
           <td>${formatearPrecio(t.precio_hora_personalizado)}</td>
           <td>${t.obras.map(o => pillObra(t, o)).join('')}</td>
-          <td><div class="acciones">${t.hay_foto ? '<button class="fi-icono" title="Ver foto de identidad" onclick="clicFoto(\'' + t.id + '\', this)">📷</button>' : '<button class="fi-icono sin-dato-clicable" title="Sin foto — clic para hacerla" onclick="clicFoto(\'' + t.id + '\', this)">📷</button>'}${t.hay_verif ? '<button class="fi-icono" title="Ver/editar verificación" onclick="clicVerif(\'' + t.id + '\', this)">🪪</button>' : '<button class="fi-icono sin-dato-clicable" title="Sin verificación — clic para registrar" onclick="clicVerif(\'' + t.id + '\', this)">🪪</button>'}<button class="btn-accion primario" onclick="abrirEdicion('${t.id}')">Editar</button>${obraFiltroTrabajadores ? `<button class="btn-accion peligro" onclick="abrirModalQuitar('${t.id}')">Quitar de la obra</button>` : ''}</div></td>
+          <td><div class="acciones">${t.hay_foto ? '<button class="fi-icono" title="Ver foto" onclick="clicFoto(\'' + t.id + '\', this)">📷</button>' : '<button class="fi-icono sin-dato-clicable" title="Sin foto — clic para hacerla" onclick="clicFoto(\'' + t.id + '\', this)">📷</button>'}${t.hay_verif ? '<button class="fi-icono" title="Ver/editar verificación" onclick="clicVerif(\'' + t.id + '\', this)">🪪</button>' : '<button class="fi-icono sin-dato-clicable" title="Sin verificación — clic para registrar" onclick="clicVerif(\'' + t.id + '\', this)">🪪</button>'}<button class="btn-accion primario" onclick="abrirEdicion('${t.id}')">Editar</button>${obraFiltroTrabajadores ? `<button class="btn-accion peligro" onclick="abrirModalQuitar('${t.id}')">Quitar de la obra</button>` : ''}</div></td>
         </tr>`;
     });
   });
@@ -1264,183 +1272,216 @@ function pillObra(trabajador, obra) {
 // ── FOTO E IDENTIDAD (70a) ──────────────────────────────────────────
 FI.init(sb);
 
-let _fivTrabajadorId = null; // trabajador cuya foto está abierta en el visor
+// Variables en var para evitar problemas de inicialización temporal
+var _fivTrabajadorId = null;
+var _ficTrabajadorId = null;
+var _ficMando        = null;
+var _vfmTrabajadorId = null;
+var _vfmObraId       = null;
+var _vfmIdiomasSel   = null;
+
+var IDIOMAS_VFM = [
+  { code:'es', label:'Español' }, { code:'ca', label:'Català' },
+  { code:'en', label:'English' }, { code:'ro', label:'Română' },
+  { code:'ar', label:'العربية' }, { code:'ur', label:'اردو' },
+  { code:'pa', label:'ਪੰਜਾਬੀ' }
+];
+var METODOS_VFM = { dni: 'DNI/NIE físico', dni_tpc: 'App TPC' };
+
+// Devuelve la obra a usar: filtro activo o primera obra del trabajador
+function obraParaTrabajador(trabajadorId) {
+  if (obraFiltroTrabajadores) return obraFiltroTrabajadores;
+  var t = todosTrabajadores.find(function(x) { return x.id === trabajadorId; });
+  if (t && t.obras && t.obras.length) return t.obras[0].obra_id;
+  return null;
+}
 
 // 📷 Clic en icono foto
 async function clicFoto(trabajadorId, btn) {
   btn.disabled = true;
   try {
-    const { data, error } = await sb.rpc('ver_foto_identidad', { p_trabajador_id: trabajadorId });
+    var res = await sb.rpc('ver_foto_identidad', { p_trabajador_id: trabajadorId });
+    var data = res.data; var error = res.error;
     if (error || !data || !data.ok) throw new Error((data && data.error) || 'Error');
     if (data.hay_foto) {
-      const url = await FI.enlace(data.path);
+      // Tiene foto: mostrar en visor
+      var url = await FI.enlace(data.path);
       _fivTrabajadorId = trabajadorId;
       document.getElementById('fiv-img').src = url;
-      document.getElementById('fiv').classList.remove('oculto');
+      document.getElementById('fiv-overlay').classList.remove('oculto');
     } else {
-      // Sin foto: abrir cámara directamente
-      const obraId = obraFiltroTrabajadores;
-      if (!obraId) { alert('Selecciona una obra en el filtro superior antes de hacer la foto.'); return; }
-      FI.abrirAnadir(trabajadorId, obraId, function () {
-        btn.classList.remove('sin-dato-clicable');
-        btn.title = 'Ver foto de identidad';
-      }, { tema: 'oscuro' });
+      // Sin foto: abrir captura inline directamente
+      abrirFic(trabajadorId);
     }
-  } catch (e) { alert('No se pudo cargar la foto. ' + e.message); }
+  } catch(e) { alert('No se pudo cargar la foto. ' + e.message); }
   finally { btn.disabled = false; }
 }
 
-// Botón "Rehacer la foto" dentro del visor
-function rehacerFoto() {
-  if (!_fivTrabajadorId) return;
-  const obraId = obraFiltroTrabajadores;
-  if (!obraId) { alert('Selecciona una obra en el filtro superior antes de rehacer la foto.'); return; }
-  document.getElementById('fiv').classList.add('oculto');
-  FI.abrirAnadir(_fivTrabajadorId, obraId, function () {
-    // nada más: la tabla se recargará la próxima vez
-  }, { tema: 'oscuro' });
+// Abrir captura inline (sin modal intermedio de FI)
+function abrirFic(trabajadorId) {
+  _ficTrabajadorId = trabajadorId;
+  var hueco = document.getElementById('fic-hueco');
+  hueco.innerHTML = '';
+  document.getElementById('fic-msg').textContent = '';
+  document.getElementById('fic-msg').className = 'fic-msg';
+  document.getElementById('fic-btn-guardar').disabled = false;
+  _ficMando = FI.montarCaptura(hueco, {});
+  document.getElementById('fic-overlay').classList.remove('oculto');
 }
-document.getElementById('fiv').addEventListener('click', function(e) {
+
+async function guardarFic() {
+  var msg = document.getElementById('fic-msg');
+  var btn = document.getElementById('fic-btn-guardar');
+  if (!_ficMando || !_ficMando.blob) {
+    msg.className = 'fic-msg mal';
+    msg.textContent = 'Primero haz o elige una foto.';
+    return;
+  }
+  var obraId = obraParaTrabajador(_ficTrabajadorId);
+  if (!obraId) {
+    msg.className = 'fic-msg mal';
+    msg.textContent = 'No se puede determinar la obra. Selecciona una en el filtro superior.';
+    return;
+  }
+  btn.disabled = true;
+  msg.className = 'fic-msg';
+  msg.textContent = 'Guardando…';
+  var r = await FI.guardar(_ficTrabajadorId, obraId, _ficMando.blob);
+  if (!r.ok) {
+    btn.disabled = false;
+    msg.className = 'fic-msg mal';
+    msg.textContent = r.error || 'No se ha podido guardar.';
+    return;
+  }
+  msg.className = 'fic-msg ok';
+  msg.textContent = '✓ Foto guardada.';
+  // Actualizar icono en la tabla
+  var ic = document.querySelector('button.fi-icono.sin-dato-clicable[onclick*="clicFoto(\'' + _ficTrabajadorId + '\'"]');
+  if (ic) { ic.classList.remove('sin-dato-clicable'); ic.title = 'Ver foto de identidad'; }
+  setTimeout(cerrarFic, 900);
+}
+
+function cerrarFic() {
+  document.getElementById('fic-overlay').classList.add('oculto');
+  _ficTrabajadorId = null; _ficMando = null;
+}
+
+// Rehacer foto desde el visor
+function rehacerFoto() {
+  document.getElementById('fiv-overlay').classList.add('oculto');
+  if (_fivTrabajadorId) abrirFic(_fivTrabajadorId);
+}
+
+document.getElementById('fiv-overlay').addEventListener('click', function(e) {
   if (e.target === this) this.classList.add('oculto');
+});
+document.getElementById('fic-overlay').addEventListener('click', function(e) {
+  if (e.target === this) cerrarFic();
 });
 
 // 🪪 Clic en icono verificación
-const IDIOMAS_VFM = [
-  { code:'es', label:'Español' },  { code:'ca', label:'Català' },
-  { code:'en', label:'English' },  { code:'ro', label:'Română' },
-  { code:'ar', label:'العربية' },  { code:'ur', label:'اردو' },
-  { code:'pa', label:'ਪੰਜਾਬੀ' }
-];
-const METODOS_VFM = { dni: 'DNI/NIE físico', dni_tpc: 'App TPC' };
-let _vfmTrabajadorId = null;
-let _vfmObraId = null;
-let _vfmIdiomoSel = null;
-
 async function clicVerif(trabajadorId, btn) {
   btn.disabled = true;
   try {
-    const { data, error } = await sb.rpc('historial_verificacion_identidad', { p_trabajador_id: trabajadorId });
+    var res = await sb.rpc('historial_verificacion_identidad', { p_trabajador_id: trabajadorId });
+    var data = res.data; var error = res.error;
     if (error || !data || !data.ok) throw new Error((data && data.error) || 'Error');
     _vfmTrabajadorId = trabajadorId;
-    _vfmObraId = obraFiltroTrabajadores || null;
-    _vfmIdiomoSel = null;
-    const lista = data.verificaciones || [];
-    const hayVerif = lista.length > 0;
-    document.getElementById('vfm-titulo').textContent = hayVerif ? 'Verificación de identidad' : 'Registrar verificación';
+    _vfmObraId = obraParaTrabajador(trabajadorId);
+    _vfmIdiomasSel = null;
+    var lista = data.verificaciones || [];
+    document.getElementById('vfm-titulo').textContent = lista.length ? 'Verificación de identidad' : 'Registrar verificación';
     document.getElementById('vfm-msg').textContent = '';
     document.getElementById('vfm-msg').className = 'vfm-msg';
 
-    let html = '';
-
-    // Historial existente
-    if (hayVerif) {
-      html += '<div class="vfm-seccion"><span class="vfm-label">Verificaciones registradas</span><div class="vfm-historial">';
-      html += lista.map(v => {
-        const fecha = new Date(v.verificado_en).toLocaleString('es-ES',
+    var html = '';
+    if (lista.length) {
+      html += '<span class="vfm-label">Verificaciones registradas</span>';
+      html += lista.map(function(v) {
+        var fecha = new Date(v.verificado_en).toLocaleString('es-ES',
           { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone:'Europe/Madrid' });
         return '<div class="vfm-h-item">' +
-          '📅 <strong>' + esc(fecha) + '</strong> · ' +
-          '👤 <strong>' + esc(v.verificado_por || '—') + '</strong><br>' +
-          '🏗️ ' + esc(v.obra || '—') + ' · ' +
-          '🪪 ' + esc(METODOS_VFM[v.metodo] || v.metodo || '—') + '<br>' +
-          '📄 Hoja informativa: <strong>' + (v.informado ? '✓ Entregada' + (v.idioma_informacion ? ' (' + esc(v.idioma_informacion) + ')' : '') : '✗ No entregada') + '</strong>' +
+          '📅 <strong>' + esc(fecha) + '</strong> · 👤 <strong>' + esc(v.verificado_por||'—') + '</strong><br>' +
+          '🏗️ ' + esc(v.obra||'—') + ' · 🪪 ' + esc(METODOS_VFM[v.metodo]||v.metodo||'—') + '<br>' +
+          '📄 Hoja: <strong>' + (v.informado ? '✓ ' + esc(v.idioma_informacion||'') : '✗ No entregada') + '</strong>' +
           '</div>';
       }).join('');
-      html += '</div></div><hr style="border-color:var(--borde);margin:12px 0">';
-      html += '<div class="vfm-seccion"><span class="vfm-label">Añadir nueva verificación</span></div>';
+      html += '<hr class="vfm-sep"><span class="vfm-label">Añadir nueva verificación</span>';
     }
 
-    // Formulario nueva verificación
-    if (!_vfmObraId) {
-      html += '<div style="font-size:13px;color:var(--texto2);font-style:italic">Selecciona una obra en el filtro superior para poder registrar una verificación.</div>';
-      document.getElementById('vfm-btns-guardar').style.display = 'none';
-    } else {
-      html += '<div class="vfm-seccion"><span class="vfm-label">Método de verificación</span><div class="vfm-opciones">';
-      html += '<label class="vfm-opcion"><input type="radio" name="vfm-metodo" value="dni"> <span>🪪 DNI / NIE físico (documento en mano)</span></label>';
-      html += '<label class="vfm-opcion"><input type="radio" name="vfm-metodo" value="dni_tpc"> <span>📱 App TPC (verificación digital)</span></label>';
-      html += '</div></div>';
+    html += '<div class="vfm-opciones">' +
+      '<label class="vfm-opcion"><input type="radio" name="vfm-metodo" value="dni"> <span>🪪 DNI / NIE físico (documento en mano)</span></label>' +
+      '<label class="vfm-opcion"><input type="radio" name="vfm-metodo" value="dni_tpc"> <span>📱 App TPC (verificación digital)</span></label>' +
+      '</div>';
 
-      html += '<div class="vfm-seccion"><div class="vfm-check-fila">' +
-        '<input type="checkbox" id="vfm-informado"> ' +
-        '<label class="vfm-check-txt" for="vfm-informado">' +
-        'He entregado y explicado la <strong>hoja informativa de protección de datos</strong> a esta persona' +
-        '</label></div>' +
-        '<div id="vfm-idiomas-wrap" style="display:none;margin-top:8px">' +
-        '<span class="vfm-label" style="margin-bottom:6px;display:block">Idioma en que se explicó</span>' +
-        '<div class="vfm-idiomas">' +
-        IDIOMAS_VFM.map(i => '<button class="vfm-idioma" data-code="' + i.code + '" onclick="selIdioma(this)">' + i.label + '</button>').join('') +
-        '</div></div>' +
-        '<button class="vfm-hoja-btn" onclick="abrirHoja()">📄 Ver hoja informativa en todos los idiomas</button>' +
-        '</div>';
-
-      document.getElementById('vfm-btns-guardar').style.display = 'flex';
-    }
+    html += '<div class="vfm-check-fila">' +
+      '<input type="checkbox" id="vfm-informado">' +
+      '<label class="vfm-check-txt" for="vfm-informado">He entregado y explicado la <strong>hoja informativa de protección de datos</strong></label>' +
+      '</div>' +
+      '<div id="vfm-idiomas-wrap" style="display:none">' +
+      '<span class="vfm-label" style="margin:8px 0 4px;display:block">Idioma en que se explicó</span>' +
+      '<div class="vfm-idiomas">' +
+      IDIOMAS_VFM.map(function(i) {
+        return '<button class="vfm-idioma" data-code="' + i.code + '" onclick="selIdioma(this)">' + i.label + '</button>';
+      }).join('') +
+      '</div></div>' +
+      '<button class="vfm-hoja-btn" onclick="window.open(\'../assets/hoja-informativa.html\',\'_blank\')">📄 Ver hoja informativa (7 idiomas)</button>';
 
     document.getElementById('vfm-cuerpo').innerHTML = html;
+    document.getElementById('vfm-btns-guardar').style.display = 'flex';
 
-    // Listener del checkbox
-    const chk = document.getElementById('vfm-informado');
+    var chk = document.getElementById('vfm-informado');
     if (chk) {
       chk.addEventListener('change', function() {
         document.getElementById('vfm-idiomas-wrap').style.display = this.checked ? 'block' : 'none';
-        if (!this.checked) { _vfmIdiomoSel = null; document.querySelectorAll('.vfm-idioma').forEach(b => b.classList.remove('sel')); }
+        if (!this.checked) {
+          _vfmIdiomasSel = null;
+          document.querySelectorAll('.vfm-idioma').forEach(function(b) { b.classList.remove('sel'); });
+        }
       });
     }
-
     document.getElementById('vfm-overlay').classList.remove('oculto');
   } catch(e) { alert('No se pudo cargar la verificación. ' + e.message); }
   finally { btn.disabled = false; }
 }
 
 function selIdioma(btn) {
-  document.querySelectorAll('.vfm-idioma').forEach(b => b.classList.remove('sel'));
+  document.querySelectorAll('.vfm-idioma').forEach(function(b) { b.classList.remove('sel'); });
   btn.classList.add('sel');
-  _vfmIdiomoSel = btn.dataset.code;
-}
-
-function abrirHoja() {
-  window.open('../assets/hoja-informativa.html', '_blank');
+  _vfmIdiomasSel = btn.dataset.code;
 }
 
 async function guardarVerif() {
-  const metodoEl = document.querySelector('input[name="vfm-metodo"]:checked');
-  const informado = document.getElementById('vfm-informado') && document.getElementById('vfm-informado').checked;
-  const msg = document.getElementById('vfm-msg');
+  var metodoEl = document.querySelector('input[name="vfm-metodo"]:checked');
+  var informado = document.getElementById('vfm-informado') && document.getElementById('vfm-informado').checked;
+  var msg = document.getElementById('vfm-msg');
   msg.className = 'vfm-msg';
-
   if (!metodoEl) { msg.className = 'vfm-msg mal'; msg.textContent = 'Elige el método de verificación.'; return; }
-  if (informado && !_vfmIdiomoSel) { msg.className = 'vfm-msg mal'; msg.textContent = 'Indica el idioma en que se explicó la hoja.'; return; }
-
-  const btn = document.getElementById('vfm-btn-guardar');
-  btn.disabled = true;
-  msg.textContent = 'Guardando…';
-
-  const { data, error } = await sb.rpc('verificar_identidad', {
-    p_trabajador_id: _vfmTrabajadorId,
-    p_obra_id: _vfmObraId,
-    p_metodo: metodoEl.value,
-    p_informado: informado,
-    p_idioma: informado ? _vfmIdiomoSel : null
+  if (informado && !_vfmIdiomasSel) { msg.className = 'vfm-msg mal'; msg.textContent = 'Indica el idioma en que se explicó la hoja.'; return; }
+  if (!_vfmObraId) { msg.className = 'vfm-msg mal'; msg.textContent = 'No se puede determinar la obra. Selecciona una en el filtro superior.'; return; }
+  var btn = document.getElementById('vfm-btn-guardar');
+  btn.disabled = true; msg.textContent = 'Guardando…';
+  var res = await sb.rpc('verificar_identidad', {
+    p_trabajador_id: _vfmTrabajadorId, p_obra_id: _vfmObraId,
+    p_metodo: metodoEl.value, p_informado: informado,
+    p_idioma: informado ? _vfmIdiomasSel : null
   });
-
+  var data = res.data; var error = res.error;
   if (error || !data || !data.ok) {
     msg.className = 'vfm-msg mal';
     msg.textContent = (data && data.error) || 'Error al guardar.';
-    btn.disabled = false;
-    return;
+    btn.disabled = false; return;
   }
-
   msg.className = 'vfm-msg ok';
-  msg.textContent = '✓ Verificación registrada correctamente.';
-  // Actualizar el icono en la tabla sin recargar todo
-  const iconoVerif = document.querySelector(`button[onclick*="clicVerif('${_vfmTrabajadorId}'"]`);
-  if (iconoVerif) { iconoVerif.classList.remove('sin-dato'); iconoVerif.disabled = false; iconoVerif.title = 'Ver verificaciones de identidad'; }
-  setTimeout(cerrarVfm, 1200);
+  msg.textContent = '✓ Verificación registrada.';
+  var ic = document.querySelector('button.fi-icono.sin-dato-clicable[onclick*="clicVerif(\'' + _vfmTrabajadorId + '\'"]');
+  if (ic) { ic.classList.remove('sin-dato-clicable'); ic.title = 'Ver/editar verificación'; }
+  setTimeout(cerrarVfm, 1000);
 }
 
 function cerrarVfm() {
   document.getElementById('vfm-overlay').classList.add('oculto');
-  _vfmTrabajadorId = null; _vfmObraId = null; _vfmIdiomoSel = null;
+  _vfmTrabajadorId = null; _vfmObraId = null; _vfmIdiomasSel = null;
 }
 document.getElementById('vfm-overlay').addEventListener('click', function(e) {
   if (e.target === this) cerrarVfm();
@@ -2198,12 +2239,24 @@ document.getElementById('btn-confirmar-quitar').addEventListener('click', async 
 });
 </script>
 
+<!-- captura inline foto (70a) -->
+<div class="fic-overlay oculto" id="fic-overlay">
+  <div class="fic-caja">
+    <h3>📷 Foto de identidad</h3>
+    <div id="fic-hueco"></div>
+    <div class="fic-msg" id="fic-msg"></div>
+    <div class="fic-btns">
+      <button class="fic-btn" onclick="cerrarFic()">Cancelar</button>
+      <button class="fic-btn primario" id="fic-btn-guardar" onclick="guardarFic()">Guardar</button>
+    </div>
+  </div>
+</div>
 <!-- visor foto (70a) -->
-<div class="fiv-overlay oculto" id="fiv">
+<div class="fiv-overlay oculto" id="fiv-overlay">
   <img class="fiv-img" id="fiv-img" src="" alt="Foto de identidad" />
   <div class="fiv-btns">
-    <button class="fiv-btn peligro" id="fiv-btn-rehacer" onclick="rehacerFoto()">📷 Rehacer la foto</button>
-    <button class="fiv-btn" onclick="document.getElementById('fiv').classList.add('oculto')">Cerrar</button>
+    <button class="fiv-btn peligro" onclick="rehacerFoto()">📷 Rehacer la foto</button>
+    <button class="fiv-btn" onclick="document.getElementById('fiv-overlay').classList.add('oculto')">Cerrar</button>
   </div>
 </div>
 <!-- modal verificación (70a) -->
