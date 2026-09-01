@@ -1,0 +1,264 @@
+<br /><!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hoja Informativa — Protección de Datos</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: sans-serif; background: #1a1a1a; color: #e8e8e8; min-height: 100vh; }
+  .cabecera { background: #111; padding: 16px 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 10; flex-wrap: wrap; }
+  .cabecera h1 { font-size: 16px; font-weight: 700; flex: 1; }
+  .selector-idioma { display: flex; flex-wrap: wrap; gap: 6px; }
+  .btn-idioma { background: #2a2a2a; border: 1px solid #444; color: #aaa; border-radius: 20px; padding: 5px 13px; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+  .btn-idioma:hover { border-color: #888; color: #e8e8e8; }
+  .btn-idioma.activo { background: #fb8c00; border-color: #fb8c00; color: #fff; font-weight: 700; }
+  .hoja { display: none; padding: 24px 20px 40px; max-width: 680px; margin: 0 auto; line-height: 1.7; }
+  .hoja.visible { display: block; }
+  .hoja h2 { font-size: 18px; font-weight: 800; margin-bottom: 18px; color: #fff; border-bottom: 2px solid #fb8c00; padding-bottom: 10px; }
+  .hoja h3 { font-size: 14px; font-weight: 700; margin: 20px 0 6px; color: #fb8c00; }
+  .hoja p { font-size: 14px; color: #ccc; margin-bottom: 8px; }
+  .hoja ul { padding-left: 20px; margin-bottom: 8px; }
+  .hoja li { font-size: 14px; color: #ccc; margin-bottom: 4px; }
+  .hoja .recuadro { background: #242424; border: 1px solid #333; border-radius: 8px; padding: 14px 16px; margin: 16px 0; }
+  .hoja .recuadro p { margin: 0; }
+  .hoja.rtl { direction: rtl; text-align: right; }
+  .hoja.rtl ul { padding-left: 0; padding-right: 20px; }
+</style>
+</head>
+<body>
+
+<div class="cabecera">
+  <h1>🛡️ Información sobre protección de datos</h1>
+  <div class="selector-idioma">
+    <button class="btn-idioma activo" onclick="mostrar('es', event)">Español</button>
+    <button class="btn-idioma" onclick="mostrar('ca', event)">Català</button>
+    <button class="btn-idioma" onclick="mostrar('en', event)">English</button>
+    <button class="btn-idioma" onclick="mostrar('ro', event)">Română</button>
+    <button class="btn-idioma" onclick="mostrar('ar', event)">العربية</button>
+    <button class="btn-idioma" onclick="mostrar('ur', event)">اردو</button>
+    <button class="btn-idioma" onclick="mostrar('pa', event)">ਪੰਜਾਬੀ</button>
+  </div>
+</div>
+
+<!-- ESPAÑOL -->
+<div class="hoja visible" id="hoja-es">
+  <h2>Información sobre el tratamiento de sus datos personales</h2>
+  <div class="recuadro"><p>Esta información se le entrega en cumplimiento del Reglamento (UE) 2016/679 (RGPD) y la Ley Orgánica 3/2018 (LOPDGDD).</p></div>
+  <h3>¿Quién trata sus datos?</h3>
+  <p>El responsable del tratamiento es la empresa constructora titular de la obra en la que usted accede (Bosch Pascual o Rècop, según el caso), con domicilio en Cataluña.</p>
+  <h3>¿Qué datos recogemos?</h3>
+  <ul>
+    <li>Nombre y apellidos</li>
+    <li>Número de documento de identidad (DNI/NIE/pasaporte)</li>
+    <li>Fotografía de la cara</li>
+    <li>Empresa o razón social a la que pertenece</li>
+    <li>Registros de entrada y salida de la obra</li>
+  </ul>
+  <h3>¿Para qué los usamos?</h3>
+  <p>Exclusivamente para el control de acceso y registro de presencia en obra, y para el cumplimiento de las obligaciones en materia de seguridad laboral y coordinación de actividades empresariales.</p>
+  <h3>¿Cuánto tiempo los conservamos?</h3>
+  <p>Los registros de acceso se conservan durante el tiempo legalmente exigido (mínimo 5 años). La fotografía se elimina en el plazo máximo de 12 meses desde su última actividad en nuestras obras.</p>
+  <h3>¿Cuáles son sus derechos?</h3>
+  <ul>
+    <li><strong>Acceso:</strong> puede solicitar saber qué datos tenemos sobre usted.</li>
+    <li><strong>Rectificación:</strong> puede pedir que corrijamos datos inexactos.</li>
+    <li><strong>Supresión:</strong> puede solicitar la eliminación de sus datos cuando no sean necesarios.</li>
+    <li><strong>Oposición y limitación:</strong> puede oponerse al tratamiento en determinadas circunstancias.</li>
+  </ul>
+  <p>Para ejercer sus derechos, diríjase al jefe de obra. También puede reclamar ante la <strong>Agencia Española de Protección de Datos</strong> (www.aepd.es).</p>
+  <h3>¿Con quién compartimos sus datos?</h3>
+  <p>Sus datos pueden ser comunicados a la empresa propietaria de la obra o promotora, y a organismos públicos cuando así lo exija la ley. No se realizan transferencias internacionales.</p>
+</div>
+
+<!-- CATALÀ -->
+<div class="hoja" id="hoja-ca">
+  <h2>Informació sobre el tractament de les seves dades personals</h2>
+  <div class="recuadro"><p>Aquesta informació se li lliura en compliment del Reglament (UE) 2016/679 (RGPD) i la Llei Orgànica 3/2018 (LOPDGDD).</p></div>
+  <h3>Qui tracta les seves dades?</h3>
+  <p>El responsable del tractament és l'empresa constructora titular de l'obra on vostè accedeix (Bosch Pascual o Rècop, segons el cas), amb domicili a Catalunya.</p>
+  <h3>Quines dades recollim?</h3>
+  <ul>
+    <li>Nom i cognoms</li>
+    <li>Número de document d'identitat (DNI/NIE/passaport)</li>
+    <li>Fotografia de la cara</li>
+    <li>Empresa o raó social a la qual pertany</li>
+    <li>Registres d'entrada i sortida de l'obra</li>
+  </ul>
+  <h3>Per a què els fem servir?</h3>
+  <p>Exclusivament per al control d'accés i registre de presència a l'obra, i per al compliment de les obligacions en matèria de seguretat laboral i coordinació d'activitats empresarials.</p>
+  <h3>Quant de temps els conservem?</h3>
+  <p>Els registres d'accés es conserven durant el temps legalment exigit (mínim 5 anys). La fotografia s'elimina en el termini màxim de 12 mesos des de la seva última activitat a les nostres obres.</p>
+  <h3>Quins són els seus drets?</h3>
+  <ul>
+    <li><strong>Accés:</strong> pot sol·licitar saber quines dades tenim sobre vostè.</li>
+    <li><strong>Rectificació:</strong> pot demanar que corregim dades inexactes.</li>
+    <li><strong>Supressió:</strong> pot sol·licitar l'eliminació de les seves dades quan no siguin necessàries.</li>
+    <li><strong>Oposició i limitació:</strong> pot oposar-se al tractament en determinades circumstàncies.</li>
+  </ul>
+  <p>Per exercir els seus drets, adreceu-vos al cap d'obra. També pot reclamar davant l'<strong>Agència Espanyola de Protecció de Dades</strong> (www.aepd.es).</p>
+  <h3>Amb qui compartim les seves dades?</h3>
+  <p>Les seves dades poden ser comunicades a l'empresa propietària de l'obra o promotora, i a organismes públics quan la llei ho exigeixi. No es realitzen transferències internacionals.</p>
+</div>
+
+<!-- ENGLISH -->
+<div class="hoja" id="hoja-en">
+  <h2>Information on the processing of your personal data</h2>
+  <div class="recuadro"><p>This information is provided in compliance with EU Regulation 2016/679 (GDPR) and Spanish Organic Law 3/2018 (LOPDGDD).</p></div>
+  <h3>Who processes your data?</h3>
+  <p>The data controller is the construction company in charge of the worksite you are accessing (Bosch Pascual or Rècop, as applicable), based in Catalonia, Spain.</p>
+  <h3>What data do we collect?</h3>
+  <ul>
+    <li>Full name</li>
+    <li>Identity document number (national ID / residence permit / passport)</li>
+    <li>Photograph of your face</li>
+    <li>Employer or company name</li>
+    <li>Records of entry and exit from the worksite</li>
+  </ul>
+  <h3>Why do we use them?</h3>
+  <p>Solely for access control and attendance tracking at the worksite, and to comply with occupational health and safety obligations and business activity coordination requirements.</p>
+  <h3>How long do we keep them?</h3>
+  <p>Access records are kept for the legally required period (minimum 5 years). Photographs are deleted within 12 months of your last activity at our worksites.</p>
+  <h3>What are your rights?</h3>
+  <ul>
+    <li><strong>Access:</strong> you may request to know what data we hold about you.</li>
+    <li><strong>Rectification:</strong> you may ask us to correct inaccurate data.</li>
+    <li><strong>Erasure:</strong> you may request deletion of your data when it is no longer necessary.</li>
+    <li><strong>Objection and restriction:</strong> you may object to processing in certain circumstances.</li>
+  </ul>
+  <p>To exercise your rights, speak to the site manager. You may also lodge a complaint with the <strong>Spanish Data Protection Agency</strong> (www.aepd.es).</p>
+  <h3>Who do we share your data with?</h3>
+  <p>Your data may be shared with the project owner or developer, and with public authorities when required by law. No international transfers are made.</p>
+</div>
+
+<!-- ROMÂNĂ -->
+<div class="hoja" id="hoja-ro">
+  <h2>Informații privind prelucrarea datelor dumneavoastră personale</h2>
+  <div class="recuadro"><p>Aceste informații vă sunt furnizate în conformitate cu Regulamentul (UE) 2016/679 (RGPD) și Legea Organică spaniolă 3/2018 (LOPDGDD).</p></div>
+  <h3>Cine prelucrează datele dumneavoastră?</h3>
+  <p>Responsabilul prelucrării este societatea de construcții titulară a șantierului la care accesați (Bosch Pascual sau Rècop, după caz), cu sediul în Catalonia, Spania.</p>
+  <h3>Ce date colectăm?</h3>
+  <ul>
+    <li>Nume și prenume</li>
+    <li>Numărul documentului de identitate (DNI/NIE/pașaport)</li>
+    <li>Fotografie a feței</li>
+    <li>Societatea sau angajatorul dumneavoastră</li>
+    <li>Înregistrări de intrare și ieșire de pe șantier</li>
+  </ul>
+  <h3>De ce le folosim?</h3>
+  <p>Exclusiv pentru controlul accesului și înregistrarea prezenței pe șantier, și pentru respectarea obligațiilor privind securitatea muncii și coordonarea activităților între întreprinderi.</p>
+  <h3>Cât timp le păstrăm?</h3>
+  <p>Înregistrările de acces se păstrează pe perioada impusă de lege (minimum 5 ani). Fotografia se elimină în maximum 12 luni de la ultima dumneavoastră activitate pe șantierele noastre.</p>
+  <h3>Care sunt drepturile dumneavoastră?</h3>
+  <ul>
+    <li><strong>Acces:</strong> puteți solicita să aflați ce date deținem despre dumneavoastră.</li>
+    <li><strong>Rectificare:</strong> puteți solicita corectarea datelor inexacte.</li>
+    <li><strong>Ștergere:</strong> puteți solicita eliminarea datelor când acestea nu mai sunt necesare.</li>
+    <li><strong>Opoziție și restricție:</strong> vă puteți opune prelucrării în anumite circumstanțe.</li>
+  </ul>
+  <p>Pentru a vă exercita drepturile, adresați-vă șefului de șantier. Puteți depune, de asemenea, o plângere la <strong>Agenția Spaniolă pentru Protecția Datelor</strong> (www.aepd.es).</p>
+  <h3>Cu cine împărtășim datele dumneavoastră?</h3>
+  <p>Datele dumneavoastră pot fi comunicate proprietarului sau promotorului proiectului și autorităților publice când legea o impune. Nu se efectuează transferuri internaționale.</p>
+</div>
+
+<!-- ÁRABE -->
+<div class="hoja rtl" id="hoja-ar">
+  <h2>معلومات حول معالجة بياناتك الشخصية</h2>
+  <div class="recuadro"><p>تُقدَّم هذه المعلومات امتثالاً للائحة الأوروبية 2016/679 (اللائحة العامة لحماية البيانات) والقانون الأساسي الإسباني 3/2018.</p></div>
+  <h3>من يعالج بياناتك؟</h3>
+  <p>المسؤول عن معالجة البيانات هو شركة البناء المالكة لموقع العمل الذي تدخل إليه (Bosch Pascual أو Rècop، حسب الحالة)، ومقرها في كتالونيا، إسبانيا.</p>
+  <h3>ما البيانات التي نجمعها؟</h3>
+  <ul>
+    <li>الاسم الكامل</li>
+    <li>رقم وثيقة الهوية (DNI/NIE/جواز السفر)</li>
+    <li>صورة الوجه</li>
+    <li>الشركة أو جهة العمل</li>
+    <li>سجلات الدخول والخروج من موقع العمل</li>
+  </ul>
+  <h3>لماذا نستخدمها؟</h3>
+  <p>حصراً للتحكم في الوصول وتسجيل الحضور في موقع العمل، والامتثال للالتزامات القانونية المتعلقة بالسلامة والصحة المهنية وتنسيق أنشطة الأعمال.</p>
+  <h3>كم من الوقت نحتفظ بها؟</h3>
+  <p>تُحفظ سجلات الوصول للمدة التي يتطلبها القانون (5 سنوات على الأقل). تُحذف الصورة خلال 12 شهراً على أقصى تقدير من آخر نشاط لك في مواقع عملنا.</p>
+  <h3>ما هي حقوقك؟</h3>
+  <ul>
+    <li><strong>الوصول:</strong> يمكنك طلب معرفة البيانات التي نحتفظ بها عنك.</li>
+    <li><strong>التصحيح:</strong> يمكنك طلب تصحيح البيانات غير الدقيقة.</li>
+    <li><strong>الحذف:</strong> يمكنك طلب حذف بياناتك عندما لا تكون ضرورية بعد الآن.</li>
+    <li><strong>الاعتراض والتقييد:</strong> يمكنك الاعتراض على المعالجة في ظروف معينة.</li>
+  </ul>
+  <p>لممارسة حقوقك، تواصل مع مدير موقع العمل. يمكنك أيضاً تقديم شكوى إلى <strong>وكالة حماية البيانات الإسبانية</strong> (www.aepd.es).</p>
+  <h3>مع من نشارك بياناتك؟</h3>
+  <p>قد تُشارَك بياناتك مع مالك المشروع أو المطور، ومع السلطات العامة عند اقتضاء القانون ذلك. لا تُجرى أي عمليات نقل دولية للبيانات.</p>
+</div>
+
+<!-- URDU -->
+<div class="hoja rtl" id="hoja-ur">
+  <h2>آپ کے ذاتی ڈیٹا کی پروسیسنگ کے بارے میں معلومات</h2>
+  <div class="recuadro"><p>یہ معلومات یورپی ضابطہ 2016/679 (GDPR) اور ہسپانوی قانون 3/2018 (LOPDGDD) کی تعمیل میں فراہم کی جا رہی ہیں۔</p></div>
+  <h3>آپ کا ڈیٹا کون پروسیس کرتا ہے؟</h3>
+  <p>ڈیٹا کا ذمہ دار وہ تعمیراتی کمپنی ہے جو اس کام کی جگہ کی مالک ہے جہاں آپ داخل ہو رہے ہیں (Bosch Pascual یا Rècop، جو بھی لاگو ہو)، جس کا صدر دفتر کاتالونیا، ہسپانیہ میں ہے۔</p>
+  <h3>ہم کون سا ڈیٹا جمع کرتے ہیں؟</h3>
+  <ul>
+    <li>پورا نام</li>
+    <li>شناختی دستاویز نمبر (DNI/NIE/پاسپورٹ)</li>
+    <li>چہرے کی تصویر</li>
+    <li>کمپنی یا آجر کا نام</li>
+    <li>کام کی جگہ پر آمد و رفت کے ریکارڈ</li>
+  </ul>
+  <h3>ہم انہیں کیوں استعمال کرتے ہیں؟</h3>
+  <p>صرف کام کی جگہ پر رسائی کنٹرول اور حاضری کے اندراج کے لیے، اور پیشہ ورانہ صحت و حفاظت اور کاروباری سرگرمیوں کے ہم آہنگی کی قانونی ذمہ داریوں کو پورا کرنے کے لیے۔</p>
+  <h3>ہم انہیں کتنے عرصے تک رکھتے ہیں؟</h3>
+  <p>رسائی کے ریکارڈ قانونی طور پر مطلوبہ مدت (کم از کم 5 سال) تک رکھے جاتے ہیں۔ تصویر آپ کی آخری سرگرمی کے 12 ماہ کے اندر حذف کر دی جاتی ہے۔</p>
+  <h3>آپ کے کیا حقوق ہیں؟</h3>
+  <ul>
+    <li><strong>رسائی:</strong> آپ جان سکتے ہیں کہ ہمارے پاس آپ کے بارے میں کون سا ڈیٹا ہے۔</li>
+    <li><strong>اصلاح:</strong> آپ غلط ڈیٹا کی تصحیح کی درخواست کر سکتے ہیں۔</li>
+    <li><strong>حذف:</strong> جب ڈیٹا ضروری نہ رہے تو آپ اسے مٹانے کی درخواست کر سکتے ہیں۔</li>
+    <li><strong>اعتراض اور پابندی:</strong> آپ بعض حالات میں پروسیسنگ پر اعتراض کر سکتے ہیں۔</li>
+  </ul>
+  <p>اپنے حقوق استعمال کرنے کے لیے، سائٹ مینیجر سے بات کریں۔ آپ <strong>ہسپانوی ڈیٹا پروٹیکشن ایجنسی</strong> (www.aepd.es) کے پاس بھی شکایت درج کرا سکتے ہیں۔</p>
+  <h3>ہم آپ کا ڈیٹا کس کے ساتھ شیئر کرتے ہیں؟</h3>
+  <p>آپ کا ڈیٹا پروجیکٹ کے مالک یا ڈیولپر، اور قانون کی ضرورت کے مطابق سرکاری اداروں کے ساتھ شیئر کیا جا سکتا ہے۔ کوئی بین الاقوامی منتقلی نہیں کی جاتی۔</p>
+</div>
+
+<!-- PANYABÍ -->
+<div class="hoja" id="hoja-pa">
+  <h2>ਤੁਹਾਡੇ ਨਿੱਜੀ ਡੇਟਾ ਦੀ ਪ੍ਰੋਸੈਸਿੰਗ ਬਾਰੇ ਜਾਣਕਾਰੀ</h2>
+  <div class="recuadro"><p>ਇਹ ਜਾਣਕਾਰੀ ਯੂਰਪੀਅਨ ਨਿਯਮ 2016/679 (GDPR) ਅਤੇ ਸਪੇਨੀ ਕਾਨੂੰਨ 3/2018 (LOPDGDD) ਦੀ ਪਾਲਣਾ ਵਿੱਚ ਦਿੱਤੀ ਜਾ ਰਹੀ ਹੈ।</p></div>
+  <h3>ਤੁਹਾਡਾ ਡੇਟਾ ਕੌਣ ਪ੍ਰੋਸੈਸ ਕਰਦਾ ਹੈ?</h3>
+  <p>ਡੇਟਾ ਦਾ ਜ਼ਿੰਮੇਵਾਰ ਉਹ ਉਸਾਰੀ ਕੰਪਨੀ ਹੈ ਜੋ ਉਸ ਕੰਮ ਵਾਲੀ ਜਗ੍ਹਾ ਦੀ ਮਾਲਕ ਹੈ ਜਿੱਥੇ ਤੁਸੀਂ ਦਾਖਲ ਹੋ ਰਹੇ ਹੋ (Bosch Pascual ਜਾਂ Rècop, ਜਿਵੇਂ ਵੀ ਲਾਗੂ ਹੋਵੇ), ਜਿਸਦਾ ਮੁੱਖ ਦਫਤਰ ਕੈਟਾਲੋਨੀਆ, ਸਪੇਨ ਵਿੱਚ ਹੈ।</p>
+  <h3>ਅਸੀਂ ਕਿਹੜਾ ਡੇਟਾ ਇਕੱਠਾ ਕਰਦੇ ਹਾਂ?</h3>
+  <ul>
+    <li>ਪੂਰਾ ਨਾਮ</li>
+    <li>ਪਛਾਣ ਦਸਤਾਵੇਜ਼ ਨੰਬਰ (DNI/NIE/ਪਾਸਪੋਰਟ)</li>
+    <li>ਚਿਹਰੇ ਦੀ ਫੋਟੋ</li>
+    <li>ਕੰਪਨੀ ਜਾਂ ਰੁਜ਼ਗਾਰਦਾਤਾ ਦਾ ਨਾਮ</li>
+    <li>ਕੰਮ ਵਾਲੀ ਜਗ੍ਹਾ 'ਤੇ ਆਉਣ-ਜਾਣ ਦੇ ਰਿਕਾਰਡ</li>
+  </ul>
+  <h3>ਅਸੀਂ ਇਹਨਾਂ ਦੀ ਵਰਤੋਂ ਕਿਉਂ ਕਰਦੇ ਹਾਂ?</h3>
+  <p>ਕੇਵਲ ਕੰਮ ਵਾਲੀ ਜਗ੍ਹਾ 'ਤੇ ਪਹੁੰਚ ਨਿਯੰਤਰਣ ਅਤੇ ਹਾਜ਼ਰੀ ਦਰਜ ਕਰਨ ਲਈ, ਅਤੇ ਕਿੱਤਾਮੁਖੀ ਸਿਹਤ ਅਤੇ ਸੁਰੱਖਿਆ ਦੀਆਂ ਕਾਨੂੰਨੀ ਜ਼ਿੰਮੇਵਾਰੀਆਂ ਨੂੰ ਪੂਰਾ ਕਰਨ ਲਈ।</p>
+  <h3>ਅਸੀਂ ਇਹਨਾਂ ਨੂੰ ਕਿੰਨੇ ਸਮੇਂ ਲਈ ਰੱਖਦੇ ਹਾਂ?</h3>
+  <p>ਪਹੁੰਚ ਰਿਕਾਰਡ ਕਾਨੂੰਨੀ ਤੌਰ 'ਤੇ ਲੋੜੀਂਦੀ ਮਿਆਦ (ਘੱਟੋ-ਘੱਟ 5 ਸਾਲ) ਲਈ ਰੱਖੇ ਜਾਂਦੇ ਹਨ। ਫੋਟੋ ਸਾਡੀਆਂ ਕੰਮ ਵਾਲੀਆਂ ਥਾਵਾਂ 'ਤੇ ਤੁਹਾਡੀ ਆਖਰੀ ਗਤੀਵਿਧੀ ਤੋਂ 12 ਮਹੀਨਿਆਂ ਦੇ ਅੰਦਰ ਮਿਟਾ ਦਿੱਤੀ ਜਾਂਦੀ ਹੈ।</p>
+  <h3>ਤੁਹਾਡੇ ਕੀ ਅਧਿਕਾਰ ਹਨ?</h3>
+  <ul>
+    <li><strong>ਪਹੁੰਚ:</strong> ਤੁਸੀਂ ਜਾਣ ਸਕਦੇ ਹੋ ਕਿ ਸਾਡੇ ਕੋਲ ਤੁਹਾਡੇ ਬਾਰੇ ਕਿਹੜਾ ਡੇਟਾ ਹੈ।</li>
+    <li><strong>ਸੁਧਾਰ:</strong> ਤੁਸੀਂ ਗਲਤ ਡੇਟਾ ਨੂੰ ਠੀਕ ਕਰਵਾਉਣ ਦੀ ਬੇਨਤੀ ਕਰ ਸਕਦੇ ਹੋ।</li>
+    <li><strong>ਮਿਟਾਉਣਾ:</strong> ਜਦੋਂ ਡੇਟਾ ਜ਼ਰੂਰੀ ਨਾ ਰਹੇ ਤਾਂ ਤੁਸੀਂ ਇਸਨੂੰ ਮਿਟਾਉਣ ਦੀ ਬੇਨਤੀ ਕਰ ਸਕਦੇ ਹੋ।</li>
+    <li><strong>ਇਤਰਾਜ਼ ਅਤੇ ਸੀਮਾ:</strong> ਤੁਸੀਂ ਕੁਝ ਸਥਿਤੀਆਂ ਵਿੱਚ ਪ੍ਰੋਸੈਸਿੰਗ 'ਤੇ ਇਤਰਾਜ਼ ਕਰ ਸਕਦੇ ਹੋ।</li>
+  </ul>
+  <p>ਆਪਣੇ ਅਧਿਕਾਰ ਵਰਤਣ ਲਈ, ਸਾਈਟ ਮੈਨੇਜਰ ਨਾਲ ਗੱਲ ਕਰੋ। ਤੁਸੀਂ <strong>ਸਪੇਨੀ ਡੇਟਾ ਸੁਰੱਖਿਆ ਏਜੰਸੀ</strong> (www.aepd.es) ਕੋਲ ਵੀ ਸ਼ਿਕਾਇਤ ਕਰ ਸਕਦੇ ਹੋ।</p>
+  <h3>ਅਸੀਂ ਤੁਹਾਡਾ ਡੇਟਾ ਕਿਸ ਨਾਲ ਸਾਂਝਾ ਕਰਦੇ ਹਾਂ?</h3>
+  <p>ਤੁਹਾਡਾ ਡੇਟਾ ਪ੍ਰੋਜੈਕਟ ਦੇ ਮਾਲਕ ਜਾਂ ਡਿਵੈਲਪਰ, ਅਤੇ ਕਾਨੂੰਨ ਦੀ ਲੋੜ ਅਨੁਸਾਰ ਜਨਤਕ ਅਧਿਕਾਰੀਆਂ ਨਾਲ ਸਾਂਝਾ ਕੀਤਾ ਜਾ ਸਕਦਾ ਹੈ। ਕੋਈ ਅੰਤਰਰਾਸ਼ਟਰੀ ਤਬਾਦਲਾ ਨਹੀਂ ਕੀਤਾ ਜਾਂਦਾ।</p>
+</div>
+
+<script>
+function mostrar(id, ev) {
+  document.querySelectorAll('.hoja').forEach(h => h.classList.remove('visible'));
+  document.querySelectorAll('.btn-idioma').forEach(b => b.classList.remove('activo'));
+  const hoja = document.getElementById('hoja-' + id);
+  if (hoja) hoja.classList.add('visible');
+  if (ev && ev.target) ev.target.classList.add('activo');
+}
+</script>
+</body>
+</html>
