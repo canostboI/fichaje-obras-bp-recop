@@ -125,26 +125,28 @@
 
   /* Iconos habilitación junto al nombre */
   .hab-iconos { font-size: 15px; margin-left: 5px; letter-spacing: 1px; }
-  /* ── iconos de foto e identidad (70a) ── */
-  .icono-fi { font-size: 16px; cursor: pointer; opacity: 0.35; transition: opacity 0.15s, transform 0.1s; border: none; background: none; padding: 2px 4px; border-radius: 4px; line-height: 1; }
-  .icono-fi.activo { opacity: 1; }
-  .icono-fi:hover { opacity: 1; transform: scale(1.18); }
-  .icono-fi.activo:hover { background: var(--bg3); }
-  /* popover de verificación */
-  .fi-popover-overlay { position: fixed; inset: 0; z-index: 3000; }
-  .fi-popover { position: fixed; z-index: 3001; background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 14px 16px; min-width: 260px; max-width: 340px; box-shadow: 0 8px 32px rgba(0,0,0,0.45); font-size: 13px; }
-  .fi-popover h4 { font-size: 13px; font-weight: 700; margin: 0 0 10px; color: var(--texto); }
-  .fi-popover .fip-fila { margin-bottom: 6px; color: var(--texto2); }
-  .fi-popover .fip-fila strong { color: var(--texto); }
-  .fi-popover .fip-sep { border: none; border-top: 1px solid var(--borde); margin: 10px 0; }
-  .fi-popover .fip-sin { color: var(--texto2); font-style: italic; }
-  .fi-popover-cerrar { position: absolute; top: 8px; right: 10px; background: none; border: none; color: var(--texto2); font-size: 18px; cursor: pointer; line-height: 1; padding: 2px 6px; border-radius: 4px; }
-  .fi-popover-cerrar:hover { background: var(--bg3); color: var(--texto); }
-  /* visor de foto */
-  .fi-visor-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 4000; display: flex; align-items: center; justify-content: center; }
-  .fi-visor-overlay.oculto { display: none; }
-  .fi-visor-img { max-width: 88vw; max-height: 82vh; border-radius: 10px; box-shadow: 0 8px 40px rgba(0,0,0,0.7); }
-  .fi-visor-cerrar { position: fixed; top: 18px; right: 22px; background: rgba(0,0,0,0.55); color: #fff; border: none; font-size: 28px; cursor: pointer; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
+  /* ── iconos foto/verif (70a) ── */
+  .fi-icono { font-size: 15px; cursor: pointer; border: none; background: none; padding: 2px 5px; border-radius: 4px; line-height: 1; transition: transform 0.1s, opacity 0.15s; }
+  .fi-icono:hover { transform: scale(1.2); background: var(--bg3); }
+  .fi-icono.sin-dato { opacity: 0.28; filter: grayscale(1); cursor: default; }
+  .fi-icono.sin-dato:hover { transform: none; background: none; }
+  .fi-icono.sin-dato-clicable { opacity: 0.38; filter: grayscale(1); cursor: pointer; }
+  .fi-icono.sin-dato-clicable:hover { transform: scale(1.15); background: var(--bg3); opacity: 0.7; }
+  /* popover verificación */
+  .fip-overlay { position: fixed; inset: 0; z-index: 3000; }
+  .fip-box { position: fixed; z-index: 3001; background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 14px 16px 14px; min-width: 260px; max-width: 340px; box-shadow: 0 8px 32px rgba(0,0,0,0.45); font-size: 13px; }
+  .fip-box h4 { font-size: 13px; font-weight: 700; margin: 0 0 10px; color: var(--texto); }
+  .fip-fila { margin-bottom: 6px; color: var(--texto2); }
+  .fip-fila strong { color: var(--texto); }
+  .fip-sep { border: none; border-top: 1px solid var(--borde); margin: 10px 0; }
+  .fip-sin { color: var(--texto2); font-style: italic; }
+  .fip-cerrar { position: absolute; top: 8px; right: 10px; background: none; border: none; color: var(--texto2); font-size: 18px; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+  .fip-cerrar:hover { background: var(--bg3); color: var(--texto); }
+  /* visor foto */
+  .fiv-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 4000; display: flex; align-items: center; justify-content: center; }
+  .fiv-overlay.oculto { display: none; }
+  .fiv-img { max-width: 88vw; max-height: 82vh; border-radius: 10px; box-shadow: 0 8px 40px rgba(0,0,0,0.7); }
+  .fiv-cerrar { position: fixed; top: 18px; right: 22px; background: rgba(0,0,0,0.55); color: #fff; border: none; font-size: 28px; cursor: pointer; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
 
   .vacio { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
@@ -1036,6 +1038,22 @@ async function cargarTrabajadores() {
   });
 
   todosTrabajadores = Object.values(porTrabajador);
+
+  // Cargar en paralelo qué trabajadores tienen foto y cuáles tienen verificación
+  const ids = todosTrabajadores.map(t => t.id);
+  if (ids.length) {
+    const [fotosRes, verifRes] = await Promise.all([
+      sb.from('fotos_identidad').select('trabajador_id').in('trabajador_id', ids),
+      sb.from('verificaciones_identidad').select('trabajador_id').in('trabajador_id', ids)
+    ]);
+    const conFoto  = new Set((fotosRes.data  || []).map(r => r.trabajador_id));
+    const conVerif = new Set((verifRes.data  || []).map(r => r.trabajador_id));
+    todosTrabajadores.forEach(t => {
+      t.hay_foto  = conFoto.has(t.id);
+      t.hay_verif = conVerif.has(t.id);
+    });
+  }
+
   aplicarFiltrosTabla();
 }
 
@@ -1171,7 +1189,7 @@ function renderTabla(lista) {
           <td>${esc(etiquetaCategoria(t) || '—')}</td>
           <td>${formatearPrecio(t.precio_hora_personalizado)}</td>
           <td>${t.obras.map(o => pillObra(t, o)).join('')}</td>
-          <td><div class="acciones"><button class="icono-fi activo" title="Ver foto de identidad" onclick="verFotoTrabajador('${t.id}', this)">📷</button><button class="icono-fi activo" title="Ver verificaciones de identidad" onclick="verVerifTrabajador('${t.id}', this)">🪪</button><button class="btn-accion primario" onclick="abrirEdicion('${t.id}')">Editar</button>${obraFiltroTrabajadores ? `<button class="btn-accion peligro" onclick="abrirModalQuitar('${t.id}')">Quitar de la obra</button>` : ''}</div></td>
+          <td><div class="acciones">${t.hay_foto ? '<button class="fi-icono" title="Ver foto de identidad" onclick="clicFoto(\'' + t.id + '\', this)">📷</button>' : '<button class="fi-icono sin-dato-clicable" title="Sin foto — clic para hacerla" onclick="clicFoto(\'' + t.id + '\', this)">📷</button>'}${t.hay_verif ? '<button class="fi-icono" title="Ver verificaciones de identidad" onclick="clicVerif(\'' + t.id + '\', this)">🪪</button>' : '<button class="fi-icono sin-dato" title="Sin verificación registrada" disabled>🪪</button>'}<button class="btn-accion primario" onclick="abrirEdicion('${t.id}')">Editar</button>${obraFiltroTrabajadores ? `<button class="btn-accion peligro" onclick="abrirModalQuitar('${t.id}')">Quitar de la obra</button>` : ''}</div></td>
         </tr>`;
     });
   });
@@ -1219,20 +1237,37 @@ function pillObra(trabajador, obra) {
 }
 
 
-// ── FOTO E IDENTIDAD (70a) ────────────────────────────────────────────
+// ── FOTO E IDENTIDAD (70a) ───────────────────────────────────────────
 FI.init(sb);
 
-async function verFotoTrabajador(trabajadorId, btn) {
+// 📷  Clic en el icono de foto
+// hayFoto=true  → ver la foto
+// hayFoto=false → ofrecer hacerla (igual que el encargado)
+async function clicFoto(trabajadorId, btn) {
   btn.disabled = true;
   const orig = btn.textContent;
   btn.textContent = '…';
   try {
     const { data, error } = await sb.rpc('ver_foto_identidad', { p_trabajador_id: trabajadorId });
-    if (error || !data || !data.ok) throw new Error((data && data.error) || 'Error');
-    if (!data.hay_foto) { alert('Este trabajador no tiene foto de identidad todavía.'); return; }
-    const url = await FI.enlace(data.path);
-    document.getElementById('fi-visor-img').src = url;
-    document.getElementById('fi-visor').classList.remove('oculto');
+    if (error || !data || !data.ok) throw new Error((data && data.error) || 'Error al leer la foto');
+
+    if (data.hay_foto) {
+      const url = await FI.enlace(data.path);
+      document.getElementById('fiv-img').src = url;
+      document.getElementById('fiv').classList.remove('oculto');
+    } else {
+      // Sin foto: ofrecer hacerla
+      const obraId = obraFiltroTrabajadores;
+      if (!obraId) {
+        alert('Selecciona una obra en el filtro superior antes de hacer la foto.');
+        return;
+      }
+      FI.abrirAnadir(trabajadorId, obraId, function () {
+        // Actualizar icono a «activo» tras guardar sin recargar la tabla
+        btn.classList.remove('sin-dato-clicable');
+        btn.title = 'Ver foto de identidad';
+      }, { tema: 'oscuro' });
+    }
   } catch (e) {
     alert('No se ha podido cargar la foto. ' + e.message);
   } finally {
@@ -1241,45 +1276,44 @@ async function verFotoTrabajador(trabajadorId, btn) {
   }
 }
 
-async function verVerifTrabajador(trabajadorId, btn) {
+// 🪪  Clic en el icono de verificación
+async function clicVerif(trabajadorId, btn) {
   btn.disabled = true;
   const orig = btn.textContent;
   btn.textContent = '…';
   try {
     const { data, error } = await sb.rpc('historial_verificacion_identidad', { p_trabajador_id: trabajadorId });
-    if (error || !data || !data.ok) throw new Error((data && data.error) || 'Error');
+    if (error || !data || !data.ok) throw new Error((data && data.error) || 'Error al leer verificaciones');
     const lista = data.verificaciones || [];
     const METODOS = { dni: 'DNI presencial', dni_tpc: 'App TPC' };
-    let html = '';
-    if (!lista.length) {
-      html = '<div class="fip-sin">Sin verificaciones registradas.</div>';
-    } else {
-      html = lista.map((v, i) => {
-        const fecha = new Date(v.verificado_en).toLocaleDateString('es-ES', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone:'Europe/Madrid' });
-        return (i > 0 ? '<hr class="fip-sep">' : '') +
-          '<div class="fip-fila">📅 <strong>' + fecha + '</strong></div>' +
-          '<div class="fip-fila">👤 Verificado por <strong>' + esc(v.verificado_por || '—') + '</strong></div>' +
-          '<div class="fip-fila">🏗️ Obra: <strong>' + esc(v.obra || '—') + '</strong></div>' +
-          '<div class="fip-fila">🪪 Método: <strong>' + esc(METODOS[v.metodo] || v.metodo || '—') + '</strong></div>' +
-          '<div class="fip-fila">📄 Hoja informativa: <strong>' + (v.informado ? '✓ Entregada' : '✗ No entregada') + '</strong>' +
-            (v.idioma_informacion ? ' (' + esc(v.idioma_informacion) + ')' : '') + '</div>';
-      }).join('');
-    }
-    document.getElementById('fi-popover-titulo').textContent = 'Verificaciones de identidad';
-    document.getElementById('fi-popover-cuerpo').innerHTML = html;
-    // posicionar cerca del botón
+    let html = lista.length === 0
+      ? '<div class="fip-sin">Sin verificaciones registradas.</div>'
+      : lista.map((v, i) => {
+          const fecha = new Date(v.verificado_en).toLocaleString('es-ES',
+            { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone:'Europe/Madrid' });
+          return (i > 0 ? '<hr class="fip-sep">' : '') +
+            '<div class="fip-fila">📅 <strong>' + esc(fecha) + '</strong></div>' +
+            '<div class="fip-fila">👤 <strong>' + esc(v.verificado_por || '—') + '</strong></div>' +
+            '<div class="fip-fila">🏗️ ' + esc(v.obra || '—') + '</div>' +
+            '<div class="fip-fila">🪪 ' + esc(METODOS[v.metodo] || v.metodo || '—') + '</div>' +
+            '<div class="fip-fila">📄 Hoja informativa: <strong>' +
+              (v.informado ? '✓ Entregada' : '✗ No entregada') +
+              (v.idioma_informacion ? ' (' + esc(v.idioma_informacion) + ')' : '') +
+            '</strong></div>';
+        }).join('');
+    document.getElementById('fip-cuerpo').innerHTML = html;
+    // Posicionar el popover cerca del botón
     const r = btn.getBoundingClientRect();
-    const pop = document.getElementById('fi-popover');
-    pop.style.display = 'block';
-    document.getElementById('fi-popover-overlay').style.display = 'block';
-    const pw = pop.offsetWidth;
-    const ph = pop.offsetHeight;
+    const box = document.getElementById('fip-box');
+    box.style.display = 'block';
+    document.getElementById('fip-overlay').style.display = 'block';
+    const pw = box.offsetWidth, ph = box.offsetHeight;
     let left = r.left + window.scrollX;
     let top  = r.bottom + window.scrollY + 6;
     if (left + pw > window.innerWidth - 10) left = window.innerWidth - pw - 10;
     if (top + ph > window.innerHeight - 10) top = r.top + window.scrollY - ph - 6;
-    pop.style.left = left + 'px';
-    pop.style.top  = top  + 'px';
+    box.style.left = Math.max(8, left) + 'px';
+    box.style.top  = Math.max(8, top)  + 'px';
   } catch (e) {
     alert('No se ha podido cargar la verificación. ' + e.message);
   } finally {
@@ -1288,11 +1322,11 @@ async function verVerifTrabajador(trabajadorId, btn) {
   }
 }
 
-function cerrarPopoverVerif() {
-  document.getElementById('fi-popover').style.display = 'none';
-  document.getElementById('fi-popover-overlay').style.display = 'none';
+function cerrarFip() {
+  document.getElementById('fip-box').style.display = 'none';
+  document.getElementById('fip-overlay').style.display = 'none';
 }
-// ────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────
 
 document.getElementById('buscador').addEventListener('input', () => aplicarFiltrosTabla());
 
@@ -2045,18 +2079,17 @@ document.getElementById('btn-confirmar-quitar').addEventListener('click', async 
 });
 </script>
 
-<!-- visor de foto de identidad (70a) -->
-<div class="fi-visor-overlay oculto" id="fi-visor" onclick="this.classList.add('oculto')">
-  <button class="fi-visor-cerrar" onclick="document.getElementById('fi-visor').classList.add('oculto')">✕</button>
-  <img class="fi-visor-img" id="fi-visor-img" src="" alt="Foto de identidad" />
+<!-- visor foto identidad (70a) -->
+<div class="fiv-overlay oculto" id="fiv" onclick="this.classList.add('oculto')">
+  <button class="fiv-cerrar" onclick="document.getElementById('fiv').classList.add('oculto')">✕</button>
+  <img class="fiv-img" id="fiv-img" src="" alt="Foto de identidad" />
 </div>
-<!-- popover de verificación (70a) -->
-<div id="fi-popover-overlay" class="fi-popover-overlay" style="display:none" onclick="cerrarPopoverVerif()"></div>
-<div id="fi-popover" class="fi-popover" style="display:none">
-  <button class="fi-popover-cerrar" onclick="cerrarPopoverVerif()">✕</button>
-  <h4 id="fi-popover-titulo">Verificaciones de identidad</h4>
-  <div id="fi-popover-cuerpo"></div>
+<!-- popover verificación (70a) -->
+<div id="fip-overlay" class="fip-overlay" style="display:none" onclick="cerrarFip()"></div>
+<div id="fip-box" class="fip-box" style="display:none">
+  <button class="fip-cerrar" onclick="cerrarFip()">✕</button>
+  <h4>Verificaciones de identidad</h4>
+  <div id="fip-cuerpo"></div>
 </div>
-
 </body>
 </html>
