@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Informe de Rojos — Fichaje Obras</title>
+<title>Informe de excepciones — Fichaje Obras</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/guardian.js"></script>
 <style>
@@ -118,8 +118,8 @@
   <a href="foto-mes.html"><span class="ico">📷</span> Foto del mes</a>
   <a href="incidencias.html"><span class="ico">⚠️</span> Incidencias</a>
   <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
-  <a href="informe-rojos.html" class="activo"><span class="ico">📕</span> Informe de rojos</a>
-  <a href="informe-excepciones.html"><span class="ico">⚠️</span> Excepciones asumidas</a>
+  <a href="informe-rojos.html"><span class="ico">📕</span> Informe de rojos</a>
+  <a href="informe-excepciones.html" class="activo"><span class="ico">⚠️</span> Excepciones asumidas</a>
   <a href="importar-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
   <div class="sidebar-bottom">
     <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
@@ -128,7 +128,7 @@
 
 <div class="main">
   <div class="topbar">
-    <h1>Informe de rojos</h1>
+    <h1>Excepciones asumidas</h1>
     <span class="usuario" id="usuario-email"></span>
   </div>
   <div class="contenido">
@@ -151,7 +151,7 @@
     </div>
 
     <div id="zona-informe">
-      <div class="cargando">Elige una obra y pulsa «Generar informe».</div>
+      <div class="cargando">Elige una obra y pulsa «Generar informe».<br>Aquí sale quién ha dejado entrar a alguien en rojo, cuándo y por qué.</div>
     </div>
 
   </div>
@@ -218,7 +218,7 @@ async function generar() {
 
   zona.innerHTML = '<div class="cargando">Generando informe…</div>';
 
-  const { data, error } = await sb.rpc('informe_rojos', {
+  const { data, error } = await sb.rpc('informe_excepciones', {
     p_obra_id: obraId,
     p_desde: desde,
     p_hasta: hasta
@@ -234,188 +234,84 @@ async function generar() {
 }
 
 // ── Pintar el informe con los datos de la RPC ──
+//
+// D1 (caso Verónica, 31/8/2026). `excepciones_acceso` lo guardaba todo desde
+// siempre, pero no había ninguna pantalla que lo juntara: la del jefe solo
+// enseña las de HOY. La pregunta "¿cuántas veces hemos asumido un riesgo este
+// mes, por qué empresa y por qué jefe?" no tenía respuesta.
+//
+// Va APARTE del informe de rojos a propósito: aquel es el documento que se le
+// entrega a la propiedad, y el nombre del jefe que asume un riesgo es
+// información interna.
 function pintarInforme(d, rango) {
   const zona = document.getElementById('zona-informe');
   const logo = LOGOS[d.obra_marca] || LOGOS.bosch_pascual;
 
-  // Texto del periodo
   let periodoTxt;
   const fd = fmtFecha(rango.desde);
   const fh = fmtFecha(rango.hasta);
   if (fd && fh) periodoTxt = `Del ${fd} al ${fh}`;
   else if (fd) periodoTxt = `Desde ${fd}`;
   else if (fh) periodoTxt = `Hasta ${fh}`;
-  else periodoTxt = 'Todo el histórico registrado';
+  else periodoTxt = 'Todo el hist\u00f3rico registrado';
 
-  const total = d.total_intentos || 0;
-  const personas = d.total_personas || 0;
+  const total     = d.total || 0;
+  const activas   = d.activas || 0;
+  const revocadas = d.revocadas || 0;
+  const personas  = d.personas || 0;
+  const empresas  = Array.isArray(d.empresas) ? d.empresas : [];
+  const jefes     = Array.isArray(d.jefes) ? d.jefes : [];
+  const detalle   = Array.isArray(d.detalle) ? d.detalle : [];
 
-  // Excepciones asumidas: entradas autorizadas SIN la documentación en regla.
-  //
-  // D1-bis (31/8/2026, decisión de Dani). Esto va en el informe que ve la
-  // propiedad, con el nombre del jefe que firmó cada una. No es un descuido:
-  // si la aplicación existe para sacar a la luz lo que antes no se veía,
-  // esconder precisamente esto la vaciaría de sentido.
-  const ex = d.excepciones || {};
-  const exJefes    = Array.isArray(ex.jefes) ? ex.jefes : [];
-  const exEmpresas = Array.isArray(ex.empresas) ? ex.empresas : [];
-  const exDetalle  = Array.isArray(ex.detalle) ? ex.detalle : [];
-  const exTotal    = ex.total || 0;
-  const exPersonas = ex.personas || 0;
-  const exRevocadas = ex.revocadas || 0;
-
-  // Presentes sin registrar (personas sin ficha)
-  const sr = d.sin_registrar || {};
-  const srPersonas = Array.isArray(sr.personas) ? sr.personas : [];
-  const srEmpresas = Array.isArray(sr.empresas) ? sr.empresas : [];
-  const srTotalPersonas = sr.total_personas || 0;
-  const srTotalIntentos = sr.total_intentos || 0;
-
-  // Caso sin datos (ni rojos documentales ni presentes sin registrar)
-  if (total === 0 && srTotalPersonas === 0 && exTotal === 0) {
+  if (total === 0) {
     zona.innerHTML = `
       <div class="informe">
         ${cabeceraHTML(logo, d.obra_nombre, periodoTxt)}
-        <div class="inf-vacio">No se registraron accesos denegados en esta obra durante el periodo seleccionado.</div>
+        <div class="inf-vacio">No se autoriz\u00f3 ninguna entrada en rojo en esta obra durante el periodo seleccionado.</div>
         ${pieHTML()}
       </div>`;
     return;
   }
 
-  // Titular (solo si hay rojos documentales)
-  let titular = '';
-  if (total > 0) {
-    titular = `
+  const titular = `
     <div class="inf-titular">
       <div class="cifra">${total}</div>
-      <div class="frase">intentos de acceso frenados por el sistema, de <strong>${personas}</strong> ${personas === 1 ? 'persona' : 'personas'} distintas sin la documentación en regla.</div>
+      <div class="frase">${total === 1 ? 'vez' : 'veces'} se dej\u00f3 entrar a alguien <strong>sin la documentaci\u00f3n en regla</strong>, sobre <strong>${personas}</strong> ${personas === 1 ? 'persona' : 'personas'} distintas. Cada una la asumi\u00f3 un jefe de obra con su nombre.</div>
     </div>`;
-  }
 
-  // Tabla de categorías
-  const cats = Array.isArray(d.categorias) ? d.categorias : [];
-  let categoriasHTML;
-  if (cats.length) {
-    categoriasHTML = `
+  const revocadasHTML = revocadas > 0 ? `
       <div class="inf-seccion">
-        <h2>Motivos del bloqueo</h2>
-        <div class="subtitulo">Qué documentación faltaba, sobre los intentos con desglose registrado.</div>
-        <table class="inf-tabla">
-          <thead><tr><th>Motivo</th><th class="num">Intentos</th><th class="num">Personas</th></tr></thead>
-          <tbody>
-            ${cats.map(c => `
-              <tr>
-                <td class="destacado">${esc(c.categoria)}</td>
-                <td class="num">${c.veces}</td>
-                <td class="num">${c.personas}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>`;
-  } else {
-    categoriasHTML = '';
-  }
-
-  // Ranking de empresas
-  const emps = Array.isArray(d.empresas) ? d.empresas : [];
-  let empresasHTML = '';
-  if (emps.length) {
-    empresasHTML = `
-      <div class="inf-seccion">
-        <h2>Empresas con más accesos denegados</h2>
-        <div class="subtitulo">Ordenadas por número de intentos frenados. Aquí se cuentan todos los intentos, incluidos los que no tienen desglose por motivo.</div>
-        <table class="inf-tabla">
-          <thead><tr><th>Empresa</th><th class="num">Intentos</th><th class="num">Personas</th></tr></thead>
-          <tbody>
-            ${emps.map(e => {
-              const suave = e.empresa_nombre === 'Sin empresa asignada';
-              return `
-              <tr class="${suave ? 'fila-suave' : ''}">
-                <td class="${suave ? '' : 'destacado'}">${esc(e.empresa_nombre)}</td>
-                <td class="num">${e.veces}</td>
-                <td class="num">${e.personas}</td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>`;
-  }
-
-  // Genéricos (sin desglose)
-  const gen = d.genericos_intentos || 0;
-  let genericosHTML = '';
-  if (gen > 0) {
-    genericosHTML = `
-      <div class="inf-seccion">
-        <h2>Frenados sin desglose</h2>
+        <h2>Autorizaciones retiradas</h2>
         <div class="inf-genericos">
-          <strong>${gen}</strong> de los ${total} intentos (de ${d.genericos_personas} personas) se registraron antes de que el sistema guardara el motivo detallado. Cuentan como accesos denegados, pero no aparecen en el desglose por motivo de arriba.
+          <strong>${revocadas}</strong> de las ${total} se retiraron despu\u00e9s de concederse. Siguen contando aqu\u00ed: la decisi\u00f3n se tom\u00f3, y retirarla es otra decisi\u00f3n, no un borrado.
         </div>
-      </div>`;
-  }
+      </div>` : '';
 
-  // Sección presentes sin registrar
-  let sinRegHTML = '';
-  if (srPersonas.length) {
-    sinRegHTML = `
+  const jefesHTML = jefes.length ? `
       <div class="inf-seccion">
-        <h2>Presentes sin registrar</h2>
-        <div class="subtitulo">Personas que estaban físicamente en la obra e intentaron fichar sin constar en el sistema (empresa no dada de alta, contrato sin firmar, etc.). El nombre y la empresa son datos declarados por la propia persona, sin verificar. Total: ${srTotalPersonas} ${srTotalPersonas === 1 ? 'persona' : 'personas'} · ${srTotalIntentos} ${srTotalIntentos === 1 ? 'intento' : 'intentos'}.</div>
+        <h2>Por jefe de obra</h2>
+        <div class="subtitulo">Qui\u00e9n ha asumido el riesgo y cu\u00e1ntas veces. No es un reproche: es el registro de qui\u00e9n firm\u00f3 cada entrada.</div>
         <table class="inf-tabla">
-          <thead><tr><th>Persona (declarada)</th><th>Empresa declarada</th><th>DNI</th><th class="num">Intentos</th></tr></thead>
+          <thead><tr><th>Jefe de obra</th><th class="num">Veces</th><th class="num">Personas</th></tr></thead>
           <tbody>
-            ${srPersonas.map(p => `
-              <tr>
-                <td class="destacado">${esc(p.nombre || '(no facilitado)')}</td>
-                <td>${esc(p.empresa || '(no facilitada)')}</td>
-                <td>${esc(p.dni || '')}</td>
-                <td class="num">${p.intentos || 1}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>
-        ${srEmpresas.length ? `
-        <div class="subtitulo" style="margin-top:14px;">Por empresa declarada:</div>
-        <table class="inf-tabla">
-          <thead><tr><th>Empresa declarada</th><th class="num">Personas</th><th class="num">Intentos</th></tr></thead>
-          <tbody>
-            ${srEmpresas.map(e => `
-              <tr>
-                <td class="destacado">${esc(e.empresa_nombre)}</td>
-                <td class="num">${e.personas}</td>
-                <td class="num">${e.intentos}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>` : ''}
-      </div>`;
-  }
-
-  // Sección de excepciones asumidas
-  let excepHTML = '';
-  if (exTotal > 0) {
-    excepHTML = `
-      <div class="inf-seccion">
-        <h2>Entradas autorizadas sin documentación en regla</h2>
-        <div class="subtitulo">El sistema bloqueó a estas personas y un jefe de obra decidió dejarlas pasar igualmente, asumiendo la responsabilidad con su nombre y la fecha. Total: <strong>${exTotal}</strong> ${exTotal === 1 ? 'autorización' : 'autorizaciones'} sobre ${exPersonas} ${exPersonas === 1 ? 'persona' : 'personas'}${exRevocadas > 0 ? `, de las cuales ${exRevocadas} se retiraron después` : ''}.</div>
-
-        ${exJefes.length ? `
-        <table class="inf-tabla">
-          <thead><tr><th>Autorizado por</th><th class="num">Veces</th><th class="num">Personas</th></tr></thead>
-          <tbody>
-            ${exJefes.map(j => `
+            ${jefes.map(j => `
               <tr>
                 <td class="destacado">${esc(j.jefe)}</td>
                 <td class="num">${j.veces}</td>
                 <td class="num">${j.personas}</td>
               </tr>`).join('')}
           </tbody>
-        </table>` : ''}
+        </table>
+      </div>` : '';
 
-        ${exEmpresas.length ? `
-        <div class="subtitulo" style="margin-top:14px;">Por empresa. Una empresa que aparece mucho aquí es una empresa cuya documentación llega tarde una y otra vez:</div>
+  const empresasHTML = empresas.length ? `
+      <div class="inf-seccion">
+        <h2>Por empresa</h2>
+        <div class="subtitulo">Ordenadas por n\u00famero de excepciones. Una empresa que aparece mucho aqu\u00ed es una empresa cuya documentaci\u00f3n llega tarde una y otra vez.</div>
         <table class="inf-tabla">
           <thead><tr><th>Empresa</th><th class="num">Veces</th><th class="num">Personas</th></tr></thead>
           <tbody>
-            ${exEmpresas.map(e => {
+            ${empresas.map(e => {
               const suave = e.empresa_nombre === 'Sin empresa asignada';
               return `
               <tr class="${suave ? 'fila-suave' : ''}">
@@ -425,20 +321,24 @@ function pintarInforme(d, rango) {
               </tr>`;
             }).join('')}
           </tbody>
-        </table>` : ''}
+        </table>
+      </div>` : '';
 
-        <div class="subtitulo" style="margin-top:14px;">Una por una. El motivo es el que escribió el jefe de obra en el momento de autorizar, tal cual:</div>
+  const detalleHTML = `
+      <div class="inf-seccion">
+        <h2>Una por una</h2>
+        <div class="subtitulo">El motivo es el que escribi\u00f3 el jefe de obra en el momento de autorizar, tal cual.</div>
         <table class="inf-tabla">
-          <thead><tr><th>Fecha</th><th>Persona</th><th>Empresa</th><th>Autoriza</th><th>Motivo</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Persona</th><th>Empresa</th><th>Jefe</th><th>Motivo</th></tr></thead>
           <tbody>
-            ${exDetalle.map(x => {
+            ${detalle.map(x => {
               const retirada = x.estado === 'revocada';
               const motivo = esc(x.motivo_autorizacion || '(sin motivo)') +
                 (retirada ? `<br><em>Retirada: ${esc(x.motivo_revocacion || 'sin motivo')}</em>` : '');
               return `
               <tr class="${retirada ? 'fila-suave' : ''}">
                 <td>${esc(fmtFechaCorta(x.fecha))}</td>
-                <td class="${retirada ? '' : 'destacado'}">${esc(x.persona)}</td>
+                <td class="${retirada ? '' : 'destacado'}">${esc(x.persona)}${x.dni ? '<br><span style="color:#777;font-size:12px">' + esc(x.dni) + '</span>' : ''}</td>
                 <td>${esc(x.empresa_nombre)}</td>
                 <td>${esc(x.jefe)}</td>
                 <td>${motivo}</td>
@@ -447,17 +347,15 @@ function pintarInforme(d, rango) {
           </tbody>
         </table>
       </div>`;
-  }
 
   zona.innerHTML = `
     <div class="informe">
       ${cabeceraHTML(logo, d.obra_nombre, periodoTxt)}
       ${titular}
-      ${categoriasHTML}
+      ${jefesHTML}
       ${empresasHTML}
-      ${excepHTML}
-      ${sinRegHTML}
-      ${genericosHTML}
+      ${revocadasHTML}
+      ${detalleHTML}
       ${pieHTML()}
     </div>`;
 }
@@ -472,7 +370,7 @@ function cabeceraHTML(logo, obraNombre, periodoTxt) {
   return `
     <div class="inf-cabecera">
       <div>
-        <div class="inf-titulo">Informe de accesos denegados</div>
+        <div class="inf-titulo">Excepciones asumidas</div>
         <div class="inf-obra">${esc(obraNombre || 'Obra')}</div>
         <div class="inf-meta">${esc(periodoTxt)}</div>
       </div>
