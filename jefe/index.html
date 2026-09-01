@@ -15,6 +15,7 @@
 <script src="../js/fechas.js"></script>
 <script src="../js/habilitaciones.js"></script>
 <script src="../js/foto-identidad.js"></script>
+<script src="../js/impresion.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -428,7 +429,7 @@
     <p>Escanea este código para fichar</p>
     <canvas id="qr-canvas"></canvas>
     <div class="modal-qr-btns">
-      <button class="btn-imprimir" onclick="imprimirQR()">🖨️ Imprimir</button>
+      <button class="btn-imprimir" onclick="imprimirQR({ obraNombre: document.getElementById('qr-obra-nombre').textContent, qrDataUrl: document.getElementById('qr-canvas').toDataURL('image/png'), branding: brandingActual })">🖨️ Imprimir</button>
       <button class="btn-cerrar-modal" onclick="cerrarQR()">Cerrar</button>
     </div>
   </div>
@@ -1200,9 +1201,6 @@ async function resolverSol(id, accion, clave) {
   const msg  = document.getElementById('sol-msg-' + id);
   if (!item || !msg) return;
 
-  let notaIdentidad = null;
-  let motivoIdentidad = null;
-
   // El aviso dice QUÉ se asume y a QUIÉN, con nombre y empresa dentro. Un
   // confirm genérico se pulsa sin leer, y este es el punto donde el jefe
   // acepta la responsabilidad: tiene que costar leerlo, no pulsarlo.
@@ -1218,49 +1216,15 @@ async function resolverSol(id, accion, clave) {
       ' SOLO PARA HOY.\n\nQuedará escrito con tu nombre y la fecha, y tú asumes la responsabilidad.' +
       extra + '\n\n¿Le das paso?';
     if (!window.confirm(aviso)) return;
-
-    // C3 (caso Verónica, 31/8/2026). Hasta hoy, autorizar apagaba la pregunta
-    // "¿quién es esta persona?" en silencio: quedaba escrito QUIÉN la dejó
-    // pasar y a qué hora, pero no QUÉ comprobó. Dentro de seis meses esa frase
-    // es lo único que explica por qué entró.
-    //
-    // Solo se pide cuando la persona no está en la app (data-nueva="1"), que
-    // es exactamente cuando su identidad está en duda. Al rojo de toda la
-    // vida, que ya tiene ficha y nombre, no se le pregunta nada.
-    //
-    // Y solo al AUTORIZAR. Denegar también cierra la pregunta, pero ahí no hay
-    // nada que explicar: no entró.
-    if (item.dataset.nueva === '1') {
-      const escrito = window.prompt(
-        '¿Qué has averiguado sobre ' + quien + '?\n\n' +
-        'Una frase basta: "le he visto el DNI", "me lo confirma su empresa por teléfono".\n' +
-        'Queda guardado con tu nombre.', '');
-      if (escrito === null) return;
-      notaIdentidad = escrito.trim();
-      if (notaIdentidad.length < 3) {
-        msg.className = 'sol-estado mal';
-        msg.textContent = 'Hace falta escribir qué has averiguado. No se ha autorizado nada.';
-        return;
-      }
-      // "Ya está en regla" y "Asumo el riesgo" no son lo mismo seis meses
-      // después: se guardan con el mismo vocabulario que usa el otro camino.
-      motivoIdentidad = (clave === 'regla') ? 'regularizada' : 'excepcional';
-    }
   }
 
   item.querySelectorAll('.sol-btn').forEach(b => { b.disabled = true; });
   msg.className = 'sol-estado';
   msg.textContent = 'Enviando…';
 
-  const parametros = {
+  const { data, error } = await sb.rpc('resolver_solicitud_acceso', {
     p_solicitud_id: id, p_accion: accion, p_motivo: MOTIVOS_SOL[clave]
-  };
-  if (notaIdentidad) {
-    parametros.p_nota_identidad   = notaIdentidad;
-    parametros.p_motivo_identidad = motivoIdentidad;
-  }
-
-  const { data, error } = await sb.rpc('resolver_solicitud_acceso', parametros);
+  });
 
   if (error || !data || data.ok !== true) {
     msg.className = 'sol-estado mal';
@@ -1280,16 +1244,7 @@ async function resolverSol(id, accion, clave) {
   msg.textContent = txt;
 
   await cargarBloqueos();
-  // Autorizar Y denegar apagan `identidad_pendiente` en la BD (las dos ramas
-  // de `resolver_solicitud_acceso`). Si no se recarga tambien ese panel, la
-  // tarjeta de "Personas sin identificar" se queda con la cara vieja hasta
-  // recargar la pagina a mano. Los dos paneles se refrescan a la vez, a los
-  // 4 s, para que el mensaje de la tarjeta se pueda leer antes de que la
-  // pantalla se mueva.
-  setTimeout(function () {
-    cargarSolicitudes();
-    cargarIdentidadesPendientes();
-  }, 4000);
+  setTimeout(cargarSolicitudes, 4000);
 }
 
 function iniciarRefrescoPresencia() {
@@ -2067,40 +2022,6 @@ function cerrarQR() {
   document.getElementById('modal-qr').classList.remove('visible');
 }
 
-function imprimirQR() {
-  const obraNombre = document.getElementById('qr-obra-nombre').textContent;
-  const canvas = document.getElementById('qr-canvas');
-  const dataUrl = canvas ? canvas.toDataURL('image/png') : '';
-  const logoUrl = brandingActual ? window.location.origin + window.location.pathname.replace(/jefe\/.*$/, '') + brandingActual.logo : '';
-  const marcaNombre = brandingActual ? brandingActual.nombre : '';
-  const win = window.open('', '_blank');
-  win.document.write(`
-    <!DOCTYPE html><html><head>
-    <title>QR — ${obraNombre}</title>
-    <style>
-      body { font-family: sans-serif; text-align: center; padding: 40px; }
-      .logo-marca { max-height: 60px; max-width: 220px; margin-bottom: 20px; }
-      h1 { font-size: 24px; margin-bottom: 8px; }
-      p { color: #666; font-size: 14px; margin-bottom: 24px; }
-      .sub-ar { display: block; margin-top: 8px; font-size: 18px; font-weight: 700; color: #444; direction: rtl; }
-      img.qr { display: block; margin: 0 auto; width: 280px; }
-      .aviso-obligatorio { margin: 26px auto 0; max-width: 560px; border: 2px solid #111; border-radius: 12px; padding: 16px 18px; color: #111; background: #fff; }
-      .aviso-obligatorio .es { font-size: 16px; font-weight: 800; line-height: 1.35; margin-bottom: 10px; }
-      .aviso-obligatorio .ar { font-size: 18px; font-weight: 800; line-height: 1.6; direction: rtl; }
-    </style>
-    </head><body>
-    ${logoUrl ? `<img class="logo-marca" src="${logoUrl}" alt="${marcaNombre}" />` : ''}
-    <h1>${obraNombre}</h1>
-    <p>Escanea este código QR para fichar tu entrada/salida<span class="sub-ar" lang="ar" dir="rtl">امسح رمز QR هذا لتسجيل دخولك/خروجك</span></p>
-    <img class="qr" src="${dataUrl}" />
-    <div class="aviso-obligatorio">
-      <div class="es">En esta obra es obligatorio fichar tanto a la entrada como a la salida. El incumplimiento puede tener consecuencias disciplinarias.</div>
-      <div class="ar" lang="ar" dir="rtl">في هذا الموقع، تسجيل الحضور عند الدخول والخروج إلزامي.<br>عدم الامتثال قد يترتب عليه عواقب تأديبية.</div>
-    </div>
-    <script>window.onload = () => { window.print(); }<\/script>
-    </body></html>`);
-  win.document.close();
-}
 
 document.getElementById('modal-qr').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-qr')) cerrarQR();
