@@ -14,6 +14,7 @@
   <script src="../js/motivos.js"></script>
   <script src="../js/accesos-resueltos.js"></script>
   <script src="../js/foto-identidad.js"></script>
+<script src="../js/impresion.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -266,7 +267,6 @@
     .panel-avisos .aviso-info { flex: 1; min-width: 0; color: #5d4500; }
     .panel-avisos .aviso-info strong { color: #3d2f00; }
     .panel-avisos .aviso-fecha { color: #8a6d00; font-size: 0.85rem; }
-    .sf-pista { font-size: 0.8rem; color: #666; line-height: 1.45; margin: -0.35rem 0 0.6rem; }
     .panel-avisos .btn-visto { background: #ff9800; color: white; border: none; padding: 0.4rem 0.9rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; white-space: nowrap; }
     .panel-avisos .btn-visto:hover { background: #f57c00; }
     .panel-avisos .btn-visto:disabled { background: #ccc; cursor: not-allowed; }
@@ -292,13 +292,7 @@
     }
     .panel-bloqueos h2 { font-size: 1rem; color: #b71c1c; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 8px; }
     .panel-bloqueos .bloqueo-subtitulo { font-size: 0.83rem; color: #c62828; margin-bottom: 0.8rem; }
-    .panel-bloqueos .bloqueo-item { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 0.7rem 0; border-bottom: 1px solid #ffcdd2; font-size: 0.92rem; }
-    /* B2 (caso Veronica, 1/9/2026): formulario de "completar antes de enviar" para 🆕 */
-    .form-completar-sr { flex-basis: 100%; }
-    .form-completar-sr .form-sf { margin-top: 0.6rem; }
-    .btn-completar-sr { background: #fff; color: #b26a00; border: 1px solid #ff9800; padding: 0.4rem 0.7rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; font-family: inherit; }
-    .btn-completar-sr:hover { background: #fff3e0; }
-    .btn-completar-sr:disabled { opacity: 0.5; cursor: not-allowed; }
+    .panel-bloqueos .bloqueo-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 0.7rem 0; border-bottom: 1px solid #ffcdd2; font-size: 0.92rem; }
     .panel-bloqueos .bloqueo-item:last-child { border-bottom: none; }
     .panel-bloqueos .bloqueo-info { flex: 1; min-width: 0; color: #7f0000; }
     .panel-bloqueos .bloqueo-info strong { color: #b71c1c; font-size: 0.97rem; }
@@ -613,7 +607,7 @@
     <p>Escanea este código para fichar</p>
     <canvas id="qr-canvas"></canvas>
     <div class="modal-qr-btns">
-      <button class="btn-imprimir" onclick="imprimirQR()">🖨️ Imprimir</button>
+      <button class="btn-imprimir" onclick="imprimirQR({ obraNombre: document.getElementById('qr-obra-nombre').textContent, qrDataUrl: document.getElementById('qr-canvas').toDataURL('image/png'), branding: brandingActual })">🖨️ Imprimir</button>
       <button class="btn-cerrar-modal" onclick="cerrarQR()">Cerrar</button>
     </div>
   </div>
@@ -783,7 +777,13 @@
     });
 
     // ── P-03: imprimir lista de presentes ──
-    document.getElementById('btn-imprimir-lista').addEventListener('click', imprimirListaPresentes);
+    document.getElementById('btn-imprimir-lista').addEventListener('click', () => imprimirListaPresentes({
+      obraNombre: obraActualNombre,
+      nombreEncargado: nombreEncargado,
+      presentes: presentesCache || [],
+      empresasPropias: empresasPropias,
+      branding: brandingActual
+    }));
   }
 
   const cardNaranjas = document.getElementById('card-naranjas');
@@ -990,11 +990,6 @@
   async function cargarBloqueos() {
     const panel = document.getElementById('panel-bloqueos');
     if (!obraActualId) { panel.style.display = 'none'; rojosHoyCache = 0; pintarYaPueden([]); return; }
-    // B2 (caso Veronica, 1/9/2026), mismo patron que A5 en cargarSolicitudesEnc():
-    // este panel se reconstruye entero cada 60 s y al volver de segundo plano.
-    // Si hay un formulario de "Completar antes de enviar" abierto, no se toca:
-    // se perderia lo que el encargado esta escribiendo con la persona delante.
-    if (formCompletarSRAbierto()) return;
 
     const { desdeISO, hastaISO } = rangoHoyLocal();
 
@@ -1128,44 +1123,16 @@
       if (solYa && solYa.estado === 'autorizada') {
         botonPedir = '<span class="etq-sol ok">✓ Autorizado — que fiche en la valla</span>';
       } else if (solYa && solYa.estado === 'pendiente') {
-        // C1 (caso Verónica, 31/8/2026). Esta misma persona sale tambien en
-        // "Esperando al jefe de obra", y hasta hoy los dos paneles decian la
-        // frase EXACTA. Se queda en los dos — no ha fichado, y eso es justo lo
-        // que cuenta este panel — pero cada uno hace un trabajo distinto: este
-        // es la foto de quien no ha entrado, el otro es la lista de lo que hay
-        // que hacer. Aqui solo se apunta a donde esta la accion.
-        botonPedir = '<span class="etq-sol esp">⏳ Pedido — está abajo, en «Esperando al jefe de obra»</span>';
+        botonPedir = '<span class="etq-sol esp">⏳ Esperando al jefe de obra — NO entra</span>';
       } else if (solYa && solYa.estado === 'denegada') {
         botonPedir = '<span class="etq-sol no">✕ Denegado por el jefe de obra — NO entra</span>';
       } else {
         botonPedir = `<button class="btn-pedir" onclick="pedirAutorizacion('${claveSol}', this)">📨 Pedir permiso al jefe de obra</button>`;
-        // B2 (caso Veronica, 1/9/2026). Solo para 🆕: esos datos los escribio
-        // la propia persona en la valla, sin apellidos ni foto, y a veces con
-        // la empresa mal puesta (el caso de origen, B1). Un trabajador YA
-        // fichado no lo necesita: su ficha ya tiene apellidos y empresa de
-        // antes, y tocar eso aqui no es lo que pide este boton.
-        if (esSR) {
-          botonPedir += ` <button class="btn-completar-sr" onclick="abrirCompletarSR('${claveSol}')">✏️ Completar antes de enviar</button>`;
-        }
       }
-      // "Visto" solo apaga la luz: marca la incidencia como revisada y saca a
-      // la persona de este panel. NO resuelve nada. Mientras hay una peticion
-      // PENDIENTE eso es peligroso: dejaria a alguien esperando en la valla
-      // con la alerta ya apagada y nadie enterandose. En ese estado el boton
-      // no existe, y no hace falta: las dos salidas correctas estan en el
-      // panel "Esperando al jefe de obra" — que el jefe conteste, o "Se ha ido".
-      const solPendiente = !!(solYa && solYa.estado === 'pendiente');
-      const botonVisto = (g.incidencia_id && !solPendiente)
+      const botonVisto = g.incidencia_id
         ? `<button class="btn-visto-rojo" onclick="marcarVistoBloqueo('${g.incidencia_id}', this)">✓ Visto</button>`
         : '';
       const boton = `<div class="bloqueo-botones">${botonPedir}${botonVisto}</div>`;
-      // Hueco del formulario "Completar antes de enviar": solo tiene sentido
-      // mientras todavia se puede pedir (sin solicitud ya en marcha). Vacio
-      // no ocupa sitio ni rompe nada; formCompletarSRAbierto() lo mira por
-      // su id para saber si hay que congelar el refresco (mismo patron A5).
-      const huecoCompletar = (esSR && !solYa)
-        ? `<div id="form-completar-${claveSol}" class="form-completar-sr"></div>`
-        : '';
       html += `
         <div class="bloqueo-item" data-id="${esc(g.incidencia_id || '')}">
           <div class="bloqueo-info">
@@ -1174,7 +1141,6 @@
             <div class="bloqueo-hora">Último intento: ${esc(horaUltimo)} · ${esc(intentosTexto)}</div>
           </div>
           ${boton}
-          ${huecoCompletar}
         </div>`;
     });
 
@@ -1274,33 +1240,13 @@
       alert('No se ha podido quitar: ' + ((data && data.error) || (error && error.message) || 'error'));
       return;
     }
-    // Si el formulario esta abierto, el panel no se va a rehacer (A5), asi
-    // que la fila se queda en pantalla. El boton tiene que decir por si solo
-    // que ya esta hecho, o se queda en "Quitando..." para siempre.
-    btn.textContent = '✓ Quitada';
     await cargarSolicitudesEnc();
-  }
-
-  // A5 (caso Verónica, 31/8/2026). El formulario de "alguien que no esta en
-  // la lista" vive DENTRO de este panel, y este panel se rehace entero cada
-  // 60 segundos y cada vez que la pantalla vuelve de segundo plano — es decir,
-  // justo al volver de la camara despues de hacer la foto. Rehacerlo con el
-  // formulario abierto le borraba al encargado todo lo escrito, sin aviso.
-  //
-  // Mientras el formulario este abierto, el panel NO se toca. La lista de
-  // espera puede aguantar un minuto desfasada; lo que no aguanta es que se
-  // borre el DNI que estabas copiando del carnet con la persona delante.
-  // En cuanto se envia o se cancela, el panel vuelve a refrescarse solo.
-  function formSinFicharAbierto() {
-    const h = document.getElementById('form-sf-hueco');
-    return !!(h && h.innerHTML.trim());
   }
 
   async function cargarSolicitudesEnc() {
     const panel = document.getElementById('panel-solenc');
     if (!panel) return;
     if (!obraActualId) { panel.style.display = 'none'; return; }
-    if (formSinFicharAbierto()) return;
 
     const lista = await traerSolicitudesHoy();
 
@@ -1348,41 +1294,16 @@
       + '<input id="sf-nombre" type="text" placeholder="Nombre y apellidos" autocomplete="off">'
       + '<input id="sf-dni" type="text" placeholder="DNI o NIE" autocomplete="off" style="text-transform:uppercase">'
       + '<select id="sf-empresa"><option value="">— Empresa para la que viene —</option>' + opts
-      + '<option value="__autonomo">Autónomo/a — trabaja por su cuenta</option>'
       + '<option value="__otra">Otra (no está en la lista)</option></select>'
       + '<input id="sf-empresa-otra" type="text" placeholder="Nombre de la empresa" style="display:none">'
-      + '<div class="sf-pista" id="sf-empresa-pista" style="display:none"></div>'
       + '<div id="sf-foto-hueco"></div>'
       + '<div class="form-sf-btns">'
       + '<button style="background:#fb8c00;color:white" onclick="enviarSinFichar(this)">Enviar al jefe de obra</button>'
       + '<button style="background:#eee;color:#555" onclick="document.getElementById(\'form-sf-hueco\').innerHTML=\'\'">Cancelar</button>'
       + '</div><div class="form-sf-msg" id="sf-msg"></div></div>';
 
-    // B1 (caso Verónica, 31/8/2026). Un autónomo NO es una empresa llamada
-    // "Autónomo": es una empresa con SU nombre y su DNI como CIF, y así estan
-    // dados de alta ya los que hay (JEROME ROUCH ANDREU, NOEMI JIMENEZ LOPEZ,
-    // VERONICA RODES SEGURA...). Si todos cayeran en un saco comun compartirian
-    // semáforo y documentación de e-Coordina, que es peor que el problema.
-    //
-    // Por eso "Autónomo/a" no manda un valor propio: rellena el campo de texto
-    // con el nombre que el encargado acaba de teclear arriba. El circuito busca
-    // por nombre antes de crear, así que si esa persona ya existe como empresa
-    // se reutiliza, y si no, nace bien desde el primer día.
     document.getElementById('sf-empresa').addEventListener('change', function () {
-      const otra  = document.getElementById('sf-empresa-otra');
-      const pista = document.getElementById('sf-empresa-pista');
-      const esAutonomo = (this.value === '__autonomo');
-      otra.style.display = (esAutonomo || this.value === '__otra') ? 'block' : 'none';
-      pista.style.display = esAutonomo ? 'block' : 'none';
-      if (esAutonomo) {
-        otra.placeholder = 'Nombre y apellidos del autónomo';
-        pista.textContent = 'Un autónomo es su propia empresa. Pon su nombre y apellidos '
-                          + 'completos, tal y como salen en su DNI.';
-        const nom = (document.getElementById('sf-nombre').value || '').trim();
-        if (nom && !otra.value.trim()) otra.value = nom;
-      } else {
-        otra.placeholder = 'Nombre de la empresa';
-      }
+      document.getElementById('sf-empresa-otra').style.display = (this.value === '__otra') ? 'block' : 'none';
     });
 
     // Reducir la imagen, la vista previa y el boton los pone el modulo.
@@ -1419,19 +1340,13 @@
     if (!dniValidoSF(dni)) { msg.textContent = 'Ese DNI/NIE no es válido. Revísalo con el documento delante.'; return; }
     if (!empSel) { msg.textContent = 'Falta la empresa.'; return; }
     if (empSel === '__otra' && empOtra.length < 2) { msg.textContent = 'Escribe el nombre de la empresa.'; return; }
-    if (empSel === '__autonomo' && empOtra.length < 5) {
-      msg.textContent = 'Pon el nombre y apellidos completos del autónomo: esa es su empresa.';
-      return;
-    }
 
     btn.disabled = true;
     msg.style.color = '#666';
     msg.textContent = 'Enviando…';
 
     const params = { p_obra_id: obraActualId, p_nombre: nombre, p_dni: dni };
-    // Autónomo y "Otra" viajan igual: como texto. La diferencia esta en QUE
-    // texto — el nombre de la persona en un caso, el de la empresa en el otro.
-    if (empSel === '__otra' || empSel === '__autonomo') params.p_empresa_texto = empOtra;
+    if (empSel === '__otra') params.p_empresa_texto = empOtra;
     else params.p_empresa_id = empSel;
 
     const { data, error } = await sb.rpc('pedir_autorizacion_acceso', params);
@@ -1460,153 +1375,6 @@
     if (!fotoOk) {
       alert('La persona ha quedado registrada y el jefe de obra ya tiene el aviso.\n\n'
           + 'La foto no se ha podido subir. Se puede anadir mas tarde desde su ficha.');
-    }
-  }
-
-  /* ═══ B2 (caso Veronica, 1/9/2026) — COMPLETAR ANTES DE ENVIAR ═══════════
-     Solo para tarjetas 🆕: alguien que se declaro solo en la valla, con lo
-     que pudo teclear en ese momento (nombre completo en un campo, empresa en
-     otro, sin foto, sin comprobar nada). Este formulario deja corregir eso
-     ANTES de que la peticion salga hacia el jefe — mismo patron y misma RPC
-     que "+ Alguien que no esta en la lista" (abrirFormSinFichar /
-     enviarSinFichar), pero PRE-RELLENADO con lo que ya se sabe, y con el
-     DNI bloqueado: es la clave con la que ya se caso la incidencia y (si la
-     hay) la ficha, tocarlo aqui seria peligroso.                         */
-
-  // Fotos en curso de los formularios "Completar" abiertos, una por tarjeta.
-  // Vive fuera del formulario porque el formulario se borra al enviar.
-  const mandosFotoSR = {};
-
-  async function abrirCompletarSR(clave) {
-    const hueco = document.getElementById('form-completar-' + clave);
-    const g = (window.__gruposSol || {})[clave];
-    if (!hueco || !g) return;
-
-    // El mismo boton lo cierra si ya estaba abierto.
-    if (hueco.innerHTML.trim()) { cerrarCompletarSR(clave); return; }
-
-    const empresas = await cargarEmpresasSol();
-    const opts = empresas.map(e => '<option value="' + esc(e.id) + '">' + esc(e.nombre) + '</option>').join('');
-
-    hueco.innerHTML = '<div class="form-sf">'
-      + '<label style="display:block;font-size:.78rem;color:#a05000;font-weight:bold;margin-bottom:2px">DNI (no se puede cambiar aquí)</label>'
-      + '<input type="text" value="' + esc(g.dni) + '" disabled style="background:#f1f1f1;color:#777;margin-bottom:10px">'
-      + '<label style="display:block;font-size:.78rem;color:#a05000;font-weight:bold;margin-bottom:2px">Nombre y apellidos</label>'
-      + '<input id="cpsr-nombre-' + clave + '" type="text" autocomplete="off" value="' + esc(g.nombre) + '">'
-      + '<select id="cpsr-empresa-' + clave + '"><option value="">— Empresa para la que viene —</option>' + opts
-      + '<option value="__autonomo">Autónomo/a — trabaja por su cuenta</option>'
-      + '<option value="__otra">Otra (no está en la lista)</option></select>'
-      + '<input id="cpsr-empresa-otra-' + clave + '" type="text" placeholder="Nombre de la empresa" value="' + esc(g.empresa || '') + '">'
-      + '<div class="sf-pista" id="cpsr-pista-' + clave + '" style="display:none"></div>'
-      + '<div id="cpsr-foto-hueco-' + clave + '"></div>'
-      + '<div class="form-sf-btns">'
-      + '<button style="background:#fb8c00;color:white" onclick="enviarCompletarSR(\'' + clave + '\', this)">Enviar al jefe de obra</button>'
-      + '<button style="background:#eee;color:#555" onclick="cerrarCompletarSR(\'' + clave + '\')">Cancelar</button>'
-      + '</div><div class="form-sf-msg" id="cpsr-msg-' + clave + '"></div></div>';
-
-    // B1 (caso Veronica, 31/8/2026), la misma regla aquí: "Autónomo/a" no
-    // manda un valor propio, rellena el texto con el nombre de la persona.
-    document.getElementById('cpsr-empresa-' + clave).addEventListener('change', function () {
-      const otra  = document.getElementById('cpsr-empresa-otra-' + clave);
-      const pista = document.getElementById('cpsr-pista-' + clave);
-      const esAutonomo = (this.value === '__autonomo');
-      otra.style.display = (esAutonomo || this.value === '__otra') ? 'block' : 'none';
-      pista.style.display = esAutonomo ? 'block' : 'none';
-      if (esAutonomo) {
-        otra.placeholder = 'Nombre y apellidos del autónomo';
-        pista.textContent = 'Un autónomo es su propia empresa. Pon su nombre y apellidos '
-                          + 'completos, tal y como salen en su DNI.';
-        const nom = (document.getElementById('cpsr-nombre-' + clave).value || '').trim();
-        if (nom && !otra.value.trim()) otra.value = nom;
-      } else {
-        otra.placeholder = 'Nombre de la empresa';
-      }
-    });
-
-    // Arranca en "Otra" con lo que ya se escribió en la valla: es justo lo
-    // que hay que poder corregir (B1: gente que puso su propio DNI ahí
-    // porque no tenía nada mejor). Si el encargado sabe cuál es la empresa
-    // de verdad, la elige de la lista y el texto de "Otra" deja de mandarse.
-    document.getElementById('cpsr-empresa-' + clave).value = '__otra';
-    document.getElementById('cpsr-empresa-otra-' + clave).style.display = 'block';
-
-    mandosFotoSR[clave] = FI.montarCaptura(document.getElementById('cpsr-foto-hueco-' + clave), {});
-  }
-
-  function cerrarCompletarSR(clave) {
-    const hueco = document.getElementById('form-completar-' + clave);
-    if (hueco) hueco.innerHTML = '';
-    delete mandosFotoSR[clave];
-  }
-
-  // Igual que formSinFicharAbierto(), pero mirando TODOS los huecos del
-  // panel de bloqueos a la vez: puede haber varias tarjetas 🆕 en pantalla.
-  function formCompletarSRAbierto() {
-    const panel = document.getElementById('panel-bloqueos');
-    if (!panel) return false;
-    return Array.prototype.some.call(
-      panel.querySelectorAll('[id^="form-completar-"]'),
-      h => h.innerHTML.trim() !== ''
-    );
-  }
-
-  async function enviarCompletarSR(clave, btn) {
-    const g = (window.__gruposSol || {})[clave];
-    if (!g) return;
-    const msg = document.getElementById('cpsr-msg-' + clave);
-    const nombre = (document.getElementById('cpsr-nombre-' + clave).value || '').trim();
-    const empSel = document.getElementById('cpsr-empresa-' + clave).value;
-    const empOtra = (document.getElementById('cpsr-empresa-otra-' + clave).value || '').trim();
-
-    msg.style.color = '#c62828';
-    if (nombre.length < 3) { msg.textContent = 'Falta el nombre.'; return; }
-    if (!empSel) { msg.textContent = 'Falta la empresa.'; return; }
-    if (empSel === '__otra' && empOtra.length < 2) { msg.textContent = 'Escribe el nombre de la empresa.'; return; }
-    if (empSel === '__autonomo' && empOtra.length < 5) {
-      msg.textContent = 'Pon el nombre y apellidos completos del autónomo: esa es su empresa.';
-      return;
-    }
-
-    btn.disabled = true;
-    msg.style.color = '#666';
-    msg.textContent = 'Enviando…';
-
-    // Mismo DNI que ya tenía la incidencia: eso es lo que dedup y la ficha
-    // usan para reconocer a esta persona. La RPC actualiza esa incidencia
-    // con el nombre/empresa corregidos en vez de dejarla con el dato viejo
-    // de la valla (cambio del 1/9/2026 en pedir_autorizacion_acceso).
-    const params = { p_obra_id: obraActualId, p_nombre: nombre, p_dni: g.dni };
-    if (empSel === '__otra' || empSel === '__autonomo') params.p_empresa_texto = empOtra;
-    else params.p_empresa_id = empSel;
-
-    const { data, error } = await sb.rpc('pedir_autorizacion_acceso', params);
-
-    if (error || !data || data.ok !== true) {
-      btn.disabled = false;
-      msg.style.color = '#c62828';
-      msg.textContent = (data && data.error) || (error && error.message) || 'No se ha podido enviar.';
-      return;
-    }
-
-    // Mismo orden que enviarSinFichar(): la peticion ya esta enviada, la
-    // foto va DESPUES y no puede tumbar nada. Si falla, se avisa y se sigue.
-    let fotoOk = true;
-    const mando = mandosFotoSR[clave];
-    if (mando && mando.blob && data.trabajador_id) {
-      msg.style.color = '#666';
-      msg.textContent = 'Enviado. Subiendo la foto…';
-      const rf = await FI.guardar(data.trabajador_id, obraActualId, mando.blob);
-      fotoOk = rf.ok;
-    }
-    delete mandosFotoSR[clave];
-
-    cerrarCompletarSR(clave);
-    await cargarBloqueos();
-    await cargarSolicitudesEnc();
-
-    if (!fotoOk) {
-      alert('La petición se ha enviado al jefe de obra con los datos corregidos.\n\n'
-          + 'La foto no se ha podido subir. Se puede añadir más tarde desde su ficha.');
     }
   }
 
@@ -2533,111 +2301,6 @@
   }
 
   // ── P-03: imprimir lista de presentes ──
-  function imprimirListaPresentes() {
-    if (!obraActualId) { alert('No hay obra seleccionada.'); return; }
-
-    const presentes = presentesCache || [];
-    if (presentes.length === 0) {
-      alert('No hay trabajadores presentes para imprimir en la fecha seleccionada.');
-      return;
-    }
-
-    // Orden por empresa y luego por nombre (más fácil de cotejar en obra)
-    const ordenados = [...presentes].sort((a, b) => {
-      const ea = (a.empresa || '').toLowerCase();
-      const eb = (b.empresa || '').toLowerCase();
-      if (ea !== eb) return ea.localeCompare(eb, 'es');
-      return (a.nombre || '').localeCompare(b.nombre || '', 'es');
-    });
-
-    const total = ordenados.length;
-    const nPropios = ordenados.filter(t => empresasPropias.has(t.empresaId)).length;
-    const nExternos = total - nPropios;
-
-    const logoUrl = brandingActual
-      ? window.location.origin + window.location.pathname.replace(/encargado\/.*$/, '') + brandingActual.logo
-      : '';
-    const marcaNombre = brandingActual ? brandingActual.nombre : '';
-
-    const filas = ordenados.map((t, i) => `
-      <tr>
-        <td class="col-num">${i + 1}</td>
-        <td class="col-nombre">${esc(t.nombre || '—')}</td>
-        <td class="col-dni">${esc(t.dni || '—')}</td>
-        <td class="col-empresa">${esc(t.empresa || '—')}</td>
-        <td class="col-hora"></td>
-        <td class="col-firma"></td>
-        <td class="col-hora"></td>
-        <td class="col-firma"></td>
-      </tr>`).join('');
-
-    // 3 filas vacías extra para personal nuevo del día
-    const filasVacias = [1, 2, 3].map(n => `
-      <tr class="fila-vacia">
-        <td class="col-num">${total + n}</td>
-        <td class="col-nombre"></td>
-        <td class="col-dni"></td>
-        <td class="col-empresa"></td>
-        <td class="col-hora"></td>
-        <td class="col-firma"></td>
-        <td class="col-hora"></td>
-        <td class="col-firma"></td>
-      </tr>`).join('');
-
-    const win = window.open('', '_blank');
-    win.document.write(`
-      <!DOCTYPE html><html lang="es"><head>
-      <meta charset="UTF-8">
-      <title>Lista de presentes — ${esc(obraActualNombre)}</title>
-      <style>
-        @page { size: landscape; margin: 10mm; }
-        * { box-sizing: border-box; }
-        body { font-family: sans-serif; color: #111; padding: 4px; }
-        .cab { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 8px; }
-        .cab-info h1 { font-size: 18px; margin: 0; }
-        .logo-marca { max-height: 44px; max-width: 160px; }
-        table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        th, td { border: 1px solid #333; padding: 6px 8px; }
-        thead th { text-align: left; background: #ececec; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
-        .col-num { width: 28px; text-align: center; color: #555; }
-        .col-dni { width: 95px; }
-        .col-empresa { width: 160px; }
-        .col-hora { width: 72px; }
-        .col-firma { width: 130px; }
-        tbody tr { height: 32px; }
-        .pie { margin-top: 10px; font-size: 12px; page-break-inside: avoid; }
-        .pie .firma-encargado { margin-top: 18px; border-top: 1px solid #111; width: 300px; padding-top: 4px; }
-      </style>
-      </head><body>
-      <div class="cab">
-        <div class="cab-info">
-          <h1>Lista de presentes — ${esc(obraActualNombre)}</h1>
-        </div>
-        ${logoUrl ? `<img class="logo-marca" src="${logoUrl}" alt="${esc(marcaNombre)}" />` : ''}
-      </div>
-
-      <table>
-        <thead>
-          <tr>
-            <th class="col-num">#</th>
-            <th>Nombre</th>
-            <th class="col-dni">DNI</th>
-            <th class="col-empresa">Empresa</th>
-            <th class="col-hora">H. entrada</th>
-            <th class="col-firma">Firma</th>
-            <th class="col-hora">H. salida</th>
-            <th class="col-firma">Firma</th>
-          </tr>
-        </thead>
-        <tbody>${filas}${filasVacias}</tbody>
-      </table>
-      <div class="pie">
-        <div class="firma-encargado">Firma del encargado: ${esc(nombreEncargado)}</div>
-      </div>
-      <script>window.onload = () => { window.print(); }<\/script>
-      </body></html>`);
-    win.document.close();
-  }
 
   function actualizarTextosRelativos() {
     if (!presentesCache) return;
@@ -2890,42 +2553,6 @@
     document.getElementById('modal-qr').classList.remove('visible');
   }
 
-  function imprimirQR() {
-    const canvas = document.getElementById('qr-canvas');
-    const obraNombre = document.getElementById('qr-obra-nombre').textContent;
-    const dataUrl = canvas.toDataURL('image/png');
-    const logoUrl = brandingActual
-      ? window.location.origin + window.location.pathname.replace(/encargado\/.*$/, '') + brandingActual.logo
-      : '';
-    const marcaNombre = brandingActual ? brandingActual.nombre : '';
-    const win = window.open('', '_blank');
-    win.document.write(`
-      <!DOCTYPE html><html><head>
-      <title>QR — ${obraNombre}</title>
-      <style>
-        body { font-family: sans-serif; text-align: center; padding: 40px; }
-        .logo-marca { max-height: 60px; max-width: 220px; margin-bottom: 20px; }
-        h1 { font-size: 24px; margin-bottom: 8px; }
-        p { color: #666; font-size: 14px; margin-bottom: 24px; }
-        .sub-ar { display: block; margin-top: 8px; font-size: 18px; font-weight: 700; color: #444; direction: rtl; }
-        img.qr { display: block; margin: 0 auto; width: 280px; }
-        .aviso-obligatorio { margin: 26px auto 0; max-width: 560px; border: 2px solid #111; border-radius: 12px; padding: 16px 18px; color: #111; background: #fff; }
-        .aviso-obligatorio .es { font-size: 16px; font-weight: 800; line-height: 1.35; margin-bottom: 10px; }
-        .aviso-obligatorio .ar { font-size: 18px; font-weight: 800; line-height: 1.6; direction: rtl; }
-      </style>
-      </head><body>
-      ${logoUrl ? `<img class="logo-marca" src="${logoUrl}" alt="${marcaNombre}" />` : ''}
-      <h1>${obraNombre}</h1>
-      <p>Escanea este código QR para fichar tu entrada/salida<span class="sub-ar" lang="ar" dir="rtl">امسح رمز QR هذا لتسجيل دخولك/خروجك</span></p>
-      <img class="qr" src="${dataUrl}" />
-      <div class="aviso-obligatorio">
-        <div class="es">En esta obra es obligatorio fichar tanto a la entrada como a la salida. El incumplimiento puede tener consecuencias disciplinarias.</div>
-        <div class="ar" lang="ar" dir="rtl">في هذا الموقع، تسجيل الحضور عند الدخول والخروج إلزامي.<br>عدم الامتثال قد يترتب عليه عواقب تأديبية.</div>
-      </div>
-      <script>window.onload = () => { window.print(); }<\/script>
-      </body></html>`);
-    win.document.close();
-  }
 
   document.getElementById('modal-qr').addEventListener('click', e => {
     if (e.target === document.getElementById('modal-qr')) cerrarQR();
