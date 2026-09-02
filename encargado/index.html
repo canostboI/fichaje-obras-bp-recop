@@ -2741,8 +2741,13 @@ async function guardarFicEnc() {
 
 function cerrarFicEnc() { document.getElementById('fic-overlay').classList.add('oculto'); _ficEncTrabId=null; _ficEncMando=null; }
 function rehacerFotoEnc() { document.getElementById('fiv-overlay').classList.add('oculto'); if (_fivEncTrabId) abrirFicEnc(_fivEncTrabId); }
-document.getElementById('fiv-overlay').addEventListener('click', function(e) { if (e.target===this) this.classList.add('oculto'); });
-document.getElementById('fic-overlay').addEventListener('click', function(e) { if (e.target===this) cerrarFicEnc(); });
+document.addEventListener('DOMContentLoaded', function () {
+  // Los modales se declaran despues de este <script>: sin esperar al DOM,
+  // getElementById devuelve null y el script entero se detiene aqui (71a).
+  document.getElementById('fiv-overlay').addEventListener('click', function(e) { if (e.target===this) this.classList.add('oculto'); });
+  document.getElementById('fic-overlay').addEventListener('click', function(e) { if (e.target===this) cerrarFicEnc(); });
+  document.getElementById('vfm-overlay').addEventListener('click', function(e) { if (e.target===this) cerrarVfmEnc(); });
+});
 
 async function clicVerifEnc(trabajadorId, btn) {
   btn.disabled = true;
@@ -2820,7 +2825,6 @@ async function guardarVerifEnc() {
 }
 
 function cerrarVfmEnc() { document.getElementById('vfm-overlay').classList.add('oculto'); _vfmEncTrabId=null; _vfmEncIdioma=null; }
-document.getElementById('vfm-overlay').addEventListener('click', function(e) { if (e.target===this) cerrarVfmEnc(); });
 // ─────────────────────────────────────────────────────────────────────
 </script>
 
