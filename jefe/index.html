@@ -1207,14 +1207,21 @@ async function resolverSol(id, accion, clave) {
   const quien = ((item.querySelector('.sol-quien') || {}).textContent || 'esta persona')
     .replace('No está en la app', '').trim();
   if (accion === 'autorizar') {
-    const extra = item.dataset.nueva === '1'
+    const esRegla = (clave === 'regla');
+    const extra = (item.dataset.nueva === '1' && !esRegla)
       ? '\n\nNo está dado de alta: se le creará una ficha EN ROJO para ' +
         (item.dataset.empresa || 'su empresa') +
         ', sin documentación validada. Mañana volverá a estar bloqueado.'
       : '';
-    const aviso = 'Vas a autorizar la entrada de ' + quien +
-      ' SOLO PARA HOY.\n\nQuedará escrito con tu nombre y la fecha, y tú asumes la responsabilidad.' +
-      extra + '\n\n¿Le das paso?';
+    const aviso = esRegla
+      ? 'Vas a dar por buena la documentación de ' + quien +
+        ' en esta obra.\n\nSu semáforo pasará a VERDE aquí (no en las demás obras) ' +
+        'y dejará de pedirse permiso cada mañana. Quedará escrito con tu nombre y la fecha.' +
+        '\n\nSi solo quieres dejarle pasar hoy, cancela y pulsa «Asumo el riesgo».' +
+        '\n\n¿Confirmas que está en regla?'
+      : 'Vas a autorizar la entrada de ' + quien +
+        ' SOLO PARA HOY.\n\nQuedará escrito con tu nombre y la fecha, y tú asumes la responsabilidad.' +
+        extra + '\n\n¿Le das paso?';
     if (!window.confirm(aviso)) return;
   }
 
@@ -1222,8 +1229,17 @@ async function resolverSol(id, accion, clave) {
   msg.className = 'sol-estado';
   msg.textContent = 'Enviando…';
 
+  // "Ya está en regla" y "Asumo el riesgo" NO son la misma decisión, y hasta
+  // hoy mandaban exactamente lo mismo. La primera es un juicio sobre los
+  // papeles y deja el semáforo en verde EN ESTA OBRA; la segunda es un
+  // permiso de un día y el rojo sigue. Sin esta distinción, quien entró por
+  // la valla amanecía en rojo cada mañana y el encargado volvía a pedir
+  // permiso por la misma persona indefinidamente.
+  const regularizar = (accion === 'autorizar' && clave === 'regla');
+
   const { data, error } = await sb.rpc('resolver_solicitud_acceso', {
-    p_solicitud_id: id, p_accion: accion, p_motivo: MOTIVOS_SOL[clave]
+    p_solicitud_id: id, p_accion: accion, p_motivo: MOTIVOS_SOL[clave],
+    p_regularizar: regularizar
   });
 
   if (error || !data || data.ok !== true) {
@@ -1237,8 +1253,19 @@ async function resolverSol(id, accion, clave) {
   msg.className = 'sol-estado ok';
   let txt = '✕ Denegado. Queda escrito.';
   if (accion === 'autorizar') {
-    txt = '✓ Paso autorizado solo por hoy. Ya puede fichar en la valla.';
-    if (data.ficha_creada === true) txt += ' Ficha creada EN ROJO.';
+    // El texto se decide por lo que RESPONDE la función, no por el botón
+    // pulsado: si el verde no se pudo aplicar, el jefe tiene que enterarse
+    // aquí y no descubrirlo mañana cuando le vuelvan a pedir permiso.
+    if (data.regularizado === true) {
+      txt = '✓ Documentación dada por buena. Semáforo en VERDE en esta obra: ' +
+            'ya no volverá a pedirse permiso.';
+    } else if (regularizar) {
+      txt = '✓ Paso autorizado por hoy, pero el semáforo NO se ha podido poner ' +
+            'en verde. Revísalo en Trabajadores.';
+    } else {
+      txt = '✓ Paso autorizado solo por hoy. Ya puede fichar en la valla.';
+      if (data.ficha_creada === true) txt += ' Ficha creada EN ROJO.';
+    }
     if (data.empresa_creada === true) txt += ' Empresa nueva dada de alta.';
   }
   msg.textContent = txt;
