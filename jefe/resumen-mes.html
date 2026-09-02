@@ -488,6 +488,18 @@ function etiquetaCat(t) {
   </div>
 </div>
 
+<!-- Modal Revisión de dobles pases del QR: una línea por caso, un clic por línea -->
+<div class="modal-overlay" id="modal-qr">
+  <div class="modal" style="max-width:620px">
+    <h2>✔ Revisar los dobles pases</h2>
+    <div class="subtitulo" id="qr-subtitulo">—</div>
+    <div id="qr-lista"></div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cerrar-qr">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Revisión de autocierres: una línea por salida inventada, un clic por línea -->
 <div class="modal-overlay" id="modal-auto">
   <div class="modal" style="max-width:600px">
@@ -667,6 +679,24 @@ function textoCalculoIncompleto(queSale) {
   // El botón del panel de cierre es el mismo paso, no una función aparte
   document.getElementById('pc-btn-exportar').addEventListener('click', exportarExcelProforma);
   document.getElementById('btn-guardar-normal').addEventListener('click', guardarHorarioNormal);
+
+  // Revisión de dobles pases del QR. Delegado: las filas se repintan.
+  document.getElementById('btn-cerrar-qr').addEventListener('click', cerrarRevisionQR);
+  document.getElementById('modal-qr').addEventListener('click', async (e) => {
+    if (e.target.id === 'modal-qr') { await cerrarRevisionQR(); return; }
+
+    const idOk = e.target.getAttribute && e.target.getAttribute('data-qr-ok');
+    if (idOk) { await confirmarDoblePase(idOk, e.target); return; }
+
+    const otras = e.target.getAttribute && e.target.getAttribute('data-qr-otras');
+    if (otras) {
+      const fila = e.target.closest('.sab-fila');
+      const tid = fila.getAttribute('data-tid');
+      const dia = Number(fila.getAttribute('data-dia'));
+      await cerrarRevisionQR();
+      abrirDetalleDia(tid, dia);
+    }
+  });
 
   // Revisión de autocierres. Delegado: las filas se repintan.
   document.getElementById('btn-cerrar-auto').addEventListener('click', cerrarRevisionAutocierres);
@@ -1566,13 +1596,19 @@ function reentradasSospechosas() {
       if (minutos > HUECO_REENTRADA_MIN) continue;
 
       // Criterio de CERO: la línea desaparece si alguien ya tocó uno de
-      // los dos fichajes, o si el día lleva horas fijadas a mano.
+      // los dos fichajes, si el día lleva horas fijadas a mano, o si
+      // alguien CONFIRMÓ la entrada ("lo he mirado, está bien así").
+      // Esa tercera vía faltaba: sin ella, un doble pase que se decide
+      // dejar como está no se puede apagar nunca.
       if (ant.corregido_por || act.corregido_por) continue;
+      if (act.confirmado_por) continue;
       const t = resumenTrabajadores[tid];
       const dia = dEnt.getDate();
       if (t && t.dias_ajuste && t.dias_ajuste[dia] !== undefined) continue;
 
-      encontradas.push({ trabajador_id: tid, dia, minutos, dSal, dEnt });
+      // El fichaje en duda es la ENTRADA de más: es la que abre la
+      // jornada fantasma, y por tanto la que se confirma o se corrige.
+      encontradas.push({ trabajador_id: tid, dia, minutos, dSal, dEnt, id: act.id, clase: 'reentrada' });
     }
   });
 
@@ -1629,13 +1665,16 @@ function jornadasDemasiadoCortas(yaAvisados) {
       if (minutos >= JORNADA_CORTA_MIN) continue;
 
       if (ant.corregido_por || act.corregido_por) continue;
+      if (act.confirmado_por) continue;
       const t = resumenTrabajadores[tid];
       const dia = dEnt.getDate();
       if (t && t.dias_ajuste && t.dias_ajuste[dia] !== undefined) continue;
       if (vistos.has(tid + '|' + dia)) continue;
 
       vistos.add(tid + '|' + dia);
-      encontradas.push({ trabajador_id: tid, dia, minutos, dEnt, dSal });
+      // Aquí el fichaje en duda es la SALIDA prematura: es la que cierra
+      // la jornada en minutos.
+      encontradas.push({ trabajador_id: tid, dia, minutos, dEnt, dSal, id: act.id, clase: 'corta' });
     }
   });
 
@@ -1689,6 +1728,126 @@ function sabadosDelMes(fichajes, ajustes) {
 
   pendientes.sort((a, b) => a.dia - b.dia);
   return { trabajados: diasConFichaje.size, pendientes };
+}
+
+// ====== REVISIÓN DE DOBLES PASES DEL QR ======
+//
+// Aquí el reloj NO está inventado: los fichajes son reales, solo que el
+// QR se leyó dos veces. Casi siempre las horas que salen ya son las
+// buenas, así que lo único que faltaba era poder decir "lo he mirado,
+// está bien así" y que la línea se apague.
+//
+// POR QUÉ SE CONFIRMA Y NO SE FIJAN HORAS: fijar horas mete un número a
+// mano donde el reloj funciona bien, y ese día pasaría a contarse en el
+// paso 2 como día tocado a mano. Se cambiaría un aviso por otro y el mes
+// acabaría lleno de días marcados como manipulados sin que nadie los
+// haya manipulado. Confirmar no toca ninguna hora.
+let qrHuboCambios = false;
+
+function abrirRevisionQR() {
+  qrHuboCambios = false;
+  document.getElementById('qr-subtitulo').textContent =
+    'El QR se leyó dos veces. Si las horas que salen ya son las buenas, dilo y la línea se apaga.';
+  renderRevisionQR();
+  document.getElementById('modal-qr').classList.add('visible');
+}
+
+function renderRevisionQR() {
+  const cont = document.getElementById('qr-lista');
+  const reent = reentradasSospechosas();
+  const casos = reent.concat(jornadasDemasiadoCortas(reent));
+
+  if (casos.length === 0) {
+    cont.innerHTML = '<div class="dia-vacio">No queda ningún doble pase por revisar. 👍</div>';
+    return;
+  }
+
+  const nombreDe = tid => (resumenTrabajadores[tid] ? resumenTrabajadores[tid].nombre : 'Trabajador');
+  const mesNum = mesCargado ? Number(mesCargado.split('-')[1]) : '';
+
+  // Las jornadas de minutos primero: ahí el día vale casi cero y suelen
+  // FALTAR horas. Las reentradas van después: sobran, y muchas veces son
+  // legítimas.
+  casos.sort((a, b) => (a.clase === 'corta' ? 0 : 1) - (b.clase === 'corta' ? 0 : 1) ||
+    a.dia - b.dia || nombreDe(a.trabajador_id).localeCompare(nombreDe(b.trabajador_id), 'es'));
+
+  cont.innerHTML = casos.map(c => {
+    const horasDia = horasDelDia(c.trabajador_id, c.dia);
+    const esCorta = c.clase === 'corta';
+    const reloj = esCorta
+      ? hhmm(c.dEnt) + ' → ' + hhmm(c.dSal) + ' · <b>' + c.minutos + ' min</b> de jornada'
+      : hhmm(c.dSal) + ' → ' + hhmm(c.dEnt) + ' · volvió a entrar <b>' + c.minutos + ' min</b> después';
+    const total = horasDia !== null
+      ? 'Ese día le computan <b>' + formatHoras(horasDia) + ' h</b>.'
+      : '';
+    const pista = esCorta
+      ? 'Si trabajó el día entero, esas horas no son las suyas: corrige o fíjaselas a mano.'
+      : 'Si las horas de arriba son las que hizo, está bien así.';
+
+    return `<div class="sab-fila${esCorta ? ' avisada' : ''}" data-tid="${escapeHtml(c.trabajador_id)}" data-dia="${c.dia}">
+      <div class="sab-datos">
+        <div class="sab-nombre">${esCorta ? '⚠ ' : ''}${escapeHtml(nombreDe(c.trabajador_id))} · ${c.dia}/${mesNum}</div>
+        <div class="sab-reloj">${reloj}</div>
+        <div class="sab-aviso" style="color:var(--texto2)">${total} ${pista}</div>
+      </div>
+      <div class="sab-acc">
+        <button class="btn-firmar" data-qr-ok="${escapeHtml(c.id)}">✔ Está bien así</button>
+        <button class="btn-otras" data-qr-otras="1">corregir…</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Suma las horas que ese día computa para ese trabajador, con los mismos
+// pares entrada/salida que usa la tabla. Sirve para enseñar el número que
+// se está dando por bueno ANTES de darlo por bueno.
+function horasDelDia(trabajadorId, dia) {
+  const lista = fichajesDelDia(trabajadorId, dia);
+  let total = 0, abierta = null;
+  lista.forEach(f => {
+    if (f.tipo === 'entrada') { abierta = new Date(f.hora); }
+    else if (f.tipo === 'salida' && abierta) {
+      total += (new Date(f.hora) - abierta) / 3600000;
+      abierta = null;
+    }
+  });
+  return total > 0 ? total : null;
+}
+
+async function confirmarDoblePase(fichajeId, boton) {
+  const fila = boton.closest('.sab-fila');
+  boton.disabled = true;
+  boton.textContent = 'Guardando…';
+
+  const { data, error } = await sb.rpc('confirmar_fichaje', {
+    p_fichaje_id: fichajeId,
+    p_confirmar: true
+  });
+
+  if (error || !data || data.success !== true) {
+    boton.disabled = false;
+    boton.textContent = '✔ Está bien así';
+    let err = fila.querySelector('.sab-error');
+    if (!err) { err = document.createElement('div'); err.className = 'sab-error'; fila.appendChild(err); }
+    err.textContent = 'No se ha podido guardar: ' +
+      (error ? error.message : ((data && data.error) || 'error desconocido'));
+    return;
+  }
+
+  const f = fichajesMesCache.find(x => x.id === fichajeId);
+  if (f) f.confirmado_por = 'confirmado';
+
+  qrHuboCambios = true;
+  fila.className = 'sab-fila firmada';
+  fila.querySelector('.sab-acc').innerHTML = '<span class="sab-hecho">✔ Visto</span>';
+}
+
+async function cerrarRevisionQR() {
+  document.getElementById('modal-qr').classList.remove('visible');
+  if (qrHuboCambios) {
+    qrHuboCambios = false;
+    await cargarResumen();
+  }
 }
 
 // ====== REVISIÓN DE AUTOCIERRES ======
@@ -2052,9 +2211,6 @@ function actualizarPanelCierre() {
   const chips3 = document.getElementById('pc-chips-3');
   chips3.innerHTML = '';
 
-  const hhmm = d => String(d.getHours()).padStart(2, '0') + ':' +
-                    String(d.getMinutes()).padStart(2, '0');
-
   if (reentradas.length + cortas.length === 0) {
     paso3.className = 'pc-paso hecho';
     document.getElementById('pc-icono-3').textContent = '✓';
@@ -2070,7 +2226,7 @@ function actualizarPanelCierre() {
           ? ' entrada llega justo después de una salida (menos de '
           : ' entradas llegan justo después de una salida (menos de ') +
         HUECO_REENTRADA_MIN + ' min): abre una jornada de más. ' +
-        'Si sobra, corrige esa entrada; si de verdad volvió a trabajar, déjalo.');
+        'Si sobra, corrige esa entrada; si las horas ya son las buenas, dilo y se apaga.');
     }
     if (cortas.length > 0) {
       partes3.push(cortas.length + (cortas.length === 1
@@ -2082,29 +2238,16 @@ function actualizarPanelCierre() {
     document.getElementById('pc-desc-3').textContent =
       partes3.join(' · ') + ' Suele ser el QR pasado dos veces.';
 
-    reentradas.forEach(r => {
-      const t = resumenTrabajadores[r.trabajador_id];
-      const b = document.createElement('button');
-      b.className = 'pc-chip';
-      b.textContent = (t ? t.nombre : 'Trabajador') + ' · ' +
-                      r.dia + '/' + (r.dEnt.getMonth() + 1) + ' · ' +
-                      hhmm(r.dSal) + '→' + hhmm(r.dEnt) +
-                      ' (' + r.minutos + ' min, entrada de más)';
-      b.onclick = () => abrirDetalleDia(r.trabajador_id, r.dia);
-      chips3.appendChild(b);
-    });
-
-    cortas.forEach(c => {
-      const t = resumenTrabajadores[c.trabajador_id];
-      const b = document.createElement('button');
-      b.className = 'pc-chip';
-      b.textContent = (t ? t.nombre : 'Trabajador') + ' · ' +
-                      c.dia + '/' + (c.dEnt.getMonth() + 1) + ' · ' +
-                      hhmm(c.dEnt) + '→' + hhmm(c.dSal) +
-                      ' (' + c.minutos + ' min, jornada de minutos)';
-      b.onclick = () => abrirDetalleDia(c.trabajador_id, c.dia);
-      chips3.appendChild(b);
-    });
+    // Puerta única, igual que los pasos 1 y 4: los casos están dentro,
+    // con el reloj y las horas del día al lado.
+    const bQR = document.createElement('button');
+    bQR.className = 'pc-chip';
+    bQR.style.borderColor = 'var(--verde)';
+    bQR.style.color = 'var(--verde)';
+    bQR.textContent = '✔ Revisar los dobles pases (' +
+      (reentradas.length + cortas.length) + ')';
+    bQR.onclick = abrirRevisionQR;
+    chips3.appendChild(bQR);
   }
 
   // --- Paso 4: sábados trabajados sin horas fijadas ---
