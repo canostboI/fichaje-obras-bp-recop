@@ -54,6 +54,29 @@ const DOCS_POR_OFICIO = [
   { doc: 'Formación en riesgo eléctrico',     categorias: ['electricista'] }
 ];
 
+// Documentos con MARGEN de cortesía tras caducar. GEMELO de la constante del
+// mismo nombre en js/ecoordina-import.js: si cambia una, cambia la otra.
+//
+// Nace de un hecho real: el recibo mensual del autónomo se paga a tiempo, pero
+// coordinación tarda unos días en actualizarlo en e-Coordina. Sin margen, a
+// principios de mes cae en rojo gente que ya ha pagado.
+//
+// Mientras no se agote el margen, un documento 'Caducado' cuenta como NARANJA
+// en vez de rojo: entra, pero avisando. Nunca en silencio: deja su línea en
+// los motivos.
+//
+// CONDICIONES, todas obligatorias:
+//  · el estado es exactamente 'Caducado' (NO 'Sin presentar' ni 'No válido':
+//    ahí no hay nada pagado pendiente de actualizar, y de hecho e-Coordina ni
+//    siquiera manda F.caducidad en esos casos);
+//  · la fila trae 'F.caducidad' legible;
+//  · desde esa fecha no han pasado más de `dias` días LABORABLES.
+//
+// Ancla corta: casa aunque el nombre real lleve coletillas.
+const DOCS_CON_MARGEN = [
+  { doc: 'Certificado de PAGO DE RECIBOS', dias: 2 }
+];
+
 function log(...a) { console.log(new Date().toISOString(), ...a); }
 
 // ── Helpers portados literalmente del importador web ──────────────────────────
@@ -84,6 +107,63 @@ function mismosNombres(a, b) {
   if (ta.length === 0 || tb.length === 0 || ta.length !== tb.length) return false;
   return ta.every((t, i) => t === tb[i]);
 }
+// ── Margen tras caducar (gemelo de js/ecoordina-import.js) ───────────────────
+// ¿Este documento tiene margen configurado? Devuelve los días o null.
+function diasDeMargen(nombreDoc) {
+  const norm = normalizar(nombreDoc);
+  for (const m of DOCS_CON_MARGEN) {
+    const refNorm = normalizar(m.doc);
+    if (norm === refNorm || norm.includes(refNorm)) return m.dias;
+  }
+  return null;
+}
+
+// Días LABORABLES (lunes a viernes) entre dos fechas locales. El propio día de
+// caducidad cuenta como 0.
+//
+// Laborables y no naturales porque el margen existe para dar tiempo a
+// COORDINACIÓN, que es una oficina y no trabaja el fin de semana. Con días
+// naturales, un documento que caduca un viernes estaría en rojo el lunes por
+// la mañana sin que nadie hubiera tenido ocasión de actualizarlo.
+//
+// NO se contemplan los festivos: no hay calendario laboral en la app y los de
+// cada provincia son distintos. Si un puente deja a alguien en rojo, la vía es
+// la excepción del jefe de obra, que además deja rastro.
+function laborablesEntre(desde, hasta) {
+  if (!(desde instanceof Date) || !(hasta instanceof Date)) return null;
+  const a = new Date(desde.getFullYear(), desde.getMonth(), desde.getDate());
+  const b = new Date(hasta.getFullYear(), hasta.getMonth(), hasta.getDate());
+  if (b <= a) return 0;
+  let n = 0;
+  const cur = new Date(a.getTime());
+  while (cur < b) {
+    cur.setDate(cur.getDate() + 1);
+    const d = cur.getDay(); // 0 domingo, 6 sábado
+    if (d !== 0 && d !== 6) n++;
+  }
+  return n;
+}
+
+// Decide si un documento caducado sigue dentro de su margen.
+// Devuelve null si no aplica margen, o { dias, agotado, fechaTexto }.
+//
+// ⚠️ El runner de GitHub Actions va en UTC. `hoyTexto` tiene que venir de
+// hoyEspana(), nunca de new Date() a secas, o de madrugada contaría un día de
+// más y el margen se acortaría solo.
+function evaluarMargen(nombreDoc, estado, fechaCaducidadTexto, hoyTexto) {
+  if (String(estado || '').trim() !== 'Caducado') return null;
+  const dias = diasDeMargen(nombreDoc);
+  if (dias === null) return null;
+  const tCad = parsearFechaEcoordina(fechaCaducidadTexto);
+  if (tCad === null) return null;
+  const m = String(hoyTexto || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const hoy = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+  const transcurridos = laborablesEntre(new Date(tCad), hoy);
+  if (transcurridos === null) return null;
+  return { dias, agotado: transcurridos > dias, fechaTexto: String(fechaCaducidadTexto).trim() };
+}
+
 function esDocSoloRP(nombreDoc) {
   const norm = normalizar(nombreDoc);
   for (const ref of DOCS_SOLO_RP) {
@@ -277,6 +357,11 @@ function leerCsvComoFilas(csvPath) {
 
 // ── Cálculo de semáforos para una obra (port de procesarExcel, sin UI) ─────────
 function calcularResultadoObra(filasObra, trabajadoresApp) {
+  // Día de hoy en España (M-05). Lo usa el margen de cortesía de
+  // DOCS_CON_MARGEN. Se calcula UNA vez por obra para que todo el cálculo mire
+  // el mismo día aunque el proceso cruce la medianoche.
+  const hoyStr = hoyEspana();
+
   // Separar filas empresa / trabajador
   const filasEmpresa = [];
   const filasTrabajador = [];
@@ -364,7 +449,12 @@ function calcularResultadoObra(filasObra, trabajadoresApp) {
     if (!porTrabajador[dni]) {
       porTrabajador[dni] = { dni, nombre: fila._nombreTrabajador, empresa: extraerNombreEmpresa(fila['Empresa'] || ''), empresaRaw: fila._empresaRaw, docs: [] };
     }
-    porTrabajador[dni].docs.push({ doc: fila['Documento'] || '', estado: fila['Estado'] || '' });
+    porTrabajador[dni].docs.push({
+      doc: fila['Documento'] || '',
+      estado: fila['Estado'] || '',
+      // Fecha declarada por e-Coordina. Solo la usa el margen de cortesía.
+      fechaCaducidad: fila['F.caducidad'] || ''
+    });
   }
 
   // Calcular semáforo
@@ -401,14 +491,27 @@ function calcularResultadoObra(filasObra, trabajadoresApp) {
     // Si aún no está en la app → 'peon' por defecto.
     const categoriaApp = (trabajadoresApp[dni] && trabajadoresApp[dni].categoria) || 'peon';
 
-    for (const { doc, estado } of info.docs) {
+    for (const { doc, estado, fechaCaducidad } of info.docs) {
       if (estado === 'Validado') continue;
       if (tiene60hValidada && doc.startsWith('Formación 20 horas')) continue;
       // Documento de oficio que esta categoría no necesita → no le aplica.
       if (docNoAplicaPorOficio(doc, categoriaApp)) continue;
       const regla = aplicarRegla(doc, estado, 'trabajador');
       if (regla) {
+        // Margen de cortesía: un documento recién caducado que lo tenga
+        // configurado no llega a rojo todavía. Solo rebaja rojo→naranja;
+        // nunca sube nada ni convierte nada en verde.
+        const margen = evaluarMargen(doc, estado, fechaCaducidad, hoyStr);
+        if (margen && !margen.agotado && regla.resultado === 'rojo') {
+          estadoFinal = peorEstado(estadoFinal, 'naranja');
+          motivos.push(`${doc} (Caducado ${margen.fechaTexto}) → naranja [margen de ${margen.dias} días laborables]`);
+          continue;
+        }
         estadoFinal = peorEstado(estadoFinal, regla.resultado);
+        if (margen && margen.agotado) {
+          motivos.push(`${doc} (${estado} ${margen.fechaTexto}) → ${regla.resultado} [margen de ${margen.dias} días laborables agotado]`);
+          continue;
+        }
         motivos.push(`${doc} (${estado}) → ${regla.resultado}`);
       } else {
         estadoFinal = peorEstado(estadoFinal, 'naranja');
