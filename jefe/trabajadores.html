@@ -1372,11 +1372,18 @@ function rehacerFoto() {
   if (_fivTrabajadorId) abrirFic(_fivTrabajadorId);
 }
 
-document.getElementById('fiv-overlay').addEventListener('click', function(e) {
-  if (e.target === this) this.classList.add('oculto');
-});
-document.getElementById('fic-overlay').addEventListener('click', function(e) {
-  if (e.target === this) cerrarFic();
+document.addEventListener('DOMContentLoaded', function () {
+  // Los modales se declaran despues de este <script>: sin esperar al DOM,
+  // getElementById devuelve null y el script entero se detiene aqui (71a).
+  document.getElementById('fiv-overlay').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.add('oculto');
+  });
+  document.getElementById('fic-overlay').addEventListener('click', function(e) {
+    if (e.target === this) cerrarFic();
+  });
+  document.getElementById('vfm-overlay').addEventListener('click', function(e) {
+    if (e.target === this) cerrarVfm();
+  });
 });
 
 // 🪪 Clic en icono verificación
@@ -1483,9 +1490,6 @@ function cerrarVfm() {
   document.getElementById('vfm-overlay').classList.add('oculto');
   _vfmTrabajadorId = null; _vfmObraId = null; _vfmIdiomasSel = null;
 }
-document.getElementById('vfm-overlay').addEventListener('click', function(e) {
-  if (e.target === this) cerrarVfm();
-});
 // ─────────────────────────────────────────────────────────────────────
 
 document.getElementById('buscador').addEventListener('input', () => aplicarFiltrosTabla());
