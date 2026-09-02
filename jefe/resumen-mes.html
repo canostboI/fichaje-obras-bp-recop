@@ -488,6 +488,18 @@ function etiquetaCat(t) {
   </div>
 </div>
 
+<!-- Modal Revisión de autocierres: una línea por salida inventada, un clic por línea -->
+<div class="modal-overlay" id="modal-auto">
+  <div class="modal" style="max-width:600px">
+    <h2>✔ Revisar los autocierres</h2>
+    <div class="subtitulo" id="auto-subtitulo">—</div>
+    <div id="auto-lista"></div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cerrar-auto">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Revisión rápida del sábado: una línea por persona, un clic por persona -->
 <div class="modal-overlay" id="modal-sabado">
   <div class="modal" style="max-width:560px">
@@ -655,6 +667,36 @@ function textoCalculoIncompleto(queSale) {
   // El botón del panel de cierre es el mismo paso, no una función aparte
   document.getElementById('pc-btn-exportar').addEventListener('click', exportarExcelProforma);
   document.getElementById('btn-guardar-normal').addEventListener('click', guardarHorarioNormal);
+
+  // Revisión de autocierres. Delegado: las filas se repintan.
+  document.getElementById('btn-cerrar-auto').addEventListener('click', cerrarRevisionAutocierres);
+  document.getElementById('modal-auto').addEventListener('click', async (e) => {
+    if (e.target.id === 'modal-auto') { await cerrarRevisionAutocierres(); return; }
+
+    const idConf = e.target.getAttribute && e.target.getAttribute('data-conf');
+    if (idConf) { await confirmarAutocierreLinea(idConf, e.target); return; }
+
+    // "Confirmar igualmente": desbloquea el botón del avisado, no confirma.
+    // La segunda pulsación sigue siendo una decisión, no un descuido.
+    const idIgual = e.target.getAttribute && e.target.getAttribute('data-conf-igual');
+    if (idIgual) {
+      const fila = e.target.closest('.sab-fila');
+      fila.querySelector('.btn-firmar').disabled = false;
+      e.target.remove();
+      return;
+    }
+
+    // "corregir…": el caso raro se resuelve en el modal de siempre, donde
+    // se puede cambiar la hora o fijar las horas del día.
+    const otras = e.target.getAttribute && e.target.getAttribute('data-conf-otras');
+    if (otras) {
+      const fila = e.target.closest('.sab-fila');
+      const tid = fila.getAttribute('data-tid');
+      const dia = Number(fila.getAttribute('data-dia'));
+      await cerrarRevisionAutocierres();
+      abrirDetalleDia(tid, dia);
+    }
+  });
 
   // Revisión rápida del sábado. Delegado: las filas se repintan.
   document.getElementById('btn-cerrar-sabado').addEventListener('click', cerrarRevisionSabado);
@@ -1649,6 +1691,148 @@ function sabadosDelMes(fichajes, ajustes) {
   return { trabajados: diasConFichaje.size, pendientes };
 }
 
+// ====== REVISIÓN DE AUTOCIERRES ======
+//
+// La hora de un autocierre la inventó el servidor. Antes de exportar hay
+// que responder por ella: corregirla, fijar las horas del día, o
+// CONFIRMAR que esa hora es la buena. Lo tercero no cambia el número:
+// le pone un nombre detrás, que era el problema de fondo.
+//
+// Esto NO es un "acepto los 8 de golpe": es una decisión por línea, con
+// la entrada real delante, pero de un clic en vez de cinco.
+//
+// LOS DOS CASOS QUE NO SE CONFIRMAN A LA LIGERA (medidos sobre los 248
+// autocierres de mayo a agosto de 2026):
+//   - JORNADA FANTASMA: la entrada llegó a menos de 20 min de una salida
+//     anterior del mismo día. Es el doble pase del QR al salir: la
+//     jornada no existió y confirmarla paga horas que nadie trabajó.
+//     6 casos de 248.
+//   - MEDIA JORNADA LARGA: entró a partir de las 12:00 y no hay salida
+//     previa. La salida inventada es la de la jornada completa, así que
+//     estira lo que de verdad se hizo. 13 casos de 248.
+// Juntos, 19 de 248 (7,7%): un aviso que marca a pocos y por eso se lee.
+// Todo lo demás va con el botón directo.
+const AUTO_REENTRADA_MIN = 20;   // minutos desde la salida anterior
+const AUTO_ENTRADA_TARDE = 12;   // hora
+
+let autocierresAbierto = false;
+let autocierresHuboCambios = false;
+
+// Mira el reloj alrededor de un autocierre. La ENTRADA es siempre real
+// (nadie abre una jornada de oficio); la salida es la inventada.
+function relojAutocierre(f) {
+  const dSal = new Date(f.hora);
+  const dia = dSal.getDate();
+  const previos = fichajesDelDia(f.trabajador_id, dia).filter(x => new Date(x.hora) < dSal);
+  const entradas = previos.filter(x => x.tipo === 'entrada');
+  const salidas  = previos.filter(x => x.tipo === 'salida');
+  const dEnt = entradas.length ? new Date(entradas[entradas.length - 1].hora) : null;
+  const dSalPrev = salidas.length ? new Date(salidas[salidas.length - 1].hora) : null;
+
+  const huecoMin = (dEnt && dSalPrev) ? (dEnt - dSalPrev) / 60000 : null;
+  const fantasma = huecoMin !== null && huecoMin < AUTO_REENTRADA_MIN;
+  const entradaTarde = !!dEnt && !dSalPrev && dEnt.getHours() >= AUTO_ENTRADA_TARDE;
+
+  return {
+    dia, entrada: dEnt, salida: dSal,
+    horas: dEnt ? (dSal - dEnt) / 3600000 : null,
+    avisar: fantasma || entradaTarde,
+    motivoAviso: fantasma
+      ? 'Entró a las ' + hhmm(dEnt) + ', ' + Math.round(huecoMin) + ' min después de salir a las ' +
+        hhmm(dSalPrev) + '. Parece el doble pase del QR: esta jornada puede no haber existido.'
+      : (entradaTarde ? 'Entró a las ' + hhmm(dEnt) + '. La hora de salida es la de la jornada completa.' : '')
+  };
+}
+
+function abrirRevisionAutocierres() {
+  autocierresAbierto = true;
+  autocierresHuboCambios = false;
+  document.getElementById('auto-subtitulo').textContent =
+    'La hora de salida la puso el sistema. Confirma la que sea buena; corrige la que no.';
+  renderRevisionAutocierres();
+  document.getElementById('modal-auto').classList.add('visible');
+}
+
+function renderRevisionAutocierres() {
+  const cont = document.getElementById('auto-lista');
+  const pend = autocierresPendientes();
+
+  if (pend.length === 0) {
+    cont.innerHTML = '<div class="dia-vacio">No queda ningún autocierre por resolver. 👍</div>';
+    return;
+  }
+
+  const nombreDe = tid => (resumenTrabajadores[tid] ? resumenTrabajadores[tid].nombre : 'Trabajador');
+  const mesNum = mesCargado ? Number(mesCargado.split('-')[1]) : '';
+
+  // Los avisados primero: son los que hay que mirar, no los que hay que
+  // pasar rápido.
+  const filas = pend.map(f => ({ f, reloj: relojAutocierre(f), nombre: nombreDe(f.trabajador_id) }));
+  filas.sort((a, b) => (b.reloj.avisar ? 1 : 0) - (a.reloj.avisar ? 1 : 0) ||
+    a.reloj.dia - b.reloj.dia || a.nombre.localeCompare(b.nombre, 'es'));
+
+  cont.innerHTML = filas.map(x => {
+    const r = x.reloj;
+    const reloj = (r.entrada ? hhmm(r.entrada) : '—') + ' → ' + hhmm(r.salida) +
+      ' <span class="marca autocierre">hora puesta por el sistema</span>' +
+      (r.horas !== null ? ' · ' + formatHoras(r.horas) + ' h' : '');
+    return `<div class="sab-fila${r.avisar ? ' avisada' : ''}" data-tid="${escapeHtml(x.f.trabajador_id)}" data-dia="${r.dia}">
+      <div class="sab-datos">
+        <div class="sab-nombre">${r.avisar ? '⚠ ' : ''}${escapeHtml(x.nombre)} · ${r.dia}/${mesNum}</div>
+        <div class="sab-reloj">${reloj}</div>
+        ${r.avisar ? `<div class="sab-aviso">${escapeHtml(r.motivoAviso)}
+          <button class="sab-igual" data-conf-igual="${escapeHtml(x.f.id)}">Confirmar igualmente</button></div>` : ''}
+      </div>
+      <div class="sab-acc">
+        <button class="btn-firmar" data-conf="${escapeHtml(x.f.id)}" ${r.avisar ? 'disabled' : ''}>✔ Hora buena</button>
+        <button class="btn-otras" data-conf-otras="1">corregir…</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ÚNICA VÍA de confirmación de autocierres en esta pantalla. No cambia la
+// hora: solo pone un nombre detrás de la que puso el sistema.
+async function confirmarAutocierreLinea(fichajeId, boton) {
+  const fila = boton.closest('.sab-fila');
+  boton.disabled = true;
+  boton.textContent = 'Confirmando…';
+
+  const { data, error } = await sb.rpc('confirmar_autocierre', {
+    p_fichaje_id: fichajeId,
+    p_confirmar: true
+  });
+
+  if (error || !data || data.success !== true) {
+    boton.disabled = false;
+    boton.textContent = '✔ Hora buena';
+    let err = fila.querySelector('.sab-error');
+    if (!err) { err = document.createElement('div'); err.className = 'sab-error'; fila.appendChild(err); }
+    err.textContent = 'No se ha podido confirmar: ' +
+      (error ? error.message : ((data && data.error) || 'error desconocido'));
+    return;
+  }
+
+  // El caché en memoria se pone al día para que el panel recalcule sin
+  // recargar el mes entero después de cada confirmación.
+  const f = fichajesMesCache.find(x => x.id === fichajeId);
+  if (f) f.confirmado_por = 'confirmado';
+
+  autocierresHuboCambios = true;
+  fila.className = 'sab-fila firmada';
+  fila.querySelector('.sab-acc').innerHTML = '<span class="sab-hecho">✔ Confirmada</span>';
+}
+
+// Al cerrar se recarga el mes UNA vez, no después de cada confirmación.
+async function cerrarRevisionAutocierres() {
+  document.getElementById('modal-auto').classList.remove('visible');
+  autocierresAbierto = false;
+  if (autocierresHuboCambios) {
+    autocierresHuboCambios = false;
+    await cargarResumen();
+  }
+}
+
 // ====== REVISIÓN RÁPIDA DEL SÁBADO ======
 //
 // Las 8 h NO son por ser sábado: son por haber hecho la mañana (~08:00 a
@@ -1818,18 +2002,19 @@ function actualizarPanelCierre() {
     document.getElementById('pc-icono-1').textContent = '1';
     document.getElementById('pc-desc-1').textContent =
       pendientes.length + (pendientes.length === 1
-        ? ' salida se cerró sola porque nadie fichó. Su hora es inventada: antes de exportar, corrige esa hora o fija las horas de ese día.'
-        : ' salidas se cerraron solas porque nadie fichó. Sus horas son inventadas: antes de exportar, corrige esas horas o fija las horas de esos días.');
+        ? ' salida se cerró sola porque nadie fichó. Su hora la puso el sistema: antes de exportar, confirma que es buena, corrígela o fija las horas de ese día.'
+        : ' salidas se cerraron solas porque nadie fichó. Sus horas las puso el sistema: antes de exportar, confirma las que sean buenas, corrige las que no o fija las horas de esos días.');
 
-    pendientes.forEach(f => {
-      const t = resumenTrabajadores[f.trabajador_id];
-      const d = new Date(f.hora);
-      const b = document.createElement('button');
-      b.className = 'pc-chip';
-      b.textContent = (t ? t.nombre : 'Trabajador') + ' · ' + d.getDate() + '/' + (d.getMonth() + 1);
-      b.onclick = () => abrirDetalleDia(f.trabajador_id, d.getDate());
-      chips.appendChild(b);
-    });
+    // Puerta única a la revisión: los nombres están dentro, con el reloj
+    // al lado. Una lista de 40 chips fuera no se lee y no dice nada que
+    // sirva para decidir.
+    const bRev = document.createElement('button');
+    bRev.className = 'pc-chip';
+    bRev.style.borderColor = 'var(--verde)';
+    bRev.style.color = 'var(--verde)';
+    bRev.textContent = '✔ Revisar los autocierres (' + pendientes.length + ')';
+    bRev.onclick = abrirRevisionAutocierres;
+    chips.appendChild(bRev);
   }
 
   // --- Paso 2: días tocados a mano (manual, corregido u horas fijadas) ---
