@@ -721,6 +721,14 @@ async function comprobarAutoierresRecientes(misObrasIds) {
     .in('obra_id', misObrasIds)
     .eq('cierre_automatico', true)
     .is('corregido_por', null)
+    // Confirmar es una forma legítima de resolver un autocierre, y hasta hoy
+    // no apagaba este aviso: solo miraba `corregido_por`. Resultado (1/9/2026):
+    // el encargado confirmaba las salidas de su gente y el jefe seguía viendo
+    // la misma reclamación cada día, sin ninguna vía para llegar a cero.
+    // Quien estaba en la obra ya firmó que la hora es buena; el jefe no tiene
+    // mejor información que la suya. El rastro completo no se pierde: el paso 3
+    // del cierre de mes sigue enseñando TODOS los autocierres, confirmados o no.
+    .is('confirmado_por', null)
     .gte('hora', hace7dias.toISOString())
     .order('hora', { ascending: false });
   if (error || !todos || todos.length === 0) return;
