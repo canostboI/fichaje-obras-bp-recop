@@ -1649,11 +1649,6 @@ function sabadosDelMes(fichajes, ajustes) {
   return { trabajados: diasConFichaje.size, pendientes };
 }
 
-// Tope de chips pintados. Un mes en el que no se haya fijado nada son 5
-// sábados x ~16 personas = 80 botones. La lista deja de leerse mucho
-// antes de eso, y el número de verdad ya está en la descripción.
-const MAX_CHIPS_SABADO = 60;
-
 // ====== REVISIÓN RÁPIDA DEL SÁBADO ======
 //
 // Las 8 h NO son por ser sábado: son por haber hecho la mañana (~08:00 a
@@ -1961,7 +1956,6 @@ function actualizarPanelCierre() {
       'sin fijar, el proforma cobra las horas calculadas y esas jornadas salen cortas. ' +
       'Corregir el fichaje NO lo arregla: hay que fijar las horas.';
 
-    let pintados = 0;
     diasPend.forEach(dia => {
       const delDia = sab.pendientes
         .filter(p => p.dia === dia)
@@ -1978,28 +1972,10 @@ function actualizarPanelCierre() {
       bRev.className = 'pc-chip';
       bRev.style.borderColor = 'var(--verde)';
       bRev.style.color = 'var(--verde)';
-      bRev.textContent = '✔ Firmar este sábado (' + delDia.length + ')';
+      bRev.textContent = '✔ Revisar este sábado (' + delDia.length + ')';
       bRev.onclick = () => abrirRevisionSabado(dia);
       chips4.appendChild(bRev);
-
-      delDia.forEach(p => {
-        if (pintados >= MAX_CHIPS_SABADO) return;
-        const b = document.createElement('button');
-        b.className = 'pc-chip';
-        b.textContent = nombreDe(p.trabajador_id);
-        b.onclick = () => abrirDetalleDia(p.trabajador_id, p.dia);
-        chips4.appendChild(b);
-        pintados++;
-      });
     });
-
-    if (pintados < sab.pendientes.length) {
-      const resto = document.createElement('div');
-      resto.className = 'pc-sab-cab';
-      resto.textContent = '… y ' + (sab.pendientes.length - pintados) +
-        ' más sin pintar. Ve fijando y la lista se vacía.';
-      chips4.appendChild(resto);
-    }
   }
 
   // --- Estado general + si el panel se abre solo ---
