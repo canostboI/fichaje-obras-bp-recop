@@ -2772,7 +2772,7 @@ async function clicVerifEnc(trabajadorId, btn) {
       '<label class="vfm-check-txt" for="vfm-informado">He entregado y explicado la <strong>hoja informativa de protección de datos</strong></label></div>' +
       '<div id="vfm-idiomas-wrap" style="display:none"><span class="vfm-label" style="margin:8px 0 4px;display:block">Idioma en que se explicó</span>' +
       '<div class="vfm-idiomas">' + IDIOMAS_VFM_ENC.map(i => '<button class="vfm-idioma" data-code="' + i.code + '" onclick="selIdiomaEnc(this)">' + i.label + '</button>').join('') + '</div></div>' +
-      '<button class="vfm-hoja-btn" onclick="window.open('../assets/hoja-informativa.html','_blank')">📄 Ver hoja informativa (7 idiomas)</button>';
+      '<button class="vfm-hoja-btn" onclick="window.open(&quot;../assets/hoja-informativa.html&quot;,&quot;_blank&quot;)">📄 Ver hoja informativa (7 idiomas)</button>';
 
     document.getElementById('vfm-cuerpo').innerHTML = html;
     document.getElementById('vfm-btns-guardar').style.display = obraActualId ? 'flex' : 'none';
