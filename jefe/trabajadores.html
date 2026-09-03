@@ -228,6 +228,13 @@
   .info-box.excepcion { border-color: var(--verde); background: rgba(76,175,80,0.07); }
   .info-box ul.motivos-list { margin: 6px 0 0 18px; padding: 0; font-size: 13px; line-height: 1.55; color: var(--texto); }
   .info-box ul.motivos-list li { margin-bottom: 2px; }
+  .forzar-identidad { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+  .forzar-foto-hueco { width: 56px; height: 56px; border-radius: 8px; overflow: hidden; flex-shrink: 0; background: var(--bg3); border: 1px solid var(--borde); display: flex; align-items: center; justify-content: center; }
+  .forzar-foto-img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; }
+  .forzar-foto-vacio { font-size: 10px; color: var(--texto2); text-align: center; padding: 4px; cursor: pointer; line-height: 1.3; }
+  .badge-verif { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .badge-verif.ok { background: rgba(76,175,80,0.15); color: var(--verde); }
+  .badge-verif.falta { background: rgba(139,144,158,0.15); color: var(--texto2); }
 
   .bloque-alt { border-top: 1px solid var(--borde); padding-top: 16px; display: flex; flex-direction: column; gap: 10px; }
   .bloque-alt-titulo { font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; }
@@ -419,6 +426,10 @@
   <div class="modal">
     <h3>Estado documental</h3>
     <div class="info-box" id="forzar-info"></div>
+    <div class="forzar-identidad" id="forzar-identidad">
+      <div class="forzar-foto-hueco" id="forzar-foto-hueco"></div>
+      <span class="badge-verif" id="forzar-verif-badge"></span>
+    </div>
     <div class="campo">
       <label>Nuevo estado</label>
       <div class="selector-estado">
@@ -1735,6 +1746,31 @@ function abrirModalForzar(trabajadorId, obraId) {
     html += `<br><br>🗝️ <strong>Autorizado solo hoy</strong> por ${esc(quien)}${cuando ? ' a las ' + cuando : ''}.<br>Motivo: ${esc(ex.motivo_autorizacion || '(sin motivo)')}`;
   }
   info.innerHTML = html;
+
+  // Foto y verificación de identidad (75ª) — mismo dato que ya pintan los
+  // iconos 📷/🪪 de la tabla (`t.hay_foto`, `t.hay_verif`), mostrado aquí
+  // para no tener que salir del panel a buscarlo. Reutiliza las mismas
+  // funciones/RPC que esos iconos: `ver_foto_identidad` + `FI.enlace` para
+  // la foto, `clicFoto` para ampliarla o hacerla si no existe.
+  const fotoHueco = document.getElementById('forzar-foto-hueco');
+  const verifBadge = document.getElementById('forzar-verif-badge');
+  verifBadge.className = t.hay_verif ? 'badge-verif ok' : 'badge-verif falta';
+  verifBadge.textContent = t.hay_verif ? '🪪 ✓ Identidad verificada' : '🪪 ✗ Sin verificar';
+  if (t.hay_foto) {
+    fotoHueco.innerHTML = '<span class="forzar-foto-vacio">…</span>';
+    sb.rpc('ver_foto_identidad', { p_trabajador_id: trabajadorId }).then(async (res) => {
+      const data = res.data, error = res.error;
+      if (error || !data || !data.ok || !data.hay_foto) {
+        fotoHueco.innerHTML = '<span class="forzar-foto-vacio">Sin foto</span>';
+        return;
+      }
+      const url = await FI.enlace(data.path);
+      fotoHueco.innerHTML = `<img class="forzar-foto-img" src="${url}" alt="Foto de ${esc(forzarCtx.trabajador_nombre)}" title="Clic para ampliar" onclick="clicFoto('${trabajadorId}', this)">`;
+    });
+  } else {
+    fotoHueco.innerHTML = `<span class="forzar-foto-vacio" title="Sin foto — clic para hacerla" onclick="clicFoto('${trabajadorId}', this)">📷 Sin foto</span>`;
+  }
+
   estadoSeleccionado = null;
   document.querySelectorAll('.btn-estado').forEach(b => { b.className = 'btn-estado'; });
   document.getElementById('forzar-motivo').value = '';
