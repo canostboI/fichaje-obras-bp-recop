@@ -680,6 +680,18 @@ let avisosTabla = [];
     abrirResumenDocumental(params.get('obra') || '');
   }
 
+  // Llegada desde "Denegados sin resolver" (jefe/index.html):
+  // ?trabajador=UUID&obra=UUID&forzar=1 abre directo el panel donde se
+  // autoriza la excepción de hoy, sin tener que buscar a la persona a mano.
+  // Misma cautela que arriba: solo se acepta una obra que sea de verdad del
+  // jefe. `abrirModalForzar` ya se protege sola si el trabajador o la obra
+  // no aparecen (no hace nada), así que aquí no hace falta duplicar esa
+  // comprobación.
+  if (params.get('forzar') === '1' && params.get('trabajador')) {
+    const obraValidaForzar = misObras.some(o => o.id === params.get('obra')) ? params.get('obra') : '';
+    if (obraValidaForzar) abrirModalForzar(params.get('trabajador'), obraValidaForzar);
+  }
+
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') cargarTrabajadores();
   });
