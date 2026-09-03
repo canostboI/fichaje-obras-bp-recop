@@ -69,6 +69,14 @@
   .inf-titular { background: #f6f2f2; border-left: 5px solid var(--rojo); padding: 22px 26px; border-radius: 6px; margin-bottom: 32px; }
   .inf-titular .cifra { font-size: 44px; font-weight: 800; color: var(--rojo); line-height: 1; }
   .inf-titular .frase { font-size: 16px; color: #333; margin-top: 10px; line-height: 1.5; max-width: 60ch; text-wrap: pretty; }
+  .inf-titular .dos { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 22px; }
+  .inf-titular .dos .rot { font-size: 15px; color: #333; margin-top: 8px; line-height: 1.4; }
+  .inf-titular .dos .nota { font-size: 13px; color: #666; margin-top: 4px; line-height: 1.45; }
+  .inf-aviso-rojo { margin-top: 16px; padding: 12px 16px; background: #fbecec; border-radius: 6px; font-size: 13.5px; color: #8c2b2b; line-height: 1.55; }
+  .inf-aviso-rojo strong { color: #6b1f1f; }
+  .des-ok { margin-top: 16px; padding: 12px 16px; background: #eef6ef; border-radius: 6px; font-size: 13.5px; color: #2c6b35; line-height: 1.55; }
+  .des-limite { margin-top: 10px; padding: 12px 16px; background: #f6f6f4; border-radius: 6px; font-size: 13.5px; color: #555; line-height: 1.55; }
+  .des-limite strong { color: #1a1a1a; }
   .inf-titular .reparto { font-size: 15px; color: #444; margin-top: 14px; padding-top: 12px; border-top: 1px solid #ddd; line-height: 1.6; }
   .inf-titular .reparto strong { color: #1a1a1a; }
 
@@ -297,27 +305,23 @@ function pintarInforme(d, rango) {
     return;
   }
 
-  // Reparto del titular. Sin esto el 121 es un número sin consecuencia, y las
-  // cuatro salidas de abajo se leen como si unas salieran de otras.
-  const _d = d.desenlace || {};
-  const _noEntro = _d.no_entro || 0;
-  const _entraron = (_d.regularizado || 0) + (_d.con_excepcion || 0) + (_d.colado || 0);
-  let repartoHTML = '';
-  if ((_d.dias_persona || 0) > 0) {
-    repartoHTML = `<div class="reparto">
-      De esos, <strong>${_noEntro}</strong> no llegaron a entrar ese día
-      y <strong>${_entraron}</strong> acabaron entrando tras resolverse la situación.
-    </div>`;
-  }
-
   // Titular (solo si hay rojos documentales)
   let titular = '';
   if (total > 0) {
     titular = `
     <div class="inf-titular">
-      <div class="cifra">${total}</div>
-      <div class="frase">accesos frenados por el sistema, de <strong>${personas}</strong> ${personas === 1 ? 'persona' : 'personas'} distintas sin la documentación en regla.</div>
-      ${repartoHTML}
+      <div class="dos">
+        <div>
+          <div class="cifra">${personas}</div>
+          <div class="rot">${personas === 1 ? 'persona frenada' : 'personas frenadas'} por el sistema</div>
+          <div class="nota">sin la documentación en regla</div>
+        </div>
+        <div>
+          <div class="cifra">${total}</div>
+          <div class="rot">${total === 1 ? 'alerta detectada' : 'alertas detectadas'}</div>
+          <div class="nota">a una misma persona se le avisa cada día que lo intenta</div>
+        </div>
+      </div>
     </div>`;
   }
 
@@ -334,61 +338,49 @@ function pintarInforme(d, rango) {
   // pregunta incómoda.
   const des = d.desenlace || {};
   let desenlaceHTML = '';
-  if ((des.dias_persona || 0) > 0) {
-    const noEntro = des.no_entro || 0;
-    const volvio  = des.volvio_7dias || 0;
-
-    // El "0 entraron sin autorización" se pinta SIEMPRE, aunque valga cero.
-    // Un cero que no se calcula no demuestra nada, y este es el dato que
-    // sostiene la aplicación entera. Va en verde porque aquí cero es la nota
-    // buena, no la ausencia de datos.
+  if ((des.personas || 0) > 0) {
+    // Cada persona en UNA casilla, por su desenlace final. Las líneas SUMAN
+    // al total: una tabla que no suma obliga a explicarse, y lo que hay que
+    // explicar no se cree. El "0 sin autorización" sale de la lista porque no
+    // es un quinto grupo de personas, es una afirmación sobre las otras cuatro.
+    const filas = [
+      [des.mismo_dia || 0, 'Resolvieron el papel y entraron ese mismo día',
+       'Se les frenó en la puerta, se subió el documento y entraron esa jornada.'],
+      [des.volvio_despues || 0, 'No entraron ese día, y volvieron más adelante',
+       'Se fueron sin entrar. Volvieron otro día, ya con la documentación en regla.'],
+      [des.con_excepcion || 0, 'Entraron con excepción firmada por un jefe de obra',
+       'El papel seguía mal. Un jefe de obra asumió la responsabilidad por escrito.'],
+      [des.no_volvio || 0, 'No entraron, y no han vuelto',
+       'Sin fichajes posteriores en ninguna obra. Puede ser fin de trabajo o cambio de obra: el sistema no lo sabe.']
+    ];
+    const colados = des.colado || 0;
     desenlaceHTML = `
       <div class="inf-seccion">
-        <h2>Qué pasó después del bloqueo</h2>
-        <div class="subtitulo">${des.dias_persona} bloqueos, contados por persona y día. Cada uno acabó de una de estas cuatro formas.</div>
+        <h2>Cómo acabó cada una de las ${des.personas}</h2>
+        <div class="subtitulo">Cada persona cuenta en una sola línea, por su desenlace final. Las cuatro suman ${des.personas}.</div>
+        ${filas.map(([n, tit, exp]) => `
+          <div class="des-fila">
+            <div class="des-num">${n}</div>
+            <div class="des-cuerpo">
+              <div class="des-tit">${esc(tit)}</div>
+              <div class="des-exp">${esc(exp)}</div>
+            </div>
+          </div>`).join('')}
 
-        <div class="des-fila">
-          <div class="des-num">${noEntro}</div>
-          <div class="des-cuerpo">
-            <div class="des-tit">No llegaron a entrar ese día</div>
-            <div class="des-exp">El sistema paró la entrada porque faltaba documentación.</div>
-          </div>
-        </div>
-        ${volvio > 0 ? `<div class="des-anidada">
-          De esos ${noEntro}, <strong>${volvio}</strong> volvieron a entrar dentro de los 7 días siguientes,
-          una vez resuelta la documentación. El bloqueo no apartó a la gente de la obra:
-          retrasó la entrada hasta que el papel estuvo en regla.
-        </div>` : ''}
+        ${colados === 0 ? `
+        <div class="des-ok">
+          <strong>Ninguna de las ${des.personas} entró en rojo sin autorización.</strong>
+          Todas las entradas en rojo del periodo tienen su excepción firmada por un jefe de obra.
+        </div>` : `
+        <div class="inf-aviso-rojo">
+          <strong>${colados} ${colados === 1 ? 'persona entró' : 'personas entraron'} en rojo sin que nadie lo autorizara.</strong>
+          Hay que revisarlo: no debería poder ocurrir.
+        </div>`}
 
-        <div class="des-fila">
-          <div class="des-num">${des.regularizado || 0}</div>
-          <div class="des-cuerpo">
-            <div class="des-tit">Se regularizó el mismo día</div>
-            <div class="des-exp">Se les frenó, se corrigió la documentación y entraron esa misma jornada.</div>
-          </div>
-        </div>
-
-        <div class="des-fila">
-          <div class="des-num">${des.con_excepcion || 0}</div>
-          <div class="des-cuerpo">
-            <div class="des-tit">Entraron con excepción firmada</div>
-            <div class="des-exp">Un jefe de obra autorizó el paso asumiendo la responsabilidad, con su nombre y su motivo escritos.</div>
-          </div>
-        </div>
-
-        <div class="des-fila des-cero">
-          <div class="des-num">${des.colado || 0}</div>
-          <div class="des-cuerpo">
-            <div class="des-tit">Entraron por el control estando en rojo</div>
-            <div class="des-exp">Sin excepción firmada por nadie. Esta cifra se calcula en cada informe, no se da por supuesta.</div>
-          </div>
-        </div>
-
-        <div class="inf-genericos" style="margin-top:16px">
-          Estas cifras cuentan lo que pasa <strong>en el control de acceso</strong>.
-          No dicen que nadie pueda estar en la obra sin haber fichado: para eso está
-          el apartado de <strong>rondas del encargado</strong>, más abajo, que es
-          precisamente el que detecta esos casos.
+        <div class="des-limite">
+          <strong>Hasta dónde llega este dato.</strong> Solo cuenta a quien pasó por el control de acceso.
+          Las rondas del encargado encontraron además personas en obra que no habían fichado, y de esas
+          no se conoce su estado documental. Están en el apartado siguiente.
         </div>
       </div>`;
   }
