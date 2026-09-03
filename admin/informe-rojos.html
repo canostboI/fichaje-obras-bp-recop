@@ -83,6 +83,7 @@
   .des-anidada strong { color: #1d3d24; }
   .des-cero .des-num { color: var(--verde); }
   .des-cero .des-tit { color: #2c6b35; }
+  .cat-estado { font-size: 12.5px; color: #777; font-weight: 400; margin-top: 2px; }
   .cat-empresa { font-size: 11px; font-weight: 700; color: #8a6d3b; background: #fcf4e3; padding: 1px 6px; border-radius: 3px; margin-left: 7px; letter-spacing: 0.3px; }
 
   .inf-seccion { margin-bottom: 30px; }
@@ -286,7 +287,7 @@ function pintarInforme(d, rango) {
   const srTotalIntentos = sr.total_intentos || 0;
 
   // Caso sin datos (ni rojos documentales ni presentes sin registrar)
-  if (total === 0 && srTotalPersonas === 0 && exTotal === 0) {
+  if (total === 0 && srTotalPersonas === 0 && exTotal === 0 && !(d.rondas && d.rondas.rondas > 0)) {
     zona.innerHTML = `
       <div class="informe">
         ${cabeceraHTML(logo, d.obra_nombre, periodoTxt)}
@@ -378,15 +379,76 @@ function pintarInforme(d, rango) {
         <div class="des-fila des-cero">
           <div class="des-num">${des.colado || 0}</div>
           <div class="des-cuerpo">
-            <div class="des-tit">Entraron en rojo sin autorización</div>
-            <div class="des-exp">Nadie logró saltarse el control. Esta cifra se calcula en cada informe, no se da por supuesta.</div>
+            <div class="des-tit">Entraron por el control estando en rojo</div>
+            <div class="des-exp">Sin excepción firmada por nadie. Esta cifra se calcula en cada informe, no se da por supuesta.</div>
           </div>
         </div>
 
         <div class="inf-genericos" style="margin-top:16px">
-          Este desglose solo cubre a quien <strong>tiene ficha</strong> en el sistema.
-          Quien se presenta en la obra sin ficha no puede fichar y se registra aparte,
-          en el apartado de <strong>personas sin registrar</strong>.
+          Estas cifras cuentan lo que pasa <strong>en el control de acceso</strong>.
+          No dicen que nadie pueda estar en la obra sin haber fichado: para eso está
+          el apartado de <strong>rondas del encargado</strong>, más abajo, que es
+          precisamente el que detecta esos casos.
+        </div>
+      </div>`;
+  }
+
+  // ── Rondas del encargado (74a-ter, 3/9/2026) ──
+  //
+  // El segundo ojo del sistema. La puerta ve a quien pasa por ella; la ronda
+  // ve a quien ya está dentro. Este capítulo es el que sostiene el argumento
+  // de verdad: la aplicación no es un muro infranqueable, es algo mejor —
+  // ENSEÑA lo que antes no veía nadie.
+  const ron = d.rondas || {};
+  let rondasHTML = '';
+  if ((ron.rondas || 0) > 0) {
+    const sinFichar = ron.personas_sin_fichar || 0;
+    rondasHTML = `
+      <div class="inf-seccion">
+        <h2>Rondas del encargado: quién estaba dentro sin fichar</h2>
+        <div class="subtitulo">El control de acceso vigila la entrada. La ronda comprueba, sobre el terreno, quién hay realmente en la obra y si ha fichado.</div>
+
+        <div class="des-fila">
+          <div class="des-num">${ron.rondas}</div>
+          <div class="des-cuerpo">
+            <div class="des-tit">Rondas realizadas</div>
+            <div class="des-exp">Repartidas en ${ron.dias_con_ronda || 0} días distintos.</div>
+          </div>
+        </div>
+
+        <div class="des-fila">
+          <div class="des-num">${ron.con_hallazgo || 0}</div>
+          <div class="des-cuerpo">
+            <div class="des-tit">Rondas que detectaron algo</div>
+            <div class="des-exp">En el resto, todo el mundo en obra había fichado correctamente.</div>
+          </div>
+        </div>
+
+        <div class="des-fila">
+          <div class="des-num">${sinFichar}</div>
+          <div class="des-cuerpo">
+            <div class="des-tit">Personas encontradas en obra sin haber fichado</div>
+            <div class="des-exp">Sumando todas las rondas. En la peor de ellas se detectaron ${ron.peor_ronda || 0} a la vez.</div>
+          </div>
+        </div>
+
+        ${Array.isArray(ron.por_obra) && ron.por_obra.length > 1 ? `
+        <table class="inf-tabla" style="margin-top:18px">
+          <thead><tr><th>Obra</th><th class="num">Rondas</th><th class="num">Con hallazgo</th><th class="num">Personas sin fichar</th></tr></thead>
+          <tbody>
+            ${ron.por_obra.map(o => `
+              <tr>
+                <td class="destacado">${esc(o.obra_nombre)}</td>
+                <td class="num">${o.rondas}</td>
+                <td class="num">${o.con_hallazgo}</td>
+                <td class="num">${o.personas_sin_fichar}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>` : ''}
+
+        <div class="inf-genericos" style="margin-top:16px">
+          La ronda registra <strong>cuántas</strong> personas había sin fichar, no quiénes.
+          Estas cifras miden por tanto el alcance del problema, no la responsabilidad individual.
         </div>
       </div>`;
   }
@@ -420,16 +482,18 @@ function pintarInforme(d, rango) {
     categoriasHTML = `
       <div class="inf-seccion">
         <h2>Qué documento faltaba</h2>
-        <div class="subtitulo">El motivo exacto que registró el sistema. Un mismo bloqueo puede tener varios documentos mal a la vez, por eso la suma de esta columna supera el total de bloqueos.</div>
+        <div class="subtitulo">A una misma persona se le frena cada día que se presenta hasta que el documento se resuelve, por eso hay más frenazos que personas. Un bloqueo puede deberse a varios documentos a la vez.</div>
         <table class="inf-tabla">
-          <thead><tr><th>Documento y estado</th><th class="num">Veces</th><th class="num">Personas</th><th class="num">Días</th></tr></thead>
+          <thead><tr><th>Documento que faltaba</th><th class="num">Personas</th><th class="num">Veces frenadas</th></tr></thead>
           <tbody>
             ${cats.map(c => `
               <tr>
-                <td class="destacado">${esc(c.categoria)}${c.es_empresa ? '<span class="cat-empresa">EMPRESA</span>' : ''}</td>
-                <td class="num">${c.veces}</td>
+                <td class="destacado">
+                  ${esc(c.categoria)}${c.es_empresa ? '<span class="cat-empresa">EMPRESA</span>' : ''}
+                  ${c.estados ? `<div class="cat-estado">${esc(c.estados.toLowerCase())}</div>` : ''}
+                </td>
                 <td class="num">${c.personas}</td>
-                <td class="num">${c.dias != null ? c.dias : '—'}</td>
+                <td class="num">${c.veces}</td>
               </tr>`).join('')}
           </tbody>
         </table>
@@ -447,16 +511,15 @@ function pintarInforme(d, rango) {
         <h2>Empresas con más accesos denegados</h2>
         <div class="subtitulo">Ordenadas por número de intentos frenados. Aquí se cuentan todos los intentos, incluidos los que no tienen desglose por motivo.</div>
         <table class="inf-tabla">
-          <thead><tr><th>Empresa</th><th class="num">Veces</th><th class="num">Personas</th><th class="num">Días</th></tr></thead>
+          <thead><tr><th>Empresa</th><th class="num">Personas</th><th class="num">Veces frenadas</th></tr></thead>
           <tbody>
             ${emps.map(e => {
               const suave = e.empresa_nombre === 'Sin empresa asignada';
               return `
               <tr class="${suave ? 'fila-suave' : ''}">
                 <td class="${suave ? '' : 'destacado'}">${esc(e.empresa_nombre)}</td>
-                <td class="num">${e.veces}</td>
                 <td class="num">${e.personas}</td>
-                <td class="num">${e.dias != null ? e.dias : "—"}</td>
+                <td class="num">${e.veces}</td>
               </tr>`;
             }).join('')}
           </tbody>
@@ -577,6 +640,7 @@ function pintarInforme(d, rango) {
       ${cabeceraHTML(logo, d.obra_nombre, periodoTxt)}
       ${titular}
       ${desenlaceHTML}
+      ${rondasHTML}
       ${porObraHTML}
       ${categoriasHTML}
       ${empresasHTML}
