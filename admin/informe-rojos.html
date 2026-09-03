@@ -193,7 +193,10 @@ async function cargarObras() {
     sel.innerHTML = '<option value="">No hay obras</option>';
     return;
   }
-  sel.innerHTML = '<option value="">— Elige una obra —</option>' +
+  // 74a (3/9/2026). "Todas las obras" es ahora la opción por defecto: la RPC
+  // acepta p_obra_id = null y devuelve el agregado de las obras que el usuario
+  // puede ver, con las ocultas fuera. Una obra concreta sigue funcionando igual.
+  sel.innerHTML = '<option value="">Todas las obras</option>' +
     data.map(o => `<option value="${esc(o.id)}">${esc(o.nombre)}${(o.estado && o.estado !== 'activa') ? ` (${esc(o.estado)})` : ''}</option>`).join('');
 }
 
@@ -207,10 +210,6 @@ async function generar() {
 
   btnImp.disabled = true;
 
-  if (!obraId) {
-    zona.innerHTML = '<div class="aviso-error">Elige una obra antes de generar el informe.</div>';
-    return;
-  }
   if (desde && hasta && desde > hasta) {
     zona.innerHTML = '<div class="aviso-error">La fecha «Desde» es posterior a «Hasta». Revísalas.</div>';
     return;
@@ -219,7 +218,7 @@ async function generar() {
   zona.innerHTML = '<div class="cargando">Generando informe…</div>';
 
   const { data, error } = await sb.rpc('informe_rojos', {
-    p_obra_id: obraId,
+    p_obra_id: obraId || null,
     p_desde: desde,
     p_hasta: hasta
   });
@@ -276,7 +275,7 @@ function pintarInforme(d, rango) {
     zona.innerHTML = `
       <div class="informe">
         ${cabeceraHTML(logo, d.obra_nombre, periodoTxt)}
-        <div class="inf-vacio">No se registraron accesos denegados en esta obra durante el periodo seleccionado.</div>
+        <div class="inf-vacio">No se registraron accesos denegados durante el periodo seleccionado.</div>
         ${pieHTML()}
       </div>`;
     return;
@@ -290,6 +289,71 @@ function pintarInforme(d, rango) {
       <div class="cifra">${total}</div>
       <div class="frase">intentos de acceso frenados por el sistema, de <strong>${personas}</strong> ${personas === 1 ? 'persona' : 'personas'} distintas sin la documentación en regla.</div>
     </div>`;
+  }
+
+  // ── Desenlace (74a, 3/9/2026) ──
+  //
+  // Contesta a la única pregunta que un jefe hace de verdad al ver la cifra
+  // grande: "vale, 121 intentos frenados, ¿pero entraron o no?". Sin esto el
+  // titular es un número sin consecuencia.
+  //
+  // El "0 se colaron" es el dato que sostiene la aplicación entera, y por eso
+  // se PINTA aunque valga cero: un cero que no se calcula no demuestra nada.
+  // Se pinta con su límite escrito al lado — solo cubre a quien tiene ficha —
+  // porque una cifra que promete más de lo que mide se cae en la primera
+  // pregunta incómoda.
+  const des = d.desenlace || {};
+  let desenlaceHTML = '';
+  if ((des.dias_persona || 0) > 0) {
+    const filas = [
+      ['No llegaron a entrar', des.no_entro || 0, 'El bloqueo paró la entrada ese día.'],
+      ['Entraron ya regularizados', des.regularizado || 0, 'El bloqueo hizo que se arreglara la documentación el mismo día.'],
+      ['Entraron con excepción firmada', des.con_excepcion || 0, 'Riesgo asumido por un jefe de obra, con motivo escrito.'],
+      ['Entraron en rojo sin autorización', des.colado || 0, 'Nadie debería poder hacerlo.']
+    ];
+    desenlaceHTML = `
+      <div class="inf-seccion">
+        <h2>Qué pasó después del bloqueo</h2>
+        <div class="subtitulo">Sobre ${des.dias_persona} días-persona bloqueados. Cada bloqueo acaba en una de estas cuatro salidas.</div>
+        <table class="inf-tabla">
+          <thead><tr><th>Desenlace</th><th class="num">Casos</th><th>Qué significa</th></tr></thead>
+          <tbody>
+            ${filas.map(([t, n, expl]) => `
+              <tr>
+                <td class="destacado">${esc(t)}</td>
+                <td class="num">${n}</td>
+                <td style="color:#666;font-size:13px">${esc(expl)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+        <div class="inf-genericos" style="margin-top:14px">
+          Este desglose solo cubre a quien <strong>tiene ficha</strong> en el sistema.
+          Quien se presenta en la obra sin ficha no puede fichar y se registra aparte,
+          en el apartado de <strong>personas sin registrar</strong>.
+        </div>
+      </div>`;
+  }
+
+  // Desglose por obra (solo cuando el informe agrupa varias)
+  const porObra = Array.isArray(d.por_obra) ? d.por_obra : [];
+  let porObraHTML = '';
+  if (porObra.length > 1) {
+    porObraHTML = `
+      <div class="inf-seccion">
+        <h2>Desglose por obra</h2>
+        <div class="subtitulo">El total de arriba, repartido. Cada jefe de obra puede generar el suyo por separado.</div>
+        <table class="inf-tabla">
+          <thead><tr><th>Obra</th><th class="num">Intentos</th><th class="num">Personas</th></tr></thead>
+          <tbody>
+            ${porObra.map(o => `
+              <tr>
+                <td class="destacado">${esc(o.obra_nombre)}</td>
+                <td class="num">${o.veces}</td>
+                <td class="num">${o.personas}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
   }
 
   // Tabla de categorías
@@ -453,6 +517,8 @@ function pintarInforme(d, rango) {
     <div class="informe">
       ${cabeceraHTML(logo, d.obra_nombre, periodoTxt)}
       ${titular}
+      ${desenlaceHTML}
+      ${porObraHTML}
       ${categoriasHTML}
       ${empresasHTML}
       ${excepHTML}
