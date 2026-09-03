@@ -261,6 +261,8 @@
   .acceso-item.resuelto .acceso-contador { color: var(--texto2); font-weight: 600; }
   .acceso-item.resuelto .acceso-motivo-item { background: transparent; border-color: var(--borde); color: var(--texto2); }
   .acceso-desenlace { display: inline-block; margin-top: 8px; font-size: 13px; color: var(--verde); font-weight: 600; }
+  .acceso-btn-ficha { display: inline-block; margin-top: 10px; background: rgba(244,67,54,0.1); color: var(--texto); border: 1px solid rgba(244,67,54,0.4); border-radius: 8px; padding: 8px 13px; font-size: 13px; font-weight: 700; text-decoration: none; }
+  .acceso-btn-ficha:hover { background: rgba(244,67,54,0.18); }
   .accesos-rapidos { margin-top: 16px; border: 1px solid var(--borde); border-radius: 10px; padding: 10px 14px; }
   .accesos-rapidos > summary { cursor: pointer; font-size: 13px; color: var(--texto2); list-style: none; }
   .accesos-rapidos > summary::-webkit-details-marker { display: none; }
@@ -1931,6 +1933,13 @@ function tarjetaAcceso(g, resuelto) {
   const detalleSR = g.clase === 'sin_registrar'
     ? '<div class="acceso-detalle">Dato declarado sin verificar · esta persona no tiene ficha en la app.</div>'
     : '';
+  // Acceso directo al panel donde se autoriza la excepción de hoy. Solo tiene
+  // sentido si: sigue sin resolver, la persona tiene ficha propia (si no,
+  // no hay a dónde ir) y el bloqueo es por documentación (un bloqueo por GPS
+  // no se arregla desde ahí).
+  const btnFicha = (!resuelto && g.clase === 'trabajador' && g.trabajador_id && g.tipos.indexOf('bloqueo_rojo') !== -1)
+    ? `<a class="acceso-btn-ficha" href="trabajadores.html?trabajador=${encodeURIComponent(g.trabajador_id)}&obra=${encodeURIComponent(obraActual || '')}&forzar=1">🗝️ Ver ficha y autorizar →</a>`
+    : '';
   return `
     <div class="acceso-item${resuelto ? ' resuelto' : ''}">
       <div class="acceso-top">
@@ -1944,6 +1953,7 @@ function tarjetaAcceso(g, resuelto) {
       ${detalleSR}
       ${desenlace}
       ${pintarMotivosAcceso(g)}
+      ${btnFicha}
     </div>`;
 }
 
