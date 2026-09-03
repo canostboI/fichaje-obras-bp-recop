@@ -74,7 +74,6 @@
   .inf-titular .dos .nota { font-size: 13px; color: #666; margin-top: 4px; line-height: 1.45; }
   .inf-aviso-rojo { margin-top: 16px; padding: 12px 16px; background: #fbecec; border-radius: 6px; font-size: 13.5px; color: #8c2b2b; line-height: 1.55; }
   .inf-aviso-rojo strong { color: #6b1f1f; }
-  .des-ok { margin-top: 16px; padding: 12px 16px; background: #eef6ef; border-radius: 6px; font-size: 13.5px; color: #2c6b35; line-height: 1.55; }
   .des-limite { margin-top: 10px; padding: 12px 16px; background: #f6f6f4; border-radius: 6px; font-size: 13.5px; color: #555; line-height: 1.55; }
   .des-limite strong { color: #1a1a1a; }
   .inf-titular .reparto { font-size: 15px; color: #444; margin-top: 14px; padding-top: 12px; border-top: 1px solid #ddd; line-height: 1.6; }
@@ -313,13 +312,13 @@ function pintarInforme(d, rango) {
       <div class="dos">
         <div>
           <div class="cifra">${personas}</div>
-          <div class="rot">${personas === 1 ? 'persona frenada' : 'personas frenadas'} por el sistema</div>
-          <div class="nota">sin la documentación en regla</div>
+          <div class="rot">${personas === 1 ? 'Persona frenada' : 'Personas frenadas'} por el sistema</div>
+          <div class="nota">sin alguna documentación en regla</div>
         </div>
         <div>
           <div class="cifra">${total}</div>
-          <div class="rot">${total === 1 ? 'alerta detectada' : 'alertas detectadas'}</div>
-          <div class="nota">a una misma persona se le avisa cada día que lo intenta</div>
+          <div class="rot">${total === 1 ? 'Alerta detectada' : 'Alertas detectadas'}</div>
+          <div class="nota">una misma persona puede tener varios documentos mal, y se le avisa cada día que lo intenta</div>
         </div>
       </div>
     </div>`;
@@ -344,10 +343,12 @@ function pintarInforme(d, rango) {
     // explicar no se cree. El "0 sin autorización" sale de la lista porque no
     // es un quinto grupo de personas, es una afirmación sobre las otras cuatro.
     const filas = [
-      [des.mismo_dia || 0, 'Resolvieron el papel y entraron ese mismo día',
-       'Se les frenó en la puerta, se subió el documento y entraron esa jornada.'],
-      [des.volvio_despues || 0, 'No entraron ese día, y volvieron más adelante',
-       'Se fueron sin entrar. Volvieron otro día, ya con la documentación en regla.'],
+      [des.mismo_dia || 0, 'Resolvieron el problema y entraron ese mismo día',
+       'Se les frenó en la puerta, se resolvió la documentación y entraron esa jornada.'],
+      [des.volvio_7d || 0, 'No entraron ese día, y volvieron en los 7 días siguientes',
+       'Se fueron sin entrar. Volvieron dentro de la semana, ya con la documentación en regla.'],
+      [des.volvio_tarde || 0, 'No entraron ese día, y volvieron más tarde',
+       'Tardaron más de una semana en volver a fichar.'],
       [des.con_excepcion || 0, 'Entraron con excepción firmada por un jefe de obra',
        'El papel seguía mal. Un jefe de obra asumió la responsabilidad por escrito.'],
       [des.no_volvio || 0, 'No entraron, y no han vuelto',
@@ -356,8 +357,8 @@ function pintarInforme(d, rango) {
     const colados = des.colado || 0;
     desenlaceHTML = `
       <div class="inf-seccion">
-        <h2>Cómo acabó cada una de las ${des.personas}</h2>
-        <div class="subtitulo">Cada persona cuenta en una sola línea, por su desenlace final. Las cuatro suman ${des.personas}.</div>
+        <h2>Cómo acabó cada una de las ${des.personas} personas</h2>
+        <div class="subtitulo">Cada persona cuenta en una sola línea, por su desenlace final. Todas suman ${des.personas}.</div>
         ${filas.map(([n, tit, exp]) => `
           <div class="des-fila">
             <div class="des-num">${n}</div>
@@ -367,21 +368,20 @@ function pintarInforme(d, rango) {
             </div>
           </div>`).join('')}
 
-        ${colados === 0 ? `
-        <div class="des-ok">
-          <strong>Ninguna de las ${des.personas} entró en rojo sin autorización.</strong>
-          Todas las entradas en rojo del periodo tienen su excepción firmada por un jefe de obra.
-        </div>` : `
+        ${colados > 0 ? `
         <div class="inf-aviso-rojo">
           <strong>${colados} ${colados === 1 ? 'persona entró' : 'personas entraron'} en rojo sin que nadie lo autorizara.</strong>
           Hay que revisarlo: no debería poder ocurrir.
-        </div>`}
+        </div>` : ''}
 
+        ${(d.rondas && d.rondas.rondas_con_rojo > 0) ? `
         <div class="des-limite">
-          <strong>Hasta dónde llega este dato.</strong> Solo cuenta a quien pasó por el control de acceso.
-          Las rondas del encargado encontraron además personas en obra que no habían fichado, y de esas
-          no se conoce su estado documental. Están en el apartado siguiente.
-        </div>
+          <strong>Esto solo cuenta lo que pasa en la puerta.</strong>
+          Aparte de esto, el encargado cerró <strong>${d.rondas.rondas_con_rojo}</strong>
+          ${d.rondas.rondas_con_rojo === 1 ? 'ronda' : 'rondas'} con personas en rojo
+          <strong>dentro</strong> de la obra${d.rondas.peor_rojo_dentro > 1 ? `, hasta ${d.rondas.peor_rojo_dentro} a la vez` : ''}.
+          Todas con excepción firmada, pero estaban trabajando con documentación pendiente.
+        </div>` : ''}
       </div>`;
   }
 
@@ -411,16 +411,16 @@ function pintarInforme(d, rango) {
         <div class="des-fila">
           <div class="des-num">${ron.con_hallazgo || 0}</div>
           <div class="des-cuerpo">
-            <div class="des-tit">Rondas que detectaron algo</div>
-            <div class="des-exp">En el resto, todo el mundo en obra había fichado correctamente.</div>
+            <div class="des-tit">Rondas que encontraron gente sin fichar</div>
+            <div class="des-exp">Repartidas en ${ron.dias_con_hallazgo || 0} días distintos. En el resto de rondas, todo el mundo había fichado.</div>
           </div>
         </div>
 
         <div class="des-fila">
           <div class="des-num">${sinFichar}</div>
           <div class="des-cuerpo">
-            <div class="des-tit">Personas encontradas en obra sin haber fichado</div>
-            <div class="des-exp">Sumando todas las rondas. En la peor de ellas se detectaron ${ron.peor_ronda || 0} a la vez.</div>
+            <div class="des-tit">Detecciones de personas sin fichar</div>
+            <div class="des-exp">Son detecciones, no personas distintas: la misma persona puede aparecer en varias rondas. En la peor se detectaron ${ron.peor_ronda || 0} a la vez.</div>
           </div>
         </div>
 
@@ -439,8 +439,9 @@ function pintarInforme(d, rango) {
         </table>` : ''}
 
         <div class="inf-genericos" style="margin-top:16px">
-          La ronda registra <strong>cuántas</strong> personas había sin fichar, no quiénes.
-          Estas cifras miden por tanto el alcance del problema, no la responsabilidad individual.
+          La ronda registra <strong>cuántas</strong> personas había sin fichar, no quiénes son.
+          Por eso no puede saberse cuántas personas distintas hay detrás de esas detecciones,
+          ni en qué estado documental estaban.
         </div>
       </div>`;
   }
