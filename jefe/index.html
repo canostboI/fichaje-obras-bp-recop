@@ -1689,6 +1689,13 @@ function abrirModalNaranjas() {
     const dni = t.dni ? `DNI: ${t.dni}` : 'DNI no disponible';
     const entrada = t.horaEntrada ? `Entrada: ${formatHora(t.horaEntrada)}` : 'Entrada no disponible';
     const empresaMeta = t.empresa ? ` · <strong>${esc(t.empresa)}</strong>` : '';
+    // Mismo enlace que en "Denegados sin resolver": abre la ficha del
+    // trabajador directamente en el panel donde se ve el estado y sus
+    // motivos. Aquí no hay "autorizar" (el naranja ya deja entrar), así
+    // que el botón dice solo "Ver ficha".
+    const btnFicha = t.id
+      ? `<a class="acceso-btn-ficha" href="trabajadores.html?trabajador=${encodeURIComponent(t.id)}&obra=${encodeURIComponent(obraActual || '')}&forzar=1">📋 Ver ficha →</a>`
+      : '';
     return `
       <div class="acceso-item">
         <div class="acceso-top">
@@ -1699,6 +1706,7 @@ function abrirModalNaranjas() {
           <div class="acceso-contador naranja">Naranja</div>
         </div>
         <div class="acceso-detalle">${motivos}</div>
+        ${btnFicha}
       </div>`;
   }).join('');
 }
