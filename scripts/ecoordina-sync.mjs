@@ -592,6 +592,12 @@ async function volcarObra(sb, obraId, resultadoFinal) {
   const p_dnis_a_bloquear = [];
 
   let mainOk = true;
+  // 75ª: la RPC ya no se salta a los forzados. Devuelve cuántos siguen vivos
+  // y cuántos se han retirado solos esta noche. Se guardan en el detalle de
+  // `ecoordina_sync` porque el apagado automático ocurre AQUÍ, de madrugada,
+  // sin nadie mirando: si no se escribe, no ha pasado.
+  let forzadosVivos = 0;
+  let forzadosApagados = 0;
   if (p_resultados.length) {
     const { data: rpcResult, error: rpcErr } = await sb.rpc('aplicar_resultado_ecoordina', {
       p_obra_id: obraId,
@@ -601,10 +607,13 @@ async function volcarObra(sb, obraId, resultadoFinal) {
     if (rpcErr || (rpcResult && rpcResult.ok === false)) {
       mainOk = false;
       log('   ❌ aplicar_resultado_ecoordina', (rpcErr && rpcErr.message) || (rpcResult && rpcResult.error) || '');
+    } else if (rpcResult) {
+      forzadosVivos = rpcResult.forzados_vivos || 0;
+      forzadosApagados = rpcResult.forzados_apagados || 0;
     }
   }
 
-  return { aplicados: p_resultados.length, fallosCrear, mainOk };
+  return { aplicados: p_resultados.length, fallosCrear, mainOk, forzadosVivos, forzadosApagados };
 }
 
 // ── MAIN ──────────────────────────────────────────────────────────────────────
@@ -787,6 +796,9 @@ async function main() {
     const res = await volcarObra(sb, obra.id, resultado);
     if (!res.mainOk) huboFalloGrave = true;
     log(`   guardado: ${res.aplicados} aplicados · ${res.fallosCrear} fallos al crear · RPC principal ${res.mainOk ? 'OK' : 'ERROR'}`);
+    if (res.forzadosVivos || res.forzadosApagados) {
+      log(`   forzados: ${res.forzadosVivos} vivos · ${res.forzadosApagados} retirados automáticamente`);
+    }
 
     // Marcar la obra como sincronizada hoy (solo si se aplicó bien)
     if (res.mainOk && res.aplicados > 0) {
@@ -806,7 +818,7 @@ async function main() {
         log(`      · "${f.trabajador}" · ${f.empresa || '(sin empresa)'} · ${f.doc}`);
       }
     }
-    resumen.push({ obra: obra.nombre, trabajadores: resultado.length, ...cuenta, aplicados: res.aplicados, fallosCrear: res.fallosCrear, rpc: res.mainOk ? 'OK' : 'ERROR', sin_identificar: filasSinIdentificar.length });
+    resumen.push({ obra: obra.nombre, trabajadores: resultado.length, ...cuenta, aplicados: res.aplicados, fallosCrear: res.fallosCrear, rpc: res.mainOk ? 'OK' : 'ERROR', sin_identificar: filasSinIdentificar.length, forzados_vivos: res.forzadosVivos, forzados_apagados: res.forzadosApagados });
   }
 
   log('================ RESUMEN ================');
