@@ -228,6 +228,8 @@
   .info-box.excepcion { border-color: var(--verde); background: rgba(76,175,80,0.07); }
   .info-box ul.motivos-list { margin: 6px 0 0 18px; padding: 0; font-size: 13px; line-height: 1.55; color: var(--texto); }
   .info-box ul.motivos-list li { margin-bottom: 2px; }
+  .aviso-forzado { margin-top: 10px; padding: 10px 12px; border-radius: 8px; border-left: 3px solid var(--naranja); background: rgba(255,152,0,0.09); font-size: 13px; line-height: 1.5; }
+  .aviso-forzado-nota { color: var(--texto2); font-size: 12px; }
   .forzar-identidad { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
   .forzar-foto-hueco { width: 56px; height: 56px; border-radius: 8px; overflow: hidden; flex-shrink: 0; background: var(--bg3); border: 1px solid var(--borde); display: flex; align-items: center; justify-content: center; }
   .forzar-foto-img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; }
@@ -1034,7 +1036,8 @@ async function cargarTrabajadores() {
     cargarContratos(),
     cargarLibros(),
     sb.from('validaciones_obra').select(`
-      trabajador_id, obra_id, estado, estado_forzado, motivo_forzado, motivos, forzado_en,
+      trabajador_id, obra_id, estado, estado_calculado, estado_forzado, motivo_forzado, motivos,
+      forzado_en, forzado_hasta, fecha_validacion,
       trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, categoria_otra, precio_hora_personalizado, empresa:empresa_id(id, nombre))
     `).in('obra_id', obraIds)
   ]);
@@ -1049,7 +1052,7 @@ async function cargarTrabajadores() {
   let validaciones = validacionesResult.data;
   if (validacionesResult.error) {
     const fallback = await sb.from('validaciones_obra')
-      .select('trabajador_id, obra_id, estado, estado_forzado, motivo_forzado, motivos, forzado_en, trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, categoria_otra, precio_hora_personalizado)')
+      .select('trabajador_id, obra_id, estado, estado_calculado, estado_forzado, motivo_forzado, motivos, forzado_en, forzado_hasta, fecha_validacion, trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, categoria_otra, precio_hora_personalizado)')
       .in('obra_id', obraIds);
     // Si también falla el plan B, la tabla saldría VACÍA y parecería que no hay
     // trabajadores. Hay que decirlo, no enseñar una lista en blanco.
@@ -1091,8 +1094,11 @@ async function cargarTrabajadores() {
       porTrabajador[v.trabajador_id].obras.push({
         obra_id: v.obra_id, nombre: obra.nombre,
         estado: v.estado || 'verde', estado_forzado: v.estado_forzado === true,
+        estado_calculado: v.estado_calculado || null,
         motivo_forzado: v.motivo_forzado || null, motivos: v.motivos,
-        forzado_en: v.forzado_en, excepcion_hoy: excepcionesPorKey[key] || null,
+        forzado_en: v.forzado_en, forzado_hasta: v.forzado_hasta || null,
+        fecha_validacion: v.fecha_validacion || null,
+        excepcion_hoy: excepcionesPorKey[key] || null,
         es_rp: esRP(v.trabajador_id, v.obra_id)
       });
     }
@@ -1275,7 +1281,10 @@ function pillObra(trabajador, obra) {
   if (obra.excepcion_hoy) {
     partesTooltip.push(`Autorizado solo hoy. Motivo: ${obra.excepcion_hoy.motivo_autorizacion || '(sin motivo)'}`);
   } else if (obra.estado_forzado) {
-    partesTooltip.push(`Estado forzado a ${obra.estado}. Motivo: ${obra.motivo_forzado || '(sin motivo)'}`);
+    let tf = `Estado forzado a ${obra.estado}. Motivo: ${obra.motivo_forzado || '(sin motivo)'}`;
+    if (obra.forzado_hasta) tf += `. Caduca el ${formatFechaLocal(obra.forzado_hasta + 'T12:00:00')}`;
+    if (obra.estado_calculado && obra.estado_calculado !== obra.estado) tf += `. e-Coordina dice: ${obra.estado_calculado}`;
+    partesTooltip.push(tf);
   } else {
     partesTooltip.push(`Estado: ${obra.estado}`);
   }
@@ -1723,20 +1732,43 @@ function abrirModalForzar(trabajadorId, obraId) {
     trabajador_id: trabajadorId, obra_id: obraId,
     trabajador_nombre: nombreCompleto(t), obra_nombre: o.nombre,
     estado_actual: o.estado, estado_forzado: o.estado_forzado,
+    estado_calculado: o.estado_calculado,
     motivo_forzado: o.motivo_forzado, motivos: o.motivos,
-    forzado_en: o.forzado_en, excepcion_hoy: o.excepcion_hoy
+    forzado_en: o.forzado_en, forzado_hasta: o.forzado_hasta,
+    fecha_validacion: o.fecha_validacion, excepcion_hoy: o.excepcion_hoy
   };
   const info = document.getElementById('forzar-info');
   info.classList.remove('excepcion');
   let html = `<strong>${esc(forzarCtx.trabajador_nombre)}</strong> en <strong>${esc(forzarCtx.obra_nombre)}</strong><br>
     Estado actual: <span class="pill ${forzarCtx.estado_actual}">${forzarCtx.estado_actual}</span>`;
-  const listaMotivos = extraerListaMotivos(forzarCtx.motivos);
-  if (listaMotivos.length > 0) {
-    html += `<br><br><strong>Motivos:</strong><ul class="motivos-list">${listaMotivos.map(m => `<li>${esc(m)}</li>`).join('')}</ul>`;
-  }
+
+  // ⚑ EL FORZADO VA ARRIBA, ANTES DE LOS MOTIVOS (75a).
+  // Estaba debajo, en letra pequeña, y por eso se leia la lista de motivos
+  // como si fuera el estado real de hoy: se veian tres rojos y un naranja
+  // sin nada que explicara la contradiccion. El forzado es LA razon del
+  // color, asi que se lee primero.
   if (forzarCtx.estado_forzado) {
     const cuandoF = formatFechaLocal(forzarCtx.forzado_en);
-    html += `<br><br>⚑ <strong>Estado forzado a ${esc(forzarCtx.estado_actual)}</strong>${cuandoF ? ' el ' + cuandoF : ''}.<br>Motivo: ${esc(forzarCtx.motivo_forzado || '(sin motivo)')}`;
+    html += `<div class="aviso-forzado">⚑ <strong>Estado forzado a ${esc(forzarCtx.estado_actual)}</strong>${cuandoF ? ' el ' + cuandoF : ''}.`
+         +  `<br>Motivo: ${esc(forzarCtx.motivo_forzado || '(sin motivo)')}`
+         +  `<br>${textoCaducidadForzado(forzarCtx.forzado_hasta)}`
+         +  `<br><span class="aviso-forzado-nota">Mientras dure, este es el color que manda. Debajo, lo que dice e-Coordina.</span></div>`;
+  }
+
+  // Los motivos SIEMPRE llevan su fecha y su color. Desde la 75a el motor
+  // los reescribe en cada sincronizacion aunque la ficha este forzada, asi
+  // que ya no se quedan congelados; pero la fecha se enseña igualmente,
+  // porque un dato sin fecha no se puede juzgar.
+  const listaMotivos = extraerListaMotivos(forzarCtx.motivos);
+  if (listaMotivos.length > 0) {
+    const cuandoCalc = formatFechaLocal(forzarCtx.fecha_validacion);
+    let cabecera = 'Motivos según e-Coordina';
+    if (cuandoCalc) cabecera += ` (actualizado el ${cuandoCalc})`;
+    let colorCalc = '';
+    if (forzarCtx.estado_calculado) {
+      colorCalc = ` — e-Coordina dice <span class="pill ${forzarCtx.estado_calculado}">${forzarCtx.estado_calculado}</span>`;
+    }
+    html += `<br><br><strong>${cabecera}</strong>${colorCalc}<ul class="motivos-list">${listaMotivos.map(m => `<li>${esc(m)}</li>`).join('')}</ul>`;
   }
   if (forzarCtx.excepcion_hoy) {
     info.classList.add('excepcion');
@@ -2001,7 +2033,8 @@ function aniadirTrabajadorResumen(lineas, item, index, mostrarObra = true) {
   if (motivos.length > 0) {
     motivos.forEach(m => lineas.push(`   - ${m}`));
   } else if (o.estado_forzado && o.motivo_forzado) {
-    lineas.push(`   - Estado forzado: ${o.motivo_forzado}`);
+    lineas.push(`   - Estado forzado: ${o.motivo_forzado}`
+      + (o.forzado_hasta ? ` (caduca el ${formatFechaLocal(o.forzado_hasta + 'T12:00:00')})` : ''));
   } else {
     lineas.push('   - Motivo no especificado en la validación.');
   }
@@ -2036,6 +2069,20 @@ function extraerListaMotivos(motivos) {
   if (Array.isArray(motivos)) return motivos;
   if (typeof motivos === 'object' && Array.isArray(motivos.lista)) return motivos.lista;
   return [];
+}
+// Texto de caducidad de un forzado (75a).
+// `forzado_hasta` NULL significa "no caduca", y eso NO es un descuido: es el
+// forzado a ROJO de `quitar_trabajador_de_obra`, que es una exclusion
+// deliberada y no debe apagarse sola. Los forzados que MEJORAN el color
+// (verde/naranja) siempre llevan fecha: nacen con 5 dias.
+function textoCaducidadForzado(hasta) {
+  if (!hasta) return 'Sin caducidad (exclusión: solo se quita a mano).';
+  const hoy = fechaHoyLocal();
+  const f = formatFechaLocal(hasta + 'T12:00:00');
+  if (hasta < hoy) return `⏰ <strong>Caducado el ${f}</strong> — la próxima sincronización lo retira.`;
+  const dias = Math.round((new Date(hasta + 'T12:00:00') - new Date(hoy + 'T12:00:00')) / 86400000);
+  if (dias === 0) return `⏰ <strong>Caduca hoy (${f})</strong>.`;
+  return `⏰ Caduca el <strong>${f}</strong> (${dias} ${dias === 1 ? 'día' : 'días'}).`;
 }
 function formatFechaLocal(iso) {
   if (!iso) return '';

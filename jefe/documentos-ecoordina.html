@@ -927,13 +927,27 @@ async function confirmarImportacion() {
   const creados = res.creadosLista.length;
   const actualizados = res.actualizadosLista.length;
   const fallos = res.fallos;
-  const saltadosPorForzado = res.saltadosPorForzado || 0;
+  const forzadosVivos = res.forzadosVivos || 0;
+  const forzadosApagados = res.forzadosApagados || 0;
   const bloqueadosPorAusencia = res.bloqueadosPorAusencia || 0;
 
-  const avisoForzados = saltadosPorForzado > 0
+  // 75ª. El aviso anterior decía que a los forzados «no se les había
+  // modificado nada», y era cierto: la RPC se los saltaba enteros y sus
+  // motivos se quedaban congelados el día del forzado. Ya no. Ahora se
+  // recalculan siempre; lo único que el forzado conserva es el COLOR. Y hay
+  // un segundo número que antes no existía porque no podía existir: los que
+  // se han apagado solos.
+  const avisoForzados = forzadosVivos > 0
     ? `<div class="alert alert-warning" style="margin-top:10px;">
-        ⚠️ <strong>${saltadosPorForzado} trabajador${saltadosPorForzado > 1 ? 'es' : ''} con estado forzado</strong> no se ha${saltadosPorForzado > 1 ? 'n' : ''} modificado.
-        Si quieres actualizarlos, quita el forzado manualmente desde el panel de Trabajadores.
+        ⚠️ <strong>${forzadosVivos} trabajador${forzadosVivos > 1 ? 'es' : ''} con estado forzado</strong>: su color sigue mandando,
+        pero sus motivos SÍ se han actualizado. Cada forzado caduca solo a los 5 días.
+      </div>`
+    : '';
+
+  const avisoApagados = forzadosApagados > 0
+    ? `<div class="alert alert-info" style="margin-top:10px;">
+        ⚑ <strong>${forzadosApagados} forzado${forzadosApagados > 1 ? 's retirados' : ' retirado'} automáticamente</strong>
+        (caducado o ya innecesario). A partir de ahora manda lo que dice e-Coordina.
       </div>`
     : '';
 
@@ -950,7 +964,7 @@ async function confirmarImportacion() {
       <div class="alert alert-success">
         Importación completada. <strong>${creados}</strong> trabajadores nuevos creados, <strong>${actualizados}</strong> actualizados. Sin errores.
       </div>
-      ${avisoForzados}
+      ${avisoForzados}${avisoApagados}
       ${avisoBloqueados}
       ${construirLista('🆕 Trabajadores nuevos creados', res.creadosLista, 'var(--verde)')}
       ${construirLista('🔁 Trabajadores actualizados', res.actualizadosLista, 'var(--azul)')}
@@ -974,7 +988,7 @@ async function confirmarImportacion() {
           <tbody>${filasFallos}</tbody>
         </table>
       </div>
-      ${avisoForzados}
+      ${avisoForzados}${avisoApagados}
       ${avisoBloqueados}
       ${construirLista('🆕 Trabajadores nuevos creados', res.creadosLista, 'var(--verde)')}
       ${construirLista('🔁 Trabajadores actualizados', res.actualizadosLista, 'var(--azul)')}
