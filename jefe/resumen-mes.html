@@ -108,6 +108,8 @@ function etiquetaCat(t) {
   table.mes td.celda:hover { background: rgba(255,152,0,0.18); }
   table.mes td.celda.cero { color: var(--texto2); opacity: 0.35; }
   table.mes td.celda.cero:hover { opacity: 1; }
+  table.mes td.celda.hoy-en-curso { color: var(--azul); opacity: 1; font-weight: 700; background: rgba(33,150,243,0.08); }
+  table.mes td.celda.hoy-en-curso:hover { background: rgba(33,150,243,0.18); }
   table.mes th.finde, table.mes td.finde { background: #2a2d36; }
   table.mes td.autocierre { background: rgba(255,152,0,0.35); color: #ffd699; font-weight: 700; }
   table.mes td.celda.tocado { position: relative; }
@@ -2396,6 +2398,16 @@ function renderMesSinFichajes(year, month, diasMes) {
 function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
   const { findes, thDias } = construirDiasMes(year, month, diasMes);
 
+  // ¿Estamos viendo el mes en curso? Si sí, `diaHoy` es el número de día de
+  // hoy en España; si no (mes cerrado o de otro momento), se queda a null y
+  // la celda de "hoy en curso" nunca se activa — no tendría sentido en un
+  // mes que ya pasó.
+  let diaHoy = null;
+  if (window.Fechas) {
+    const [hy, hm, hd] = window.Fechas.hoyMadrid().split('-').map(Number);
+    if (hy === year && hm === month) diaHoy = hd;
+  }
+
   let filas = '';
   const totalDia = {};
   for (let d = 1; d <= diasMes; d++) totalDia[d] = 0;
@@ -2421,9 +2433,28 @@ function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
         lineasTooltip.push(`Horas fijadas a mano: calculadas ${formatHoras(aj.calculadas)} → ${formatHoras(aj.fijadas)}`
           + (aj.motivo ? `: ${aj.motivo}` : ''));
       }
+
+      // Hoy, con entrada fichada y sin salida todavía: no hay horas que
+      // enseñar (la jornada no ha cerrado), pero sí la hora de entrada.
+      // Sirve para pillar en caliente un fichaje raro, sin esperar a que
+      // el día cierre. Nunca pisa un día con horas ya calculadas ni un
+      // autocierre.
+      let textoCelda = h > 0 ? formatHoras(h) : '·';
+      let hoyEnCurso = false;
+      if (d === diaHoy && h === 0 && !esAuto) {
+        const det = t.dias_detalle && t.dias_detalle[d];
+        if (det && det.hora_entrada && !det.hora_salida) {
+          hoyEnCurso = true;
+          const horaTxt = hhmmDe(det.hora_entrada);
+          clases.push('hoy-en-curso');
+          textoCelda = '🕐 ' + horaTxt;
+          lineasTooltip.push(`Entrada de hoy a las ${horaTxt} · jornada aún abierta.`);
+        }
+      }
+
       const tooltip = lineasTooltip.length ? ` title="${escapeHtml(lineasTooltip.join('\n'))}"` : '';
-      if (h === 0 && !esAuto) clases.push('cero');
-      celdas += `<td class="${clases.join(' ')}" data-tid="${t.id}" data-dia="${d}"${tooltip}>${h > 0 ? formatHoras(h) : '·'}</td>`;
+      if (h === 0 && !esAuto && !hoyEnCurso) clases.push('cero');
+      celdas += `<td class="${clases.join(' ')}" data-tid="${t.id}" data-dia="${d}"${tooltip}>${textoCelda}</td>`;
     }
     totalEmpresa += t.horas_mes;
     filas += `<tr>
