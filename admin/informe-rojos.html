@@ -69,6 +69,21 @@
   .inf-titular { background: #f6f2f2; border-left: 5px solid var(--rojo); padding: 22px 26px; border-radius: 6px; margin-bottom: 32px; }
   .inf-titular .cifra { font-size: 44px; font-weight: 800; color: var(--rojo); line-height: 1; }
   .inf-titular .frase { font-size: 16px; color: #333; margin-top: 10px; line-height: 1.5; max-width: 60ch; text-wrap: pretty; }
+  .inf-titular .reparto { font-size: 15px; color: #444; margin-top: 14px; padding-top: 12px; border-top: 1px solid #ddd; line-height: 1.6; }
+  .inf-titular .reparto strong { color: #1a1a1a; }
+
+  /* Desenlace: se lee de arriba abajo como una historia, no como 4 filas iguales */
+  .des-fila { display: flex; align-items: baseline; gap: 16px; padding: 13px 0; border-bottom: 1px solid #eee; }
+  .des-fila:last-child { border-bottom: none; }
+  .des-num { font-size: 26px; font-weight: 800; min-width: 58px; text-align: right; color: #1a1a1a; }
+  .des-cuerpo { flex: 1; }
+  .des-tit { font-size: 15px; font-weight: 700; color: #1a1a1a; }
+  .des-exp { font-size: 13px; color: #666; margin-top: 3px; line-height: 1.5; }
+  .des-anidada { margin: 4px 0 2px 74px; padding: 10px 14px; background: #f4f8f4; border-left: 3px solid var(--verde); border-radius: 4px; font-size: 13.5px; color: #33553a; line-height: 1.5; }
+  .des-anidada strong { color: #1d3d24; }
+  .des-cero .des-num { color: var(--verde); }
+  .des-cero .des-tit { color: #2c6b35; }
+  .cat-empresa { font-size: 11px; font-weight: 700; color: #8a6d3b; background: #fcf4e3; padding: 1px 6px; border-radius: 3px; margin-left: 7px; letter-spacing: 0.3px; }
 
   .inf-seccion { margin-bottom: 30px; }
   .inf-seccion h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #1a1a1a; border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-bottom: 4px; }
@@ -281,13 +296,27 @@ function pintarInforme(d, rango) {
     return;
   }
 
+  // Reparto del titular. Sin esto el 121 es un número sin consecuencia, y las
+  // cuatro salidas de abajo se leen como si unas salieran de otras.
+  const _d = d.desenlace || {};
+  const _noEntro = _d.no_entro || 0;
+  const _entraron = (_d.regularizado || 0) + (_d.con_excepcion || 0) + (_d.colado || 0);
+  let repartoHTML = '';
+  if ((_d.dias_persona || 0) > 0) {
+    repartoHTML = `<div class="reparto">
+      De esos, <strong>${_noEntro}</strong> no llegaron a entrar ese día
+      y <strong>${_entraron}</strong> acabaron entrando tras resolverse la situación.
+    </div>`;
+  }
+
   // Titular (solo si hay rojos documentales)
   let titular = '';
   if (total > 0) {
     titular = `
     <div class="inf-titular">
       <div class="cifra">${total}</div>
-      <div class="frase">intentos de acceso frenados por el sistema, de <strong>${personas}</strong> ${personas === 1 ? 'persona' : 'personas'} distintas sin la documentación en regla.</div>
+      <div class="frase">accesos frenados por el sistema, de <strong>${personas}</strong> ${personas === 1 ? 'persona' : 'personas'} distintas sin la documentación en regla.</div>
+      ${repartoHTML}
     </div>`;
   }
 
@@ -305,28 +334,56 @@ function pintarInforme(d, rango) {
   const des = d.desenlace || {};
   let desenlaceHTML = '';
   if ((des.dias_persona || 0) > 0) {
-    const filas = [
-      ['No llegaron a entrar', des.no_entro || 0, 'El bloqueo paró la entrada ese día.'],
-      ['Entraron ya regularizados', des.regularizado || 0, 'El bloqueo hizo que se arreglara la documentación el mismo día.'],
-      ['Entraron con excepción firmada', des.con_excepcion || 0, 'Riesgo asumido por un jefe de obra, con motivo escrito.'],
-      ['Entraron en rojo sin autorización', des.colado || 0, 'Nadie debería poder hacerlo.']
-    ];
+    const noEntro = des.no_entro || 0;
+    const volvio  = des.volvio_7dias || 0;
+
+    // El "0 entraron sin autorización" se pinta SIEMPRE, aunque valga cero.
+    // Un cero que no se calcula no demuestra nada, y este es el dato que
+    // sostiene la aplicación entera. Va en verde porque aquí cero es la nota
+    // buena, no la ausencia de datos.
     desenlaceHTML = `
       <div class="inf-seccion">
         <h2>Qué pasó después del bloqueo</h2>
-        <div class="subtitulo">Sobre ${des.dias_persona} días-persona bloqueados. Cada bloqueo acaba en una de estas cuatro salidas.</div>
-        <table class="inf-tabla">
-          <thead><tr><th>Desenlace</th><th class="num">Casos</th><th>Qué significa</th></tr></thead>
-          <tbody>
-            ${filas.map(([t, n, expl]) => `
-              <tr>
-                <td class="destacado">${esc(t)}</td>
-                <td class="num">${n}</td>
-                <td style="color:#666;font-size:13px">${esc(expl)}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>
-        <div class="inf-genericos" style="margin-top:14px">
+        <div class="subtitulo">${des.dias_persona} bloqueos, contados por persona y día. Cada uno acabó de una de estas cuatro formas.</div>
+
+        <div class="des-fila">
+          <div class="des-num">${noEntro}</div>
+          <div class="des-cuerpo">
+            <div class="des-tit">No llegaron a entrar ese día</div>
+            <div class="des-exp">El sistema paró la entrada porque faltaba documentación.</div>
+          </div>
+        </div>
+        ${volvio > 0 ? `<div class="des-anidada">
+          De esos ${noEntro}, <strong>${volvio}</strong> volvieron a entrar dentro de los 7 días siguientes,
+          una vez resuelta la documentación. El bloqueo no apartó a la gente de la obra:
+          retrasó la entrada hasta que el papel estuvo en regla.
+        </div>` : ''}
+
+        <div class="des-fila">
+          <div class="des-num">${des.regularizado || 0}</div>
+          <div class="des-cuerpo">
+            <div class="des-tit">Se regularizó el mismo día</div>
+            <div class="des-exp">Se les frenó, se corrigió la documentación y entraron esa misma jornada.</div>
+          </div>
+        </div>
+
+        <div class="des-fila">
+          <div class="des-num">${des.con_excepcion || 0}</div>
+          <div class="des-cuerpo">
+            <div class="des-tit">Entraron con excepción firmada</div>
+            <div class="des-exp">Un jefe de obra autorizó el paso asumiendo la responsabilidad, con su nombre y su motivo escritos.</div>
+          </div>
+        </div>
+
+        <div class="des-fila des-cero">
+          <div class="des-num">${des.colado || 0}</div>
+          <div class="des-cuerpo">
+            <div class="des-tit">Entraron en rojo sin autorización</div>
+            <div class="des-exp">Nadie logró saltarse el control. Esta cifra se calcula en cada informe, no se da por supuesta.</div>
+          </div>
+        </div>
+
+        <div class="inf-genericos" style="margin-top:16px">
           Este desglose solo cubre a quien <strong>tiene ficha</strong> en el sistema.
           Quien se presenta en la obra sin ficha no puede fichar y se registra aparte,
           en el apartado de <strong>personas sin registrar</strong>.
@@ -343,7 +400,7 @@ function pintarInforme(d, rango) {
         <h2>Desglose por obra</h2>
         <div class="subtitulo">El total de arriba, repartido. Cada jefe de obra puede generar el suyo por separado.</div>
         <table class="inf-tabla">
-          <thead><tr><th>Obra</th><th class="num">Intentos</th><th class="num">Personas</th></tr></thead>
+          <thead><tr><th>Obra</th><th class="num">Bloqueos</th><th class="num">Personas</th></tr></thead>
           <tbody>
             ${porObra.map(o => `
               <tr>
@@ -362,16 +419,17 @@ function pintarInforme(d, rango) {
   if (cats.length) {
     categoriasHTML = `
       <div class="inf-seccion">
-        <h2>Motivos del bloqueo</h2>
-        <div class="subtitulo">Qué documentación faltaba, sobre los intentos con desglose registrado.</div>
+        <h2>Qué documento faltaba</h2>
+        <div class="subtitulo">El motivo exacto que registró el sistema. Un mismo bloqueo puede tener varios documentos mal a la vez, por eso la suma de esta columna supera el total de bloqueos.</div>
         <table class="inf-tabla">
-          <thead><tr><th>Motivo</th><th class="num">Intentos</th><th class="num">Personas</th></tr></thead>
+          <thead><tr><th>Documento y estado</th><th class="num">Veces</th><th class="num">Personas</th><th class="num">Días</th></tr></thead>
           <tbody>
             ${cats.map(c => `
               <tr>
-                <td class="destacado">${esc(c.categoria)}</td>
+                <td class="destacado">${esc(c.categoria)}${c.es_empresa ? '<span class="cat-empresa">EMPRESA</span>' : ''}</td>
                 <td class="num">${c.veces}</td>
                 <td class="num">${c.personas}</td>
+                <td class="num">${c.dias != null ? c.dias : '—'}</td>
               </tr>`).join('')}
           </tbody>
         </table>
@@ -389,7 +447,7 @@ function pintarInforme(d, rango) {
         <h2>Empresas con más accesos denegados</h2>
         <div class="subtitulo">Ordenadas por número de intentos frenados. Aquí se cuentan todos los intentos, incluidos los que no tienen desglose por motivo.</div>
         <table class="inf-tabla">
-          <thead><tr><th>Empresa</th><th class="num">Intentos</th><th class="num">Personas</th></tr></thead>
+          <thead><tr><th>Empresa</th><th class="num">Veces</th><th class="num">Personas</th><th class="num">Días</th></tr></thead>
           <tbody>
             ${emps.map(e => {
               const suave = e.empresa_nombre === 'Sin empresa asignada';
@@ -398,6 +456,7 @@ function pintarInforme(d, rango) {
                 <td class="${suave ? '' : 'destacado'}">${esc(e.empresa_nombre)}</td>
                 <td class="num">${e.veces}</td>
                 <td class="num">${e.personas}</td>
+                <td class="num">${e.dias != null ? e.dias : "—"}</td>
               </tr>`;
             }).join('')}
           </tbody>
