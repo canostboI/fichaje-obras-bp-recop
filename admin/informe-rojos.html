@@ -61,6 +61,7 @@
 
   .inf-cabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; border-bottom: 3px solid #1a1a1a; padding-bottom: 20px; margin-bottom: 28px; }
   .inf-cabecera .logo-marca { height: 34px; width: auto; }
+  .inf-cabecera .logos { display: flex; gap: 14px; align-items: center; justify-content: flex-end; }
   .inf-titulo { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #666; }
   .inf-obra { font-size: 26px; font-weight: 800; margin-top: 4px; color: #1a1a1a; }
   .inf-meta { font-size: 13px; color: #555; margin-top: 8px; line-height: 1.5; }
@@ -258,7 +259,9 @@ async function generar() {
 // ── Pintar el informe con los datos de la RPC ──
 function pintarInforme(d, rango) {
   const zona = document.getElementById('zona-informe');
-  const logo = LOGOS[d.obra_marca] || LOGOS.bosch_pascual;
+  const logos = (!d.obra_marca && (d.obras_incluidas || 1) > 1)
+    ? [LOGOS.bosch_pascual, LOGOS.recop]
+    : [LOGOS[d.obra_marca] || LOGOS.bosch_pascual];
 
   // Texto del periodo
   let periodoTxt;
@@ -297,7 +300,7 @@ function pintarInforme(d, rango) {
   if (total === 0 && srTotalPersonas === 0 && exTotal === 0 && !(d.rondas && d.rondas.rondas > 0)) {
     zona.innerHTML = `
       <div class="informe">
-        ${cabeceraHTML(logo, d.obra_nombre, periodoTxt)}
+        ${cabeceraHTML(logos, d.obra_nombre, periodoTxt)}
         <div class="inf-vacio">No se registraron accesos denegados durante el periodo seleccionado.</div>
         ${pieHTML()}
       </div>`;
@@ -376,8 +379,8 @@ function pintarInforme(d, rango) {
 
         ${(d.rondas && d.rondas.rondas_con_rojo > 0) ? `
         <div class="des-limite">
-          <strong>Esto solo cuenta lo que pasa en la puerta.</strong>
-          Aparte de esto, el encargado cerró <strong>${d.rondas.rondas_con_rojo}</strong>
+          Los datos anteriores solo cuentan lo que pasa en la puerta.
+          Además, el encargado cerró <strong>${d.rondas.rondas_con_rojo}</strong>
           ${d.rondas.rondas_con_rojo === 1 ? 'ronda' : 'rondas'} con personas en rojo
           <strong>dentro</strong> de la obra${d.rondas.peor_rojo_dentro > 1 ? `, hasta ${d.rondas.peor_rojo_dentro} a la vez` : ''}.
           Todas con excepción firmada, pero estaban trabajando con documentación pendiente.
@@ -398,13 +401,13 @@ function pintarInforme(d, rango) {
     rondasHTML = `
       <div class="inf-seccion">
         <h2>Rondas del encargado: quién estaba dentro sin fichar</h2>
-        <div class="subtitulo">El control de acceso vigila la entrada. La ronda comprueba, sobre el terreno, quién hay realmente en la obra y si ha fichado.</div>
+        <div class="subtitulo">El control de acceso vigila la entrada. La ronda comprueba, sobre el terreno, cuánta gente hay realmente en la obra y cuánta no ha fichado.</div>
 
         <div class="des-fila">
           <div class="des-num">${ron.rondas}</div>
           <div class="des-cuerpo">
             <div class="des-tit">Rondas realizadas</div>
-            <div class="des-exp">Repartidas en ${ron.dias_con_ronda || 0} días distintos.</div>
+            <div class="des-exp">Aproximadamente una por obra y día de trabajo.</div>
           </div>
         </div>
 
@@ -412,36 +415,38 @@ function pintarInforme(d, rango) {
           <div class="des-num">${ron.con_hallazgo || 0}</div>
           <div class="des-cuerpo">
             <div class="des-tit">Rondas que encontraron gente sin fichar</div>
-            <div class="des-exp">Repartidas en ${ron.dias_con_hallazgo || 0} días distintos. En el resto de rondas, todo el mundo había fichado.</div>
+            <div class="des-exp">En la peor de ellas había ${ron.peor_ronda || 0} personas sin fichar a la vez. En el resto de rondas, todo el mundo había fichado.</div>
           </div>
         </div>
 
+        ${ron.presencias > 0 ? `
         <div class="des-fila">
-          <div class="des-num">${sinFichar}</div>
+          <div class="des-num">${(100 * (ron.personas_sin_fichar || 0) / ron.presencias).toFixed(1)}%</div>
           <div class="des-cuerpo">
-            <div class="des-tit">Detecciones de personas sin fichar</div>
-            <div class="des-exp">Son detecciones, no personas distintas: la misma persona puede aparecer en varias rondas. En la peor se detectaron ${ron.peor_ronda || 0} a la vez.</div>
+            <div class="des-tit">De la gente vista en obra, no había fichado</div>
+            <div class="des-exp">Sobre ${ron.presencias.toLocaleString('es-ES')} presencias contadas en el total de las rondas.</div>
           </div>
-        </div>
+        </div>` : ''}
 
         ${Array.isArray(ron.por_obra) && ron.por_obra.length > 1 ? `
         <table class="inf-tabla" style="margin-top:18px">
-          <thead><tr><th>Obra</th><th class="num">Rondas</th><th class="num">Con hallazgo</th><th class="num">Personas sin fichar</th></tr></thead>
+          <thead><tr><th>Obra</th><th class="num">Rondas</th><th class="num">Días</th><th class="num">Con hallazgo</th><th class="num">% sin fichar</th></tr></thead>
           <tbody>
             ${ron.por_obra.map(o => `
               <tr>
                 <td class="destacado">${esc(o.obra_nombre)}</td>
                 <td class="num">${o.rondas}</td>
+                <td class="num">${o.dias != null ? o.dias : '—'}</td>
                 <td class="num">${o.con_hallazgo}</td>
-                <td class="num">${o.personas_sin_fichar}</td>
+                <td class="num">${o.presencias > 0 ? (100 * o.personas_sin_fichar / o.presencias).toFixed(1) + '%' : '—'}</td>
               </tr>`).join('')}
           </tbody>
         </table>` : ''}
 
         <div class="inf-genericos" style="margin-top:16px">
           La ronda registra <strong>cuántas</strong> personas había sin fichar, no quiénes son.
-          Por eso no puede saberse cuántas personas distintas hay detrás de esas detecciones,
-          ni en qué estado documental estaban.
+          Por eso puede darse la proporción, pero no el número de personas distintas
+          ni su estado documental.
         </div>
       </div>`;
   }
@@ -630,7 +635,7 @@ function pintarInforme(d, rango) {
 
   zona.innerHTML = `
     <div class="informe">
-      ${cabeceraHTML(logo, d.obra_nombre, periodoTxt)}
+      ${cabeceraHTML(logos, d.obra_nombre, periodoTxt)}
       ${titular}
       ${desenlaceHTML}
       ${rondasHTML}
@@ -650,7 +655,8 @@ function fmtFechaCorta(iso) {
   return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-function cabeceraHTML(logo, obraNombre, periodoTxt) {
+function cabeceraHTML(logos, obraNombre, periodoTxt) {
+  const lista = Array.isArray(logos) ? logos : [logos];
   return `
     <div class="inf-cabecera">
       <div>
@@ -659,7 +665,7 @@ function cabeceraHTML(logo, obraNombre, periodoTxt) {
         <div class="inf-meta">${esc(periodoTxt)}</div>
       </div>
       <div class="lado-derecho">
-        <img class="logo-marca" src="${logo}" alt="" onerror="this.style.display='none'">
+        <div class="logos">${lista.map(l => `<img class="logo-marca" src="${l}" alt="" onerror="this.style.display='none'">`).join('')}</div>
         <div class="inf-meta">Generado el ${fmtHoy()}</div>
       </div>
     </div>`;
