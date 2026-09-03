@@ -9,6 +9,16 @@ name: Recordatorio · cambio de hora en crons
 # Minuto "raro" a propósito (congestión de GitHub Actions).
 # También se puede lanzar a mano desde la pestaña Actions.
 #
+# ⚠️ ACTUALIZADO 3/9/2026: añadido `caducar_forzados_diario` (jobid=11),
+# el que retira los estados forzados cuando se les acaba el margen de 5 días.
+# **NO necesita ajuste estacional**: corre a `30 3 * * *` (05:30 Madrid en
+# verano, 04:30 en invierno) y calcula la fecha con `now() AT TIME ZONE
+# 'Europe/Madrid'` DENTRO de la función, no con la hora del cron. Las dos
+# horas caen muy por delante de los primeros fichajes (06:39 en Muralla),
+# que es la única restricción real: nadie debe encontrarse en la valla un
+# color que iba a cambiar diez minutos después. Figura aquí porque la lista
+# tiene que estar COMPLETA.
+#
 # ⚠️ ACTUALIZADO 30/8/2026: añadido `caducar-fotos-identidad` (jobid=8),
 # el borrado de las fotos de la cara al año sin fichar. **NO necesita ajuste
 # estacional**: corre una vez por semana (`30 4 * * 0`) y lo único que hace
@@ -98,7 +108,7 @@ jobs:
           **Cómo:**
           - [ ] \`ecoordina.yml\`: editar **las DOS líneas** \`cron:\` en el repo.
           - [ ] pg_cron (los 4 de la tabla): en Supabase → SQL Editor, un \`SELECT cron.alter_job(jobid, schedule => '...')\` por cada uno, o desde la UI de Integrations → Cron.
-          - [ ] **NO tocar estos TRES, que funcionan en ambas estaciones:** \`autocierre_nocturno\` (\`0 2 * * *\`), \`recordatorio_solicitudes_acceso\` (\`*/10 * * * *\`, decide el horario de obra leyendo la hora de Madrid por dentro) y \`caducar-fotos-identidad\` (\`30 4 * * 0\`, semanal, compara contra un umbral de 12 meses).
+          - [ ] **NO tocar estos CINCO, que funcionan en ambas estaciones:** \`autocierre_nocturno\` (\`0 2 * * *\`), \`recordatorio_solicitudes_acceso\` (\`*/10 * * * *\`, decide el horario de obra leyendo la hora de Madrid por dentro), \`caducar-fotos-identidad\` (\`30 4 * * 0\`, semanal, compara contra un umbral de 12 meses), \`vaciar-cola-borrado-fotos\` (\`15 3 * * *\`) y \`caducar_forzados_diario\` (\`30 3 * * *\`, calcula la fecha de Madrid por dentro y corre muy por delante del primer fichaje en las dos estaciones).
           - [ ] Verificar al día siguiente que la sync nocturna y los SMS de ronda llegan a su hora española habitual.
           - [ ] Comprobar en \`ecoordina_sync\` que la ejecución buena sigue terminando de madrugada, muy por delante de los fichajes de las 06:39 en Muralla.
 
