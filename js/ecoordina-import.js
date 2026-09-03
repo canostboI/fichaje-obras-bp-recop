@@ -789,7 +789,8 @@ window.EcoordinaImport = (function () {
   // ── Aplicar (escritura en BD) ─────────────────────────────────────────────
   // resultadoFinal: salida de calcularResultado.
   // dnisABloquear: array de objetos { dni } a poner en rojo por ausencia (opcional).
-  // Devuelve: { creadosLista, actualizadosLista, fallos, saltadosPorForzado, bloqueadosPorAusencia }
+  // Devuelve: { creadosLista, actualizadosLista, fallos, saltadosPorForzado,
+  //             forzadosVivos, forzadosApagados, bloqueadosPorAusencia }
   async function aplicar(sb, obraId, resultadoFinal, dnisABloquear) {
     const creadosLista = [];
     const actualizadosLista = [];
@@ -842,7 +843,14 @@ window.EcoordinaImport = (function () {
     const p_dnis_a_bloquear = Array.isArray(dnisABloquear) ? dnisABloquear : [];
 
     // Paso 4: RPC principal.
+    // 75ª: la RPC ya no se salta a nadie. Devuelve cuántos forzados siguen
+    // VIVOS (su color sigue mandando, pero sus motivos SÍ se han actualizado)
+    // y cuántos se han APAGADO solos, por caducidad o porque e-Coordina ya
+    // alcanzó ese color. `saltadosPorForzado` se mantiene por compatibilidad
+    // y vale siempre 0.
     let saltadosPorForzado = 0;
+    let forzadosVivos = 0;
+    let forzadosApagados = 0;
     let bloqueadosPorAusencia = 0;
 
     if (p_resultados.length || p_dnis_a_bloquear.length) {
@@ -859,6 +867,8 @@ window.EcoordinaImport = (function () {
           fallos.push({ dni: '—', nombre: '—', fase: 'aplicar resultado (RPC)', mensaje: rpcResult.error || 'La RPC devolvió ok=false' });
         } else if (rpcResult) {
           saltadosPorForzado = rpcResult.saltados_por_forzado || 0;
+          forzadosVivos = rpcResult.forzados_vivos || 0;
+          forzadosApagados = rpcResult.forzados_apagados || 0;
           bloqueadosPorAusencia = rpcResult.bloqueados_por_ausencia || 0;
         }
       } catch (err) {
@@ -867,7 +877,8 @@ window.EcoordinaImport = (function () {
       }
     }
 
-    return { creadosLista, actualizadosLista, fallos, saltadosPorForzado, bloqueadosPorAusencia };
+    return { creadosLista, actualizadosLista, fallos, saltadosPorForzado,
+             forzadosVivos, forzadosApagados, bloqueadosPorAusencia };
   }
 
   // ── API pública ───────────────────────────────────────────────────────────

@@ -36,6 +36,12 @@
     movil_compartido:       ALERTA,  // posible uso indebido del mismo móvil
     autocierre:             ALERTA,  // hora inventada: corregir antes del proforma
     otro:                   ALERTA,  // sin clasificar → que se vea
+    // ⚑ 75ª. La escribe SOLA `aplicar_resultado_ecoordina` cuando retira un
+    // forzado, por caducidad o porque e-Coordina ya alcanzó ese color. Es
+    // ALERTA y no RASTRO a propósito: alguien pidió ese margen por un motivo,
+    // y si se acaba sin que el papel llegue, el jefe de obra tiene que
+    // enterarse ANTES de encontrarse a esa persona parada en la valla.
+    forzado_caducado:       ALERTA,
 
     // --- RASTRO: solo registro, sin acción pendiente ---
     // ⚠️ MEDIDO EN LA 54ª (24/8/2026). NO ES UNA BANDEJA ATRASADA.
@@ -77,6 +83,7 @@
     movil_compartido:       'Móvil compartido',
     autocierre:             'Autocierre',
     otro:                   'Otro',
+    forzado_caducado:       'Forzado caducado',
     aviso_naranja:          'Aviso naranja',
     excepcion_autorizada:   'Excepción autorizada',
     fichaje_corregido:      'Fichaje corregido',
