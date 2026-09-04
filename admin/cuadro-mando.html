@@ -150,9 +150,8 @@
   <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
   <a href="cierre-mes.html"><span class="ico">🔒</span> Cierre de mes</a>
   <a href="foto-mes.html"><span class="ico">📷</span> Foto del mes</a>
-  <a href="incidencias.html"><span class="ico">⚠️</span> Incidencias</a>
   <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
-  <a href="informe-rojos.html"><span class="ico">📕</span> Informe de rojos</a>
+  <a href="informe-rojos.html"><span class="ico">📕</span> Informe de incidencias</a>
   <a href="informe-excepciones.html"><span class="ico">⚠️</span> Excepciones asumidas</a>
   <a href="importar-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
   <div class="sidebar-bottom">
@@ -536,13 +535,6 @@ function construirModelo(d) {
       : (t.ultimoFichaje
           ? Math.round((new Date(d.hoy + 'T12:00:00') - new Date(Fechas.fechaMadrid(new Date(t.ultimoFichaje)) + 'T12:00:00')) / 86400000)
           : -1);   // -1 = nunca ha fichado nadie en esta obra
-    // CRUCE FRÁGIL, A PROPÓSITO VIGILADO. `informe_excepciones` devuelve el
-    // NOMBRE de la obra, no su id, así que esto casa por texto. Si alguien
-    // renombra una obra, o el nombre trae un espacio o un acento distinto, la
-    // excepción dejaría de salir en su tarjeta sin que nadie se entere: un
-    // cero falso, justo en el dato que sirve de prueba ante dirección. Más
-    // abajo se comprueba que TODAS las excepciones hayan encontrado obra, y
-    // si alguna se queda huérfana se dice en voz alta.
     t.riesgosHoy = modelo.riesgos.filter(r => r.obra_nombre === o.nombre);
 
     /* ══ SEMÁFORO ══════════════════════════════════════════════════════════
@@ -565,7 +557,7 @@ function construirModelo(d) {
         quién: 'La pidió ' + esc(s.pedida_por || '—') + ' · decide el jefe de obra' +
                (t.equipo.jefes.length ? ': ' + t.equipo.jefes.map(j => esc(j.nombre)).join(', ') : ' (⚠ NINGUNO ASIGNADO)'),
         reloj: textoEspera(min),
-        enlaces: [['Ver incidencias', 'incidencias.html']]
+        enlaces: [['Ver informe', 'informe-rojos.html']]
       };
       t[linea.nivel].push(linea);
     });
@@ -578,7 +570,7 @@ function construirModelo(d) {
           qué: esc(g.nombre) + ' no llegó a entrar',
           quién: esc(AccesosResueltos.etiquetas(g).join(' · ')) + ' · ' + esc(AccesosResueltos.textoDesenlace(g)),
           reloj: hhmm(g.ultimoIntento),
-          enlaces: [['Ver trabajador', 'trabajadores.html'], ['Incidencias', 'incidencias.html']]
+          enlaces: [['Ver trabajador', 'trabajadores.html'], ['Informe', 'informe-rojos.html']]
         };
         t.rojo.push(linea);
       });
@@ -680,7 +672,7 @@ function construirModelo(d) {
           obra: o.nombre, marca: tipo === 'fuera_de_zona' ? '📍' : '⚠️',
           qué: n + ' × ' + esc(IncidenciasFamilias.etiqueta(tipo)),
           quién: esAlerta ? 'Requiere que alguien lo mire.' : 'Queda registrado; normalmente no hace falta nada.',
-          reloj: '', enlaces: [['Incidencias', 'incidencias.html']]
+          reloj: '', enlaces: [['Informe', 'informe-rojos.html']]
         };
         t.naranja.push(linea);
       });
@@ -771,20 +763,6 @@ function construirModelo(d) {
     o.naranja.forEach(l => modelo.mirar.push(l));
   });
 
-  // ¿Alguna excepción se ha quedado sin tarjeta? Si el cruce por nombre
-  // falla, la excepción sigue apareciendo en el bloque «Riesgos asumidos»
-  // (que las pinta todas), pero desaparece de la obra. Se avisa aquí en vez
-  // de dejar que el número de la tarjeta mienta.
-  const nombresObra = modelo.obras.map(o => o.nombre);
-  const huerfanas = modelo.riesgos.filter(r => nombresObra.indexOf(r.obra_nombre) === -1);
-  if (huerfanas.length) {
-    modelo.fallos.push('Hay ' + huerfanas.length + ' ' +
-      plural(huerfanas.length, 'excepción firmada que no casa', 'excepciones firmadas que no casan') +
-      ' con ninguna obra activa (' +
-      huerfanas.map(r => r.obra_nombre || 'sin obra').filter((v, i, a) => a.indexOf(v) === i).join(', ') +
-      '). Salen abajo en «Riesgos asumidos», pero NO están contadas en su tarjeta.');
-  }
-
   modelo.salud = { crons: d.crons, vigilante: d.vigilante, sync: d.sync, envios: d.envios };
   return modelo;
 }
@@ -816,13 +794,7 @@ function pintarResumen(m) {
 
   let titular;
   if (!total) titular = 'No hay ninguna obra activa.';
-  // OJO CON SUBCONTAR. La primera versión decía «1 obra necesita algo hoy»
-  // teniendo una obra en rojo y otra en naranja: dos obras con algo, y el
-  // titular hablaba de una. El titular es lo único que se lee de un vistazo
-  // desde el móvil, así que tiene que cuadrar con las pastillas de al lado.
-  else if (n.rojo) titular = n.rojo + ' ' + plural(n.rojo, 'obra urgente', 'obras urgentes') +
-    (n.naranja ? ' · ' + n.naranja + ' ' + plural(n.naranja, 'más para mirar', 'más para mirar') : '') +
-    (n.gris ? ' · ' + n.gris + ' sin datos' : '');
+  else if (n.rojo) titular = n.rojo + ' ' + plural(n.rojo, 'obra necesita', 'obras necesitan') + ' algo hoy';
   else if (n.gris) titular = 'Faltan datos de ' + n.gris + ' ' + plural(n.gris, 'obra', 'obras');
   else if (n.naranja) titular = 'Nada urgente · ' + n.naranja + ' ' + plural(n.naranja, 'obra con algo que mirar', 'obras con algo que mirar');
   else titular = 'Todo en orden en las ' + total + ' obras activas';
@@ -935,8 +907,8 @@ function pintarObras(m) {
           '<div class="detalle">' + (o.rojosVivos == null ? 'rojos: no se sabe' : o.rojosVivos + ' ' + plural(o.rojosVivos, 'persona en rojo', 'personas en rojo')) + '</div></div>' +
       '</div>' +
       listaHTML + riesgosHTML + bienHTML +
-      '<div class="obra-pie"><span>' + (listas.length ? listas.length + ' ' + plural(listas.length, 'aviso en esta obra', 'avisos en esta obra') : 'Sin avisos hoy') + '</span>' +
-        '<span><a href="fichajes.html">Fichajes</a> · <a href="trabajadores.html">Trabajadores</a> · <a href="incidencias.html">Incidencias</a></span></div>' +
+      '<div class="obra-pie"><span>' + (listas.length ? listas.length + ' ' + plural(listas.length, 'cosa anotada hoy', 'cosas anotadas hoy') : 'Nada anotado hoy') + '</span>' +
+        '<span><a href="fichajes.html">Fichajes</a> · <a href="trabajadores.html">Trabajadores</a> ·</span></div>' +
     '</div>';
   }).join('') + '</div>';
 }
