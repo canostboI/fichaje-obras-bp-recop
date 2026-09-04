@@ -94,7 +94,6 @@
   .des-anidada strong { color: #1d3d24; }
   .des-cero .des-num { color: var(--verde); }
   .des-cero .des-tit { color: #2c6b35; }
-  .cat-estado { font-size: 12.5px; color: #777; font-weight: 400; margin-top: 2px; }
   .cat-corte td { background: #f4f4f2; font-size: 11.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #666; padding: 7px 10px; }
 
   .inf-seccion { margin-bottom: 30px; }
@@ -367,10 +366,8 @@ function pintarInforme(d, rango) {
     function causasHTML(clave) {
       const lista = Array.isArray(causas[clave]) ? causas[clave] : [];
       if (!lista.length) return '';
-      const top = lista.slice(0, 3);
-      const resto = lista.length - top.length;
-      const txt = top.map(c => `<span class="n">${c.personas}</span> <span class="doc">${esc(c.doc)}</span>`).join(' &nbsp;·&nbsp; ');
-      return `<div class="des-causas">${txt}${resto > 0 ? ` &nbsp;·&nbsp; y ${resto} ${resto === 1 ? 'motivo más' : 'motivos más'}` : ''}</div>`;
+      const txt = lista.map(c => `<span class="n">${c.personas}</span> <span class="doc">${esc(c.doc)}</span>`).join(' &nbsp;·&nbsp; ');
+      return `<div class="des-causas">${txt}</div>`;
     }
     const colados = des.colado || 0;
     desenlaceHTML = `
@@ -414,35 +411,34 @@ function pintarInforme(d, rango) {
   let rondasHTML = '';
   if ((ron.rondas || 0) > 0) {
     const sinFichar = ron.personas_sin_fichar || 0;
+    // Por qué estaban en rojo los que había dentro. Aquí el único rastro que
+    // queda de aquel día es el motivo que escribió el jefe al autorizar:
+    // `validaciones_obra` se sobrescribe y hoy figuran en verde.
+    const mr = Array.isArray(ron.motivos_rojo_dentro) ? ron.motivos_rojo_dentro : [];
+    const motivosRondaHTML = mr.length
+      ? `<div class="des-causas">${mr.map(m => `<span class="n">${m.personas}</span> <span class="doc">${esc(m.doc)}</span>`).join(' &nbsp;·&nbsp; ')}</div>`
+      : '';
     rondasHTML = `
       <div class="inf-seccion">
         <h2>Rondas del encargado: quién estaba dentro sin fichar</h2>
         <div class="subtitulo">El control de acceso vigila la entrada. La ronda comprueba, sobre el terreno, cuánta gente hay realmente en la obra y cuánta no ha fichado. Se hace a media mañana, así que recoge también a quien acaba de llegar.</div>
 
         <div class="des-fila">
-          <div class="des-num">${ron.rondas}</div>
+          <div class="des-num">${ron.rondas_con_rojo || 0}</div>
           <div class="des-cuerpo">
-            <div class="des-tit">Rondas realizadas</div>
-            <div class="des-exp">Aproximadamente una por obra y día de trabajo.</div>
+            <div class="des-tit">Rondas que encontraron gente en rojo dentro de la obra</div>
+            <div class="des-exp">Sobre ${ron.rondas} rondas realizadas${ron.peor_rojo_dentro > 1 ? `. En la peor había ${ron.peor_rojo_dentro} personas a la vez` : ''}. Todas con excepción firmada por un jefe de obra, pero trabajando con documentación pendiente.</div>
           </div>
         </div>
+        ${motivosRondaHTML}
 
         <div class="des-fila">
           <div class="des-num">${ron.con_hallazgo || 0}</div>
           <div class="des-cuerpo">
             <div class="des-tit">Rondas que encontraron gente sin fichar</div>
-            <div class="des-exp">Sin fichar no es lo mismo que en rojo: casi siempre es gente con la documentación correcta que aún no había pasado el QR, y que ficha al poco rato. En la peor ronda había ${ron.peor_ronda || 0} a la vez.</div>
+            <div class="des-exp">Dato menor: sin fichar no es estar en rojo. Casi siempre es gente con la documentación correcta que aún no había pasado el QR y que ficha al poco rato${ron.presencias > 0 ? `. Supone el ${(100 * (ron.personas_sin_fichar || 0) / ron.presencias).toFixed(1)} % de las presencias vistas en obra` : ''}.</div>
           </div>
         </div>
-
-        ${ron.presencias > 0 ? `
-        <div class="des-fila">
-          <div class="des-num">${(100 * (ron.personas_sin_fichar || 0) / ron.presencias).toFixed(1)}%</div>
-          <div class="des-cuerpo">
-            <div class="des-tit">De la gente vista en obra, no había fichado</div>
-            <div class="des-exp">Sobre ${ron.presencias.toLocaleString('es-ES')} presencias contadas en el total de las rondas.</div>
-          </div>
-        </div>` : ''}
 
         ${Array.isArray(ron.por_obra) && ron.por_obra.length > 1 ? `
         <table class="inf-tabla" style="margin-top:18px">
@@ -496,9 +492,9 @@ function pintarInforme(d, rango) {
     categoriasHTML = `
       <div class="inf-seccion">
         <h2>Qué documento faltaba</h2>
-        <div class="subtitulo">A una misma persona se le frena cada día que se presenta hasta que el documento se resuelve, por eso hay más frenazos que personas. Un bloqueo puede deberse a varios documentos a la vez.</div>
+        <div class="subtitulo">Las detecciones son más que las personas porque a cada una se le detecta cada día que se presenta, hasta que el documento se regulariza. Un mismo día puede haber varios documentos mal a la vez.</div>
         <table class="inf-tabla">
-          <thead><tr><th>Documento que faltaba</th><th class="num">Personas</th><th class="num">Veces frenadas</th></tr></thead>
+          <thead><tr><th>Documento que faltaba</th><th class="num">Personas</th><th class="num">Detecciones en rojo</th></tr></thead>
           <tbody>
             ${cats.map((c, i) => `
               ${(i > 0 && cats[i-1].es_empresa && !c.es_empresa)
@@ -506,10 +502,7 @@ function pintarInforme(d, rango) {
               ${(i === 0 && c.es_empresa)
                 ? '<tr class="cat-corte"><td colspan="3">Documentación de la empresa</td></tr>' : ''}
               <tr>
-                <td class="destacado">
-                  ${esc(c.categoria)}
-                  ${c.estados ? `<div class="cat-estado">${esc(c.estados.toLowerCase())}</div>` : ''}
-                </td>
+                <td class="destacado">${esc(c.categoria)}</td>
                 <td class="num">${c.personas}</td>
                 <td class="num">${c.veces}</td>
               </tr>`).join('')}
@@ -529,7 +522,7 @@ function pintarInforme(d, rango) {
         <h2>Empresas con más accesos denegados</h2>
         <div class="subtitulo">Ordenadas por número de intentos frenados. Aquí se cuentan todos los intentos, incluidos los que no tienen desglose por motivo.</div>
         <table class="inf-tabla">
-          <thead><tr><th>Empresa</th><th class="num">Personas</th><th class="num">Veces frenadas</th></tr></thead>
+          <thead><tr><th>Empresa</th><th class="num">Personas</th><th class="num">Detecciones en rojo</th></tr></thead>
           <tbody>
             ${emps.map(e => {
               const suave = e.empresa_nombre === 'Sin empresa asignada';
