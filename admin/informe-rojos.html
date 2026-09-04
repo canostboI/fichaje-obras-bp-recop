@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Informe de Rojos — Fichaje Obras</title>
+<title>Informe de incidencias — Fichaje Obras</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/guardian.js"></script>
 <style>
@@ -47,6 +47,10 @@
   .campo label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--texto2); }
   .campo select, .campo input { background: var(--bg3); border: 1px solid var(--borde); color: var(--texto); padding: 9px 12px; border-radius: 8px; font-size: 14px; font-family: inherit; }
   .campo select { min-width: 220px; }
+  .rangos { display: flex; gap: 8px; flex-wrap: wrap; margin: -6px 0 18px; }
+  .btn-rango { background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 6px 13px; border-radius: 20px; font-size: 13px; cursor: pointer; font-family: inherit; }
+  .btn-rango:hover { border-color: var(--azul); color: var(--texto); }
+  .btn-rango.activo { background: var(--azul); border-color: var(--azul); color: #fff; font-weight: 600; }
   .btn-generar { background: var(--rojo); border: none; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
   .btn-generar:hover { background: #d63a2f; }
   .btn-imprimir { background: transparent; border: 1px solid var(--borde); color: var(--texto); padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
@@ -144,7 +148,7 @@
   <a href="foto-mes.html"><span class="ico">📷</span> Foto del mes</a>
   <a href="incidencias.html"><span class="ico">⚠️</span> Incidencias</a>
   <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
-  <a href="informe-rojos.html" class="activo"><span class="ico">📕</span> Informe de rojos</a>
+  <a href="informe-rojos.html" class="activo"><span class="ico">📕</span> Informe de incidencias</a>
   <a href="informe-excepciones.html"><span class="ico">⚠️</span> Excepciones asumidas</a>
   <a href="importar-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
   <div class="sidebar-bottom">
@@ -154,7 +158,7 @@
 
 <div class="main">
   <div class="topbar">
-    <h1>Informe de rojos</h1>
+    <h1>Informe de incidencias</h1>
     <span class="usuario" id="usuario-email"></span>
   </div>
   <div class="contenido">
@@ -172,12 +176,20 @@
         <label for="inp-hasta">Hasta (opcional)</label>
         <input type="date" id="inp-hasta">
       </div>
-      <button class="btn-generar" id="btn-generar">Generar informe</button>
+      <button class="btn-generar" id="btn-generar">Actualizar</button>
       <button class="btn-imprimir" id="btn-imprimir" disabled>🖨 Imprimir / PDF</button>
     </div>
 
+    <div class="rangos no-print">
+      <button class="btn-rango" data-rango="todo">Desde el inicio</button>
+      <button class="btn-rango" data-rango="mes">Este mes</button>
+      <button class="btn-rango" data-rango="mes-anterior">Mes anterior</button>
+      <button class="btn-rango" data-rango="30dias">Últimos 30 días</button>
+      <button class="btn-rango" data-rango="7dias">Últimos 7 días</button>
+    </div>
+
     <div id="zona-informe">
-      <div class="cargando">Elige una obra y pulsa «Generar informe».</div>
+      <div class="cargando">Preparando el informe…</div>
     </div>
 
   </div>
@@ -227,6 +239,36 @@ async function cargarObras() {
 }
 
 // ── Generar el informe ──
+function marcarRango(btn) {
+  document.querySelectorAll('.btn-rango').forEach(b => b.classList.remove('activo'));
+  if (btn) btn.classList.add('activo');
+}
+
+// Rellena las dos fechas. "todo" las deja vacías a propósito: es la forma de
+// pedirle a la RPC el acumulado completo sin inventarse una fecha de inicio
+// de obra, que el sistema no guarda.
+function aplicarRango(rango) {
+  const iso = f => f.toISOString().slice(0, 10);
+  const hoy = new Date();
+  const desde = document.getElementById('inp-desde');
+  const hasta = document.getElementById('inp-hasta');
+
+  if (rango === 'todo') { desde.value = ''; hasta.value = ''; return; }
+
+  if (rango === 'mes') {
+    desde.value = iso(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
+    hasta.value = iso(hoy);
+  } else if (rango === 'mes-anterior') {
+    desde.value = iso(new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1));
+    hasta.value = iso(new Date(hoy.getFullYear(), hoy.getMonth(), 0));
+  } else if (rango === '30dias' || rango === '7dias') {
+    const d = new Date(hoy);
+    d.setDate(d.getDate() - (rango === '30dias' ? 30 : 7));
+    desde.value = iso(d);
+    hasta.value = iso(hoy);
+  }
+}
+
 async function generar() {
   const obraId = document.getElementById('sel-obra').value;
   const desde = document.getElementById('inp-desde').value || null;
@@ -673,7 +715,7 @@ function cabeceraHTML(logos, obraNombre, periodoTxt) {
   return `
     <div class="inf-cabecera">
       <div>
-        <div class="inf-titulo">Informe de accesos denegados</div>
+        <div class="inf-titulo">Informe de incidencias</div>
         <div class="inf-obra">${esc(obraNombre || 'Obra')}</div>
         <div class="inf-meta">${esc(periodoTxt)}</div>
       </div>
@@ -706,7 +748,24 @@ function pieHTML() {
 
   await cargarObras();
 
-  document.getElementById('btn-generar').addEventListener('click', generar);
+  // El informe sale solo al abrir, con TODAS las obras visibles y sin límite
+  // de fechas. La función interpreta `p_desde`/`p_hasta` nulos como "todo lo
+  // que hay", que es lo que se quiere ver al entrar: el acumulado.
+  document.getElementById('btn-generar').addEventListener('click', () => {
+    marcarRango(null);
+    generar();
+  });
+
+  document.querySelectorAll('.btn-rango').forEach(b => {
+    b.addEventListener('click', () => {
+      aplicarRango(b.dataset.rango);
+      marcarRango(b);
+      generar();
+    });
+  });
+
+  marcarRango(document.querySelector('.btn-rango[data-rango="todo"]'));
+  await generar();
   document.getElementById('btn-imprimir').addEventListener('click', () => window.print());
   document.getElementById('btn-salir').addEventListener('click', async () => {
     await sb.auth.signOut();
