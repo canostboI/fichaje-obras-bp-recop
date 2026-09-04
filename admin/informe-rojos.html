@@ -87,12 +87,15 @@
   .des-cuerpo { flex: 1; }
   .des-tit { font-size: 15px; font-weight: 700; color: #1a1a1a; }
   .des-exp { font-size: 13px; color: #666; margin-top: 3px; line-height: 1.5; }
+  .des-causas { margin: 2px 0 4px 74px; font-size: 13px; color: #666; line-height: 1.6; }
+  .des-causas .doc { color: #333; }
+  .des-causas .n { font-weight: 700; color: #1a1a1a; }
   .des-anidada { margin: 4px 0 2px 74px; padding: 10px 14px; background: #f4f8f4; border-left: 3px solid var(--verde); border-radius: 4px; font-size: 13.5px; color: #33553a; line-height: 1.5; }
   .des-anidada strong { color: #1d3d24; }
   .des-cero .des-num { color: var(--verde); }
   .des-cero .des-tit { color: #2c6b35; }
   .cat-estado { font-size: 12.5px; color: #777; font-weight: 400; margin-top: 2px; }
-  .cat-empresa { font-size: 11px; font-weight: 700; color: #8a6d3b; background: #fcf4e3; padding: 1px 6px; border-radius: 3px; margin-left: 7px; letter-spacing: 0.3px; }
+  .cat-corte td { background: #f4f4f2; font-size: 11.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #666; padding: 7px 10px; }
 
   .inf-seccion { margin-bottom: 30px; }
   .inf-seccion h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #1a1a1a; border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-bottom: 4px; }
@@ -316,12 +319,12 @@ function pintarInforme(d, rango) {
         <div>
           <div class="cifra">${personas}</div>
           <div class="rot">${personas === 1 ? 'Persona frenada' : 'Personas frenadas'} por el sistema</div>
-          <div class="nota">sin alguna documentación en regla</div>
+          <div class="nota">Les faltaba algún documento por presentar o renovar</div>
         </div>
         <div>
           <div class="cifra">${total}</div>
           <div class="rot">${total === 1 ? 'Alerta detectada' : 'Alertas detectadas'}</div>
-          <div class="nota">una misma persona puede tener varios documentos mal, y se le avisa cada día que lo intenta</div>
+          <div class="nota">Una misma persona puede tener varios documentos pendientes, y se le avisa cada día que lo intenta</div>
         </div>
       </div>
     </div>`;
@@ -345,31 +348,44 @@ function pintarInforme(d, rango) {
     // al total: una tabla que no suma obliga a explicarse, y lo que hay que
     // explicar no se cree. El "0 sin autorización" sale de la lista porque no
     // es un quinto grupo de personas, es una afirmación sobre las otras cuatro.
+    // Bajo cada línea, QUÉ documento faltaba. Es la primera pregunta que hace
+    // cualquiera al ver "15 lo resolvieron el mismo día". El motivo del
+    // bloqueo sí está guardado; lo que NO existe es la acción que lo resolvió.
+    const causas = des.causas || {};
     const filas = [
-      [des.mismo_dia || 0, 'Resolvieron el problema y entraron ese mismo día',
+      ['mismo_dia', des.mismo_dia || 0, 'Resolvieron el problema y entraron ese mismo día',
        'Se les frenó en la puerta, se resolvió la documentación y entraron esa jornada.'],
-      [des.volvio_7d || 0, 'No entraron ese día, y volvieron en los 7 días siguientes',
-       'Se fueron sin entrar. Volvieron dentro de la semana, ya con la documentación en regla.'],
-      [des.volvio_tarde || 0, 'No entraron ese día, y volvieron más tarde',
-       'Tardaron más de una semana en volver a fichar.'],
-      [des.con_excepcion || 0, 'Entraron con excepción firmada por un jefe de obra',
+      ['volvio_despues', des.volvio_despues || 0, 'No entraron ese día, y volvieron más adelante',
+       `Se fueron sin entrar y volvieron ya con la documentación en regla${des.volvio_7d ? `. ${des.volvio_7d} de ellos dentro de los 7 días siguientes` : ''}.`],
+      ['con_excepcion', des.con_excepcion || 0, 'Entraron con excepción firmada por un jefe de obra',
        'El papel seguía mal. Un jefe de obra asumió la responsabilidad por escrito.'],
-      [des.no_volvio || 0, 'No entraron, y no han vuelto',
+      ['no_volvio', des.no_volvio || 0, 'No entraron, y no han vuelto',
        'Sin fichajes posteriores en ninguna obra. Puede ser fin de trabajo o cambio de obra: el sistema no lo sabe.']
     ];
+
+    // Los tres motivos más frecuentes, y el resto agrupado.
+    function causasHTML(clave) {
+      const lista = Array.isArray(causas[clave]) ? causas[clave] : [];
+      if (!lista.length) return '';
+      const top = lista.slice(0, 3);
+      const resto = lista.length - top.length;
+      const txt = top.map(c => `<span class="n">${c.personas}</span> <span class="doc">${esc(c.doc)}</span>`).join(' &nbsp;·&nbsp; ');
+      return `<div class="des-causas">${txt}${resto > 0 ? ` &nbsp;·&nbsp; y ${resto} ${resto === 1 ? 'motivo más' : 'motivos más'}` : ''}</div>`;
+    }
     const colados = des.colado || 0;
     desenlaceHTML = `
       <div class="inf-seccion">
         <h2>Cómo acabó cada una de las ${des.personas} personas</h2>
-        <div class="subtitulo">Cada persona cuenta en una sola línea, por su desenlace final. Todas suman ${des.personas}.</div>
-        ${filas.map(([n, tit, exp]) => `
+        <div class="subtitulo">Cada persona cuenta en una sola línea, por su desenlace final. Todas suman ${des.personas}. Bajo cada línea, qué documento faltaba: una misma persona puede tener varios, así que esos números no suman al de su línea.</div>
+        ${filas.map(([clave, n, tit, exp]) => `
           <div class="des-fila">
             <div class="des-num">${n}</div>
             <div class="des-cuerpo">
               <div class="des-tit">${esc(tit)}</div>
               <div class="des-exp">${esc(exp)}</div>
             </div>
-          </div>`).join('')}
+          </div>
+          ${causasHTML(clave)}`).join('')}
 
         ${colados > 0 ? `
         <div class="inf-aviso-rojo">
@@ -401,7 +417,7 @@ function pintarInforme(d, rango) {
     rondasHTML = `
       <div class="inf-seccion">
         <h2>Rondas del encargado: quién estaba dentro sin fichar</h2>
-        <div class="subtitulo">El control de acceso vigila la entrada. La ronda comprueba, sobre el terreno, cuánta gente hay realmente en la obra y cuánta no ha fichado.</div>
+        <div class="subtitulo">El control de acceso vigila la entrada. La ronda comprueba, sobre el terreno, cuánta gente hay realmente en la obra y cuánta no ha fichado. Se hace a media mañana, así que recoge también a quien acaba de llegar.</div>
 
         <div class="des-fila">
           <div class="des-num">${ron.rondas}</div>
@@ -415,7 +431,7 @@ function pintarInforme(d, rango) {
           <div class="des-num">${ron.con_hallazgo || 0}</div>
           <div class="des-cuerpo">
             <div class="des-tit">Rondas que encontraron gente sin fichar</div>
-            <div class="des-exp">En la peor de ellas había ${ron.peor_ronda || 0} personas sin fichar a la vez. En el resto de rondas, todo el mundo había fichado.</div>
+            <div class="des-exp">Sin fichar no es lo mismo que en rojo: casi siempre es gente con la documentación correcta que aún no había pasado el QR, y que ficha al poco rato. En la peor ronda había ${ron.peor_ronda || 0} a la vez.</div>
           </div>
         </div>
 
@@ -484,10 +500,14 @@ function pintarInforme(d, rango) {
         <table class="inf-tabla">
           <thead><tr><th>Documento que faltaba</th><th class="num">Personas</th><th class="num">Veces frenadas</th></tr></thead>
           <tbody>
-            ${cats.map(c => `
+            ${cats.map((c, i) => `
+              ${(i > 0 && cats[i-1].es_empresa && !c.es_empresa)
+                ? '<tr class="cat-corte"><td colspan="3">Documentación del trabajador</td></tr>' : ''}
+              ${(i === 0 && c.es_empresa)
+                ? '<tr class="cat-corte"><td colspan="3">Documentación de la empresa</td></tr>' : ''}
               <tr>
                 <td class="destacado">
-                  ${esc(c.categoria)}${c.es_empresa ? '<span class="cat-empresa">EMPRESA</span>' : ''}
+                  ${esc(c.categoria)}
                   ${c.estados ? `<div class="cat-estado">${esc(c.estados.toLowerCase())}</div>` : ''}
                 </td>
                 <td class="num">${c.personas}</td>
