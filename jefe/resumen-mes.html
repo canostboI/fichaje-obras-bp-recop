@@ -12,6 +12,7 @@
 <script src="../js/fechas.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="../js/excel-proforma.js"></script>
+<script src="../js/jornadas.js"></script>
 <script>
 // Cómo se escribe una categoría en pantalla. Con "otra" manda el texto libre.
 // El motor del proforma tiene la suya; esta es solo para la lista de esta página.
@@ -576,6 +577,22 @@ let diasTocadosMap = {};          // trabajador_id -> Set(días con fichaje manu
 let diasTocadosInfo = {};         // trabajador_id -> { día: [líneas para el tooltip] }
 let horasObraActual = { entrada: null, salida: null };
 let diasIntensivaSet = new Set();
+// 76ª · Tipos de jornada por persona (js/jornadas.js). Se recarga con el mes.
+// Si queda vacío, el motor calcula con el horario de la obra, como siempre.
+let ctxJornadas = null;
+
+// Carga el catálogo de tipos y las asignaciones de la obra. Nunca lanza: si
+// falla, devuelve contexto vacío y el cálculo es el de antes. Un fallo de red
+// no puede convertirse en una factura distinta.
+async function cargarJornadas() {
+  if (!window.Jornadas || !obraActual) { ctxJornadas = null; return []; }
+  ctxJornadas = await window.Jornadas.cargar(sb, obraActual);
+  if (ctxJornadas && ctxJornadas.error) {
+    ctxJornadas = null;
+    return ['no se han podido leer los tipos de jornada; se calcula con el horario general de la obra'];
+  }
+  return [];
+}
 let horarioNormal = { entrada: null, salida: null, descanso: null };
 let horarioIntensiva = { entrada: null, salida: null, descanso: null };
 // Hora de cierre automático de los sábados. null = la obra no tiene hora
@@ -1005,7 +1022,7 @@ async function exportarExcelProforma() {
       }
     }
 
-    const { buffer, autocierres } = await window.ExcelProforma.generar({ obra, mes, fichajes, logoBase64, ajustes, diasIntensiva: diasIntensivaSet });
+    const { buffer, autocierres } = await window.ExcelProforma.generar({ obra, mes, fichajes, logoBase64, ajustes, diasIntensiva: diasIntensivaSet, jornadas: ctxJornadas });
 
     if (autocierres > 0) {
       const seguir = window.confirm(
@@ -1389,6 +1406,7 @@ async function cargarResumen() {
   const avisosCarga = [];
 
   avisosCarga.push(...(await cargarIntensiva(mes)));
+  avisosCarga.push(...(await cargarJornadas()));
   if (avisosCarga.length) datosCalculoIncompletos = true;
 
   zona.innerHTML = '<div class="seccion"><div class="cargando">Cargando…</div></div>';
@@ -1481,7 +1499,7 @@ async function cargarResumen() {
       grupos[nombreEmpresa], diasMes,
       { horaEntrada: horasObra.entrada, horaSalida: horasObra.salida, ajustes: ajustesMesMap, minutosDescanso: horasObra.descanso,
         horaEntradaIntensiva: horarioIntensiva.entrada, horaSalidaIntensiva: horarioIntensiva.salida, minutosDescansoIntensiva: horarioIntensiva.descanso,
-        diasIntensiva: diasIntensivaSet }
+        diasIntensiva: diasIntensivaSet, jornadas: ctxJornadas }
     );
     trabajadores.forEach(t => {
       totalAutocierres += (t.autocierres_mes || 0);
