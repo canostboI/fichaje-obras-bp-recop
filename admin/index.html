@@ -129,6 +129,7 @@
     <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
   </div>
   <div class="sidebar-section">Principal</div>
+  <a href="cuadro-mando.html"><span class="ico">🛰️</span> Cuadro de mando</a>
   <a href="#" class="activo"><span class="ico">📊</span> Dashboard</a>
   <div class="sidebar-section">Gestión</div>
   <a href="obras.html"><span class="ico">🏗</span> Obras</a>
@@ -627,7 +628,7 @@ async function cargarSyncEcoordina() {
     txt = `✅ e-Coordina: al día. Última sincronización el ${fecha} a las ${hora} (se ejecuta de lunes a viernes).`;
   } else {
     bg = 'rgba(255,152,0,0.15)'; color = '#ff9800';
-    txt = `⏳ e-Coordina: última sincronización el ${fecha} a las ${hora}. Ya debería haberse actualizado — revisa el workflow “ecoordina.yml” en GitHub Actions.`;
+    txt = `⏳ e-Coordina: última sincronización el ${fecha} a las ${hora}. Ya debería haberse actualizado — revisa el workflow "ecoordina.yml" en GitHub Actions.`;
   }
   el.style.display = 'block';
   el.style.background = bg; el.style.color = color;
