@@ -110,7 +110,7 @@
 
   // ===== Función pública =====
 
-  async function generar({ obra, mes, fichajes, logoBase64, ajustes, diasIntensiva }) {
+  async function generar({ obra, mes, fichajes, logoBase64, ajustes, diasIntensiva, jornadas }) {
     if (!window.ExcelJS) throw new Error('ExcelJS no está cargado.');
     if (!mes || !/^\d{4}-\d{2}$/.test(mes)) throw new Error('Mes inválido. Formato: YYYY-MM.');
     if (!Array.isArray(fichajes)) throw new Error('fichajes debe ser un array.');
@@ -142,6 +142,7 @@
             { horaEntrada: obra && obra.hora_entrada_default, horaSalida: obra && obra.hora_salida_default, ajustes, minutosDescanso: obra && obra.minutos_descanso,
               horaEntradaIntensiva: obra && obra.hora_entrada_intensiva, horaSalidaIntensiva: obra && obra.hora_salida_intensiva, minutosDescansoIntensiva: obra && obra.minutos_descanso_intensiva,
               finAlmuerzo: obra && obra.fin_almuerzo, finComida: obra && obra.fin_comida,
+              jornadas: jornadas || null,
               diasIntensiva }
           );
           trabajadores.forEach(t => { totalAutocierres += (t.autocierres_mes || 0); });
@@ -191,6 +192,12 @@
     // Ajustes de horas fijadas a mano (tabla ajustes_horas_dia):
     // { trabajador_id: { dia: { horas, motivo } } }. Opcional.
     const ajustes = (opts && opts.ajustes) || null;
+    // 76ª · Contexto de tipos de jornada (js/jornadas.js). Si no llega,
+    // `tipoDelDia` devuelve null siempre y el cálculo es el de antes.
+    const ctxJornadas = (opts && opts.jornadas) || null;
+    const resolverTipo = (ctxJornadas && window.Jornadas && window.Jornadas.tipoDelDia)
+      ? (trabId, fechaISO) => window.Jornadas.tipoDelDia(ctxJornadas, trabId, fechaISO)
+      : () => null;
     const mapa = new Map();
 
     fichajes.forEach(f => {
@@ -298,6 +305,7 @@
         let brutoDia = null;      // ENTRADA 50 · ingredientes del día
         let descansoAplicado = null;
         let intensivaDia = false;
+        let tipoDiaNombre = null;
         if (primeraEntrada && ultimaSalida && ultimaSalida > primeraEntrada) {
           // ¿Este día fue jornada intensiva en esta obra? Si sí, se usa el
           // horario de verano (otra entrada/salida y, normalmente, sin comida).
@@ -307,11 +315,29 @@
           // a 0: un dia marcado sin horario detras salia sin descontar la comida,
           // hasta 1,5 h de mas por persona y dia. Ahora los tres van juntos.
           const esIntensiva = intensivaConfigurada && diasIntensiva.has(fechaKey);
-          const entradaDia  = esIntensiva ? horaEntradaIntensiva : horaEntradaObra;
-          const salidaDia   = esIntensiva ? horaSalidaIntensiva  : horaSalidaObra;
-          const descansoDia = esIntensiva
-            ? (minutosDescansoIntensiva != null ? minutosDescansoIntensiva : 0)
-            : minutosDescanso;
+
+          // 76ª · TIPO DE JORNADA DE ESTA PERSONA ESTE DÍA.
+          // Manda sobre todo lo demás, incluido el calendario de la obra:
+          // marcar un día intensiva no le cambia la jornada a quien tiene
+          // un horario pactado propio. Si no hay tipo, null y sigue el
+          // camino de siempre (obra + intensiva), sin cambiar nada.
+          const tipoDia = resolverTipo(t.id, fechaKey);
+
+          const entradaDia = tipoDia ? tipoDia.entrada
+                           : (esIntensiva ? horaEntradaIntensiva : horaEntradaObra);
+          const salidaDia  = tipoDia ? tipoDia.salida
+                           : (esIntensiva ? horaSalidaIntensiva  : horaSalidaObra);
+          // Con tipo, el interruptor de descanso lo enciende que el tipo
+          // tenga alguna pausa; los minutos los pone el propio tipo.
+          const descansoDia = tipoDia
+            ? ((tipoDia.almuerzo_min || 0) + (tipoDia.comida_min || 0))
+            : (esIntensiva
+                ? (minutosDescansoIntensiva != null ? minutosDescansoIntensiva : 0)
+                : minutosDescanso);
+          const finAlmuerzoDia = tipoDia ? tipoDia.almuerzo_fin : finAlmuerzo;
+          const finComidaDia   = tipoDia ? tipoDia.comida_fin   : finComida;
+          const minAlmuerzoDia = tipoDia ? tipoDia.almuerzo_min : null;
+          const minComidaDia   = tipoDia ? tipoDia.comida_min   : null;
           // Compensación (9/7/2026): los minutos trabajados ANTES de la hora
           // oficial de entrada compensan, hasta un máximo de 15 min, los que
           // falten para llegar a la hora oficial de salida. Ej.: entra 7:42 y
@@ -359,11 +385,13 @@
 
           const bruto = (fin - inicio) / 3600000;
           if (bruto > 0 && bruto < 24) {
-            descansoAplicado = descansoMin(inicio, fin, finAlmuerzo, finComida, descansoDia);
+            descansoAplicado = descansoMin(inicio, fin, finAlmuerzoDia, finComidaDia,
+                                           descansoDia, minAlmuerzoDia, minComidaDia);
             netoDia = Math.max(0, bruto - descansoAplicado / 60);
             brutoDia = redondear2(bruto);
           }
           intensivaDia = esIntensiva;
+          tipoDiaNombre = tipoDia ? tipoDia.nombre : null;
         }
 
         t.dias[dia] = redondear2(netoDia);
@@ -378,6 +406,7 @@
           descanso_min: descansoAplicado,
           horas_netas: t.dias[dia],
           es_intensiva: intensivaDia,
+          tipo_jornada: tipoDiaNombre,
           es_sabado: primeraEntrada.getDay() === 6,
           hubo_autocierre: !!j.autocierre,
           hubo_manual: !!j.manual,
@@ -1134,7 +1163,8 @@
     return `${y}-${m}-${dd}`;
   }
 
-  function descansoMin(inicio, fin, finAlmuerzoStr, finComidaStr, descansoDia) {
+  function descansoMin(inicio, fin, finAlmuerzoStr, finComidaStr, descansoDia,
+                       minAlmuerzo, minComida) {
     // Regla decidida (60ª sesión, 27/8/2026): se descuenta una pausa si el
     // trabajador seguía en obra cuando esa pausa TERMINÓ.
     // inicio/fin: Date (ya redondeados y con suelo/techo aplicados).
@@ -1157,7 +1187,12 @@
       return (inicio < finPausa && fin > finPausa) ? minutos : 0;
     }
 
-    return pausaAtravesada(finAlmuerzoStr, 30) + pausaAtravesada(finComidaStr, 60);
+    // 76ª (5/9/2026): los minutos de cada pausa dejan de estar escritos a
+    // fuego. Vienen del tipo de jornada de la persona. Sin tipo, siguen
+    // siendo 30 y 60, que es el comportamiento de siempre.
+    const mA = (minAlmuerzo != null) ? Number(minAlmuerzo) : 30;
+    const mC = (minComida   != null) ? Number(minComida)   : 60;
+    return pausaAtravesada(finAlmuerzoStr, mA) + pausaAtravesada(finComidaStr, mC);
   }
 
   // FICH-020 · Horas fijadas a mano que NO las lee nadie.
