@@ -142,6 +142,7 @@
 <script src="../js/auto-logout.js"></script>
 <script src="../js/sb-paginado.js"></script>
 <script src="../js/excel-proforma.js"></script>
+<script src="../js/jornadas.js"></script>
 <script>
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
@@ -151,7 +152,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // Identificación del motor que calculó las horas. Se congela junto a los
 // números: dentro de un año, saber QUÉ calculó ese 8,25 vale tanto como el
 // propio 8,25.
-const MOTOR_ID = 'js/excel-proforma.js · dias_detalle v1';
+const MOTOR_ID = 'js/excel-proforma.js · dias_detalle v1 · tipos de jornada v1';
 
 function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt == null ? '' : txt); return d.innerHTML; }
 function r2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
@@ -269,6 +270,22 @@ async function traerReglas(obraId, mes, bloqueos) {
   if (o.dias_intensiva.length && !intensivaConfigurada) {
     bloqueos.push('hay ' + o.dias_intensiva.length + ' días marcados como intensiva pero la obra no tiene horario de intensiva guardado');
   }
+
+  // 76ª · Tipos de jornada por persona (js/jornadas.js).
+  // AQUÍ SE FIRMA, así que un fallo al leerlos es BLOQUEO, no aviso: cerrar
+  // con el horario general a quien tiene horario propio congelaría unas horas
+  // equivocadas en un documento que no se puede reabrir. En las pantallas de
+  // jefe y encargado el mismo fallo solo avisa, porque allí no se firma nada.
+  if (!window.Jornadas) {
+    bloqueos.push('no se ha cargado js/jornadas.js, que es quien lee los tipos de jornada. Recarga la página');
+    return null;
+  }
+  o.jornadas = await window.Jornadas.cargar(sb, obraId);
+  if (o.jornadas && o.jornadas.error) {
+    bloqueos.push('no se han podido leer los tipos de jornada de la obra: no se puede cerrar el mes sin saber qué horario lleva cada persona');
+    return null;
+  }
+
   return o;
 }
 
@@ -286,7 +303,8 @@ function construirLineas(fichajes, reglas, ajustes, mes, bloqueos) {
     horaSalidaIntensiva: reglas.hora_salida_intensiva,
     minutosDescansoIntensiva: reglas.minutos_descanso_intensiva,
     diasIntensiva: reglas.dias_intensiva,
-    ajustes: ajustes
+    ajustes: ajustes,
+    jornadas: reglas.jornadas || null
   };
 
   const grupos = window.ExcelProforma.agruparPorEmpresa(fichajes);
