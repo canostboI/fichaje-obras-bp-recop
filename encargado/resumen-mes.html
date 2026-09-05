@@ -12,6 +12,7 @@
   <script src="../js/sb-paginado.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="../js/excel-proforma.js"></script>
+  <script src="../js/jornadas.js"></script>
   <script src="../js/listado-dia.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -344,6 +345,9 @@
   let motivoSinEmpresa = false;
   let diasIntensivaSetEnc = new Set();
   let horarioIntensivaEnc = { entrada: null, salida: null, descanso: null };
+  // 76ª · Tipos de jornada por persona (js/jornadas.js). Vacío = se calcula
+  // con el horario general de la obra, exactamente como antes.
+  let ctxJornadasEnc = null;
 
   // Estado de los modales
   let diaAbierto = null;            // { trabajadorId, dia }
@@ -698,6 +702,18 @@
         (dias || []).forEach(r => diasIntensivaSetEnc.add(r.fecha));
       }
     }
+    {
+      // Tipos de jornada por persona. Nunca lanza: si falla, contexto vacío y
+      // se calcula con el horario de la obra. Un fallo de red no puede
+      // convertirse en unas horas distintas de las que ve el jefe.
+      ctxJornadasEnc = window.Jornadas
+        ? await window.Jornadas.cargar(sb, obraActualId) : null;
+      if (ctxJornadasEnc && ctxJornadasEnc.error) {
+        ctxJornadasEnc = null;
+        datosCalculoIncompletos = true;
+        avisosCarga.push('no se han podido leer los tipos de jornada; se calcula con el horario general de la obra');
+      }
+    }
     horasObraActual = horasObra;
 
     const grupos = window.ExcelProforma.agruparPorEmpresa(fichajes);
@@ -711,7 +727,7 @@
         grupos[nombreEmpresa], diasMes,
         { horaEntrada: horasObra.entrada, horaSalida: horasObra.salida, ajustes: ajustesMesMap, minutosDescanso: horasObra.descanso,
           horaEntradaIntensiva: horarioIntensivaEnc.entrada, horaSalidaIntensiva: horarioIntensivaEnc.salida, minutosDescansoIntensiva: horarioIntensivaEnc.descanso,
-          diasIntensiva: diasIntensivaSetEnc }
+          diasIntensiva: diasIntensivaSetEnc, jornadas: ctxJornadasEnc }
       );
       trabajadores.forEach(t => {
         totalAutocierres += (t.autocierres_mes || 0);
