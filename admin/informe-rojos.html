@@ -84,7 +84,6 @@
   .inf-titular .reparto { font-size: 15px; color: #444; margin-top: 14px; padding-top: 12px; border-top: 1px solid #ddd; line-height: 1.6; }
   .inf-titular .reparto strong { color: #1a1a1a; }
 
-  /* Desenlace: se lee de arriba abajo como una historia, no como 4 filas iguales */
   .des-fila { display: flex; align-items: baseline; gap: 16px; padding: 13px 0; border-bottom: 1px solid #eee; }
   .des-fila:last-child { border-bottom: none; }
   .des-num { font-size: 26px; font-weight: 800; min-width: 58px; text-align: right; color: #1a1a1a; }
@@ -119,7 +118,6 @@
 
   .inf-vacio { text-align: center; padding: 40px 20px; color: #999; font-size: 15px; }
 
-  /* ── Impresión ── */
   @media print {
     body { display: block; background: #fff; }
     .sidebar, .topbar, .controles, .btn-imprimir, .no-print { display: none !important; }
@@ -138,6 +136,7 @@
     <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
   </div>
   <div class="sidebar-section">Principal</div>
+  <a href="cuadro-mando.html"><span class="ico">🛰️</span> Cuadro de mando</a>
   <a href="index.html"><span class="ico">📊</span> Dashboard</a>
   <div class="sidebar-section">Gestión</div>
   <a href="obras.html"><span class="ico">🏗</span> Obras</a>
@@ -218,42 +217,26 @@ function fmtHoy() {
   return new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
-// ── Carga de obras en el selector ──
 async function cargarObras() {
   const sel = document.getElementById('sel-obra');
   const { data, error } = await sb.from('obras').select('id, nombre, estado').neq('estado', 'oculta').order('nombre');
-  if (error) {
-    sel.innerHTML = '<option value="">Error al cargar obras</option>';
-    return;
-  }
-  if (!data || !data.length) {
-    sel.innerHTML = '<option value="">No hay obras</option>';
-    return;
-  }
-  // 74a (3/9/2026). "Todas las obras" es ahora la opción por defecto: la RPC
-  // acepta p_obra_id = null y devuelve el agregado de las obras que el usuario
-  // puede ver, con las ocultas fuera. Una obra concreta sigue funcionando igual.
+  if (error) { sel.innerHTML = '<option value="">Error al cargar obras</option>'; return; }
+  if (!data || !data.length) { sel.innerHTML = '<option value="">No hay obras</option>'; return; }
   sel.innerHTML = '<option value="">Todas las obras</option>' +
     data.map(o => `<option value="${esc(o.id)}">${esc(o.nombre)}${(o.estado && o.estado !== 'activa') ? ` (${esc(o.estado)})` : ''}</option>`).join('');
 }
 
-// ── Generar el informe ──
 function marcarRango(btn) {
   document.querySelectorAll('.btn-rango').forEach(b => b.classList.remove('activo'));
   if (btn) btn.classList.add('activo');
 }
 
-// Rellena las dos fechas. "todo" las deja vacías a propósito: es la forma de
-// pedirle a la RPC el acumulado completo sin inventarse una fecha de inicio
-// de obra, que el sistema no guarda.
 function aplicarRango(rango) {
   const iso = f => f.toISOString().slice(0, 10);
   const hoy = new Date();
   const desde = document.getElementById('inp-desde');
   const hasta = document.getElementById('inp-hasta');
-
   if (rango === 'todo') { desde.value = ''; hasta.value = ''; return; }
-
   if (rango === 'mes') {
     desde.value = iso(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
     hasta.value = iso(hoy);
@@ -274,39 +257,24 @@ async function generar() {
   const hasta = document.getElementById('inp-hasta').value || null;
   const zona = document.getElementById('zona-informe');
   const btnImp = document.getElementById('btn-imprimir');
-
   btnImp.disabled = true;
-
   if (desde && hasta && desde > hasta) {
     zona.innerHTML = '<div class="aviso-error">La fecha «Desde» es posterior a «Hasta». Revísalas.</div>';
     return;
   }
-
   zona.innerHTML = '<div class="cargando">Generando informe…</div>';
-
-  const { data, error } = await sb.rpc('informe_rojos', {
-    p_obra_id: obraId || null,
-    p_desde: desde,
-    p_hasta: hasta
-  });
-
-  if (error) {
-    zona.innerHTML = `<div class="aviso-error">No se pudo generar el informe: ${esc(error.message)}</div>`;
-    return;
-  }
-
+  const { data, error } = await sb.rpc('informe_rojos', { p_obra_id: obraId || null, p_desde: desde, p_hasta: hasta });
+  if (error) { zona.innerHTML = `<div class="aviso-error">No se pudo generar el informe: ${esc(error.message)}</div>`; return; }
   pintarInforme(data, { desde, hasta });
   btnImp.disabled = false;
 }
 
-// ── Pintar el informe con los datos de la RPC ──
 function pintarInforme(d, rango) {
   const zona = document.getElementById('zona-informe');
   const logos = (!d.obra_marca && (d.obras_incluidas || 1) > 1)
     ? [LOGOS.bosch_pascual, LOGOS.recop]
     : [LOGOS[d.obra_marca] || LOGOS.bosch_pascual];
 
-  // Texto del periodo
   let periodoTxt;
   const fd = fmtFecha(rango.desde);
   const fh = fmtFecha(rango.hasta);
@@ -318,12 +286,6 @@ function pintarInforme(d, rango) {
   const total = d.total_intentos || 0;
   const personas = d.total_personas || 0;
 
-  // Excepciones asumidas: entradas autorizadas SIN la documentación en regla.
-  //
-  // D1-bis (31/8/2026, decisión de Dani). Esto va en el informe que ve la
-  // propiedad, con el nombre del jefe que firmó cada una. No es un descuido:
-  // si la aplicación existe para sacar a la luz lo que antes no se veía,
-  // esconder precisamente esto la vaciaría de sentido.
   const ex = d.excepciones || {};
   const exJefes    = Array.isArray(ex.jefes) ? ex.jefes : [];
   const exEmpresas = Array.isArray(ex.empresas) ? ex.empresas : [];
@@ -332,14 +294,12 @@ function pintarInforme(d, rango) {
   const exPersonas = ex.personas || 0;
   const exRevocadas = ex.revocadas || 0;
 
-  // Presentes sin registrar (personas sin ficha)
   const sr = d.sin_registrar || {};
   const srPersonas = Array.isArray(sr.personas) ? sr.personas : [];
   const srEmpresas = Array.isArray(sr.empresas) ? sr.empresas : [];
   const srTotalPersonas = sr.total_personas || 0;
   const srTotalIntentos = sr.total_intentos || 0;
 
-  // Caso sin datos (ni rojos documentales ni presentes sin registrar)
   if (total === 0 && srTotalPersonas === 0 && exTotal === 0 && !(d.rondas && d.rondas.rondas > 0)) {
     zona.innerHTML = `
       <div class="informe">
@@ -350,7 +310,6 @@ function pintarInforme(d, rango) {
     return;
   }
 
-  // Titular (solo si hay rojos documentales)
   let titular = '';
   if (total > 0) {
     titular = `
@@ -370,27 +329,9 @@ function pintarInforme(d, rango) {
     </div>`;
   }
 
-  // ── Desenlace (74a, 3/9/2026) ──
-  //
-  // Contesta a la única pregunta que un jefe hace de verdad al ver la cifra
-  // grande: "vale, 121 intentos frenados, ¿pero entraron o no?". Sin esto el
-  // titular es un número sin consecuencia.
-  //
-  // El "0 se colaron" es el dato que sostiene la aplicación entera, y por eso
-  // se PINTA aunque valga cero: un cero que no se calcula no demuestra nada.
-  // Se pinta con su límite escrito al lado — solo cubre a quien tiene ficha —
-  // porque una cifra que promete más de lo que mide se cae en la primera
-  // pregunta incómoda.
   const des = d.desenlace || {};
   let desenlaceHTML = '';
   if ((des.personas || 0) > 0) {
-    // Cada persona en UNA casilla, por su desenlace final. Las líneas SUMAN
-    // al total: una tabla que no suma obliga a explicarse, y lo que hay que
-    // explicar no se cree. El "0 sin autorización" sale de la lista porque no
-    // es un quinto grupo de personas, es una afirmación sobre las otras cuatro.
-    // Bajo cada línea, QUÉ documento faltaba. Es la primera pregunta que hace
-    // cualquiera al ver "15 lo resolvieron el mismo día". El motivo del
-    // bloqueo sí está guardado; lo que NO existe es la acción que lo resolvió.
     const causas = des.causas || {};
     const filas = [
       ['mismo_dia', des.mismo_dia || 0, 'Resolvieron el problema y entraron ese mismo día',
@@ -402,8 +343,6 @@ function pintarInforme(d, rango) {
       ['no_volvio', des.no_volvio || 0, 'No entraron, y no han vuelto',
        'Sin fichajes posteriores en ninguna obra. Puede ser fin de trabajo o cambio de obra: el sistema no lo sabe.']
     ];
-
-    // Los tres motivos más frecuentes, y el resto agrupado.
     function causasHTML(clave) {
       const lista = Array.isArray(causas[clave]) ? causas[clave] : [];
       if (!lista.length) return '';
@@ -414,7 +353,7 @@ function pintarInforme(d, rango) {
     desenlaceHTML = `
       <div class="inf-seccion">
         <h2>Cómo acabó cada una de las ${des.personas} personas</h2>
-        <div class="subtitulo">Cada persona cuenta en una sola línea, por su desenlace final. Todas suman ${des.personas}. Bajo cada línea, qué documento faltaba: una misma persona puede tener varios, así que esos números no suman al de su línea.</div>
+        <div class="subtitulo">Cada persona cuenta en una sola línea, por su desenlace final. Todas suman ${des.personas}. Bajo cada línea, qué documento faltaba.</div>
         ${filas.map(([clave, n, tit, exp]) => `
           <div class="des-fila">
             <div class="des-num">${n}</div>
@@ -424,13 +363,11 @@ function pintarInforme(d, rango) {
             </div>
           </div>
           ${causasHTML(clave)}`).join('')}
-
         ${colados > 0 ? `
         <div class="inf-aviso-rojo">
           <strong>${colados} ${colados === 1 ? 'persona entró' : 'personas entraron'} en rojo sin que nadie lo autorizara.</strong>
           Hay que revisarlo: no debería poder ocurrir.
         </div>` : ''}
-
         ${(d.rondas && d.rondas.rondas_con_rojo > 0) ? `
         <div class="des-limite">
           Los datos anteriores solo cuentan lo que pasa en la puerta.
@@ -442,19 +379,9 @@ function pintarInforme(d, rango) {
       </div>`;
   }
 
-  // ── Rondas del encargado (74a-ter, 3/9/2026) ──
-  //
-  // El segundo ojo del sistema. La puerta ve a quien pasa por ella; la ronda
-  // ve a quien ya está dentro. Este capítulo es el que sostiene el argumento
-  // de verdad: la aplicación no es un muro infranqueable, es algo mejor —
-  // ENSEÑA lo que antes no veía nadie.
   const ron = d.rondas || {};
   let rondasHTML = '';
   if ((ron.rondas || 0) > 0) {
-    const sinFichar = ron.personas_sin_fichar || 0;
-    // Por qué estaban en rojo los que había dentro. Aquí el único rastro que
-    // queda de aquel día es el motivo que escribió el jefe al autorizar:
-    // `validaciones_obra` se sobrescribe y hoy figuran en verde.
     const mr = Array.isArray(ron.motivos_rojo_dentro) ? ron.motivos_rojo_dentro : [];
     const motivosRondaHTML = mr.length
       ? `<div class="des-causas">${mr.map(m => `<span class="n">${m.personas}</span> <span class="doc">${esc(m.doc)}</span>`).join(' &nbsp;·&nbsp; ')}</div>`
@@ -462,25 +389,22 @@ function pintarInforme(d, rango) {
     rondasHTML = `
       <div class="inf-seccion">
         <h2>Rondas del encargado: quién estaba dentro sin fichar</h2>
-        <div class="subtitulo">El control de acceso vigila la entrada. La ronda comprueba, sobre el terreno, cuánta gente hay realmente en la obra y cuánta no ha fichado. Se hace a media mañana, así que recoge también a quien acaba de llegar.</div>
-
+        <div class="subtitulo">El control de acceso vigila la entrada. La ronda comprueba, sobre el terreno, cuánta gente hay realmente en la obra.</div>
         <div class="des-fila">
           <div class="des-num">${ron.rondas_con_rojo || 0}</div>
           <div class="des-cuerpo">
             <div class="des-tit">Rondas que encontraron gente en rojo dentro de la obra</div>
-            <div class="des-exp">Sobre ${ron.rondas} rondas realizadas${ron.peor_rojo_dentro > 1 ? `. En la peor había ${ron.peor_rojo_dentro} personas a la vez` : ''}. Todas con excepción firmada por un jefe de obra, pero trabajando con documentación pendiente.</div>
+            <div class="des-exp">Sobre ${ron.rondas} rondas realizadas${ron.peor_rojo_dentro > 1 ? `. En la peor había ${ron.peor_rojo_dentro} personas a la vez` : ''}. Todas con excepción firmada por un jefe de obra.</div>
           </div>
         </div>
         ${motivosRondaHTML}
-
         <div class="des-fila">
           <div class="des-num">${ron.con_hallazgo || 0}</div>
           <div class="des-cuerpo">
             <div class="des-tit">Rondas que encontraron gente sin fichar</div>
-            <div class="des-exp">Dato menor: sin fichar no es estar en rojo. Casi siempre es gente con la documentación correcta que aún no había pasado el QR y que ficha al poco rato${ron.presencias > 0 ? `. Supone el ${(100 * (ron.personas_sin_fichar || 0) / ron.presencias).toFixed(1)} % de las presencias vistas en obra` : ''}.</div>
+            <div class="des-exp">Sin fichar no es estar en rojo. Casi siempre es gente con documentación correcta que aún no había pasado el QR${ron.presencias > 0 ? `. Supone el ${(100 * (ron.personas_sin_fichar || 0) / ron.presencias).toFixed(1)} % de las presencias vistas en obra` : ''}.</div>
           </div>
         </div>
-
         ${Array.isArray(ron.por_obra) && ron.por_obra.length > 1 ? `
         <table class="inf-tabla" style="margin-top:18px">
           <thead><tr><th>Obra</th><th class="num">Rondas</th><th class="num">Días</th><th class="num">Con hallazgo</th><th class="num">% sin fichar</th></tr></thead>
@@ -495,23 +419,19 @@ function pintarInforme(d, rango) {
               </tr>`).join('')}
           </tbody>
         </table>` : ''}
-
         <div class="inf-genericos" style="margin-top:16px">
           La ronda registra <strong>cuántas</strong> personas había sin fichar, no quiénes son.
-          Por eso puede darse la proporción, pero no el número de personas distintas
-          ni su estado documental.
         </div>
       </div>`;
   }
 
-  // Desglose por obra (solo cuando el informe agrupa varias)
   const porObra = Array.isArray(d.por_obra) ? d.por_obra : [];
   let porObraHTML = '';
   if (porObra.length > 1) {
     porObraHTML = `
       <div class="inf-seccion">
         <h2>Desglose por obra</h2>
-        <div class="subtitulo">El total de arriba, repartido. Cada jefe de obra puede generar el suyo por separado.</div>
+        <div class="subtitulo">El total de arriba, repartido.</div>
         <table class="inf-tabla">
           <thead><tr><th>Obra</th><th class="num">Bloqueos</th><th class="num">Personas</th></tr></thead>
           <tbody>
@@ -526,14 +446,13 @@ function pintarInforme(d, rango) {
       </div>`;
   }
 
-  // Tabla de categorías
   const cats = Array.isArray(d.categorias) ? d.categorias : [];
-  let categoriasHTML;
+  let categoriasHTML = '';
   if (cats.length) {
     categoriasHTML = `
       <div class="inf-seccion">
         <h2>Qué documento faltaba</h2>
-        <div class="subtitulo">Las detecciones son más que las personas porque a cada una se le detecta cada día que se presenta, hasta que el documento se regulariza. Un mismo día puede haber varios documentos mal a la vez.</div>
+        <div class="subtitulo">Las detecciones son más que las personas porque a cada una se le detecta cada día que se presenta.</div>
         <table class="inf-tabla">
           <thead><tr><th>Documento que faltaba</th><th class="num">Personas</th><th class="num">Detecciones en rojo</th></tr></thead>
           <tbody>
@@ -550,25 +469,20 @@ function pintarInforme(d, rango) {
           </tbody>
         </table>
       </div>`;
-  } else {
-    categoriasHTML = '';
   }
 
-  // Ranking de empresas
   const emps = Array.isArray(d.empresas) ? d.empresas : [];
   let empresasHTML = '';
   if (emps.length) {
     empresasHTML = `
       <div class="inf-seccion">
         <h2>Empresas con más accesos denegados</h2>
-        <div class="subtitulo">Ordenadas por número de intentos frenados. Aquí se cuentan todos los intentos, incluidos los que no tienen desglose por motivo.</div>
         <table class="inf-tabla">
           <thead><tr><th>Empresa</th><th class="num">Personas</th><th class="num">Detecciones en rojo</th></tr></thead>
           <tbody>
             ${emps.map(e => {
               const suave = e.empresa_nombre === 'Sin empresa asignada';
-              return `
-              <tr class="${suave ? 'fila-suave' : ''}">
+              return `<tr class="${suave ? 'fila-suave' : ''}">
                 <td class="${suave ? '' : 'destacado'}">${esc(e.empresa_nombre)}</td>
                 <td class="num">${e.personas}</td>
                 <td class="num">${e.veces}</td>
@@ -579,7 +493,6 @@ function pintarInforme(d, rango) {
       </div>`;
   }
 
-  // Genéricos (sin desglose)
   const gen = d.genericos_intentos || 0;
   let genericosHTML = '';
   if (gen > 0) {
@@ -587,18 +500,17 @@ function pintarInforme(d, rango) {
       <div class="inf-seccion">
         <h2>Frenados sin desglose</h2>
         <div class="inf-genericos">
-          <strong>${gen}</strong> de los ${total} intentos (de ${d.genericos_personas} personas) se registraron antes de que el sistema guardara el motivo detallado. Cuentan como accesos denegados, pero no aparecen en el desglose por motivo de arriba.
+          <strong>${gen}</strong> de los ${total} intentos (de ${d.genericos_personas} personas) se registraron antes de que el sistema guardara el motivo detallado.
         </div>
       </div>`;
   }
 
-  // Sección presentes sin registrar
   let sinRegHTML = '';
   if (srPersonas.length) {
     sinRegHTML = `
       <div class="inf-seccion">
         <h2>Presentes sin registrar</h2>
-        <div class="subtitulo">Personas que estaban físicamente en la obra e intentaron fichar sin constar en el sistema (empresa no dada de alta, contrato sin firmar, etc.). El nombre y la empresa son datos declarados por la propia persona, sin verificar. Total: ${srTotalPersonas} ${srTotalPersonas === 1 ? 'persona' : 'personas'} · ${srTotalIntentos} ${srTotalIntentos === 1 ? 'intento' : 'intentos'}.</div>
+        <div class="subtitulo">Personas que estaban físicamente en la obra e intentaron fichar sin constar en el sistema. Total: ${srTotalPersonas} ${srTotalPersonas === 1 ? 'persona' : 'personas'} · ${srTotalIntentos} ${srTotalIntentos === 1 ? 'intento' : 'intentos'}.</div>
         <table class="inf-tabla">
           <thead><tr><th>Persona (declarada)</th><th>Empresa declarada</th><th>DNI</th><th class="num">Intentos</th></tr></thead>
           <tbody>
@@ -612,8 +524,7 @@ function pintarInforme(d, rango) {
           </tbody>
         </table>
         ${srEmpresas.length ? `
-        <div class="subtitulo" style="margin-top:14px;">Por empresa declarada:</div>
-        <table class="inf-tabla">
+        <table class="inf-tabla" style="margin-top:14px">
           <thead><tr><th>Empresa declarada</th><th class="num">Personas</th><th class="num">Intentos</th></tr></thead>
           <tbody>
             ${srEmpresas.map(e => `
@@ -627,54 +538,41 @@ function pintarInforme(d, rango) {
       </div>`;
   }
 
-  // Sección de excepciones asumidas
   let excepHTML = '';
   if (exTotal > 0) {
     excepHTML = `
       <div class="inf-seccion">
         <h2>Entradas autorizadas sin documentación en regla</h2>
-        <div class="subtitulo">El sistema bloqueó a estas personas y un jefe de obra decidió dejarlas pasar igualmente, asumiendo la responsabilidad con su nombre y la fecha. Total: <strong>${exTotal}</strong> ${exTotal === 1 ? 'autorización' : 'autorizaciones'} sobre ${exPersonas} ${exPersonas === 1 ? 'persona' : 'personas'}${exRevocadas > 0 ? `, de las cuales ${exRevocadas} se retiraron después` : ''}.</div>
-
+        <div class="subtitulo">Total: <strong>${exTotal}</strong> ${exTotal === 1 ? 'autorización' : 'autorizaciones'} sobre ${exPersonas} ${exPersonas === 1 ? 'persona' : 'personas'}${exRevocadas > 0 ? `, de las cuales ${exRevocadas} se retiraron después` : ''}.</div>
         ${exJefes.length ? `
         <table class="inf-tabla">
           <thead><tr><th>Autorizado por</th><th class="num">Veces</th><th class="num">Personas</th></tr></thead>
           <tbody>
             ${exJefes.map(j => `
-              <tr>
-                <td class="destacado">${esc(j.jefe)}</td>
-                <td class="num">${j.veces}</td>
-                <td class="num">${j.personas}</td>
-              </tr>`).join('')}
+              <tr><td class="destacado">${esc(j.jefe)}</td><td class="num">${j.veces}</td><td class="num">${j.personas}</td></tr>`).join('')}
           </tbody>
         </table>` : ''}
-
         ${exEmpresas.length ? `
-        <div class="subtitulo" style="margin-top:14px;">Por empresa. Una empresa que aparece mucho aquí es una empresa cuya documentación llega tarde una y otra vez:</div>
-        <table class="inf-tabla">
+        <table class="inf-tabla" style="margin-top:14px">
           <thead><tr><th>Empresa</th><th class="num">Veces</th><th class="num">Personas</th></tr></thead>
           <tbody>
             ${exEmpresas.map(e => {
               const suave = e.empresa_nombre === 'Sin empresa asignada';
-              return `
-              <tr class="${suave ? 'fila-suave' : ''}">
+              return `<tr class="${suave ? 'fila-suave' : ''}">
                 <td class="${suave ? '' : 'destacado'}">${esc(e.empresa_nombre)}</td>
-                <td class="num">${e.veces}</td>
-                <td class="num">${e.personas}</td>
+                <td class="num">${e.veces}</td><td class="num">${e.personas}</td>
               </tr>`;
             }).join('')}
           </tbody>
         </table>` : ''}
-
-        <div class="subtitulo" style="margin-top:14px;">Una por una. El motivo es el que escribió el jefe de obra en el momento de autorizar, tal cual:</div>
-        <table class="inf-tabla">
+        <table class="inf-tabla" style="margin-top:14px">
           <thead><tr><th>Fecha</th><th>Persona</th><th>Empresa</th><th>Autoriza</th><th>Motivo</th></tr></thead>
           <tbody>
             ${exDetalle.map(x => {
               const retirada = x.estado === 'revocada';
               const motivo = esc(x.motivo_autorizacion || '(sin motivo)') +
                 (retirada ? `<br><em>Retirada: ${esc(x.motivo_revocacion || 'sin motivo')}</em>` : '');
-              return `
-              <tr class="${retirada ? 'fila-suave' : ''}">
+              return `<tr class="${retirada ? 'fila-suave' : ''}">
                 <td>${esc(fmtFechaCorta(x.fecha))}</td>
                 <td class="${retirada ? '' : 'destacado'}">${esc(x.persona)}</td>
                 <td>${esc(x.empresa_nombre)}</td>
@@ -728,48 +626,26 @@ function cabeceraHTML(logos, obraNombre, periodoTxt) {
 function pieHTML() {
   return `
     <div class="inf-pie">
-      Datos reales registrados de forma automática por el sistema de control de acceso, sin intervención manual. Cada «intento frenado» corresponde a un trabajador que escaneó el QR de la obra e introdujo su DNI, y al que el sistema denegó el paso por no tener la documentación en regla en ese momento.
+      Datos reales registrados de forma automática por el sistema de control de acceso, sin intervención manual.
     </div>`;
 }
 
-// ── Init: comprobar sesión de admin ──
 (async function init() {
-  // El guardián de sesión vive en js/guardian.js, igual en las 20 pantallas.
-  // Separa "no tienes permiso" de "ha fallado la red" y de "estás de baja",
-  // que antes se confundían en un mismo redirect mudo al login.
   const g = await Guardian.entrar(sb, { rol: 'admin', campos: 'nombre', volver: '../' });
   if (!g) return;
   const session = g.session;
   const usuario = g.usuario;
   document.getElementById('usuario-email').textContent = usuario.nombre || session.user.email;
-
   if (window.AutoLogout) AutoLogout.init(sb);
-
   await cargarObras();
-
-  // El informe sale solo al abrir, con TODAS las obras visibles y sin límite
-  // de fechas. La función interpreta `p_desde`/`p_hasta` nulos como "todo lo
-  // que hay", que es lo que se quiere ver al entrar: el acumulado.
-  document.getElementById('btn-generar').addEventListener('click', () => {
-    marcarRango(null);
-    generar();
-  });
-
+  document.getElementById('btn-generar').addEventListener('click', () => { marcarRango(null); generar(); });
   document.querySelectorAll('.btn-rango').forEach(b => {
-    b.addEventListener('click', () => {
-      aplicarRango(b.dataset.rango);
-      marcarRango(b);
-      generar();
-    });
+    b.addEventListener('click', () => { aplicarRango(b.dataset.rango); marcarRango(b); generar(); });
   });
-
   marcarRango(document.querySelector('.btn-rango[data-rango="todo"]'));
   await generar();
   document.getElementById('btn-imprimir').addEventListener('click', () => window.print());
-  document.getElementById('btn-salir').addEventListener('click', async () => {
-    await sb.auth.signOut();
-    window.location.href = '../';
-  });
+  document.getElementById('btn-salir').addEventListener('click', async () => { await sb.auth.signOut(); window.location.href = '../'; });
 })();
 </script>
 </body>
