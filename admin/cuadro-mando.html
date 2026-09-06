@@ -6,6 +6,7 @@
 <title>Cuadro de mando — Fichaje Obras</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/guardian.js"></script>
+<script src="../js/menu-admin.js"></script>
 <style>
   :root {
     --verde: #4caf50;
@@ -126,7 +127,6 @@
     .main { margin-left: 0; }
   }
 
-  /* KPI sparklines animadas */
   .pulso .celda .kpi-val { font-size: 18px; font-weight: 800; line-height: 1.2; }
   .pulso .celda .kpi-val.apagado { color: var(--texto2); font-weight: 600; font-size: 15px; }
   .pulso .celda .kpi-spk { display: block; margin-top: 5px; opacity: 0; transition: opacity 0.3s; }
@@ -140,29 +140,7 @@
 </head>
 <body>
 
-<div class="sidebar">
-  <div class="sidebar-brand">
-    <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
-    <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
-  </div>
-  <div class="sidebar-section">Principal</div>
-  <a href="cuadro-mando.html" class="activo"><span class="ico">🛰️</span> Cuadro de mando</a>
-  <a href="index.html"><span class="ico">📊</span> Dashboard</a>
-  <div class="sidebar-section">Gestión</div>
-  <a href="obras.html"><span class="ico">🏗</span> Obras</a>
-  <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
-  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
-  <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
-  <a href="cierre-mes.html"><span class="ico">🔒</span> Cierre de mes</a>
-  <a href="foto-mes.html"><span class="ico">📷</span> Foto del mes</a>
-  <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
-  <a href="informe-rojos.html"><span class="ico">📕</span> Informe de incidencias</a>
-  <a href="informe-excepciones.html"><span class="ico">⚠️</span> Excepciones asumidas</a>
-  <a href="importar-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
-  <div class="sidebar-bottom">
-    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
-  </div>
-</div>
+<div id="sidebar-admin"></div>
 
 <div class="main">
   <div class="topbar">
@@ -702,9 +680,6 @@ function pintarObras(m) {
     const etiqueta = { rojo: 'Necesita algo', naranja: 'Para mirar', verde: 'En orden', gris: 'Sin datos' }[o.nivel];
     const oid = o.id;
 
-    // Celdas KPI con IDs para animar: los valores arrancan en 0 y los sube
-    // animarTarjetas() tras pintar el DOM. La sparkline SVG se dibuja cuando
-    // llega el histórico de 7 días (consulta en paralelo, no bloquea el pintado).
     const celdaDentro = (o.dentro == null)
       ? '<div class="kpi-val apagado">no se sabe</div>'
       : '<div class="kpi-val" id="kpi-dentro-' + oid + '">0</div>' +
@@ -910,9 +885,6 @@ async function refrescar() {
     const modelo = construirModelo(datos);
     ultimoModelo = modelo;
     pintar(modelo);
-    // Lanzar histórico y animaciones en paralelo sin bloquear el pintado.
-    // Si leerHistoricoObras falla, animarTarjetas recibe null y muestra solo
-    // los contadores sin sparkline: degradación limpia, no pantalla rota.
     const obrasActivas = (datos.obras || []).filter(o => o.estado === 'activa');
     leerHistoricoObras(obrasActivas).then(historico => {
       animarTarjetas(modelo, historico);
@@ -944,11 +916,6 @@ async function refrescar() {
   await refrescar();
   setInterval(refrescar, REFRESCO_MS);
 })();
-
-/* ── KPI sparkline: histórico de 7 días por obra ───────────────────────── */
-// Una sola consulta a fichajes con rango de 7 días. Se cuenta personas
-// distintas por día y por obra en JS. Si falla, animarTarjetas recibe null
-// y muestra solo el contador sin sparkline.
 
 async function leerHistoricoObras(obrasActivas) {
   if (!obrasActivas || !obrasActivas.length) return null;
@@ -985,8 +952,6 @@ async function leerHistoricoObras(obrasActivas) {
     return null;
   }
 }
-
-/* ── animaciones ────────────────────────────────────────────────────────── */
 
 function animarTarjetas(modelo, historico) {
   modelo.obras.forEach((o, oIdx) => {
