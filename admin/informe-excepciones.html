@@ -41,7 +41,6 @@
   .topbar .usuario { font-size: 13px; color: var(--texto2); }
   .contenido { padding: 24px 28px; }
 
-  /* Barra de controles (no se imprime) */
   .controles { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 18px 20px; margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
   .campo { display: flex; flex-direction: column; gap: 6px; }
   .campo label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--texto2); }
@@ -56,7 +55,6 @@
   .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 15px; }
   .aviso-error { padding: 16px 20px; background: rgba(244,67,54,0.12); border: 1px solid var(--rojo); border-radius: 10px; color: var(--texto); font-size: 14px; margin-bottom: 20px; }
 
-  /* ── El informe en sí (se imprime) ── */
   .informe { background: #fff; color: #1a1a1a; border-radius: 10px; padding: 40px 44px; max-width: 820px; }
 
   .inf-cabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; border-bottom: 3px solid #1a1a1a; padding-bottom: 20px; margin-bottom: 28px; }
@@ -89,7 +87,6 @@
 
   .inf-vacio { text-align: center; padding: 40px 20px; color: #999; font-size: 15px; }
 
-  /* ── Impresión ── */
   @media print {
     body { display: block; background: #fff; }
     .sidebar, .topbar, .controles, .btn-imprimir, .no-print { display: none !important; }
@@ -108,6 +105,7 @@
     <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
   </div>
   <div class="sidebar-section">Principal</div>
+  <a href="cuadro-mando.html"><span class="ico">🛰️</span> Cuadro de mando</a>
   <a href="index.html"><span class="ico">📊</span> Dashboard</a>
   <div class="sidebar-section">Gestión</div>
   <a href="obras.html"><span class="ico">🏗</span> Obras</a>
@@ -180,68 +178,31 @@ function fmtHoy() {
   return new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
-// ── Carga de obras en el selector ──
 async function cargarObras() {
   const sel = document.getElementById('sel-obra');
   const { data, error } = await sb.from('obras').select('id, nombre, estado').neq('estado', 'oculta').order('nombre');
-  if (error) {
-    sel.innerHTML = '<option value="">Error al cargar obras</option>';
-    return;
-  }
-  if (!data || !data.length) {
-    sel.innerHTML = '<option value="">No hay obras</option>';
-    return;
-  }
+  if (error) { sel.innerHTML = '<option value="">Error al cargar obras</option>'; return; }
+  if (!data || !data.length) { sel.innerHTML = '<option value="">No hay obras</option>'; return; }
   sel.innerHTML = '<option value="">— Elige una obra —</option>' +
     data.map(o => `<option value="${esc(o.id)}">${esc(o.nombre)}${(o.estado && o.estado !== 'activa') ? ` (${esc(o.estado)})` : ''}</option>`).join('');
 }
 
-// ── Generar el informe ──
 async function generar() {
   const obraId = document.getElementById('sel-obra').value;
   const desde = document.getElementById('inp-desde').value || null;
   const hasta = document.getElementById('inp-hasta').value || null;
   const zona = document.getElementById('zona-informe');
   const btnImp = document.getElementById('btn-imprimir');
-
   btnImp.disabled = true;
-
-  if (!obraId) {
-    zona.innerHTML = '<div class="aviso-error">Elige una obra antes de generar el informe.</div>';
-    return;
-  }
-  if (desde && hasta && desde > hasta) {
-    zona.innerHTML = '<div class="aviso-error">La fecha «Desde» es posterior a «Hasta». Revísalas.</div>';
-    return;
-  }
-
+  if (!obraId) { zona.innerHTML = '<div class="aviso-error">Elige una obra antes de generar el informe.</div>'; return; }
+  if (desde && hasta && desde > hasta) { zona.innerHTML = '<div class="aviso-error">La fecha «Desde» es posterior a «Hasta». Revísalas.</div>'; return; }
   zona.innerHTML = '<div class="cargando">Generando informe…</div>';
-
-  const { data, error } = await sb.rpc('informe_excepciones', {
-    p_obra_id: obraId,
-    p_desde: desde,
-    p_hasta: hasta
-  });
-
-  if (error) {
-    zona.innerHTML = `<div class="aviso-error">No se pudo generar el informe: ${esc(error.message)}</div>`;
-    return;
-  }
-
+  const { data, error } = await sb.rpc('informe_excepciones', { p_obra_id: obraId, p_desde: desde, p_hasta: hasta });
+  if (error) { zona.innerHTML = `<div class="aviso-error">No se pudo generar el informe: ${esc(error.message)}</div>`; return; }
   pintarInforme(data, { desde, hasta });
   btnImp.disabled = false;
 }
 
-// ── Pintar el informe con los datos de la RPC ──
-//
-// D1 (caso Verónica, 31/8/2026). `excepciones_acceso` lo guardaba todo desde
-// siempre, pero no había ninguna pantalla que lo juntara: la del jefe solo
-// enseña las de HOY. La pregunta "¿cuántas veces hemos asumido un riesgo este
-// mes, por qué empresa y por qué jefe?" no tenía respuesta.
-//
-// Va APARTE del informe de rojos a propósito: aquel es el documento que se le
-// entrega a la propiedad, y el nombre del jefe que asume un riesgo es
-// información interna.
 function pintarInforme(d, rango) {
   const zona = document.getElementById('zona-informe');
   const logo = LOGOS[d.obra_marca] || LOGOS.bosch_pascual;
@@ -252,7 +213,7 @@ function pintarInforme(d, rango) {
   if (fd && fh) periodoTxt = `Del ${fd} al ${fh}`;
   else if (fd) periodoTxt = `Desde ${fd}`;
   else if (fh) periodoTxt = `Hasta ${fh}`;
-  else periodoTxt = 'Todo el hist\u00f3rico registrado';
+  else periodoTxt = 'Todo el histórico registrado';
 
   const total     = d.total || 0;
   const activas   = d.activas || 0;
@@ -266,7 +227,7 @@ function pintarInforme(d, rango) {
     zona.innerHTML = `
       <div class="informe">
         ${cabeceraHTML(logo, d.obra_nombre, periodoTxt)}
-        <div class="inf-vacio">No se autoriz\u00f3 ninguna entrada en rojo en esta obra durante el periodo seleccionado.</div>
+        <div class="inf-vacio">No se autorizó ninguna entrada en rojo en esta obra durante el periodo seleccionado.</div>
         ${pieHTML()}
       </div>`;
     return;
@@ -275,21 +236,21 @@ function pintarInforme(d, rango) {
   const titular = `
     <div class="inf-titular">
       <div class="cifra">${total}</div>
-      <div class="frase">${total === 1 ? 'vez' : 'veces'} se dej\u00f3 entrar a alguien <strong>sin la documentaci\u00f3n en regla</strong>, sobre <strong>${personas}</strong> ${personas === 1 ? 'persona' : 'personas'} distintas. Cada una la asumi\u00f3 un jefe de obra con su nombre.</div>
+      <div class="frase">${total === 1 ? 'vez' : 'veces'} se dejó entrar a alguien <strong>sin la documentación en regla</strong>, sobre <strong>${personas}</strong> ${personas === 1 ? 'persona' : 'personas'} distintas. Cada una la asumió un jefe de obra con su nombre.</div>
     </div>`;
 
   const revocadasHTML = revocadas > 0 ? `
       <div class="inf-seccion">
         <h2>Autorizaciones retiradas</h2>
         <div class="inf-genericos">
-          <strong>${revocadas}</strong> de las ${total} se retiraron despu\u00e9s de concederse. Siguen contando aqu\u00ed: la decisi\u00f3n se tom\u00f3, y retirarla es otra decisi\u00f3n, no un borrado.
+          <strong>${revocadas}</strong> de las ${total} se retiraron después de concederse. Siguen contando aquí: la decisión se tomó, y retirarla es otra decisión, no un borrado.
         </div>
       </div>` : '';
 
   const jefesHTML = jefes.length ? `
       <div class="inf-seccion">
         <h2>Por jefe de obra</h2>
-        <div class="subtitulo">Qui\u00e9n ha asumido el riesgo y cu\u00e1ntas veces. No es un reproche: es el registro de qui\u00e9n firm\u00f3 cada entrada.</div>
+        <div class="subtitulo">Quién ha asumido el riesgo y cuántas veces. No es un reproche: es el registro de quién firmó cada entrada.</div>
         <table class="inf-tabla">
           <thead><tr><th>Jefe de obra</th><th class="num">Veces</th><th class="num">Personas</th></tr></thead>
           <tbody>
@@ -306,7 +267,7 @@ function pintarInforme(d, rango) {
   const empresasHTML = empresas.length ? `
       <div class="inf-seccion">
         <h2>Por empresa</h2>
-        <div class="subtitulo">Ordenadas por n\u00famero de excepciones. Una empresa que aparece mucho aqu\u00ed es una empresa cuya documentaci\u00f3n llega tarde una y otra vez.</div>
+        <div class="subtitulo">Ordenadas por número de excepciones. Una empresa que aparece mucho aquí es una empresa cuya documentación llega tarde una y otra vez.</div>
         <table class="inf-tabla">
           <thead><tr><th>Empresa</th><th class="num">Veces</th><th class="num">Personas</th></tr></thead>
           <tbody>
@@ -326,7 +287,7 @@ function pintarInforme(d, rango) {
   const detalleHTML = `
       <div class="inf-seccion">
         <h2>Una por una</h2>
-        <div class="subtitulo">El motivo es el que escribi\u00f3 el jefe de obra en el momento de autorizar, tal cual.</div>
+        <div class="subtitulo">El motivo es el que escribió el jefe de obra en el momento de autorizar, tal cual.</div>
         <table class="inf-tabla">
           <thead><tr><th>Fecha</th><th>Persona</th><th>Empresa</th><th>Jefe</th><th>Motivo</th></tr></thead>
           <tbody>
@@ -387,21 +348,14 @@ function pieHTML() {
     </div>`;
 }
 
-// ── Init: comprobar sesión de admin ──
 (async function init() {
-  // El guardián de sesión vive en js/guardian.js, igual en las 20 pantallas.
-  // Separa "no tienes permiso" de "ha fallado la red" y de "estás de baja",
-  // que antes se confundían en un mismo redirect mudo al login.
   const g = await Guardian.entrar(sb, { rol: 'admin', campos: 'nombre', volver: '../' });
   if (!g) return;
   const session = g.session;
   const usuario = g.usuario;
   document.getElementById('usuario-email').textContent = usuario.nombre || session.user.email;
-
   if (window.AutoLogout) AutoLogout.init(sb);
-
   await cargarObras();
-
   document.getElementById('btn-generar').addEventListener('click', generar);
   document.getElementById('btn-imprimir').addEventListener('click', () => window.print());
   document.getElementById('btn-salir').addEventListener('click', async () => {
