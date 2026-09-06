@@ -1,1 +1,1070 @@
-{open('/tmp/cuadro-mando-nuevo.html', encoding='utf-8').read()}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cuadro de mando — Fichaje Obras</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/guardian.js"></script>
+<style>
+  :root {
+    --verde: #4caf50;
+    --naranja: #ff9800;
+    --rojo: #f44336;
+    --azul: #2196f3;
+    --gris: #8b909e;
+    --bg: #111318;
+    --bg2: #1a1d24;
+    --bg3: #22262f;
+    --borde: #2e3340;
+    --texto: #e8eaf0;
+    --texto2: #8b909e;
+    --sidebar-w: 200px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
+  .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; overflow-y: auto; }
+  .sidebar-brand { padding: 18px 16px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: center; gap: 14px; }
+  .sidebar-brand img { height: 22px; width: auto; opacity: 0.9; }
+  .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
+  .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
+  .sidebar a:hover { background: var(--bg3); color: var(--texto); }
+  .sidebar a.activo { background: var(--bg3); color: var(--texto); font-weight: 600; }
+  .sidebar a .ico { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid var(--borde); }
+  .btn-salir { width: 100%; background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 8px; }
+  .btn-salir:hover { background: var(--bg3); color: var(--texto); }
+  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+  .topbar { padding: 20px 28px 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+  .topbar .usuario { font-size: 13px; color: var(--texto2); }
+  .contenido { padding: 20px 28px 40px; }
+
+  .barra { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+  .sello { font-size: 13px; color: var(--texto2); }
+  .sello b { color: var(--texto); }
+  .acciones { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn { background: var(--bg2); border: 1px solid var(--borde); color: var(--texto); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; }
+  .btn:hover { background: var(--bg3); }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+
+  .resumen { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 16px 20px; margin-bottom: 18px; font-size: 15px; }
+  .resumen .titular { font-size: 17px; font-weight: 800; }
+
+  .aviso { padding: 12px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; line-height: 1.5; margin-bottom: 16px; }
+  .aviso.rojo    { background: rgba(244,67,54,0.12);  color: var(--rojo);    border: 1px solid rgba(244,67,54,0.4); }
+  .aviso.naranja { background: rgba(255,152,0,0.12);  color: var(--naranja); }
+  .aviso.verde   { background: rgba(76,175,80,0.12);  color: var(--verde); }
+  .aviso.gris    { background: rgba(139,144,158,0.12); color: var(--gris); }
+
+  .bloque { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; margin-bottom: 20px; overflow: hidden; }
+  .bloque.urgente { border-color: rgba(244,67,54,0.55); }
+  .bloque-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .bloque-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .bloque-cab .sub { font-size: 12px; color: var(--texto2); font-weight: 400; text-transform: none; letter-spacing: 0; }
+  .bloque-cuerpo { padding: 6px 0; }
+
+  .linea { display: flex; gap: 12px; align-items: flex-start; padding: 13px 20px; border-bottom: 1px solid var(--borde); }
+  .linea:last-child { border-bottom: none; }
+  .linea .marca { font-size: 17px; line-height: 1.3; }
+  .linea .cuerpo { flex: 1; min-width: 0; }
+  .linea .qué { font-size: 14px; font-weight: 700; line-height: 1.4; }
+  .linea .quién { font-size: 13px; color: var(--texto2); margin-top: 3px; line-height: 1.5; }
+  .linea .acciones-linea { margin-top: 7px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .linea a.enlace { font-size: 12px; color: var(--azul); text-decoration: none; border: 1px solid rgba(33,150,243,0.35); border-radius: 6px; padding: 4px 9px; }
+  .linea a.enlace:hover { background: rgba(33,150,243,0.12); }
+  .reloj { white-space: nowrap; font-weight: 800; font-size: 13px; }
+  .reloj.rojo { color: var(--rojo); }
+  .reloj.naranja { color: var(--naranja); }
+
+  .obras { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 16px; margin-bottom: 22px; }
+  .obra { background: var(--bg2); border: 1px solid var(--borde); border-radius: 12px; overflow: hidden; }
+  .obra.rojo    { border-color: rgba(244,67,54,0.55); }
+  .obra.naranja { border-color: rgba(255,152,0,0.45); }
+  .obra.verde   { border-color: rgba(76,175,80,0.35); }
+  .obra-cab { padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--borde); }
+  .obra-cab h3 { font-size: 15px; font-weight: 800; line-height: 1.3; }
+  .obra-cab .marca-obra { font-size: 12px; color: var(--texto2); margin-top: 2px; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .pill::before { content: '●'; font-size: 8px; }
+  .pill.verde   { background: rgba(76,175,80,0.15);  color: var(--verde); }
+  .pill.naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
+  .pill.rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
+  .pill.gris    { background: rgba(139,144,158,0.15); color: var(--gris); }
+  .pill.azul    { background: rgba(33,150,243,0.15); color: var(--azul); }
+
+  .pulso { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--borde); }
+  .pulso .celda { background: var(--bg2); padding: 12px 18px; }
+  .pulso .valor { font-size: 18px; font-weight: 800; line-height: 1.2; }
+  .pulso .valor.apagado { color: var(--texto2); font-weight: 600; font-size: 15px; }
+  .pulso .etiqueta { font-size: 11px; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 4px; }
+  .pulso .detalle { font-size: 12px; color: var(--texto2); margin-top: 4px; line-height: 1.45; }
+
+  .obra-lista { padding: 4px 18px 12px; }
+  .obra-lista .item { font-size: 13px; line-height: 1.55; padding: 7px 0; border-bottom: 1px solid var(--borde); }
+  .obra-lista .item:last-child { border-bottom: none; }
+  .obra-lista .item.rojo b    { color: var(--rojo); }
+  .obra-lista .item.naranja b { color: var(--naranja); }
+  .obra-lista .item .nota { color: var(--texto2); }
+  .obra-pie { padding: 11px 18px; border-top: 1px solid var(--borde); font-size: 12px; color: var(--texto2); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .obra-pie a { color: var(--azul); text-decoration: none; }
+  .obra-pie a:hover { text-decoration: underline; }
+
+  .vacio { padding: 22px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+  .cargando { padding: 30px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
+  .nota-pie { font-size: 12px; color: var(--texto2); line-height: 1.6; padding: 16px 20px; background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; }
+  .nota-pie b { color: var(--texto); }
+
+  table.salud { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.salud td { padding: 11px 20px; border-bottom: 1px solid var(--borde); vertical-align: top; }
+  table.salud tr:last-child td { border-bottom: none; }
+  table.salud td.izq { width: 190px; color: var(--texto2); }
+
+  @media (max-width: 900px) {
+    .obras { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .main { margin-left: 0; }
+  }
+
+  /* KPI sparklines animadas */
+  .pulso .celda .kpi-val { font-size: 18px; font-weight: 800; line-height: 1.2; }
+  .pulso .celda .kpi-val.apagado { color: var(--texto2); font-weight: 600; font-size: 15px; }
+  .pulso .celda .kpi-spk { display: block; margin-top: 5px; opacity: 0; transition: opacity 0.3s; }
+</style>
+<script src="../js/auto-logout.js"></script>
+<script src="../js/fechas.js"></script>
+<script src="../js/motivos.js"></script>
+<script src="../js/accesos-resueltos.js"></script>
+<script src="../js/incidencias-familias.js"></script>
+<script src="../js/sb-paginado.js"></script>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-brand">
+    <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
+    <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
+  </div>
+  <div class="sidebar-section">Principal</div>
+  <a href="cuadro-mando.html" class="activo"><span class="ico">🛰️</span> Cuadro de mando</a>
+  <a href="index.html"><span class="ico">📊</span> Dashboard</a>
+  <div class="sidebar-section">Gestión</div>
+  <a href="obras.html"><span class="ico">🏗</span> Obras</a>
+  <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
+  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
+  <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
+  <a href="cierre-mes.html"><span class="ico">🔒</span> Cierre de mes</a>
+  <a href="foto-mes.html"><span class="ico">📷</span> Foto del mes</a>
+  <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
+  <a href="informe-rojos.html"><span class="ico">📕</span> Informe de incidencias</a>
+  <a href="informe-excepciones.html"><span class="ico">⚠️</span> Excepciones asumidas</a>
+  <a href="importar-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
+  <div class="sidebar-bottom">
+    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>Cuadro de mando</h1>
+    <span class="usuario" id="usuario-email"></span>
+  </div>
+  <div class="contenido">
+
+    <div class="barra">
+      <div class="sello" id="sello">Cargando…</div>
+      <div class="acciones">
+        <button class="btn" id="btn-refrescar">↻ Actualizar</button>
+        <button class="btn" id="btn-copiar" disabled>📋 Copiar resumen del día</button>
+      </div>
+    </div>
+
+    <div id="banner-fallos"></div>
+    <div id="resumen"></div>
+    <div id="zona-urgente"></div>
+    <div id="zona-obras"><div class="cargando">Cargando el estado de las obras…</div></div>
+    <div id="zona-riesgos"></div>
+    <div id="zona-salud"></div>
+
+    <div class="nota-pie">
+      <b>Qué es esta pantalla.</b> Es la vista del día de todas las obras activas, para saber qué pasa
+      sin estar allí. No se actúa desde aquí: cada línea enlaza a la pantalla donde se mira el detalle, y
+      quien resuelve es el jefe de obra o el encargado de esa obra.<br>
+      <b>El verde no significa «no he encontrado nada».</b> Una obra solo sale en verde si además se ve
+      su pulso: gente fichada, ronda hecha y documentación sincronizada. Si un dato no se ha podido leer,
+      la obra sale en gris — nunca en verde.<br>
+      <b>Adónde va esto.</b> Los rojos y las excepciones firmadas que se ven aquí son los mismos datos que
+      alimentan el <a href="informe-rojos.html" style="color:var(--azul)">informe de rojos</a> y el de
+      <a href="informe-excepciones.html" style="color:var(--azul)">excepciones asumidas</a>, que son los
+      que se entregan a dirección.
+    </div>
+
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+AutoLogout.init(sb);
+
+if (!window.Fechas || !window.AccesosResueltos || !window.SbPaginado || !window.IncidenciasFamilias) {
+  document.body.innerHTML =
+    '<div style="padding:40px;font-family:system-ui;color:#f44336">' +
+    'Faltan módulos: esta pantalla necesita js/fechas.js, js/motivos.js, js/accesos-resueltos.js, ' +
+    'js/incidencias-familias.js y js/sb-paginado.js cargados ANTES del script principal. Recarga la página.</div>';
+  throw new Error('Faltan módulos');
+}
+
+const HORA_CORTE = 10;
+const DIAS_AUTOCIERRE = 7;
+const MIN_SOLICITUD_ROJA = 30;
+const REFRESCO_MS = 5 * 60 * 1000;
+
+let ultimoModelo = null;
+let refrescando = false;
+
+function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt == null ? '' : txt); return d.innerHTML; }
+function hhmm(iso) { if (!iso) return '—'; return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); }
+function fechaCorta(iso) { if (!iso) return '—'; return new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }); }
+
+function ahoraMadrid() {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));
+}
+function horaMadrid() { return ahoraMadrid().getHours(); }
+function diaSemanaMadrid() { return ahoraMadrid().getDay(); }
+function esLaborableHoy() { const d = diaSemanaMadrid(); return d >= 1 && d <= 5; }
+
+function minutosDesde(iso) {
+  if (!iso) return null;
+  return Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+}
+function textoEspera(min) {
+  if (min == null) return '';
+  if (min < 60) return min + ' min';
+  const h = Math.floor(min / 60), m = min % 60;
+  return h + ' h' + (m ? ' ' + m + ' min' : '');
+}
+function plural(n, sing, pl) { return n === 1 ? sing : pl; }
+
+async function leerTodo() {
+  const hoy = Fechas.hoyMadrid();
+  const rango = Fechas.rangoDiaMadrid(hoy);
+  const desdeAutocierre = new Date(Date.now() - DIAS_AUTOCIERRE * 86400000).toISOString();
+
+  const rObras = await sb.from('obras')
+    .select('id, nombre, estado, empresa_marca, ultima_sync_ecoordina')
+    .neq('estado', 'oculta').order('nombre');
+  if (rObras.error) throw new Error('No se ha podido leer la lista de obras: ' + rObras.error.message);
+  const obrasTodas = rObras.data || [];
+  const obrasActivas = obrasTodas.filter(o => o.estado === 'activa');
+
+  const tareas = {
+    ultimos: () => Promise.all(obrasActivas.map(o =>
+      sb.from('fichajes').select('hora').eq('obra_id', o.id)
+        .order('hora', { ascending: false }).limit(1).maybeSingle()
+        .then(r => ({ obra_id: o.id, hora: (r && r.data) ? r.data.hora : null }))
+    )),
+    equipo: () => sb.from('usuarios_obra')
+      .select('obra_id, rol_en_obra, usuario:usuario_app_id(nombre, activo, telefono)'),
+    fichajes: () => SbPaginado.traerTodo(() => sb.from('fichajes')
+      .select('tipo, hora, obra_id, trabajador_id, cierre_automatico, trabajador:trabajador_id(id, nombre, apellidos, dni)')
+      .gte('hora', rango.desde).lt('hora', rango.hasta)
+      .order('hora', { ascending: true }), { etiqueta: 'fichajes de hoy' }),
+    incidencias: () => SbPaginado.traerTodo(() => sb.from('incidencias')
+      .select('id, tipo, detalle, estado, created_at, obra_id, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni, empresa:empresa_id(nombre))')
+      .gte('created_at', rango.desde).lt('created_at', rango.hasta)
+      .order('created_at', { ascending: false }), { etiqueta: 'incidencias de hoy' }),
+    rondas: () => sb.from('rondas_encargado')
+      .select('obra_id, created_at, personas_en_obra, personas_sin_fichar, sin_actividad, usuario:usuario_app_id(nombre)')
+      .gte('created_at', rango.desde).lt('created_at', rango.hasta)
+      .order('created_at', { ascending: false }),
+    solicitudes: () => sb.rpc('listar_solicitudes_hoy', { p_obra_id: null }),
+    excepcionesHoy: () => sb.rpc('informe_excepciones', { p_obra_id: null, p_desde: hoy, p_hasta: hoy }),
+    rojosVivos: () => sb.from('validaciones_obra')
+      .select('obra_id, trabajador:trabajador_id!inner(activo)')
+      .eq('estado', 'rojo').eq('trabajador.activo', true).limit(1000),
+    autocierres: () => sb.from('fichajes')
+      .select('id, obra_id, trabajador_id, hora, trabajador:trabajador_id(nombre, apellidos)')
+      .eq('cierre_automatico', true)
+      .is('corregido_por', null).is('confirmado_por', null)
+      .gte('hora', desdeAutocierre)
+      .order('hora', { ascending: false }).limit(500),
+    ajustes: () => sb.from('ajustes_horas_dia')
+      .select('trabajador_id, obra_id, fecha')
+      .gte('fecha', desdeAutocierre.slice(0, 10)),
+    crons: () => sb.rpc('salud_crons'),
+    vigilante: () => sb.from('auditoria_permisos_log')
+      .select('ejecutada_en, hay_desviacion, cuantas, aviso_enviado, aviso_error')
+      .order('ejecutada_en', { ascending: false }).limit(1).maybeSingle(),
+    sync: () => sb.from('ecoordina_sync')
+      .select('ejecutada_en, estado, obras_ok, obras_error')
+      .order('ejecutada_en', { ascending: false }).limit(1).maybeSingle(),
+    envios: () => sb.from('avisos_ronda_enviados')
+      .select('nivel, telefono, status_http, created_at')
+      .gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString())
+      .order('created_at', { ascending: false }).limit(300)
+  };
+
+  const claves = Object.keys(tareas);
+  const res = await Promise.allSettled(claves.map(k => tareas[k]()));
+
+  const out = { hoy: hoy, fallos: [] };
+  claves.forEach((k, i) => {
+    const r = res[i];
+    if (r.status === 'rejected') {
+      out[k] = null;
+      out.fallos.push(k + ': ' + (r.reason && r.reason.message ? r.reason.message : 'error desconocido'));
+      return;
+    }
+    const v = r.value;
+    if (Array.isArray(v)) { out[k] = v; return; }
+    if (v && typeof v === 'object' && ('data' in v || 'error' in v)) {
+      if (v.error) { out[k] = null; out.fallos.push(k + ': ' + (v.error.message || 'error')); return; }
+      out[k] = v.data;
+      return;
+    }
+    out[k] = v;
+  });
+  out.obras = obrasTodas;
+  return out;
+}
+
+function construirModelo(d) {
+  const modelo = {
+    hoy: d.hoy,
+    fallos: d.fallos.slice(),
+    obras: [],
+    otras: [],
+    urgentes: [],
+    mirar: [],
+    riesgos: [],
+    salud: {}
+  };
+
+  const todasObras = d.obras || [];
+  const activas = todasObras.filter(o => o.estado === 'activa');
+  modelo.otras = todasObras.filter(o => o.estado !== 'activa');
+
+  const equipoPorObra = {};
+  (d.equipo || []).forEach(u => {
+    if (!u.usuario || u.usuario.activo === false) return;
+    if (!equipoPorObra[u.obra_id]) equipoPorObra[u.obra_id] = { jefes: [], encargados: [] };
+    const ficha = { nombre: u.usuario.nombre || '(sin nombre)', tel: !!u.usuario.telefono };
+    if (u.rol_en_obra === 'jefe_obra') equipoPorObra[u.obra_id].jefes.push(ficha);
+    else equipoPorObra[u.obra_id].encargados.push(ficha);
+  });
+
+  const ajustesSet = new Set((d.ajustes || []).map(a => a.trabajador_id + '|' + a.obra_id + '|' + a.fecha));
+  const autocierresPend = (d.autocierres || []).filter(f => {
+    const dia = Fechas.fechaMadrid(new Date(f.hora));
+    return !ajustesSet.has(f.trabajador_id + '|' + f.obra_id + '|' + dia);
+  });
+
+  const solRes = d.solicitudes;
+  const solOk = !!(solRes && solRes.ok);
+  if (solRes && solRes.ok === false) modelo.fallos.push('solicitudes: ' + (solRes.error || 'error'));
+  const solicitudes = solOk ? (solRes.solicitudes || []) : [];
+
+  const exc = d.excepcionesHoy || null;
+  modelo.riesgos = (exc && Array.isArray(exc.detalle)) ? exc.detalle : [];
+
+  const rojosPorObra = {};
+  if (d.rojosVivos) d.rojosVivos.forEach(v => { rojosPorObra[v.obra_id] = (rojosPorObra[v.obra_id] || 0) + 1; });
+
+  const laborable = esLaborableHoy();
+  const pasadaHoraCorte = horaMadrid() >= HORA_CORTE;
+
+  activas.forEach(o => {
+    const t = {
+      id: o.id, nombre: o.nombre, marca: o.empresa_marca || '',
+      equipo: equipoPorObra[o.id] || { jefes: [], encargados: [] },
+      ultimaSync: o.ultima_sync_ecoordina || null,
+      rojo: [], naranja: [], bien: [],
+      nivel: 'verde', datosIncompletos: false
+    };
+
+    if (d.fichajes === null) {
+      t.datosIncompletos = true;
+      t.dentro = null; t.personasHoy = null; t.primera = null; t.ultima = null;
+    } else {
+      const suyos = d.fichajes.filter(f => f.obra_id === o.id);
+      const porPersona = new Map();
+      suyos.forEach(f => {
+        const k = f.trabajador_id || 'sin-id';
+        if (!porPersona.has(k)) porPersona.set(k, { entrada: null, ultimoTipo: null });
+        const g = porPersona.get(k);
+        if (f.tipo === 'entrada' && !g.entrada) g.entrada = f.hora;
+        g.ultimoTipo = f.tipo;
+      });
+      t.personasHoy = porPersona.size;
+      t.dentro = [...porPersona.values()].filter(g => g.ultimoTipo === 'entrada').length;
+      t.primera = suyos.length ? suyos[0].hora : null;
+      t.ultima = suyos.length ? suyos[suyos.length - 1].hora : null;
+      t.fichajesSuyos = suyos;
+    }
+
+    if (d.rondas === null) {
+      t.datosIncompletos = true;
+      t.ronda = undefined;
+    } else {
+      t.ronda = (d.rondas || []).find(r => r.obra_id === o.id) || null;
+    }
+
+    if (d.incidencias === null) {
+      t.datosIncompletos = true;
+      t.accesos = null; t.incSuyas = [];
+    } else {
+      const incSuyas = d.incidencias.filter(i => i.obra_id === o.id);
+      t.incSuyas = incSuyas;
+      const sinRegistrar = incSuyas.filter(i => i.tipo === 'presente_sin_registrar').map(i => {
+        let dd = {};
+        try { dd = JSON.parse(i.detalle) || {}; } catch (e) { dd = {}; }
+        return {
+          incidencia_id: i.id, nombre: dd.nombre || '', empresa: dd.empresa || '',
+          dni: dd.dni || '', intentos: dd.intentos || 1, ultimo_intento: i.created_at,
+          pendiente: (i.estado || 'nueva') === 'nueva'
+        };
+      });
+      t.accesos = AccesosResueltos.clasificar({
+        incidencias: incSuyas.filter(i => i.tipo === 'bloqueo_rojo' || i.tipo === 'fuera_de_zona'),
+        sinRegistrar: sinRegistrar,
+        fichajes: d.fichajes === null ? undefined : (t.fichajesSuyos || [])
+      });
+    }
+
+    t.solicitudes = solOk ? solicitudes.filter(s => s.obra_id === o.id) : null;
+    if (!solOk) t.datosIncompletos = true;
+
+    t.autocierres = (d.autocierres === null || d.ajustes === null)
+      ? null : autocierresPend.filter(f => f.obra_id === o.id);
+    if (t.autocierres === null) t.datosIncompletos = true;
+
+    t.rojosVivos = (d.rojosVivos === null) ? null : (rojosPorObra[o.id] || 0);
+
+    const u = (d.ultimos || []).find(x => x.obra_id === o.id);
+    t.ultimoFichaje = u ? u.hora : null;
+    t.diasSinActividad = (d.ultimos === null) ? null
+      : (t.ultimoFichaje
+          ? Math.round((new Date(d.hoy + 'T12:00:00') - new Date(Fechas.fechaMadrid(new Date(t.ultimoFichaje)) + 'T12:00:00')) / 86400000)
+          : -1);
+
+    t.riesgosHoy = modelo.riesgos.filter(r => r.obra_nombre === o.nombre);
+
+    (t.solicitudes || []).forEach(s => {
+      if (s.estado !== 'pendiente' || s.sigue_pendiente_de_verdad === false) return;
+      const min = minutosDesde(s.created_at);
+      const texto = esc(s.quien || 'Alguien') + ' lleva ' + textoEspera(min) + ' esperando autorización';
+      const linea = {
+        nivel: min != null && min >= MIN_SOLICITUD_ROJA ? 'rojo' : 'naranja',
+        obra: o.nombre, marca: '🚪',
+        qué: texto,
+        quién: 'La pidió ' + esc(s.pedida_por || '—') + ' · decide el jefe de obra' +
+               (t.equipo.jefes.length ? ': ' + t.equipo.jefes.map(j => esc(j.nombre)).join(', ') : ' (⚠ NINGUNO ASIGNADO)'),
+        reloj: textoEspera(min),
+        enlaces: [['Ver informe', 'informe-rojos.html']]
+      };
+      t[linea.nivel].push(linea);
+    });
+
+    if (t.accesos) {
+      t.accesos.pendientes.forEach(g => {
+        const linea = {
+          nivel: 'rojo', obra: o.nombre, marca: '🚫',
+          qué: esc(g.nombre) + ' no llegó a entrar',
+          quién: esc(AccesosResueltos.etiquetas(g).join(' · ')) + ' · ' + esc(AccesosResueltos.textoDesenlace(g)),
+          reloj: hhmm(g.ultimoIntento),
+          enlaces: [['Ver trabajador', 'trabajadores.html'], ['Informe', 'informe-rojos.html']]
+        };
+        t.rojo.push(linea);
+      });
+    }
+
+    if (t.personasHoy === 0 && laborable && pasadaHoraCorte) {
+      const dias = t.diasSinActividad;
+      let qué, quién;
+      if (dias === -1) {
+        qué = 'Esta obra no ha tenido NUNCA un fichaje';
+        quién = 'Está de alta y activa, pero nadie ha fichado jamás en ella. O el QR no se ha repartido, o la obra aún no ha arrancado.';
+      } else if (dias == null || dias <= 1) {
+        qué = 'Sin un solo fichaje hoy (son más de las ' + HORA_CORTE + ':00)';
+        quién = 'O la obra está parada hoy, o nadie está usando la app. Las dos cosas se ven igual desde aquí: hay que preguntar.';
+      } else {
+        qué = 'Lleva ' + dias + ' días sin un solo fichaje · el último fue el ' + fechaCorta(t.ultimoFichaje);
+        quién = 'Si está parada de verdad, márcala como <b>pausada</b> en Obras: deja de avisar y conserva el histórico. Si NO está parada, es que alguien ha dejado de fichar.';
+      }
+      t.rojo.push({ nivel: 'rojo', obra: o.nombre, marca: '🔇', qué: qué, quién: quién, reloj: '—', enlaces: [['Ver fichajes', 'fichajes.html'], ['Pausar o editar la obra', 'obras.html']] });
+    } else if (t.personasHoy === 0 && laborable) {
+      t.naranja.push({ nivel: 'naranja', obra: o.nombre, marca: '🕗', qué: 'Todavía no ha fichado nadie', quién: 'Aún es pronto: no es una alarma hasta las ' + HORA_CORTE + ':00.', reloj: '', enlaces: [] });
+    } else if (t.personasHoy === 0 && !laborable) {
+      t.bien.push('Sin actividad — hoy no es día laborable');
+    }
+
+    if (t.ronda === null && t.personasHoy > 0 && laborable && pasadaHoraCorte) {
+      t.naranja.push({
+        nivel: 'naranja', obra: o.nombre, marca: '🚶',
+        qué: 'La ronda de hoy no está hecha y hay ' + t.dentro + ' ' + plural(t.dentro, 'persona', 'personas') + ' en obra',
+        quién: t.equipo.encargados.length ? 'Encargado: ' + t.equipo.encargados.map(e => esc(e.nombre)).join(', ') : '⚠ Esta obra no tiene ningún encargado asignado',
+        reloj: '', enlaces: []
+      });
+    }
+
+    if (t.ronda && Number(t.ronda.personas_sin_fichar) > 0) {
+      const n = Number(t.ronda.personas_sin_fichar);
+      t.naranja.push({
+        nivel: 'naranja', obra: o.nombre, marca: '👤',
+        qué: n + ' ' + plural(n, 'persona en obra sin fichar', 'personas en obra sin fichar'),
+        quién: 'Lo anotó ' + esc((t.ronda.usuario && t.ronda.usuario.nombre) || '—') + ' en la ronda de las ' + hhmm(t.ronda.created_at),
+        reloj: '', enlaces: [['Ver fichajes', 'fichajes.html']]
+      });
+    }
+
+    if (t.autocierres && t.autocierres.length) {
+      const n = t.autocierres.length;
+      t.naranja.push({
+        nivel: 'naranja', obra: o.nombre, marca: '🕛',
+        qué: n + ' ' + plural(n, 'jornada cerrada por el automático', 'jornadas cerradas por el automático') + ' sin corregir ni confirmar',
+        quién: 'Son horas que se van a facturar sin que nadie las haya mirado. Última: ' + fechaCorta(t.autocierres[0].hora) + '.',
+        reloj: '', enlaces: [['Cierre de mes', 'cierre-mes.html']]
+      });
+    }
+
+    if (t.incSuyas && t.incSuyas.length) {
+      const cuenta = {};
+      t.incSuyas.forEach(i => {
+        const tipo = (i.tipo || '').toLowerCase();
+        if (tipo === 'aviso_naranja') return;
+        if (tipo === 'bloqueo_rojo' || tipo === 'presente_sin_registrar') return;
+        if (tipo === 'excepcion_autorizada') return;
+        if (tipo === 'autocierre') return;
+        cuenta[tipo] = (cuenta[tipo] || 0) + 1;
+      });
+      Object.keys(cuenta).forEach(tipo => {
+        const n = cuenta[tipo];
+        const esAlerta = IncidenciasFamilias.esAlerta(tipo);
+        t.naranja.push({
+          nivel: 'naranja', obra: o.nombre, marca: tipo === 'fuera_de_zona' ? '📍' : '⚠️',
+          qué: n + ' × ' + esc(IncidenciasFamilias.etiqueta(tipo)),
+          quién: esAlerta ? 'Requiere que alguien lo mire.' : 'Queda registrado; normalmente no hace falta nada.',
+          reloj: '', enlaces: [['Informe', 'informe-rojos.html']]
+        });
+      });
+    }
+
+    if (t.ultimaSync) {
+      const dias = Math.floor((Date.now() - new Date(t.ultimaSync).getTime()) / 86400000);
+      if (dias >= 3) {
+        t.naranja.push({ nivel: 'naranja', obra: o.nombre, marca: '📥', qué: 'e-Coordina no actualiza esta obra desde hace ' + dias + ' días', quién: 'El semáforo documental se está calculando con papeles viejos.', reloj: '', enlaces: [['e-Coordina', 'importar-ecoordina.html']] });
+      } else {
+        t.bien.push('e-Coordina al día (' + fechaCorta(t.ultimaSync) + ')');
+      }
+    } else {
+      t.naranja.push({ nivel: 'naranja', obra: o.nombre, marca: '📥', qué: 'Esta obra no se ha sincronizado nunca con e-Coordina', quién: 'Sin sincronizar, el semáforo documental de esta obra no significa nada.', reloj: '', enlaces: [['e-Coordina', 'importar-ecoordina.html']] });
+    }
+
+    if (!t.equipo.jefes.length) {
+      t.rojo.push({ nivel: 'rojo', obra: o.nombre, marca: '📵', qué: 'Esta obra no tiene ningún jefe de obra asignado', quién: 'Nadie puede autorizar una entrada, y los SMS de la puerta no van a ninguna parte.', reloj: '', enlaces: [['Equipo de la obra', 'obras.html']] });
+    } else if (!t.equipo.jefes.some(j => j.tel)) {
+      t.naranja.push({ nivel: 'naranja', obra: o.nombre, marca: '📵', qué: 'Ningún jefe de esta obra tiene teléfono en su ficha', quién: 'Los avisos de "alguien espera en la puerta" se registran como no enviados.', reloj: '', enlaces: [['Equipo de la obra', 'obras.html']] });
+    }
+    if (!t.equipo.encargados.length) {
+      t.naranja.push({ nivel: 'naranja', obra: o.nombre, marca: '👷', qué: 'Esta obra no tiene ningún encargado asignado', quién: 'Sin encargado no hay ronda ni fichaje manual.', reloj: '', enlaces: [['Equipo de la obra', 'obras.html']] });
+    }
+
+    if (t.ronda) {
+      t.bien.push('Ronda hecha a las ' + hhmm(t.ronda.created_at) +
+        ((t.ronda.usuario && t.ronda.usuario.nombre) ? ' por ' + t.ronda.usuario.nombre : '') +
+        (Number(t.ronda.personas_sin_fichar) === 0 ? ' · 0 sin fichar' : ''));
+    }
+    if (t.accesos && t.accesos.totales.personasResueltas > 0) {
+      t.bien.push(t.accesos.totales.personasResueltas + ' ' +
+        plural(t.accesos.totales.personasResueltas, 'caso denegado que se resolvió solo', 'casos denegados que se resolvieron solos'));
+    }
+
+    t.nivel = t.datosIncompletos ? 'gris'
+            : t.rojo.length ? 'rojo'
+            : t.naranja.length ? 'naranja'
+            : 'verde';
+
+    modelo.obras.push(t);
+  });
+
+  const peso = { rojo: 0, gris: 1, naranja: 2, verde: 3 };
+  modelo.obras.sort((a, b) => (peso[a.nivel] - peso[b.nivel]) || a.nombre.localeCompare(b.nombre));
+
+  modelo.urgentes = [];
+  modelo.mirar = [];
+  modelo.obras.forEach(o => {
+    o.rojo.forEach(l => modelo.urgentes.push(l));
+    o.naranja.forEach(l => modelo.mirar.push(l));
+  });
+
+  const nombresObra = modelo.obras.map(o => o.nombre);
+  const huerfanas = modelo.riesgos.filter(r => nombresObra.indexOf(r.obra_nombre) === -1);
+  if (huerfanas.length) {
+    modelo.fallos.push('Hay ' + huerfanas.length + ' ' +
+      plural(huerfanas.length, 'excepción firmada que no casa', 'excepciones firmadas que no casan') +
+      ' con ninguna obra activa (' +
+      huerfanas.map(r => r.obra_nombre || 'sin obra').filter((v, i, a) => a.indexOf(v) === i).join(', ') +
+      '). Salen abajo en «Riesgos asumidos», pero NO están contadas en su tarjeta.');
+  }
+
+  modelo.salud = { crons: d.crons, vigilante: d.vigilante, sync: d.sync, envios: d.envios };
+  return modelo;
+}
+
+function pintar(m) {
+  pintarFallos(m);
+  pintarResumen(m);
+  pintarUrgente(m);
+  pintarObras(m);
+  pintarRiesgos(m);
+  pintarSalud(m);
+}
+
+function pintarFallos(m) {
+  const el = document.getElementById('banner-fallos');
+  if (!m.fallos.length) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="aviso rojo">⚠️ <b>Hay datos que no se han podido leer</b>, así que esta pantalla está incompleta. ' +
+    'Lo que no se ha leído NO se está pintando como cero, se está pintando como «no se sabe».<br>' +
+    m.fallos.map(f => '· ' + esc(f)).join('<br>') + '</div>';
+}
+
+function pintarResumen(m) {
+  const el = document.getElementById('resumen');
+  const n = { rojo: 0, naranja: 0, verde: 0, gris: 0 };
+  m.obras.forEach(o => n[o.nivel]++);
+  const total = m.obras.length;
+
+  let titular;
+  if (!total) titular = 'No hay ninguna obra activa.';
+  else if (n.rojo) titular = n.rojo + ' ' + plural(n.rojo, 'obra urgente', 'obras urgentes') +
+    (n.naranja ? ' · ' + n.naranja + ' ' + plural(n.naranja, 'más para mirar', 'más para mirar') : '') +
+    (n.gris ? ' · ' + n.gris + ' sin datos' : '');
+  else if (n.gris) titular = 'Faltan datos de ' + n.gris + ' ' + plural(n.gris, 'obra', 'obras');
+  else if (n.naranja) titular = 'Nada urgente · ' + n.naranja + ' ' + plural(n.naranja, 'obra con algo que mirar', 'obras con algo que mirar');
+  else titular = 'Todo en orden en las ' + total + ' obras activas';
+
+  const pills = [];
+  if (n.rojo) pills.push('<span class="pill rojo">' + n.rojo + ' rojo</span>');
+  if (n.naranja) pills.push('<span class="pill naranja">' + n.naranja + ' naranja</span>');
+  if (n.verde) pills.push('<span class="pill verde">' + n.verde + ' verde</span>');
+  if (n.gris) pills.push('<span class="pill gris">' + n.gris + ' sin datos</span>');
+
+  const otras = m.otras.length
+    ? '<div class="sello" style="margin-top:8px">No se vigilan aquí: ' +
+      m.otras.map(o => esc(o.nombre) + ' (' + esc(o.estado) + ')').join(' · ') +
+      '. Una obra pausada o terminada no genera avisos a propósito.</div>'
+    : '';
+
+  el.innerHTML = '<div class="resumen"><span class="titular">' + esc(titular) + '</span>' + pills.join('') + '</div>' + otras;
+}
+
+function lineaHTML(l, conObra) {
+  const enlaces = (l.enlaces || []).map(e => '<a class="enlace" href="' + e[1] + '">' + esc(e[0]) + ' →</a>').join('');
+  return '<div class="linea">' +
+    '<div class="marca">' + l.marca + '</div>' +
+    '<div class="cuerpo">' +
+      '<div class="qué">' + (conObra ? '<span class="pill ' + (l.nivel === 'rojo' ? 'rojo' : 'naranja') + '" style="margin-right:8px">' + esc(l.obra) + '</span>' : '') + l.qué + '</div>' +
+      '<div class="quién">' + l.quién + '</div>' +
+      (enlaces ? '<div class="acciones-linea">' + enlaces + '</div>' : '') +
+    '</div>' +
+    (l.reloj ? '<div class="reloj ' + l.nivel + '">' + esc(l.reloj) + '</div>' : '') +
+  '</div>';
+}
+
+function pintarUrgente(m) {
+  const el = document.getElementById('zona-urgente');
+  const rojas = m.urgentes;
+  const naranjas = m.mirar;
+  if (!rojas.length && !naranjas.length) { el.innerHTML = ''; return; }
+
+  let html = '';
+  if (rojas.length) {
+    html += '<div class="bloque urgente"><div class="bloque-cab"><h2>🔴 Hoy hay que hacer algo</h2>' +
+      '<span class="sub">' + rojas.length + ' ' + plural(rojas.length, 'cosa', 'cosas') + ' · alguien está parado o una obra no da señal</span></div>' +
+      '<div class="bloque-cuerpo">' + rojas.map(l => lineaHTML(l, true)).join('') + '</div></div>';
+  }
+  if (naranjas.length) {
+    html += '<div class="bloque"><div class="bloque-cab"><h2>🟠 Para mirar hoy, sin prisa</h2>' +
+      '<span class="sub">Nadie está esperando en la puerta</span></div>' +
+      '<div class="bloque-cuerpo">' + naranjas.map(l => lineaHTML(l, true)).join('') + '</div></div>';
+  }
+  el.innerHTML = html;
+}
+
+function pintarObras(m) {
+  const el = document.getElementById('zona-obras');
+  if (!m.obras.length) { el.innerHTML = '<div class="bloque"><div class="vacio">No hay ninguna obra activa.</div></div>'; return; }
+
+  el.innerHTML = '<div class="obras">' + m.obras.map(o => {
+    const etiqueta = { rojo: 'Necesita algo', naranja: 'Para mirar', verde: 'En orden', gris: 'Sin datos' }[o.nivel];
+    const oid = o.id;
+
+    // Celdas KPI con IDs para animar: los valores arrancan en 0 y los sube
+    // animarTarjetas() tras pintar el DOM. La sparkline SVG se dibuja cuando
+    // llega el histórico de 7 días (consulta en paralelo, no bloquea el pintado).
+    const celdaDentro = (o.dentro == null)
+      ? '<div class="kpi-val apagado">no se sabe</div>'
+      : '<div class="kpi-val" id="kpi-dentro-' + oid + '">0</div>' +
+        '<svg class="kpi-spk" id="spk-dentro-' + oid + '" width="90" height="24" viewBox="0 0 90 24">' +
+        '<path id="ln-dentro-' + oid + '" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    const celdaPersonas = (o.personasHoy == null)
+      ? '<div class="kpi-val apagado">no se sabe</div>'
+      : '<div class="kpi-val" id="kpi-personas-' + oid + '">0</div>' +
+        '<svg class="kpi-spk" id="spk-personas-' + oid + '" width="90" height="24" viewBox="0 0 90 24">' +
+        '<path id="ln-personas-' + oid + '" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    const celdaRojos = (o.rojosVivos == null)
+      ? '<div class="kpi-val apagado">no se sabe</div>'
+      : '<div class="kpi-val" id="kpi-rojos-' + oid + '">0</div>';
+
+    const ronda = (o.ronda === undefined)
+      ? '<div class="kpi-val apagado">no se sabe</div>'
+      : (o.ronda
+          ? '<div class="kpi-val">' + hhmm(o.ronda.created_at) + '</div>'
+          : '<div class="kpi-val apagado">sin hacer</div>');
+
+    const listas = o.rojo.concat(o.naranja);
+    const listaHTML = listas.length
+      ? '<div class="obra-lista">' + listas.map(l =>
+          '<div class="item ' + l.nivel + '">' + l.marca + ' <b>' + l.qué + '</b>' +
+          '<div class="nota">' + l.quién + '</div></div>').join('') + '</div>'
+      : '';
+
+    const bienHTML = o.bien.length
+      ? '<div class="obra-lista">' + o.bien.map(b => '<div class="item"><span style="color:var(--verde)">✓</span> ' + esc(b) + '</div>').join('') + '</div>'
+      : '';
+
+    const riesgosHTML = o.riesgosHoy && o.riesgosHoy.length
+      ? '<div class="obra-lista"><div class="item"><span class="pill azul">🗝️ ' + o.riesgosHoy.length + ' ' +
+          plural(o.riesgosHoy.length, 'riesgo asumido hoy', 'riesgos asumidos hoy') + '</span>' +
+          '<div class="nota">' + o.riesgosHoy.map(r => esc(r.persona) + ' — firmado por ' + esc(r.jefe)).join('<br>') + '</div></div></div>'
+      : '';
+
+    const equipo = [];
+    if (o.equipo.jefes.length) equipo.push('Jefe: ' + o.equipo.jefes.map(j => esc(j.nombre)).join(', '));
+    if (o.equipo.encargados.length) equipo.push('Encargado: ' + o.equipo.encargados.map(e => esc(e.nombre)).join(', '));
+
+    return '<div class="obra ' + o.nivel + '">' +
+      '<div class="obra-cab"><div><h3>' + esc(o.nombre) + '</h3>' +
+        '<div class="marca-obra">' + (equipo.length ? equipo.join(' · ') : '⚠ Sin equipo asignado') + '</div></div>' +
+        '<span class="pill ' + o.nivel + '">' + etiqueta + '</span></div>' +
+      '<div class="pulso">' +
+        '<div class="celda">' + celdaDentro + '<div class="etiqueta">En obra ahora</div>' +
+          '<div class="detalle">' + (o.primera ? 'Primera entrada ' + hhmm(o.primera) : 'Sin entradas hoy') + '</div></div>' +
+        '<div class="celda">' + celdaPersonas + '<div class="etiqueta">Personas hoy</div>' +
+          '<div class="detalle">' + (o.ultima ? 'Última actividad ' + hhmm(o.ultima) : '—') + '</div></div>' +
+        '<div class="celda">' + ronda + '<div class="etiqueta">Ronda</div>' +
+          '<div class="detalle">' + (o.ronda ? (Number(o.ronda.personas_sin_fichar) || 0) + ' sin fichar · ' + (Number(o.ronda.personas_en_obra) || 0) + ' contadas' : '—') + '</div></div>' +
+        '<div class="celda">' + celdaRojos + '<div class="etiqueta">Rojos vivos</div>' +
+          '<div class="detalle">' + (o.rojosVivos == null ? 'no se sabe' : o.rojosVivos + ' ' + plural(o.rojosVivos, 'persona en rojo activo', 'personas en rojo activo')) + '</div></div>' +
+      '</div>' +
+      listaHTML + riesgosHTML + bienHTML +
+      '<div class="obra-pie"><span>' + (listas.length ? listas.length + ' ' + plural(listas.length, 'aviso en esta obra', 'avisos en esta obra') : 'Sin avisos hoy') + '</span>' +
+        '<span><a href="fichajes.html">Fichajes</a> · <a href="trabajadores.html">Trabajadores</a> · <a href="informe-rojos.html">Informe</a></span></div>' +
+    '</div>';
+  }).join('') + '</div>';
+}
+
+function pintarRiesgos(m) {
+  const el = document.getElementById('zona-riesgos');
+  if (!m.riesgos.length) {
+    el.innerHTML = '<div class="bloque"><div class="bloque-cab"><h2>🗝️ Riesgos asumidos hoy</h2>' +
+      '<span class="sub">Entradas autorizadas con la documentación en rojo</span></div>' +
+      '<div class="vacio">Hoy nadie ha tenido que firmar ninguna entrada en rojo.</div></div>';
+    return;
+  }
+  el.innerHTML = '<div class="bloque"><div class="bloque-cab"><h2>🗝️ Riesgos asumidos hoy</h2>' +
+    '<span class="sub">' + m.riesgos.length + ' ' + plural(m.riesgos.length, 'entrada autorizada', 'entradas autorizadas') +
+    ' con la documentación en rojo · cada una lleva el nombre de quien la firmó</span></div>' +
+    '<div class="bloque-cuerpo">' + m.riesgos.map(r =>
+      '<div class="linea"><div class="marca">🗝️</div><div class="cuerpo">' +
+        '<div class="qué">' + esc(r.persona) + ' <span class="pill azul" style="margin-left:6px">' + esc(r.obra_nombre || '') + '</span></div>' +
+        '<div class="quién">Empresa: ' + esc(r.empresa_nombre || '—') + ' · Firmado por <b>' + esc(r.jefe) + '</b><br>' +
+        '«' + esc(r.motivo_autorizacion || 'sin motivo escrito') + '»</div>' +
+      '</div></div>').join('') +
+    '</div>' +
+    '<div class="obra-pie"><span>Estas mismas líneas alimentan el informe mensual.</span>' +
+    '<span><a href="informe-excepciones.html">Informe de excepciones →</a></span></div></div>';
+}
+
+function umbralCron(schedule) {
+  const f = String(schedule || '').trim().split(/\s+/);
+  if (f.length < 5) return 26;
+  const dow = f[4], dom = f[2];
+  if (dow === '*' && dom === '*') return 26;
+  if (/^[0-9]-[0-9]$/.test(dow) || dow.indexOf('-') !== -1) {
+    const hoy = diaSemanaMadrid();
+    return (hoy === 0 || hoy === 6 || hoy === 1) ? 80 : 26;
+  }
+  if (dom !== '*') return 24 * 32;
+  return 24 * 8;
+}
+
+function pintarSalud(m) {
+  const el = document.getElementById('zona-salud');
+  const filas = [];
+
+  const c = m.salud.crons;
+  if (!c) filas.push(['Automatismos', 'gris', 'No se ha podido comprobar la salud de los crons.']);
+  else if (!c.length) filas.push(['Automatismos', 'rojo', 'No hay ningún cron programado en la base de datos.']);
+  else {
+    const averias = [];
+    const sinEstrenar = [];
+    c.forEach(j => {
+      if (!j.activo) { averias.push('«' + j.jobname + '» está DESACTIVADO'); return; }
+      if (!j.ultima_ejecucion) { sinEstrenar.push(j.jobname); return; }
+      if (j.estado === 'failed') averias.push('«' + j.jobname + '» falló en su última ejecución');
+      else if (Number(j.horas_desde_ultima) > umbralCron(j.schedule)) {
+        averias.push('«' + j.jobname + '» lleva ' + Math.round(j.horas_desde_ultima) + ' h sin correr');
+      }
+    });
+    if (averias.length) filas.push(['Automatismos', 'rojo', averias.map(esc).join('<br>')]);
+    else filas.push(['Automatismos', 'verde', 'Los ' + c.filter(j => j.activo && j.ultima_ejecucion).length + ' automatismos rodados corrieron cuando tocaba.']);
+    if (sinEstrenar.length) filas.push(['Sin estrenar', 'naranja',
+      esc(sinEstrenar.join(', ')) + ' · ' + plural(sinEstrenar.length, 'no se ha ejecutado nunca', 'no se han ejecutado nunca') +
+      '. Si se acaban de crear es normal hasta su primera pasada; si llevan días así, no están corriendo.']);
+  }
+
+  const v = m.salud.vigilante;
+  if (v === null || v === undefined) filas.push(['Vigilante de permisos', 'gris', 'Sin registro legible de la última comprobación.']);
+  else {
+    const horas = (Date.now() - new Date(v.ejecutada_en).getTime()) / 3600000;
+    if (v.aviso_error) filas.push(['Vigilante de permisos', 'rojo', 'Encontró algo y el aviso NO salió: ' + esc(String(v.aviso_error).slice(0, 160))]);
+    else if (horas > 30) filas.push(['Vigilante de permisos', 'rojo', 'Lleva ' + Math.round(horas) + ' h sin correr.']);
+    else if (v.hay_desviacion) filas.push(['Vigilante de permisos', 'rojo', (Number(v.cuantas) || 0) + ' permiso(s) fuera de lo esperado.']);
+    else filas.push(['Vigilante de permisos', 'verde', 'Sin desviaciones · comprobado el ' + fechaCorta(v.ejecutada_en) + ' a las ' + hhmm(v.ejecutada_en) + '.']);
+  }
+
+  const s = m.salud.sync;
+  if (s === null || s === undefined) filas.push(['e-Coordina (global)', 'gris', 'Sin ninguna sincronización registrada.']);
+  else if (s.estado === 'error') filas.push(['e-Coordina (global)', 'rojo',
+    Number(s.obras_error) > 0
+      ? 'La última pasada (' + fechaCorta(s.ejecutada_en) + ') falló en ' + s.obras_error + ' obra(s).'
+      : 'La última pasada (' + fechaCorta(s.ejecutada_en) + ') no actualizó ninguna obra. Revisa el CSV o el workflow.']);
+  else filas.push(['e-Coordina (global)', 'verde', 'Última pasada el ' + fechaCorta(s.ejecutada_en) + ' a las ' + hhmm(s.ejecutada_en) + ' · ' + (s.obras_ok || 0) + ' obra(s).']);
+
+  const e = m.salud.envios;
+  if (e === null || e === undefined) filas.push(['Avisos enviados', 'gris', 'No se ha podido leer el registro de envíos.']);
+  else {
+    const fallidos = e.filter(x => x.status_http == null || Number(x.status_http) >= 300);
+    if (fallidos.length) filas.push(['Avisos enviados', 'rojo', fallidos.length + ' envío(s) fallido(s) en 7 días. El último, el ' + fechaCorta(fallidos[0].created_at) + '.']);
+    else if (!e.length) filas.push(['Avisos enviados', 'gris', 'Ningún envío en 7 días. Puede que no hiciera falta ninguno, o que ni se intentara.']);
+    else filas.push(['Avisos enviados', 'verde', e.length + ' envío(s) en 7 días, todos aceptados.']);
+  }
+
+  const icono = { verde: '✅', rojo: '🚨', naranja: '⚠️', gris: 'ℹ️' };
+  el.innerHTML = '<div class="bloque"><div class="bloque-cab"><h2>🩺 Salud del sistema</h2>' +
+    '<span class="sub">Si esto falla, todo lo de arriba puede estar mintiendo</span></div>' +
+    '<table class="salud"><tbody>' +
+    filas.map(f => '<tr><td class="izq">' + icono[f[1]] + ' ' + esc(f[0]) + '</td><td>' + f[2] + '</td></tr>').join('') +
+    '</tbody></table></div>';
+}
+
+function textoResumen(m) {
+  const f = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: 'long' });
+  const l = ['RESUMEN DEL DÍA — ' + f, ''];
+  m.obras.forEach(o => {
+    const marca = { rojo: '[!]', naranja: '[·]', verde: '[ok]', gris: '[?]' }[o.nivel];
+    l.push(marca + ' ' + o.nombre);
+    l.push('    ' + (o.dentro == null ? 'presencia: no se sabe' : o.dentro + ' en obra ahora · ' + o.personasHoy + ' personas hoy') +
+      ' · ronda: ' + (o.ronda === undefined ? 'no se sabe' : o.ronda ? hhmm(o.ronda.created_at) : 'SIN HACER'));
+    o.rojo.concat(o.naranja).forEach(x => l.push('    - ' + x.qué.replace(/<[^>]*>/g, '')));
+    if (o.riesgosHoy && o.riesgosHoy.length) {
+      o.riesgosHoy.forEach(r => l.push('    * riesgo asumido: ' + r.persona + ' (firma: ' + r.jefe + ')'));
+    }
+    l.push('');
+  });
+  if (m.fallos.length) l.push('AVISO: faltaban datos al generar este resumen (' + m.fallos.length + ' consulta(s) fallida(s)).');
+  l.push('Generado automáticamente desde el cuadro de mando. Copia a dirección en el informe mensual.');
+  return l.join('\n');
+}
+
+async function copiarResumen() {
+  if (!ultimoModelo) return;
+  const txt = textoResumen(ultimoModelo);
+  const btn = document.getElementById('btn-copiar');
+  try {
+    await navigator.clipboard.writeText(txt);
+    btn.textContent = '✅ Copiado';
+  } catch (err) {
+    window.prompt('Copia el resumen a mano (Ctrl+C):', txt);
+    btn.textContent = '📋 Copiar resumen del día';
+    return;
+  }
+  setTimeout(() => { btn.textContent = '📋 Copiar resumen del día'; }, 2500);
+}
+
+async function refrescar() {
+  if (refrescando) return;
+  refrescando = true;
+  const sello = document.getElementById('sello');
+  const btn = document.getElementById('btn-refrescar');
+  btn.disabled = true;
+  sello.textContent = 'Actualizando…';
+  try {
+    const datos = await leerTodo();
+    const modelo = construirModelo(datos);
+    ultimoModelo = modelo;
+    pintar(modelo);
+    // Lanzar histórico y animaciones en paralelo sin bloquear el pintado.
+    // Si leerHistoricoObras falla, animarTarjetas recibe null y muestra solo
+    // los contadores sin sparkline: degradación limpia, no pantalla rota.
+    const obrasActivas = (datos.obras || []).filter(o => o.estado === 'activa');
+    leerHistoricoObras(obrasActivas).then(historico => {
+      animarTarjetas(modelo, historico);
+    });
+    document.getElementById('btn-copiar').disabled = false;
+    const ahora = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    const hoyTxt = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: 'long' });
+    sello.innerHTML = 'Datos de <b>' + esc(hoyTxt) + '</b>, leídos a las <b>' + ahora + '</b> · se actualiza solo cada 5 min';
+  } catch (err) {
+    console.error(err);
+    sello.innerHTML = '<span style="color:var(--rojo)">No se han podido actualizar los datos (' + esc(err.message || 'error') + '). Lo que ves puede estar caducado.</span>';
+  } finally {
+    btn.disabled = false;
+    refrescando = false;
+  }
+}
+
+(async function init() {
+  const g = await Guardian.entrar(sb, { rol: 'admin', campos: 'nombre', volver: '../' });
+  if (!g) return;
+  document.getElementById('usuario-email').textContent = g.usuario.nombre || g.session.user.email;
+
+  document.getElementById('btn-salir').addEventListener('click', async () => {
+    await sb.auth.signOut(); window.location.href = '../';
+  });
+  document.getElementById('btn-refrescar').addEventListener('click', () => refrescar());
+  document.getElementById('btn-copiar').addEventListener('click', copiarResumen);
+
+  await refrescar();
+  setInterval(refrescar, REFRESCO_MS);
+})();
+
+/* ── KPI sparkline: histórico de 7 días por obra ───────────────────────── */
+// Una sola consulta a fichajes con rango de 7 días. Se cuenta personas
+// distintas por día y por obra en JS. Si falla, animarTarjetas recibe null
+// y muestra solo el contador sin sparkline.
+
+async function leerHistoricoObras(obrasActivas) {
+  if (!obrasActivas || !obrasActivas.length) return null;
+  const hace7 = new Date(Date.now() - 7 * 86400000);
+  hace7.setHours(0, 0, 0, 0);
+  const desde = hace7.toISOString();
+  try {
+    const r = await sb.from('fichajes')
+      .select('obra_id, trabajador_id, hora')
+      .in('obra_id', obrasActivas.map(o => o.id))
+      .gte('hora', desde)
+      .order('hora', { ascending: true })
+      .limit(5000);
+    if (r.error) return null;
+    const mapa = {};
+    obrasActivas.forEach(o => { mapa[o.id] = {}; });
+    (r.data || []).forEach(f => {
+      if (!mapa[f.obra_id]) return;
+      const dia = Fechas.fechaMadrid(new Date(f.hora));
+      if (!mapa[f.obra_id][dia]) mapa[f.obra_id][dia] = new Set();
+      mapa[f.obra_id][dia].add(f.trabajador_id);
+    });
+    const resultado = {};
+    obrasActivas.forEach(o => {
+      const series = [];
+      for (let i = 6; i >= 0; i--) {
+        const dia = Fechas.fechaMadrid(new Date(Date.now() - i * 86400000));
+        series.push(mapa[o.id][dia] ? mapa[o.id][dia].size : 0);
+      }
+      resultado[o.id] = series;
+    });
+    return resultado;
+  } catch (e) {
+    return null;
+  }
+}
+
+/* ── animaciones ────────────────────────────────────────────────────────── */
+
+function animarTarjetas(modelo, historico) {
+  modelo.obras.forEach((o, oIdx) => {
+    const delay = oIdx * 100;
+    const oid = o.id;
+
+    const elDentro = document.getElementById('kpi-dentro-' + oid);
+    if (elDentro && o.dentro != null) {
+      setTimeout(() => animarContador(elDentro, o.dentro, 800), delay);
+    }
+    const elPersonas = document.getElementById('kpi-personas-' + oid);
+    if (elPersonas && o.personasHoy != null) {
+      setTimeout(() => animarContador(elPersonas, o.personasHoy, 800), delay + 60);
+    }
+    const elRojos = document.getElementById('kpi-rojos-' + oid);
+    if (elRojos && o.rojosVivos != null) {
+      setTimeout(() => animarContador(elRojos, o.rojosVivos, 700), delay + 120);
+    }
+    if (historico && historico[oid]) {
+      const series = historico[oid];
+      const color = colorNivel(o.nivel);
+      ['dentro', 'personas'].forEach((tipo, ti) => {
+        const spk = document.getElementById('spk-' + tipo + '-' + oid);
+        const ln = document.getElementById('ln-' + tipo + '-' + oid);
+        if (spk && ln) {
+          setTimeout(() => {
+            dibujarSparkline(ln, series, color);
+            spk.style.opacity = '1';
+          }, delay + 200 + ti * 60);
+        }
+      });
+    }
+  });
+}
+
+function animarContador(el, target, duracion) {
+  const ini = performance.now();
+  function paso(ahora) {
+    const t = Math.min((ahora - ini) / duracion, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+    el.textContent = Math.round(ease * target);
+    if (t < 1) requestAnimationFrame(paso);
+    else el.textContent = target;
+  }
+  requestAnimationFrame(paso);
+}
+
+function dibujarSparkline(lineEl, series, color) {
+  const w = 90, h = 22;
+  const min = Math.min(...series), max = Math.max(...series);
+  const rng = max - min || 1;
+  const pts = series.map((v, i) => {
+    const x = (i / (series.length - 1)) * w;
+    const y = h - ((v - min) / rng) * (h - 2) - 1;
+    return x + ',' + y;
+  });
+  lineEl.setAttribute('d', 'M' + pts.join(' L'));
+  lineEl.setAttribute('stroke', color);
+  try {
+    const len = lineEl.getTotalLength();
+    lineEl.style.strokeDasharray = len;
+    lineEl.style.strokeDashoffset = len;
+    const ini = performance.now();
+    function paso(ahora) {
+      const t = Math.min((ahora - ini) / 700, 1);
+      lineEl.style.strokeDashoffset = len * (1 - t);
+      if (t < 1) requestAnimationFrame(paso);
+    }
+    requestAnimationFrame(paso);
+  } catch (e) {
+    lineEl.style.strokeDasharray = '';
+    lineEl.style.strokeDashoffset = '';
+  }
+}
+
+function colorNivel(nivel) {
+  return { verde: '#4caf50', naranja: '#ff9800', rojo: '#f44336', gris: '#8b909e' }[nivel] || '#8b909e';
+}
+</script>
+</body>
+</html>
