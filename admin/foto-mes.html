@@ -298,7 +298,84 @@ function agrupar(dias) {
 // Pintado
 // ─────────────────────────────────────────────────────────────────────
 
-function pintarReglas(reglas) {
+// 76ª (6/9/2026) · Desde que cada persona puede llevar su propio tipo de
+// jornada, el horario de la obra YA NO EXPLICA la foto por sí solo.
+// `cerrar_mes` guarda el catálogo y las asignaciones dentro de `reglas`;
+// aquí se PINTAN. Si no se pintaran, quien abriera esta foto leería
+// "Salida 17:30" y creería que todos iban a 17:30, cuando no es cierto.
+function pintarTiposJornada(r, personas) {
+  const tipos = Array.isArray(r.tipos_jornada) ? r.tipos_jornada : [];
+  const asig  = Array.isArray(r.asignaciones_jornada) ? r.asignaciones_jornada : [];
+
+  // Fotos firmadas ANTES de que existieran los tipos: no llevan estos
+  // campos. No se inventa nada ni se dice "ninguno", que sonaría a que
+  // se comprobó. Se dice que esa foto es anterior al sistema.
+  if (r.tipos_jornada === undefined && r.asignaciones_jornada === undefined) {
+    return '<div class="dias-int" style="margin-top:14px">' +
+      '<span style="color:var(--texto2)">Tipos de jornada: </span>' +
+      '<b>foto anterior al sistema de tipos de jornada</b> ' +
+      '<span style="color:var(--texto2)">(todo el mes se calculó con el horario de la obra)</span></div>';
+  }
+
+  const nombrePorId = {};
+  (personas || []).forEach(t => { nombrePorId[t.id] = t.nombre; });
+  const tipoPorId = {};
+  tipos.forEach(t => { tipoPorId[t.id] = t; });
+
+  const hm = v => (v ? String(v).slice(0, 5) : '—');
+  const describe = t => {
+    const pausas = [];
+    if (Number(t.almuerzo_min) > 0) pausas.push(Number(t.almuerzo_min) + ' min hasta ' + hm(t.almuerzo_fin));
+    if (Number(t.comida_min)   > 0) pausas.push(Number(t.comida_min)   + ' min hasta ' + hm(t.comida_fin));
+    return hm(t.entrada) + '–' + hm(t.salida) + ' · ' + (pausas.length ? pausas.join(' y ') : 'sin pausas');
+  };
+
+  // Agrupadas por tipo: así se lee "quién iba con qué", que es la
+  // pregunta que se le hace a una foto, no "qué tipos existían".
+  const porTipo = {};
+  asig.forEach(a => {
+    if (!porTipo[a.tipo_jornada_id]) porTipo[a.tipo_jornada_id] = [];
+    porTipo[a.tipo_jornada_id].push(a);
+  });
+
+  let html = '<div style="margin-top:18px"><h2 style="font-size:1rem;margin:0 0 8px">' +
+             'Tipos de jornada aplicados este mes</h2>';
+
+  if (!asig.length) {
+    html += '<div class="dias-int"><b>Nadie tenía tipo propio</b> ' +
+            '<span style="color:var(--texto2)">· todo el mes se calculó con el horario de la obra de arriba.</span></div>';
+    return html + '</div>';
+  }
+
+  html += '<table class="reglas-tabla"><tbody>';
+  Object.keys(porTipo).forEach(idTipo => {
+    const t = tipoPorId[idTipo];
+    const lista = porTipo[idTipo];
+    const quienes = lista.map(a => {
+      const nom = nombrePorId[a.trabajador_id] || '(trabajador no listado)';
+      const desde = a.desde ? fmtFecha(a.desde) : null;
+      const hasta = a.hasta ? fmtFecha(a.hasta) : null;
+      let rango = '';
+      if (desde && hasta) rango = ' (' + desde + ' – ' + hasta + ')';
+      else if (desde)     rango = ' (desde ' + desde + ')';
+      return esc(nom) + rango;
+    }).sort();
+    html += '<tr><td>' + esc(t ? t.nombre : '(tipo no guardado)') +
+            (t ? '<div style="font-size:.85em;color:var(--texto2)">' + esc(describe(t)) + '</div>' : '') +
+            '</td><td>' + quienes.join('<br>') + '</td></tr>';
+  });
+  html += '</tbody></table>';
+
+  const sinUsar = tipos.filter(t => !porTipo[t.id]);
+  if (sinUsar.length) {
+    html += '<div class="dias-int" style="margin-top:10px">' +
+      '<span style="color:var(--texto2)">Definidos pero sin nadie asignado: </span>' +
+      esc(sinUsar.map(t => t.nombre).join(' · ')) + '</div>';
+  }
+  return html + '</div>';
+}
+
+function pintarReglas(reglas, personas) {
   const r = reglas || {};
   const filas = [
     ['Entrada (día normal)', r.hora_entrada_default],
@@ -320,6 +397,7 @@ function pintarReglas(reglas) {
       ? '<b>' + intensivos.map(d => esc(fmtFecha(d))).join(' · ') + '</b>'
       : '<b>ninguno</b>') +
     '</div>' +
+    pintarTiposJornada(r, personas) +
     '<div class="pista">Estas son las reglas que la obra tenía <b>el día que se firmó</b>. Si hoy la ficha ' +
     'de la obra dice otra cosa, manda esta tabla: es la que produjo estos números.</div>' +
     '</div>';
@@ -438,7 +516,7 @@ function pintar() {
 
   zona.innerHTML =
     pintarCabecera(c, vista.versiones, vista.obraNombre, vista.mes, vista.personas.length) +
-    pintarReglas(c.reglas) +
+    pintarReglas(c.reglas, vista.personas) +
     '<div class="caja">' +
     '<div class="barra-tabla">' +
     '<input class="buscador" id="buscador" type="search" placeholder="Buscar por nombre, DNI o empresa…" autocomplete="off">' +
