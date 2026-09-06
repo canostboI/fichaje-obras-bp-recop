@@ -6,6 +6,7 @@
 <title>Informe de excepciones — Fichaje Obras</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/guardian.js"></script>
+<script src="../js/menu-admin.js"></script>
 <style>
   :root {
     --verde: #4caf50;
@@ -82,9 +83,7 @@
 
   .inf-genericos { background: #f8f8f8; border: 1px dashed #ccc; border-radius: 6px; padding: 16px 20px; font-size: 13px; color: #555; line-height: 1.6; }
   .inf-genericos strong { color: #333; }
-
   .inf-pie { margin-top: 36px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 11px; color: #999; line-height: 1.5; }
-
   .inf-vacio { text-align: center; padding: 40px 20px; color: #999; font-size: 15px; }
 
   @media print {
@@ -99,29 +98,7 @@
 </head>
 <body>
 
-<div class="sidebar">
-  <div class="sidebar-brand">
-    <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
-    <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
-  </div>
-  <div class="sidebar-section">Principal</div>
-  <a href="cuadro-mando.html"><span class="ico">🛰️</span> Cuadro de mando</a>
-  <a href="index.html"><span class="ico">📊</span> Dashboard</a>
-  <div class="sidebar-section">Gestión</div>
-  <a href="obras.html"><span class="ico">🏗</span> Obras</a>
-  <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
-  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
-  <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
-  <a href="cierre-mes.html"><span class="ico">🔒</span> Cierre de mes</a>
-  <a href="foto-mes.html"><span class="ico">📷</span> Foto del mes</a>
-  <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
-  <a href="informe-rojos.html"><span class="ico">📕</span> Informe de incidencias</a>
-  <a href="informe-excepciones.html" class="activo"><span class="ico">⚠️</span> Excepciones asumidas</a>
-  <a href="importar-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
-  <div class="sidebar-bottom">
-    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
-  </div>
-</div>
+<div id="sidebar-admin"></div>
 
 <div class="main">
   <div class="topbar">
@@ -167,16 +144,9 @@ const LOGOS = {
 };
 
 function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt == null ? '' : txt); return d.innerHTML; }
-
-function fmtFecha(iso) {
-  if (!iso) return null;
-  const d = new Date(iso + 'T00:00:00');
-  return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
-}
-
-function fmtHoy() {
-  return new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
-}
+function fmtFecha(iso) { if (!iso) return null; const d = new Date(iso + 'T00:00:00'); return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }); }
+function fmtHoy() { return new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }); }
+function fmtFechaCorta(iso) { if (!iso) return ''; const d = new Date(iso + 'T00:00:00'); return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
 
 async function cargarObras() {
   const sel = document.getElementById('sel-obra');
@@ -203,165 +173,44 @@ async function generar() {
   btnImp.disabled = false;
 }
 
-function pintarInforme(d, rango) {
-  const zona = document.getElementById('zona-informe');
-  const logo = LOGOS[d.obra_marca] || LOGOS.bosch_pascual;
-
-  let periodoTxt;
-  const fd = fmtFecha(rango.desde);
-  const fh = fmtFecha(rango.hasta);
-  if (fd && fh) periodoTxt = `Del ${fd} al ${fh}`;
-  else if (fd) periodoTxt = `Desde ${fd}`;
-  else if (fh) periodoTxt = `Hasta ${fh}`;
-  else periodoTxt = 'Todo el histórico registrado';
-
-  const total     = d.total || 0;
-  const activas   = d.activas || 0;
-  const revocadas = d.revocadas || 0;
-  const personas  = d.personas || 0;
-  const empresas  = Array.isArray(d.empresas) ? d.empresas : [];
-  const jefes     = Array.isArray(d.jefes) ? d.jefes : [];
-  const detalle   = Array.isArray(d.detalle) ? d.detalle : [];
-
-  if (total === 0) {
-    zona.innerHTML = `
-      <div class="informe">
-        ${cabeceraHTML(logo, d.obra_nombre, periodoTxt)}
-        <div class="inf-vacio">No se autorizó ninguna entrada en rojo en esta obra durante el periodo seleccionado.</div>
-        ${pieHTML()}
-      </div>`;
-    return;
-  }
-
-  const titular = `
-    <div class="inf-titular">
-      <div class="cifra">${total}</div>
-      <div class="frase">${total === 1 ? 'vez' : 'veces'} se dejó entrar a alguien <strong>sin la documentación en regla</strong>, sobre <strong>${personas}</strong> ${personas === 1 ? 'persona' : 'personas'} distintas. Cada una la asumió un jefe de obra con su nombre.</div>
-    </div>`;
-
-  const revocadasHTML = revocadas > 0 ? `
-      <div class="inf-seccion">
-        <h2>Autorizaciones retiradas</h2>
-        <div class="inf-genericos">
-          <strong>${revocadas}</strong> de las ${total} se retiraron después de concederse. Siguen contando aquí: la decisión se tomó, y retirarla es otra decisión, no un borrado.
-        </div>
-      </div>` : '';
-
-  const jefesHTML = jefes.length ? `
-      <div class="inf-seccion">
-        <h2>Por jefe de obra</h2>
-        <div class="subtitulo">Quién ha asumido el riesgo y cuántas veces. No es un reproche: es el registro de quién firmó cada entrada.</div>
-        <table class="inf-tabla">
-          <thead><tr><th>Jefe de obra</th><th class="num">Veces</th><th class="num">Personas</th></tr></thead>
-          <tbody>
-            ${jefes.map(j => `
-              <tr>
-                <td class="destacado">${esc(j.jefe)}</td>
-                <td class="num">${j.veces}</td>
-                <td class="num">${j.personas}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>` : '';
-
-  const empresasHTML = empresas.length ? `
-      <div class="inf-seccion">
-        <h2>Por empresa</h2>
-        <div class="subtitulo">Ordenadas por número de excepciones. Una empresa que aparece mucho aquí es una empresa cuya documentación llega tarde una y otra vez.</div>
-        <table class="inf-tabla">
-          <thead><tr><th>Empresa</th><th class="num">Veces</th><th class="num">Personas</th></tr></thead>
-          <tbody>
-            ${empresas.map(e => {
-              const suave = e.empresa_nombre === 'Sin empresa asignada';
-              return `
-              <tr class="${suave ? 'fila-suave' : ''}">
-                <td class="${suave ? '' : 'destacado'}">${esc(e.empresa_nombre)}</td>
-                <td class="num">${e.veces}</td>
-                <td class="num">${e.personas}</td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>` : '';
-
-  const detalleHTML = `
-      <div class="inf-seccion">
-        <h2>Una por una</h2>
-        <div class="subtitulo">El motivo es el que escribió el jefe de obra en el momento de autorizar, tal cual.</div>
-        <table class="inf-tabla">
-          <thead><tr><th>Fecha</th><th>Persona</th><th>Empresa</th><th>Jefe</th><th>Motivo</th></tr></thead>
-          <tbody>
-            ${detalle.map(x => {
-              const retirada = x.estado === 'revocada';
-              const motivo = esc(x.motivo_autorizacion || '(sin motivo)') +
-                (retirada ? `<br><em>Retirada: ${esc(x.motivo_revocacion || 'sin motivo')}</em>` : '');
-              return `
-              <tr class="${retirada ? 'fila-suave' : ''}">
-                <td>${esc(fmtFechaCorta(x.fecha))}</td>
-                <td class="${retirada ? '' : 'destacado'}">${esc(x.persona)}${x.dni ? '<br><span style="color:#777;font-size:12px">' + esc(x.dni) + '</span>' : ''}</td>
-                <td>${esc(x.empresa_nombre)}</td>
-                <td>${esc(x.jefe)}</td>
-                <td>${motivo}</td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>`;
-
-  zona.innerHTML = `
-    <div class="informe">
-      ${cabeceraHTML(logo, d.obra_nombre, periodoTxt)}
-      ${titular}
-      ${jefesHTML}
-      ${empresasHTML}
-      ${revocadasHTML}
-      ${detalleHTML}
-      ${pieHTML()}
-    </div>`;
-}
-
-function fmtFechaCorta(iso) {
-  if (!iso) return '';
-  const d = new Date(iso + 'T00:00:00');
-  return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
 function cabeceraHTML(logo, obraNombre, periodoTxt) {
-  return `
-    <div class="inf-cabecera">
-      <div>
-        <div class="inf-titulo">Excepciones asumidas</div>
-        <div class="inf-obra">${esc(obraNombre || 'Obra')}</div>
-        <div class="inf-meta">${esc(periodoTxt)}</div>
-      </div>
-      <div class="lado-derecho">
-        <img class="logo-marca" src="${logo}" alt="" onerror="this.style.display='none'">
-        <div class="inf-meta">Generado el ${fmtHoy()}</div>
-      </div>
-    </div>`;
+  return `<div class="inf-cabecera"><div><div class="inf-titulo">Excepciones asumidas</div><div class="inf-obra">${esc(obraNombre || 'Obra')}</div><div class="inf-meta">${esc(periodoTxt)}</div></div><div class="lado-derecho"><img class="logo-marca" src="${logo}" alt="" onerror="this.style.display='none'"><div class="inf-meta">Generado el ${fmtHoy()}</div></div></div>`;
 }
 
 function pieHTML() {
-  return `
-    <div class="inf-pie">
-      Datos reales registrados de forma automática por el sistema de control de acceso, sin intervención manual. Cada «intento frenado» corresponde a un trabajador que escaneó el QR de la obra e introdujo su DNI, y al que el sistema denegó el paso por no tener la documentación en regla en ese momento.
-    </div>`;
+  return `<div class="inf-pie">Datos reales registrados de forma automática por el sistema de control de acceso, sin intervención manual.</div>`;
+}
+
+function pintarInforme(d, rango) {
+  const zona = document.getElementById('zona-informe');
+  const logo = LOGOS[d.obra_marca] || LOGOS.bosch_pascual;
+  const fd = fmtFecha(rango.desde), fh = fmtFecha(rango.hasta);
+  const periodoTxt = fd && fh ? `Del ${fd} al ${fh}` : fd ? `Desde ${fd}` : fh ? `Hasta ${fh}` : 'Todo el histórico registrado';
+  const total = d.total || 0, revocadas = d.revocadas || 0, personas = d.personas || 0;
+  const empresas = Array.isArray(d.empresas) ? d.empresas : [];
+  const jefes = Array.isArray(d.jefes) ? d.jefes : [];
+  const detalle = Array.isArray(d.detalle) ? d.detalle : [];
+
+  if (total === 0) { zona.innerHTML = `<div class="informe">${cabeceraHTML(logo, d.obra_nombre, periodoTxt)}<div class="inf-vacio">No se autorizó ninguna entrada en rojo en esta obra durante el periodo seleccionado.</div>${pieHTML()}</div>`; return; }
+
+  const titular = `<div class="inf-titular"><div class="cifra">${total}</div><div class="frase">${total === 1 ? 'vez' : 'veces'} se dejó entrar a alguien <strong>sin la documentación en regla</strong>, sobre <strong>${personas}</strong> ${personas === 1 ? 'persona' : 'personas'} distintas. Cada una la asumió un jefe de obra con su nombre.</div></div>`;
+  const revocadasHTML = revocadas > 0 ? `<div class="inf-seccion"><h2>Autorizaciones retiradas</h2><div class="inf-genericos"><strong>${revocadas}</strong> de las ${total} se retiraron después de concederse. Siguen contando aquí.</div></div>` : '';
+  const jefesHTML = jefes.length ? `<div class="inf-seccion"><h2>Por jefe de obra</h2><div class="subtitulo">Quién ha asumido el riesgo y cuántas veces.</div><table class="inf-tabla"><thead><tr><th>Jefe de obra</th><th class="num">Veces</th><th class="num">Personas</th></tr></thead><tbody>${jefes.map(j => `<tr><td class="destacado">${esc(j.jefe)}</td><td class="num">${j.veces}</td><td class="num">${j.personas}</td></tr>`).join('')}</tbody></table></div>` : '';
+  const empresasHTML = empresas.length ? `<div class="inf-seccion"><h2>Por empresa</h2><table class="inf-tabla"><thead><tr><th>Empresa</th><th class="num">Veces</th><th class="num">Personas</th></tr></thead><tbody>${empresas.map(e => { const s = e.empresa_nombre === 'Sin empresa asignada'; return `<tr class="${s ? 'fila-suave' : ''}"><td class="${s ? '' : 'destacado'}">${esc(e.empresa_nombre)}</td><td class="num">${e.veces}</td><td class="num">${e.personas}</td></tr>`; }).join('')}</tbody></table></div>` : '';
+  const detalleHTML = `<div class="inf-seccion"><h2>Una por una</h2><div class="subtitulo">El motivo es el que escribió el jefe de obra en el momento de autorizar, tal cual.</div><table class="inf-tabla"><thead><tr><th>Fecha</th><th>Persona</th><th>Empresa</th><th>Jefe</th><th>Motivo</th></tr></thead><tbody>${detalle.map(x => { const r = x.estado === 'revocada'; const m = esc(x.motivo_autorizacion || '(sin motivo)') + (r ? `<br><em>Retirada: ${esc(x.motivo_revocacion || 'sin motivo')}</em>` : ''); return `<tr class="${r ? 'fila-suave' : ''}"><td>${esc(fmtFechaCorta(x.fecha))}</td><td class="${r ? '' : 'destacado'}">${esc(x.persona)}${x.dni ? '<br><span style="color:#777;font-size:12px">' + esc(x.dni) + '</span>' : ''}</td><td>${esc(x.empresa_nombre)}</td><td>${esc(x.jefe)}</td><td>${m}</td></tr>`; }).join('')}</tbody></table></div>`;
+
+  zona.innerHTML = `<div class="informe">${cabeceraHTML(logo, d.obra_nombre, periodoTxt)}${titular}${jefesHTML}${empresasHTML}${revocadasHTML}${detalleHTML}${pieHTML()}</div>`;
 }
 
 (async function init() {
   const g = await Guardian.entrar(sb, { rol: 'admin', campos: 'nombre', volver: '../' });
   if (!g) return;
-  const session = g.session;
-  const usuario = g.usuario;
-  document.getElementById('usuario-email').textContent = usuario.nombre || session.user.email;
+  document.getElementById('usuario-email').textContent = g.usuario.nombre || g.session.user.email;
   if (window.AutoLogout) AutoLogout.init(sb);
   await cargarObras();
   document.getElementById('btn-generar').addEventListener('click', generar);
   document.getElementById('btn-imprimir').addEventListener('click', () => window.print());
-  document.getElementById('btn-salir').addEventListener('click', async () => {
-    await sb.auth.signOut();
-    window.location.href = '../';
-  });
+  document.getElementById('btn-salir').addEventListener('click', async () => { await sb.auth.signOut(); window.location.href = '../'; });
 })();
 </script>
 </body>
