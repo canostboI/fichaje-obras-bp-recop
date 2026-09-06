@@ -6,6 +6,7 @@
 <title>Importar e-Coordina (todas) — Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/guardian.js"></script>
+<script src="../js/menu-admin.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -29,100 +30,26 @@
   .topbar { padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; }
   .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
   .contenido { padding: 0 28px 28px; display: flex; flex-direction: column; gap: 20px; }
-
   .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 22px 24px; }
   .seccion h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
   .ayuda { font-size: 13px; color: var(--texto2); line-height: 1.55; margin-bottom: 16px; }
   .ayuda strong { color: var(--texto); }
-
   .btn-primario { background: var(--azul); color: white; border: none; padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
   .btn-primario:hover { opacity: 0.9; }
-  .btn-primario:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-exito { background: var(--verde); color: white; border: none; padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
-  .btn-exito:hover { opacity: 0.9; }
-  .btn-exito:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-secundario { background: transparent; color: var(--texto2); border: 1px solid var(--borde); padding: 9px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
-  .btn-secundario:hover { background: var(--bg3); color: var(--texto); }
-
-  .drop-zone { border: 2px dashed var(--borde); border-radius: 10px; padding: 36px 20px; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
-  .drop-zone:hover, .drop-zone.drag-over { border-color: var(--azul); background: rgba(33,150,243,0.04); }
-  .drop-zone p { font-size: 13px; color: var(--texto2); margin-top: 8px; }
-  .drop-zone .icono { font-size: 30px; }
-  input[type=file] { display: none; }
-
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th { text-align: left; padding: 11px 14px; font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); }
-  td { padding: 12px 14px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
-  tr:last-child td { border-bottom: none; }
-  th.num, td.num { text-align: center; }
-  .num-obra { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--texto2); }
-
-  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
-  .pill.verde { background: rgba(76,175,80,0.15); color: var(--verde); }
-  .pill.naranja { background: rgba(255,152,0,0.15); color: var(--naranja); }
-  .pill.rojo { background: rgba(244,67,54,0.15); color: var(--rojo); }
-  .pill.gris { background: rgba(139,144,158,0.15); color: var(--texto2); }
-  .cero { color: var(--texto2); opacity: 0.5; }
-
   .alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; border: 1px solid var(--borde); line-height: 1.5; }
-  .alert-info { background: rgba(33,150,243,0.1); color: var(--azul); border-left: 3px solid var(--azul); }
   .alert-warning { background: rgba(255,152,0,0.1); color: var(--naranja); border-left: 3px solid var(--naranja); }
-  .alert-success { background: rgba(76,175,80,0.1); color: var(--verde); border-left: 3px solid var(--verde); }
-  .alert-error { background: rgba(244,67,54,0.1); color: var(--rojo); border-left: 3px solid var(--rojo); }
-  .alert + .alert { margin-top: 10px; }
-
-  .aviso-no-guardado { background: rgba(255,152,0,0.15); border: 2px solid var(--naranja); border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; gap: 14px; font-size: 14px; }
-  .aviso-no-guardado .ico-grande { font-size: 26px; flex-shrink: 0; }
-  .aviso-no-guardado strong { color: var(--naranja); }
-
-  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  details.plegable { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 8px 12px; margin-top: 8px; }
-  details.plegable summary { cursor: pointer; font-size: 12px; font-weight: 600; color: var(--texto2); user-select: none; }
-  details.plegable summary:hover { color: var(--texto); }
-  details.plegable ul { list-style: none; padding: 8px 0 0; margin: 0; font-size: 12px; }
-  details.plegable li { padding: 3px 0; color: var(--texto); }
-  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--bg); padding: 2px 6px; border-radius: 4px; font-size: 11px; }
-  .nombre-archivo { margin-top: 10px; font-size: 12px; color: var(--azul); }
-  .acciones-fila { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
-  .progreso { font-size: 13px; color: var(--texto2); }
-  .oculto { display: none; }
 </style>
 <script src="../js/auto-logout.js"></script>
 </head>
 <body>
 
-<div class="sidebar">
-  <div class="sidebar-brand">
-    <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
-    <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
-  </div>
-  <div class="sidebar-section">Principal</div>
-  <a href="cuadro-mando.html"><span class="ico">🛰️</span> Cuadro de mando</a>
-  <a href="index.html"><span class="ico">📊</span> Dashboard</a>
-  <div class="sidebar-section">Gestión</div>
-  <a href="obras.html"><span class="ico">🏗</span> Obras</a>
-  <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
-  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
-  <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
-  <a href="cierre-mes.html"><span class="ico">🔒</span> Cierre de mes</a>
-  <a href="foto-mes.html"><span class="ico">📷</span> Foto del mes</a>
-  <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
-  <a href="informe-rojos.html"><span class="ico">📕</span> Informe de incidencias</a>
-  <a href="importar-ecoordina.html" class="activo"><span class="ico">📥</span> e-Coordina</a>
-  <div class="sidebar-bottom">
-    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
-  </div>
-</div>
+<div id="sidebar-admin"></div>
 
 <div class="main">
   <div class="topbar">
     <h1>e-Coordina · Importación documental</h1>
   </div>
-
   <div class="contenido">
-
     <div class="seccion">
       <div class="alert alert-warning" style="margin-bottom:18px;">
         <strong>⚠️ Esta pantalla ya no procesa archivos.</strong><br>
@@ -132,7 +59,6 @@
         exención activa, y no avisó de nada. La importación se hace ahora
         desde un único sitio.
       </div>
-
       <h2>Importar desde aquí</h2>
       <p class="ayuda">
         El importador acepta tu usuario de administrador y te muestra
@@ -145,7 +71,6 @@
         📥 Ir al importador de e-Coordina
       </a>
     </div>
-
     <div class="seccion">
       <h2>Por qué solo hay un sitio</h2>
       <p class="ayuda" style="margin-bottom:0;">
@@ -158,7 +83,6 @@
         volver a calcular por su cuenta ni por descuido.
       </p>
     </div>
-
   </div>
 </div>
 
@@ -169,20 +93,13 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 AutoLogout.init(sb);
 
-// Esta pantalla NO carga js/ecoordina-import.js ni la librería xlsx, a
-// propósito. Sin el motor delante, no puede convertirse otra vez en una
-// segunda pieza que calcule el semáforo. Si algún día hace falta importar
-// desde aquí, lo que toca es enlazar, no volver a traer el módulo.
-
-document.getElementById('btn-salir').onclick = async () => {
+document.getElementById('btn-salir').addEventListener('click', async () => {
   await sb.auth.signOut();
   window.location.href = '../index.html';
-};
+});
 
 async function init() {
   try {
-    // Sesión, fallo de red y cuenta de baja los resuelve el guardián.
-    // El aviso de rol se queda aquí: esta pantalla explica el rol detectado.
     const g = await Guardian.entrar(sb, { campos: 'id', volver: '../index.html' });
     if (!g) return;
     const ua = g.usuario;
@@ -196,7 +113,6 @@ async function init() {
     alert('Error arrancando la pantalla: ' + (err.message || err));
   }
 }
-
 init();
 </script>
 </body>
