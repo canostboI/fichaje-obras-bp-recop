@@ -6,6 +6,7 @@
 <title>Reglas documentales — Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/guardian.js"></script>
+<script src="../js/menu-admin.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -88,28 +89,7 @@
 </head>
 <body>
 
-<div class="sidebar">
-  <div class="sidebar-brand">
-    <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
-    <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
-  </div>
-  <div class="sidebar-section">Principal</div>
-  <a href="cuadro-mando.html"><span class="ico">🛰️</span> Cuadro de mando</a>
-  <a href="index.html"><span class="ico">📊</span> Dashboard</a>
-  <div class="sidebar-section">Gestión</div>
-  <a href="obras.html"><span class="ico">🏗</span> Obras</a>
-  <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
-  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
-  <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
-  <a href="cierre-mes.html"><span class="ico">🔒</span> Cierre de mes</a>
-  <a href="foto-mes.html"><span class="ico">📷</span> Foto del mes</a>
-  <a href="reglas.html" class="activo"><span class="ico">📋</span> Reglas documentales</a>
-  <a href="informe-rojos.html"><span class="ico">📕</span> Informe de incidencias</a>
-  <a href="importar-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
-  <div class="sidebar-bottom">
-    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
-  </div>
-</div>
+<div id="sidebar-admin"></div>
 
 <div class="main">
   <div class="topbar">
@@ -143,12 +123,9 @@
       <table id="tablaReglas">
         <thead>
           <tr>
-            <th>Documento</th>
-            <th>Estado e-Coordina</th>
+            <th>Documento</th><th>Estado e-Coordina</th>
             <th style="text-align:center">Obligatorio</th>
-            <th>Aplica a</th>
-            <th>Resultado</th>
-            <th></th>
+            <th>Aplica a</th><th>Resultado</th><th></th>
           </tr>
         </thead>
         <tbody id="cuerpoTabla">
@@ -159,7 +136,7 @@
     <div class="toolbar-inferior">
       <button class="btn-exito" onclick="guardarTodo()">💾 Guardar cambios</button>
     </div>
-    </div><!-- /tabReglas -->
+    </div>
 
     <div id="tabExenciones" class="oculto">
       <details class="ayuda-reglas">
@@ -199,15 +176,7 @@
 
       <div class="seccion">
         <table>
-          <thead>
-            <tr>
-              <th>Empresa</th>
-              <th>Documento eximido</th>
-              <th>Motivo</th>
-              <th>Firmada por</th>
-              <th></th>
-            </tr>
-          </thead>
+          <thead><tr><th>Empresa</th><th>Documento eximido</th><th>Motivo</th><th>Firmada por</th><th></th></tr></thead>
           <tbody id="cuerpoExenciones">
             <tr><td colspan="5"><div class="cargando">Cargando…</div></td></tr>
           </tbody>
@@ -216,7 +185,7 @@
       <div class="toolbar-inferior">
         <button class="btn-secundario" id="btnVerRetiradas" onclick="alternarRetiradas()">Ver retiradas</button>
       </div>
-    </div><!-- /tabExenciones -->
+    </div>
   </div>
 </div>
 
@@ -230,8 +199,6 @@ AutoLogout.init(sb);
 let reglas = [];
 let eliminadas = [];
 
-// Devuelve true solo si se puede seguir. Antes no devolvía nada: aunque
-// redirigiera, cargarReglas() se ejecutaba igual justo detrás.
 async function checkAdmin() {
   const g = await Guardian.entrar(sb, { rol: 'admin', volver: '../index.html' });
   return !!g;
@@ -252,19 +219,15 @@ function renderTabla() {
       <td><input type="text" value="${esc(r.nombre_documento)}" onchange="actualizar(${i},'nombre_documento',this.value)"/></td>
       <td><input type="text" value="${esc(r.estado_ecoordina)}" onchange="actualizar(${i},'estado_ecoordina',this.value)"/></td>
       <td class="celda-check"><input type="checkbox" ${r.es_obligatorio ? 'checked' : ''} onchange="actualizar(${i},'es_obligatorio',this.checked)"/></td>
-      <td>
-        <select onchange="actualizar(${i},'aplica_a',this.value)">
-          <option value="trabajador" ${r.aplica_a==='trabajador'?'selected':''}>👷 Trabajador</option>
-          <option value="empresa"    ${r.aplica_a==='empresa'   ?'selected':''}>🏢 Empresa</option>
-        </select>
-      </td>
-      <td>
-        <select onchange="actualizar(${i},'resultado',this.value)">
-          <option value="verde"   ${r.resultado==='verde'  ?'selected':''}>🟢 Verde</option>
-          <option value="naranja" ${r.resultado==='naranja'?'selected':''}>🟠 Naranja</option>
-          <option value="rojo"    ${r.resultado==='rojo'   ?'selected':''}>🔴 Rojo</option>
-        </select>
-      </td>
+      <td><select onchange="actualizar(${i},'aplica_a',this.value)">
+        <option value="trabajador" ${r.aplica_a==='trabajador'?'selected':''}>👷 Trabajador</option>
+        <option value="empresa"    ${r.aplica_a==='empresa'   ?'selected':''}>🏢 Empresa</option>
+      </select></td>
+      <td><select onchange="actualizar(${i},'resultado',this.value)">
+        <option value="verde"   ${r.resultado==='verde'  ?'selected':''}>🟢 Verde</option>
+        <option value="naranja" ${r.resultado==='naranja'?'selected':''}>🟠 Naranja</option>
+        <option value="rojo"    ${r.resultado==='rojo'   ?'selected':''}>🔴 Rojo</option>
+      </select></td>
       <td><button class="btn-peligro-sutil" onclick="eliminarFila(${i})">Eliminar</button></td>
     </tr>`).join('');
 }
@@ -294,17 +257,15 @@ async function guardarTodo() {
   }
   if (eliminadas.length > 0) {
     const n = eliminadas.length;
-    if (!confirm(`Vas a borrar ${n} regla${n === 1 ? '' : 's'}. Esta acción no se puede deshacer.\n\n¿Continuar?`)) { return; }
+    if (!confirm(`Vas a borrar ${n} regla${n === 1 ? '' : 's'}. Esta acción no se puede deshacer.\n\n¿Continuar?`)) return;
   }
   let errores = [];
   for (const id of eliminadas) { const { error } = await sb.from('reglas_documentales').delete().eq('id', id); if (error) errores.push('Borrar ' + id + ': ' + error.message); }
-  const nuevas = reglas.filter(r => r._nueva);
-  for (const r of nuevas) {
+  for (const r of reglas.filter(r => r._nueva)) {
     const { error } = await sb.from('reglas_documentales').insert({ nombre_documento: r.nombre_documento.trim(), estado_ecoordina: r.estado_ecoordina.trim(), es_obligatorio: r.es_obligatorio, aplica_a: r.aplica_a || 'trabajador', resultado: r.resultado });
     if (error) errores.push('Insertar ' + r.nombre_documento + ': ' + error.message);
   }
-  const modificadas = reglas.filter(r => r._modificada && !r._nueva);
-  for (const r of modificadas) {
+  for (const r of reglas.filter(r => r._modificada && !r._nueva)) {
     const { error } = await sb.from('reglas_documentales').update({ nombre_documento: r.nombre_documento.trim(), estado_ecoordina: r.estado_ecoordina.trim(), es_obligatorio: r.es_obligatorio, aplica_a: r.aplica_a || 'trabajador', resultado: r.resultado }).eq('id', r.id);
     if (error) errores.push('Actualizar ' + r.nombre_documento + ': ' + error.message);
   }
@@ -316,17 +277,7 @@ function mostrarOk(msg) { const el = document.getElementById('msgOk'); el.textCo
 function mostrarError(msg) { const el = document.getElementById('msgErr'); el.textContent = msg; el.style.display = 'block'; }
 function ocultarMensajes() { document.getElementById('msgOk').style.display = 'none'; document.getElementById('msgErr').style.display = 'none'; }
 
-// ══════════════════════════════════════════════════════════════════════════
-// EXENCIONES DOCUMENTALES POR EMPRESA
-// "A esta empresa este documento no le aplica." Solo documentos de EMPRESA.
-// Las altas y bajas van por RPC (crear_exencion_documento /
-// quitar_exencion_documento): la tabla no admite DELETE a propósito, para que
-// el histórico de quién eximió qué no se pueda borrar desde la app.
-// ══════════════════════════════════════════════════════════════════════════
-let exenciones = [];
-let empresas = [];
-let verRetiradas = false;
-let exencionesCargadas = false;
+let exenciones = [], empresas = [], verRetiradas = false, exencionesCargadas = false;
 
 function verTab(cual) {
   const esReglas = (cual === 'reglas');
@@ -358,53 +309,28 @@ async function cargarEmpresas() {
 }
 
 async function cargarExenciones() {
-  const { data, error } = await sb
-    .from('exenciones_documento_empresa')
+  const { data, error } = await sb.from('exenciones_documento_empresa')
     .select('id, nombre_documento, motivo, activo, creado_en, quitado_en, empresa:empresa_id(nombre, cif), creador:creado_por(nombre), quitador:quitado_por(nombre)')
     .order('creado_en', { ascending: false });
-  if (error) {
-    mostrarError('Error al cargar exenciones: ' + error.message);
-    document.getElementById('cuerpoExenciones').innerHTML =
-      '<tr><td colspan="5"><div class="vacio">No se han podido cargar.</div></td></tr>';
-    return;
-  }
+  if (error) { mostrarError('Error al cargar exenciones: ' + error.message); document.getElementById('cuerpoExenciones').innerHTML = '<tr><td colspan="5"><div class="vacio">No se han podido cargar.</div></td></tr>'; return; }
   exenciones = data || [];
   renderExenciones();
 }
 
-// Sugerencias de nombre de documento. El nombre tiene que casar EXACTO, así que
-// teclearlo a mano es la vía rápida a una exención que no funciona y nadie sabe
-// por qué. Se sacan de dos sitios que ya tienen los nombres REALES de
-// e-Coordina: las reglas, y las líneas "[Empresa] X (estado) → resultado" que
-// el semáforo dejó escritas en validaciones_obra.motivos.
 async function cargarNombresDocumentos() {
   const nombres = new Set();
-
-  const { data: dReglas, error: eReglas } = await sb
-    .from('reglas_documentales').select('nombre_documento').eq('aplica_a', 'empresa');
-  if (eReglas) console.error('Error leyendo reglas para sugerencias:', eReglas.message);
-  for (const r of (dReglas || [])) {
-    const nd = (r.nombre_documento || '').trim();
-    if (nd && nd !== '*') nombres.add(nd);
-  }
-
-  const { data: dVal, error: eVal } = await sb
-    .from('validaciones_obra').select('motivos').limit(1500);
-  if (eVal) console.error('Error leyendo validaciones para sugerencias:', eVal.message);
+  const { data: dReglas } = await sb.from('reglas_documentales').select('nombre_documento').eq('aplica_a', 'empresa');
+  for (const r of (dReglas || [])) { const nd = (r.nombre_documento || '').trim(); if (nd && nd !== '*') nombres.add(nd); }
+  const { data: dVal } = await sb.from('validaciones_obra').select('motivos').limit(1500);
   for (const v of (dVal || [])) {
-    const lista = Array.isArray(v.motivos) ? v.motivos : [];
-    for (const linea of lista) {
+    for (const linea of (Array.isArray(v.motivos) ? v.motivos : [])) {
       if (typeof linea !== 'string' || !linea.startsWith('[Empresa]')) continue;
-      // Greedy a propósito: el documento puede llevar paréntesis dentro
-      // ("RLC (antiguo TC1) + pago"); el ÚLTIMO paréntesis es el estado.
       const m = linea.slice('[Empresa]'.length).trim().match(/^(.*)\s+\(([^()]*)\)\s+→/);
       if (m && m[1].trim()) nombres.add(m[1].trim());
     }
   }
-
   const dl = document.getElementById('listaDocs');
-  dl.innerHTML = [...nombres].sort((a, b) => a.localeCompare(b, 'es'))
-    .map(nd => `<option value="${esc(nd)}"></option>`).join('');
+  dl.innerHTML = [...nombres].sort((a, b) => a.localeCompare(b, 'es')).map(nd => `<option value="${esc(nd)}"></option>`).join('');
   document.getElementById('pistaDoc').innerHTML = nombres.size
     ? `Debe coincidir <strong>exacto</strong> con el nombre de e-Coordina. Hay <strong>${nombres.size}</strong> nombres conocidos en la lista.`
     : 'Debe coincidir <strong>exacto</strong> con el nombre de e-Coordina. <strong>No se han podido cargar sugerencias:</strong> cópialo tal cual de los motivos del trabajador.';
@@ -421,47 +347,30 @@ function renderExenciones() {
   const tbody = document.getElementById('cuerpoExenciones');
   const visibles = exenciones.filter(e => verRetiradas || e.activo);
   const nRetiradas = exenciones.filter(e => !e.activo).length;
-
   const btnRet = document.getElementById('btnVerRetiradas');
   btnRet.textContent = verRetiradas ? 'Ocultar retiradas' : `Ver retiradas (${nRetiradas})`;
   btnRet.classList.toggle('oculto', nRetiradas === 0 && !verRetiradas);
-
-  if (!visibles.length) {
-    tbody.innerHTML = '<tr><td colspan="5"><div class="vacio">No hay exenciones. Lo normal es que esta lista esté casi vacía.</div></td></tr>';
-    return;
-  }
-
+  if (!visibles.length) { tbody.innerHTML = '<tr><td colspan="5"><div class="vacio">No hay exenciones. Lo normal es que esta lista esté casi vacía.</div></td></tr>'; return; }
   tbody.innerHTML = visibles.map(e => {
     const emp = e.empresa || {};
     const firma = `${esc((e.creador && e.creador.nombre) || '—')} · ${fechaCorta(e.creado_en)}`;
     const accion = e.activo
       ? `<button class="btn-peligro-sutil" onclick="quitarExencion('${esc(e.id)}')">Quitar</button>`
       : `<span class="badge-ret">retirada ${fechaCorta(e.quitado_en)}${e.quitador && e.quitador.nombre ? ' · ' + esc(e.quitador.nombre) : ''}</span>`;
-    return `
-      <tr class="${e.activo ? '' : 'retirada'}">
-        <td><strong>${esc(emp.nombre || '—')}</strong>${emp.cif ? '<br><span style="font-size:12px;color:var(--texto2)">' + esc(emp.cif) + '</span>' : ''}</td>
-        <td>${esc(e.nombre_documento)}</td>
-        <td class="celda-motivo">${esc(e.motivo)}</td>
-        <td style="font-size:13px;color:var(--texto2)">${firma}</td>
-        <td>${accion}</td>
-      </tr>`;
+    return `<tr class="${e.activo ? '' : 'retirada'}">
+      <td><strong>${esc(emp.nombre || '—')}</strong>${emp.cif ? '<br><span style="font-size:12px;color:var(--texto2)">' + esc(emp.cif) + '</span>' : ''}</td>
+      <td>${esc(e.nombre_documento)}</td>
+      <td class="celda-motivo">${esc(e.motivo)}</td>
+      <td style="font-size:13px;color:var(--texto2)">${firma}</td>
+      <td>${accion}</td>
+    </tr>`;
   }).join('');
 }
 
 function alternarRetiradas() { verRetiradas = !verRetiradas; renderExenciones(); }
 
-function abrirFormExencion() {
-  document.getElementById('exEmpresa').value = '';
-  document.getElementById('exDoc').value = '';
-  document.getElementById('exMotivo').value = '';
-  contarMotivo();
-  document.getElementById('formExencion').classList.remove('oculto');
-  document.getElementById('exEmpresa').focus();
-}
-function cerrarFormExencion() {
-  document.getElementById('formExencion').classList.add('oculto');
-  ocultarMensajes();
-}
+function abrirFormExencion() { document.getElementById('exEmpresa').value = ''; document.getElementById('exDoc').value = ''; document.getElementById('exMotivo').value = ''; contarMotivo(); document.getElementById('formExencion').classList.remove('oculto'); document.getElementById('exEmpresa').focus(); }
+function cerrarFormExencion() { document.getElementById('formExencion').classList.add('oculto'); ocultarMensajes(); }
 
 function contarMotivo() {
   const n = document.getElementById('exMotivo').value.trim().length;
@@ -475,30 +384,23 @@ async function guardarExencion() {
   const empresaId = document.getElementById('exEmpresa').value;
   const doc = document.getElementById('exDoc').value.trim();
   const motivo = document.getElementById('exMotivo').value.trim();
-
   if (!empresaId) { mostrarError('Elige una empresa.'); return; }
   if (!doc) { mostrarError('Escribe el nombre del documento.'); return; }
   if (motivo.length < 15) { mostrarError('El motivo es obligatorio y debe explicar por qué ese documento no aplica (mínimo 15 caracteres).'); return; }
-
   const emp = empresas.find(e => e.id === empresaId);
   const nombreEmp = emp ? emp.nombre : 'esta empresa';
   if (!confirm(`Vas a eximir a ${nombreEmp} del documento:\n\n"${doc}"\n\nA partir de la próxima sincronización ese documento dejará de bloquear a sus trabajadores. El resto se les sigue exigiendo.\n\n¿Continuar?`)) return;
-
   const btn = document.getElementById('btnGuardarExencion');
   btn.disabled = true;
   try {
-    const { data, error } = await sb.rpc('crear_exencion_documento', {
-      p_empresa_id: empresaId, p_nombre_documento: doc, p_motivo: motivo
-    });
+    const { data, error } = await sb.rpc('crear_exencion_documento', { p_empresa_id: empresaId, p_nombre_documento: doc, p_motivo: motivo });
     if (error) { mostrarError('Error al crear la exención: ' + error.message); return; }
     if (!data || data.ok === false) { mostrarError('No se ha podido crear: ' + ((data && data.error) || 'error desconocido')); return; }
-    if (data.ya_existia) { mostrarOk('Esa exención ya existía. No se ha duplicado.'); }
-    else { mostrarOk('Exención creada. Tendrá efecto en la próxima sincronización de e-Coordina (esta madrugada), o antes si el jefe importa el Excel a mano.'); }
+    if (data.ya_existia) mostrarOk('Esa exención ya existía. No se ha duplicado.');
+    else mostrarOk('Exención creada. Tendrá efecto en la próxima sincronización de e-Coordina (esta madrugada), o antes si el jefe importa el Excel a mano.');
     cerrarFormExencion();
     await cargarExenciones();
-  } finally {
-    btn.disabled = false;
-  }
+  } finally { btn.disabled = false; }
 }
 
 async function quitarExencion(id) {
@@ -507,7 +409,6 @@ async function quitarExencion(id) {
   const nombreEmp = (ex && ex.empresa && ex.empresa.nombre) || 'esta empresa';
   const doc = (ex && ex.nombre_documento) || 'este documento';
   if (!confirm(`Vas a retirar la exención de ${nombreEmp} para:\n\n"${doc}"\n\nVolverá a exigirse, y sus trabajadores pueden pasar a naranja o rojo en la próxima sincronización.\n\n¿Continuar?`)) return;
-
   const { data, error } = await sb.rpc('quitar_exencion_documento', { p_exencion_id: id });
   if (error) { mostrarError('Error al retirar: ' + error.message); return; }
   if (!data || data.ok === false) { mostrarError('No se ha podido retirar: ' + ((data && data.error) || 'error desconocido')); return; }
