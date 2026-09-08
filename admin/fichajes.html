@@ -6,6 +6,7 @@
 <title>Fichajes — Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/guardian.js"></script>
+<script src="../js/menu-admin.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -38,7 +39,7 @@
   .btn-secundario { background: transparent; color: var(--texto2); border: 1px solid var(--borde); padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
   .btn-secundario:hover { background: var(--bg3); color: var(--texto); }
   .link-proforma { display: inline-flex; align-items: center; gap: 7px; background: var(--bg3); color: var(--texto); border: 1px solid var(--borde); padding: 9px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; }
-  .link-proforma:hover { border-color: var(--color-acento); }
+  .link-proforma:hover { border-color: var(--azul); }
   .nota-proforma { font-size: 12px; color: var(--texto2); }
   .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
   .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: space-between; }
@@ -62,29 +63,7 @@
 </head>
 <body>
 
-<div class="sidebar">
-  <div class="sidebar-brand">
-    <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
-    <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
-  </div>
-  <div class="sidebar-section">Principal</div>
-  <a href="cuadro-mando.html"><span class="ico">🛰️</span> Cuadro de mando</a>
-  <a href="index.html"><span class="ico">📊</span> Dashboard</a>
-  <div class="sidebar-section">Gestión</div>
-  <a href="obras.html"><span class="ico">🏗</span> Obras</a>
-  <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
-  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
-  <a href="fichajes.html" class="activo"><span class="ico">📋</span> Fichajes</a>
-  <a href="cierre-mes.html"><span class="ico">🔒</span> Cierre de mes</a>
-  <a href="foto-mes.html"><span class="ico">📷</span> Foto del mes</a>
-  <a href="../jefe/resumen-mes.html"><span class="ico">📊</span> Resumen · Proforma</a>
-  <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
-  <a href="informe-rojos.html"><span class="ico">📕</span> Informe de incidencias</a>
-  <a href="importar-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
-  <div class="sidebar-bottom">
-    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
-  </div>
-</div>
+<div id="sidebar-admin"></div>
 
 <div class="main">
   <div class="topbar"><h1>Fichajes</h1></div>
@@ -114,19 +93,12 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 AutoLogout.init(sb);
 
-// Iconos de habilitación: js/habilitaciones.js (window.Hab).
-// El diccionario estaba copiado aquí y en otros siete archivos.
 if (!window.Fechas || !window.Hab) {
-  document.body.innerHTML =
-    '<div style="padding:40px;font-family:system-ui;color:#f44336">' +
-    'No se han cargado js/fechas.js y js/habilitaciones.js. Recarga la página.</div>';
+  document.body.innerHTML = '<div style="padding:40px;font-family:system-ui;color:#f44336">No se han cargado js/fechas.js y js/habilitaciones.js. Recarga la página.</div>';
   throw new Error('Faltan los módulos Fechas/Hab');
 }
 
 (async function init() {
-  // El guardián de sesión vive en js/guardian.js, igual en las 20 pantallas.
-  // Separa "no tienes permiso" de "ha fallado la red" y de "estás de baja",
-  // que antes se confundían en un mismo redirect mudo al login.
   const g = await Guardian.entrar(sb, { rol: 'admin', volver: '../' });
   if (!g) return;
   document.getElementById('filtro-fecha').value = fechaHoy();
@@ -168,22 +140,18 @@ async function buscar() {
   if (obraId) query = query.eq('obra_id', obraId);
 
   const { data, error } = await query;
-
   if (error || !data || data.length === 0) {
     document.getElementById('badge-total').textContent = '0 registros';
     document.getElementById('tabla-fichajes').innerHTML = '<div class="vacio">No hay fichajes para estos filtros</div>';
     return;
   }
 
-  // Cargar habilitaciones activas de los trabajadores en la tabla
   const ids = [...new Set(data.map(f => f.trabajador_id).filter(Boolean))];
   const habIconos = {};
   if (ids.length > 0) {
-    const { data: habs } = await sb
-      .from('habilitaciones_trabajador')
+    const { data: habs } = await sb.from('habilitaciones_trabajador')
       .select('trabajador_id, tipo:tipo_habilitacion_id(nombre)')
-      .in('trabajador_id', ids)
-      .eq('activo', true);
+      .in('trabajador_id', ids).eq('activo', true);
     (habs || []).forEach(h => {
       const icono = Hab.icono(h.tipo?.nombre || '');
       if (!habIconos[h.trabajador_id]) habIconos[h.trabajador_id] = [];
@@ -216,8 +184,7 @@ async function buscar() {
     }).join('')}</tbody></table>`;
 }
 
-function fechaHoy()  { return new Date().toISOString().split('T')[0]; }
-function mesActual() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+function fechaHoy() { return new Date().toISOString().split('T')[0]; }
 function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
 function formatFechaHora(iso) { if (!iso) return '—'; const d = new Date(iso); return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); }
 </script>
