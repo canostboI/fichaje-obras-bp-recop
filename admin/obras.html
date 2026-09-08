@@ -6,6 +6,7 @@
 <title>Obras — Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/guardian.js"></script>
+<script src="../js/menu-admin.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
 <style>
   :root {
@@ -111,28 +112,7 @@
 </head>
 <body>
 
-<div class="sidebar">
-  <div class="sidebar-brand">
-    <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
-    <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
-  </div>
-  <div class="sidebar-section">Principal</div>
-  <a href="cuadro-mando.html"><span class="ico">🛰️</span> Cuadro de mando</a>
-  <a href="index.html"><span class="ico">📊</span> Dashboard</a>
-  <div class="sidebar-section">Gestión</div>
-  <a href="obras.html" class="activo"><span class="ico">🏗</span> Obras</a>
-  <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
-  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
-  <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
-  <a href="cierre-mes.html"><span class="ico">🔒</span> Cierre de mes</a>
-  <a href="foto-mes.html"><span class="ico">📷</span> Foto del mes</a>
-  <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
-  <a href="informe-rojos.html"><span class="ico">📕</span> Informe de incidencias</a>
-  <a href="importar-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
-  <div class="sidebar-bottom">
-    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
-  </div>
-</div>
+<div id="sidebar-admin"></div>
 
 <div class="main">
   <div class="topbar">
@@ -144,26 +124,16 @@
       <button class="tab activo" id="tab-obras" data-vista="obras">🏗 Obras</button>
       <button class="tab" id="tab-directorio" data-vista="directorio">👥 Directorio de usuarios</button>
     </div>
-
     <div id="vista-obras">
       <div class="seccion">
         <div id="tabla-obras"><div class="cargando">Cargando…</div></div>
       </div>
     </div>
-
     <div id="vista-directorio" style="display:none;">
       <div class="error-modal" id="error-directorio" style="margin-bottom:14px;"></div>
       <div class="ok-modal" id="ok-directorio" style="margin-bottom:14px;"></div>
-      <div class="dir-ayuda">
-        Todas las personas con cuenta en el sistema. Aquí puedes editar su
-        teléfono, corregir el email de quien aún no ha creado su contraseña, y
-        darlas de baja o reactivarlas. <strong>Asignar a una obra o quitar de
-        una obra se hace desde el 👥 Equipo de cada obra</strong> (en la pestaña
-        Obras).
-      </div>
-      <div class="seccion">
-        <div id="tabla-directorio"><div class="cargando">Cargando…</div></div>
-      </div>
+      <div class="dir-ayuda">Todas las personas con cuenta en el sistema. Aquí puedes editar su teléfono, corregir el email de quien aún no ha creado su contraseña, y darlas de baja o reactivarlas. <strong>Asignar a una obra o quitar de una obra se hace desde el 👥 Equipo de cada obra</strong> (en la pestaña Obras).</div>
+      <div class="seccion"><div id="tabla-directorio"><div class="cargando">Cargando…</div></div></div>
     </div>
   </div>
 </div>
@@ -173,66 +143,32 @@
   <div class="modal">
     <h2 id="modal-titulo">Nueva obra</h2>
     <div class="error-modal" id="error-modal"></div>
-    <div class="campo">
-      <label>Nº de obra</label>
-      <input type="text" id="f-numero" placeholder="Ej: 32510" autocomplete="off">
-    </div>
+    <div class="campo"><label>Nº de obra</label><input type="text" id="f-numero" placeholder="Ej: 32510" autocomplete="off"></div>
     <div class="campo">
       <label>Centro en e-Coordina (para el importador)</label>
       <input type="text" id="f-ecoordina-centro" placeholder="Ej: VALLS - UTE ESCOLA MUSICA VALLS 32510" autocomplete="off">
-      <div style="font-size:12px;color:#8b909e;margin-top:4px;">
-        Texto EXACTO de la columna "Centro" del archivo de e-Coordina. Necesario para importar desde el archivo general de toda la empresa. Déjalo vacío si esta obra no está en e-Coordina.
-      </div>
+      <div style="font-size:12px;color:#8b909e;margin-top:4px;">Texto EXACTO de la columna "Centro" del archivo de e-Coordina. Déjalo vacío si esta obra no está en e-Coordina.</div>
     </div>
-    <div class="campo">
-      <label>Nombre de la obra</label>
-      <input type="text" id="f-nombre" placeholder="Ej: Edificio Torres 3">
-    </div>
-    <div class="campo">
-      <label>Dirección</label>
-      <input type="text" id="f-direccion" placeholder="Calle, ciudad">
-    </div>
+    <div class="campo"><label>Nombre de la obra</label><input type="text" id="f-nombre" placeholder="Ej: Edificio Torres 3"></div>
+    <div class="campo"><label>Dirección</label><input type="text" id="f-direccion" placeholder="Calle, ciudad"></div>
     <div class="campo-fila">
-      <div class="campo">
-        <label>Latitud</label>
-        <input type="number" id="f-latitud" placeholder="41.1234" step="0.0001">
-      </div>
-      <div class="campo">
-        <label>Longitud</label>
-        <input type="number" id="f-longitud" placeholder="2.1234" step="0.0001">
-      </div>
+      <div class="campo"><label>Latitud</label><input type="number" id="f-latitud" placeholder="41.1234" step="0.0001"></div>
+      <div class="campo"><label>Longitud</label><input type="number" id="f-longitud" placeholder="2.1234" step="0.0001"></div>
     </div>
     <button type="button" class="btn-secundario" id="btn-ubicacion" style="margin-bottom:6px;">📍 Usar mi ubicación actual (estando en la obra)</button>
     <button type="button" class="btn-secundario" id="btn-vermapa" style="margin-bottom:6px; margin-left:6px;">🗺️ Ver en el mapa</button>
     <div id="ubic-estado" style="display:none; font-size:12px; line-height:1.4; margin-bottom:14px;"></div>
-    <div class="campo">
-      <label>Radio GPS (metros)</label>
-      <input type="number" id="f-radio" placeholder="100" min="10" max="1000">
-    </div>
+    <div class="campo"><label>Radio GPS (metros)</label><input type="number" id="f-radio" placeholder="100" min="10" max="1000"></div>
     <div class="campo-fila">
-      <div class="campo">
-        <label>Hora entrada</label>
-        <input type="time" id="f-entrada">
-      </div>
-      <div class="campo">
-        <label>Hora salida</label>
-        <input type="time" id="f-salida">
-      </div>
+      <div class="campo"><label>Hora entrada</label><input type="time" id="f-entrada"></div>
+      <div class="campo"><label>Hora salida</label><input type="time" id="f-salida"></div>
     </div>
     <div class="campo">
       <label>Descanso (minutos)</label>
       <input type="number" id="f-descanso" placeholder="90" min="0" max="480" step="5">
-      <div style="font-size:12px;color:#8b909e;margin-top:4px;">
-        Minutos de comida que se descuentan de la jornada. 90 por defecto; para la intensiva de verano (sin comer), 0. <em>De momento se guarda pero el resumen mensual aún descuenta el descanso automático; aplicarlo al cálculo es el paso siguiente.</em>
-      </div>
+      <div style="font-size:12px;color:#8b909e;margin-top:4px;">Minutos de comida que se descuentan de la jornada. 90 por defecto; para la intensiva de verano (sin comer), 0.</div>
     </div>
-    <div class="campo">
-      <label>Empresa / Marca</label>
-      <select id="f-empresa">
-        <option value="bosch_pascual">Bosch Pascual</option>
-        <option value="recop">RECOP</option>
-      </select>
-    </div>
+    <div class="campo"><label>Empresa / Marca</label><select id="f-empresa"><option value="bosch_pascual">Bosch Pascual</option><option value="recop">RECOP</option></select></div>
     <div class="campo">
       <label>Estado</label>
       <select id="f-estado">
@@ -273,57 +209,22 @@
     <hr class="separador">
     <div class="equipo-anadir">
       <h3>Añadir usuario existente</h3>
-      <div class="campo">
-        <label>Usuario</label>
-        <select id="eq-usuario"><option value="">Selecciona un usuario…</option></select>
-      </div>
-      <div class="campo">
-        <label>Rol en la obra</label>
-        <select id="eq-rol">
-          <option value="jefe_obra">Jefe de obra</option>
-          <option value="encargado">Encargado</option>
-        </select>
-      </div>
-      <div style="display:flex; justify-content:flex-end;">
-        <button class="btn-primario" id="btn-anadir-equipo">Añadir</button>
-      </div>
+      <div class="campo"><label>Usuario</label><select id="eq-usuario"><option value="">Selecciona un usuario…</option></select></div>
+      <div class="campo"><label>Rol en la obra</label><select id="eq-rol"><option value="jefe_obra">Jefe de obra</option><option value="encargado">Encargado</option></select></div>
+      <div style="display:flex; justify-content:flex-end;"><button class="btn-primario" id="btn-anadir-equipo">Añadir</button></div>
     </div>
     <hr class="separador">
     <div class="crear-usuario">
       <h3>Crear usuario nuevo</h3>
-      <div class="aviso-crear">
-        Crea aquí el usuario y dile que entre en la web de la app y pulse
-        <strong>"¿Primera vez? Crea tu contraseña"</strong> usando este mismo email.
-        Recibirá un correo de confirmación y al iniciar sesión quedará
-        vinculado automáticamente con su rol.
-      </div>
-      <div class="campo">
-        <label>Nombre</label>
-        <input type="text" id="nu-nombre" placeholder="Ej: Pere García">
-      </div>
-      <div class="campo">
-        <label>Email</label>
-        <input type="email" id="nu-email" placeholder="pere@empresa.com">
-      </div>
-      <div class="campo">
-        <label>Teléfono móvil (opcional, para avisos SMS)</label>
-        <input type="tel" id="nu-telefono" placeholder="+34600111222">
-      </div>
-      <div class="campo">
-        <label>Rol</label>
-        <select id="nu-rol">
-          <option value="jefe_obra">Jefe de obra</option>
-          <option value="encargado">Encargado</option>
-        </select>
-      </div>
-      <div style="display:flex; justify-content:flex-end;">
-        <button class="btn-primario" id="btn-crear-usuario">Crear y asignar a esta obra</button>
-      </div>
+      <div class="aviso-crear">Crea aquí el usuario y dile que entre en la web de la app y pulse <strong>"¿Primera vez? Crea tu contraseña"</strong> usando este mismo email. Recibirá un correo de confirmación y al iniciar sesión quedará vinculado automáticamente con su rol.</div>
+      <div class="campo"><label>Nombre</label><input type="text" id="nu-nombre" placeholder="Ej: Pere García"></div>
+      <div class="campo"><label>Email</label><input type="email" id="nu-email" placeholder="pere@empresa.com"></div>
+      <div class="campo"><label>Teléfono móvil (opcional, para avisos SMS)</label><input type="tel" id="nu-telefono" placeholder="+34600111222"></div>
+      <div class="campo"><label>Rol</label><select id="nu-rol"><option value="jefe_obra">Jefe de obra</option><option value="encargado">Encargado</option></select></div>
+      <div style="display:flex; justify-content:flex-end;"><button class="btn-primario" id="btn-crear-usuario">Crear y asignar a esta obra</button></div>
     </div>
     <hr class="separador">
-    <div class="modal-acciones">
-      <button class="btn-secundario" id="btn-cerrar-equipo">Cerrar</button>
-    </div>
+    <div class="modal-acciones"><button class="btn-secundario" id="btn-cerrar-equipo">Cerrar</button></div>
   </div>
 </div>
 
@@ -351,25 +252,14 @@
 <script>
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
-
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 AutoLogout.init(sb);
 
-let obraEditandoId = null;
-let obraEquipoId   = null;
-let obraFotoId     = null;
-let fotoArchivo    = null;
-let todosUsuarios  = [];
-let todasObras     = [];
-let qrActual       = null;
-let vistaActual    = 'obras';
-let miUsuarioAppId = null;
+let obraEditandoId = null, obraEquipoId = null, obraFotoId = null, fotoArchivo = null;
+let todosUsuarios = [], todasObras = [], qrActual = null, vistaActual = 'obras', miUsuarioAppId = null;
 
 (async function init() {
-  // El guardián de sesión vive en js/guardian.js, igual en las 20 pantallas.
-  // Separa "no tienes permiso" de "ha fallado la red" y de "estás de baja",
-  // que antes se confundían en un mismo redirect mudo al login.
   const g = await Guardian.entrar(sb, { rol: 'admin', campos: 'id', volver: '../' });
   if (!g) return;
   miUsuarioAppId = g.usuario.id;
@@ -379,11 +269,8 @@ let miUsuarioAppId = null;
 
 document.getElementById('btn-salir').onclick = async () => { await sb.auth.signOut(); window.location.href = '../'; };
 
-// --- Pestañas Obras / Directorio ---
 let directorioCargado = false;
-document.querySelectorAll('.tab').forEach(t => {
-  t.onclick = () => cambiarVista(t.dataset.vista);
-});
+document.querySelectorAll('.tab').forEach(t => { t.onclick = () => cambiarVista(t.dataset.vista); });
 async function cambiarVista(vista) {
   vistaActual = vista;
   document.getElementById('tab-obras').classList.toggle('activo', vista === 'obras');
@@ -395,117 +282,37 @@ async function cambiarVista(vista) {
 
 async function cargarDirectorio() {
   const cont = document.getElementById('tabla-directorio');
-  const { data: personas, error: e1 } = await sb.from('usuarios_app')
-    .select('id, nombre, email, telefono, activo, auth_user_id, rol')
-    .order('nombre');
+  const { data: personas, error: e1 } = await sb.from('usuarios_app').select('id, nombre, email, telefono, activo, auth_user_id, rol').order('nombre');
   if (e1) { cont.innerHTML = '<div class="vacio">Error al cargar el directorio.</div>'; return; }
-  const { data: asigs } = await sb.from('usuarios_obra')
-    .select('usuario_app_id, rol_en_obra, obra:obra_id(nombre)');
-
-  // Mapa persona -> lista de obras/rol
+  const { data: asigs } = await sb.from('usuarios_obra').select('usuario_app_id, rol_en_obra, obra:obra_id(nombre)');
   const porPersona = {};
-  (asigs || []).forEach(a => {
-    (porPersona[a.usuario_app_id] = porPersona[a.usuario_app_id] || []).push({
-      obra: a.obra?.nombre || '—',
-      rol: a.rol_en_obra
-    });
-  });
-
-  if (!personas || personas.length === 0) {
-    cont.innerHTML = '<div class="vacio">No hay usuarios todavía.</div>'; return;
-  }
-
+  (asigs || []).forEach(a => { (porPersona[a.usuario_app_id] = porPersona[a.usuario_app_id] || []).push({ obra: a.obra?.nombre || '—', rol: a.rol_en_obra }); });
+  if (!personas || personas.length === 0) { cont.innerHTML = '<div class="vacio">No hay usuarios todavía.</div>'; return; }
   const filas = personas.map(p => {
-    const baja = p.activo === false;
-    const sinVincular = !p.auth_user_id;
-    const esAdmin = p.rol === 'admin';
-
-    // Estado (pills)
-    let estado = baja
-      ? '<span class="pill gris">De baja</span>'
-      : '<span class="pill verde">Activo</span>';
+    const baja = p.activo === false, sinVincular = !p.auth_user_id, esAdmin = p.rol === 'admin';
+    let estado = baja ? '<span class="pill gris">De baja</span>' : '<span class="pill verde">Activo</span>';
     if (sinVincular) estado += ' <span class="pill naranja">⚠️ Sin vincular</span>';
-
-    // Rol de sistema
-    const rolSistema = esAdmin
-      ? '<span class="pill azul">Admin</span>'
-      : '';
-
-    // Obras y rol en cada una
+    const rolSistema = esAdmin ? '<span class="pill azul">Admin</span>' : '';
     const obras = porPersona[p.id] || [];
-    let obrasHtml;
-    if (obras.length === 0) {
-      obrasHtml = '<span class="dir-sin-obra">Sin obra asignada</span>';
-    } else {
-      obrasHtml = '<div class="dir-obras">' + obras.map(o =>
-        `<span class="dir-obra-linea">${esc(o.obra)} · <span class="pill ${o.rol === 'jefe_obra' ? 'azul' : 'naranja'}">${o.rol === 'jefe_obra' ? 'Jefe de obra' : 'Encargado'}</span></span>`
-      ).join('') + '</div>';
-    }
-
-    // Contacto
+    const obrasHtml = obras.length === 0 ? '<span class="dir-sin-obra">Sin obra asignada</span>' : '<div class="dir-obras">' + obras.map(o => `<span class="dir-obra-linea">${esc(o.obra)} · <span class="pill ${o.rol === 'jefe_obra' ? 'azul' : 'naranja'}">${o.rol === 'jefe_obra' ? 'Jefe de obra' : 'Encargado'}</span></span>`).join('') + '</div>';
     const tel = p.telefono ? esc(p.telefono) : '<em class="dir-sin-obra">sin teléfono</em>';
     const emailTxt = esc(p.email || '—');
-
-    // Acciones (mismas funciones que el modal Equipo)
     const btnTel = `<button class="btn-mini" onclick="editarTelefono('${p.id}', '${esc(p.telefono || '')}')">Editar tel.</button>`;
-    const btnEmail = sinVincular
-      ? `<button class="btn-mini" onclick="editarEmail('${p.id}', '${emailTxt.replace(/'/g, "\\'")}')">Editar email</button>`
-      : '';
-    const btnBaja = (p.id === miUsuarioAppId)
-      ? '<span class="dir-sin-obra">—</span>'
-      : (baja
-        ? `<button class="btn-mini" onclick="reactivarUsuario('${p.id}', '${esc(p.nombre || '')}')">Reactivar</button>`
-        : `<button class="btn-mini peligro" onclick="darDeBaja('${p.id}', '${esc(p.nombre || '')}')">Dar de baja</button>`);
-
-    return `<tr>
-      <td>${esc(p.nombre || '—')} ${rolSistema}</td>
-      <td>${estado}</td>
-      <td class="dir-contacto">
-        <div><span class="lab">✉️</span> ${emailTxt} ${btnEmail}</div>
-        <div><span class="lab">📞</span> ${tel} ${btnTel}</div>
-      </td>
-      <td>${obrasHtml}</td>
-      <td>${btnBaja}</td>
-    </tr>`;
+    const btnEmail = sinVincular ? `<button class="btn-mini" onclick="editarEmail('${p.id}', '${emailTxt.replace(/'/g, "\\'")}')">Editar email</button>` : '';
+    const btnBaja = (p.id === miUsuarioAppId) ? '<span class="dir-sin-obra">—</span>' : (baja ? `<button class="btn-mini" onclick="reactivarUsuario('${p.id}', '${esc(p.nombre || '')}')">Reactivar</button>` : `<button class="btn-mini peligro" onclick="darDeBaja('${p.id}', '${esc(p.nombre || '')}')">Dar de baja</button>`);
+    return `<tr><td>${esc(p.nombre || '—')} ${rolSistema}</td><td>${estado}</td><td class="dir-contacto"><div><span class="lab">✉️</span> ${emailTxt} ${btnEmail}</div><div><span class="lab">📞</span> ${tel} ${btnTel}</div></td><td>${obrasHtml}</td><td>${btnBaja}</td></tr>`;
   }).join('');
-
-  cont.innerHTML = `
-    <table>
-      <thead><tr>
-        <th>Persona</th><th>Estado</th><th>Contacto</th><th>Obras y rol</th><th></th>
-      </tr></thead>
-      <tbody>${filas}</tbody>
-    </table>`;
+  cont.innerHTML = `<table><thead><tr><th>Persona</th><th>Estado</th><th>Contacto</th><th>Obras y rol</th><th></th></tr></thead><tbody>${filas}</tbody></table>`;
 }
 
 async function cargarObras() {
-  const { data, error } = await sb.from('obras')
-    .select('id, numero_obra, nombre, direccion, latitud, longitud, empresa_marca, radio_gps, hora_entrada_default, hora_salida_default, activa, estado, foto_url, ecoordina_centro, ultima_sync_ecoordina, minutos_descanso')
-    .order('nombre');
+  const { data, error } = await sb.from('obras').select('id, numero_obra, nombre, direccion, latitud, longitud, empresa_marca, radio_gps, hora_entrada_default, hora_salida_default, activa, estado, foto_url, ecoordina_centro, ultima_sync_ecoordina, minutos_descanso').order('nombre');
   if (error) { document.getElementById('tabla-obras').innerHTML = '<div class="vacio">Error al cargar obras</div>'; return; }
   todasObras = data || [];
   if (todasObras.length === 0) { document.getElementById('tabla-obras').innerHTML = '<div class="vacio">No hay obras todavía</div>'; return; }
-  document.getElementById('tabla-obras').innerHTML = `
-    <table><thead><tr>
-      <th>Nº</th><th>Nombre</th><th>Dirección</th><th>Empresa</th><th>Radio GPS</th><th>Horario</th><th>Estado</th><th>e-Coordina</th><th>Acciones</th>
-    </tr></thead><tbody>
-      ${todasObras.map(o => `<tr>
-        <td><span class="num-obra">${esc(o.numero_obra || '—')}</span></td>
-        <td><strong>${esc(o.nombre)}</strong></td>
-        <td>${esc(o.direccion || '—')}</td>
-        <td>${esc(o.empresa_marca || '—')}</td>
-        <td>${esc(o.radio_gps || '—')}m</td>
-        <td>${hora(o.hora_entrada_default)} – ${hora(o.hora_salida_default)}</td>
-        <td>${estadoPill(o.estado)}</td>
-        <td>${syncBadge(o.ultima_sync_ecoordina, o.ecoordina_centro)}</td>
-        <td><div class="acciones">
-          <button class="btn-secundario" onclick="abrirEquipoPorId('${o.id}')">👥 Equipo</button>
-          <button class="btn-secundario" onclick="abrirQRPorId('${o.id}')">QR</button>
-          <button class="btn-secundario" onclick="abrirFotoPorId('${o.id}')" title="${o.foto_url ? 'Cambiar foto' : 'Añadir foto'}">📷${o.foto_url ? ' ✓' : ''}</button>
-          <button class="btn-secundario" onclick="abrirEditarPorId('${o.id}')">Editar</button>
-        </div></td>
-      </tr>`).join('')}
-    </tbody></table>`;
+  document.getElementById('tabla-obras').innerHTML = `<table><thead><tr><th>Nº</th><th>Nombre</th><th>Dirección</th><th>Empresa</th><th>Radio GPS</th><th>Horario</th><th>Estado</th><th>e-Coordina</th><th>Acciones</th></tr></thead><tbody>` +
+    todasObras.map(o => `<tr><td><span class="num-obra">${esc(o.numero_obra || '—')}</span></td><td><strong>${esc(o.nombre)}</strong></td><td>${esc(o.direccion || '—')}</td><td>${esc(o.empresa_marca || '—')}</td><td>${esc(o.radio_gps || '—')}m</td><td>${hora(o.hora_entrada_default)} – ${hora(o.hora_salida_default)}</td><td>${estadoPill(o.estado)}</td><td>${syncBadge(o.ultima_sync_ecoordina, o.ecoordina_centro)}</td><td><div class="acciones"><button class="btn-secundario" onclick="abrirEquipoPorId('${o.id}')">👥 Equipo</button><button class="btn-secundario" onclick="abrirQRPorId('${o.id}')">QR</button><button class="btn-secundario" onclick="abrirFotoPorId('${o.id}')" title="${o.foto_url ? 'Cambiar foto' : 'Añadir foto'}">📷${o.foto_url ? ' ✓' : ''}</button><button class="btn-secundario" onclick="abrirEditarPorId('${o.id}')">Editar</button></div></td></tr>`).join('') +
+    '</tbody></table>';
 }
 
 async function cargarUsuarios() {
@@ -516,12 +323,7 @@ async function cargarUsuarios() {
 document.getElementById('btn-nueva').onclick = () => {
   obraEditandoId = null;
   document.getElementById('modal-titulo').textContent = 'Nueva obra';
-  document.getElementById('f-numero').value = '';
-  document.getElementById('f-ecoordina-centro').value = '';
-  document.getElementById('f-nombre').value = '';
-  document.getElementById('f-direccion').value = '';
-  document.getElementById('f-latitud').value = '';
-  document.getElementById('f-longitud').value = '';
+  ['f-numero','f-ecoordina-centro','f-nombre','f-direccion','f-latitud','f-longitud'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('f-radio').value = '100';
   document.getElementById('f-descanso').value = '90';
   document.getElementById('f-entrada').value = '08:00';
@@ -555,16 +357,11 @@ function abrirEditarPorId(id) {
 
 document.getElementById('btn-cancelar').onclick = () => { document.getElementById('modal-obra').classList.remove('visible'); };
 
-function capturarUbicacion() {
+document.getElementById('btn-ubicacion').onclick = () => {
   const estado = document.getElementById('ubic-estado');
-  estado.style.display = 'block';
-  estado.style.color = 'var(--texto2)';
+  estado.style.display = 'block'; estado.style.color = 'var(--texto2)';
   estado.textContent = '📡 Obteniendo tu ubicación… acepta el permiso de GPS del navegador.';
-  if (!navigator.geolocation) {
-    estado.style.color = 'var(--rojo)';
-    estado.textContent = 'Este navegador no permite usar el GPS. Teclea las coordenadas a mano.';
-    return;
-  }
+  if (!navigator.geolocation) { estado.style.color = 'var(--rojo)'; estado.textContent = 'Este navegador no permite usar el GPS. Teclea las coordenadas a mano.'; return; }
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       document.getElementById('f-latitud').value  = pos.coords.latitude.toFixed(6);
@@ -575,110 +372,51 @@ function capturarUbicacion() {
     },
     (err) => {
       estado.style.color = 'var(--rojo)';
-      if (err.code === 1)      estado.textContent = 'Permiso de GPS denegado. Actívalo en el navegador o teclea las coordenadas a mano.';
-      else if (err.code === 2) estado.textContent = 'Ubicación no disponible ahora mismo. Prueba de nuevo o teclea a mano.';
-      else if (err.code === 3) estado.textContent = 'El GPS ha tardado demasiado. Prueba de nuevo o teclea a mano.';
-      else                     estado.textContent = 'No se ha podido obtener la ubicación. Teclea las coordenadas a mano.';
+      if (err.code === 1)      estado.textContent = 'Permiso de GPS denegado.';
+      else if (err.code === 2) estado.textContent = 'Ubicación no disponible ahora mismo.';
+      else if (err.code === 3) estado.textContent = 'El GPS ha tardado demasiado.';
+      else                     estado.textContent = 'No se ha podido obtener la ubicación.';
     },
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
   );
-}
-document.getElementById('btn-ubicacion').onclick = capturarUbicacion;
+};
 
 document.getElementById('btn-vermapa').onclick = () => {
   const lat = parseFloat(document.getElementById('f-latitud').value);
   const lng = parseFloat(document.getElementById('f-longitud').value);
   const estado = document.getElementById('ubic-estado');
-  if (isNaN(lat) || isNaN(lng)) {
-    estado.style.display = 'block';
-    estado.style.color = 'var(--rojo)';
-    estado.textContent = 'Escribe primero la latitud y la longitud para verlas en el mapa.';
-    return;
-  }
+  if (isNaN(lat) || isNaN(lng)) { estado.style.display = 'block'; estado.style.color = 'var(--rojo)'; estado.textContent = 'Escribe primero la latitud y la longitud para verlas en el mapa.'; return; }
   window.open('https://www.openstreetmap.org/?mlat=' + lat + '&mlon=' + lng + '#map=17/' + lat + '/' + lng, '_blank');
 };
 
 document.getElementById('btn-guardar').onclick = async () => {
-  const numeroRaw   = document.getElementById('f-numero').value.trim();
-  const nombre      = document.getElementById('f-nombre').value.trim();
-  const direccion   = document.getElementById('f-direccion').value.trim();
-  const latitud     = parseFloat(document.getElementById('f-latitud').value);
-  const longitud    = parseFloat(document.getElementById('f-longitud').value);
-  const radio_gps   = parseInt(document.getElementById('f-radio').value, 10);
+  const numeroRaw = document.getElementById('f-numero').value.trim();
+  const nombre = document.getElementById('f-nombre').value.trim();
+  const direccion = document.getElementById('f-direccion').value.trim();
+  const latitud = parseFloat(document.getElementById('f-latitud').value);
+  const longitud = parseFloat(document.getElementById('f-longitud').value);
+  const radio_gps = parseInt(document.getElementById('f-radio').value, 10);
   const minutos_descanso = parseInt(document.getElementById('f-descanso').value, 10);
-  const entradaRaw  = document.getElementById('f-entrada').value;
-  const salidaRaw   = document.getElementById('f-salida').value;
+  const entradaRaw = document.getElementById('f-entrada').value;
+  const salidaRaw = document.getElementById('f-salida').value;
   const empresa_marca = document.getElementById('f-empresa').value;
-  // DAT-018 · Si el desplegable se quedara sin opción seleccionada, `.value`
-  // viene vacío y se guardaría un estado en blanco. Misma guarda que ya tiene
-  // `f-categoria` en la pantalla de trabajadores.
-  const selEstado   = document.getElementById('f-estado');
+  const selEstado = document.getElementById('f-estado');
   if (selEstado.selectedIndex === -1) selEstado.value = 'activa';
-  const estado      = selEstado.value;
+  const estado = selEstado.value;
   const ecoordinaCentroRaw = document.getElementById('f-ecoordina-centro').value.trim();
-
   if (!nombre)                           { mostrarError('El nombre es obligatorio.'); return; }
   if (isNaN(latitud) || isNaN(longitud)) { mostrarError('Las coordenadas son obligatorias.'); return; }
-  if (latitud < -90 || latitud > 90 || longitud < -180 || longitud > 180) {
-    mostrarError('Las coordenadas no son válidas (latitud entre −90 y 90, longitud entre −180 y 180).'); return;
-  }
-  // DAT-017 · Antes solo se miraba que fuera un número. El `min`/`max` del
-  // <input> no lo comprueba nadie porque esto no es un <form>: se guardaba tal
-  // cual. Un radio a 0 deja a TODO EL MUNDO fuera de la zona y apaga la obra
-  // entera sin que salte ningún aviso; uno de 50.000 la deja fichar desde casa.
-  // Mismo sitio y misma forma que la validación del descanso de aquí al lado.
+  if (latitud < -90 || latitud > 90 || longitud < -180 || longitud > 180) { mostrarError('Las coordenadas no son válidas.'); return; }
   if (isNaN(radio_gps))                  { mostrarError('El radio GPS es obligatorio.'); return; }
-  // Por ABAJO se bloquea: un radio pequeno deja fuera a TODO EL MUNDO y apaga
-  // la obra entera sin que salte ningun aviso. No hay caso legitimo.
-  if (radio_gps < 10) {
-    mostrarError('El radio GPS no puede ser menor de 10 metros: dejaria fuera a todo el mundo y la obra quedaria apagada sin avisar.');
-    return;
-  }
-  // Por ARRIBA se AVISA, no se bloquea. La obra de pruebas lleva un radio
-  // enorme a proposito, y bloquear aqui impediria editarla. Mismo trato que
-  // las coordenadas fuera de Espana, veinte lineas mas abajo.
-  if (radio_gps > 1000) {
-    const okRadio = confirm(
-      '⚠️ Radio GPS muy grande: ' + radio_gps + ' m (' + (radio_gps / 1000).toFixed(1) + ' km).\n\n' +
-      'Con este radio se puede fichar desde muy lejos de la obra, incluso desde casa.\n' +
-      'Lo normal en una obra son 100–800 m.\n\n' +
-      '¿Guardar de todos modos?'
-    );
-    if (!okRadio) return;
-  }
-  if (isNaN(minutos_descanso) || minutos_descanso < 0 || minutos_descanso > 480) {
-    mostrarError('El descanso debe ser un número de minutos entre 0 y 480.'); return;
-  }
-  if (!entradaRaw || !salidaRaw)         { mostrarError('El horario es obligatorio.'); return; }
-
-  // Aviso suave: coordenadas fuera de España (caso típico de signo cambiado
-  // o latitud/longitud intercambiadas). No bloquea: solo pide confirmación.
-  if (latitud < 27 || latitud > 44 || longitud < -19 || longitud > 5) {
-    const ok = confirm(
-      '⚠️ Estas coordenadas caen FUERA de España:\n\n' +
-      'Latitud: ' + latitud + '\nLongitud: ' + longitud + '\n\n' +
-      '¿Puede que hayas cambiado un signo, o intercambiado latitud y longitud?\n' +
-      'Compruébalo con "🗺️ Ver en el mapa".\n\n' +
-      '¿Guardar de todos modos?'
-    );
-    if (!ok) return;
-  }
-
-  const payload = {
-    numero_obra: numeroRaw === '' ? null : numeroRaw,
-    nombre, direccion,
-    latitud: Number(latitud.toFixed(4)), longitud: Number(longitud.toFixed(4)),
-    radio_gps, minutos_descanso, hora_entrada_default: entradaRaw + ':00', hora_salida_default: salidaRaw + ':00',
-    empresa_marca, estado,
-    ecoordina_centro: ecoordinaCentroRaw === '' ? null : ecoordinaCentroRaw
-  };
-
+  if (radio_gps < 10) { mostrarError('El radio GPS no puede ser menor de 10 metros: dejaría fuera a todo el mundo y la obra quedaría apagada sin avisar.'); return; }
+  if (radio_gps > 1000) { if (!confirm('⚠️ Radio GPS muy grande: ' + radio_gps + ' m.\n\nCon este radio se puede fichar desde muy lejos de la obra, incluso desde casa.\n\n¿Guardar de todos modos?')) return; }
+  if (isNaN(minutos_descanso) || minutos_descanso < 0 || minutos_descanso > 480) { mostrarError('El descanso debe ser un número de minutos entre 0 y 480.'); return; }
+  if (!entradaRaw || !salidaRaw) { mostrarError('El horario es obligatorio.'); return; }
+  if (latitud < 27 || latitud > 44 || longitud < -19 || longitud > 5) { if (!confirm('⚠️ Estas coordenadas caen FUERA de España:\n\nLatitud: ' + latitud + '\nLongitud: ' + longitud + '\n\n¿Puede que hayas cambiado un signo, o intercambiado latitud y longitud?\n\n¿Guardar de todos modos?')) return; }
+  const payload = { numero_obra: numeroRaw === '' ? null : numeroRaw, nombre, direccion, latitud: Number(latitud.toFixed(4)), longitud: Number(longitud.toFixed(4)), radio_gps, minutos_descanso, hora_entrada_default: entradaRaw + ':00', hora_salida_default: salidaRaw + ':00', empresa_marca, estado, ecoordina_centro: ecoordinaCentroRaw === '' ? null : ecoordinaCentroRaw };
   let error;
-  if (obraEditandoId) {
-    ({ error } = await sb.from('obras').update(payload).eq('id', obraEditandoId));
-  } else {
-    ({ error } = await sb.from('obras').insert(payload));
-  }
+  if (obraEditandoId) { ({ error } = await sb.from('obras').update(payload).eq('id', obraEditandoId)); }
+  else { ({ error } = await sb.from('obras').insert(payload)); }
   if (error) { mostrarError('Error al guardar: ' + error.message); return; }
   document.getElementById('modal-obra').classList.remove('visible');
   await cargarObras();
@@ -709,23 +447,12 @@ function obtenerMarcaQR(empresaMarca) {
 
 function imprimirQR() {
   if (!qrActual) { alert('Primero abre el QR de una obra.'); return; }
-  const canvas  = document.getElementById('qr-canvas');
+  const canvas = document.getElementById('qr-canvas');
   const dataUrl = canvas ? canvas.toDataURL('image/png') : '';
-  const marca   = obtenerMarcaQR(qrActual.empresa_marca);
+  const marca = obtenerMarcaQR(qrActual.empresa_marca);
   const logoUrl = window.location.origin + window.location.pathname.replace(/admin\/.*$/, '') + marca.logo;
   const win = window.open('', '_blank');
-  win.document.write(`<!DOCTYPE html><html><head><title>QR — ${qrActual.nombre}</title>
-    <style>body{font-family:sans-serif;text-align:center;padding:40px}.logo-marca{max-height:60px;max-width:220px;margin-bottom:20px}h1{font-size:24px;margin-bottom:8px}p{color:#666;font-size:14px;margin-bottom:24px}.sub-ar{display:block;margin-top:8px;font-size:18px;font-weight:700;color:#444;direction:rtl}img.qr{display:block;margin:0 auto;width:280px}.aviso-obligatorio{margin:26px auto 0;max-width:560px;border:2px solid #111;border-radius:12px;padding:16px 18px;color:#111;background:#fff}.aviso-obligatorio .es{font-size:16px;font-weight:800;line-height:1.35;margin-bottom:10px}.aviso-obligatorio .ar{font-size:18px;font-weight:800;line-height:1.6;direction:rtl}</style>
-    </head><body>
-    <img class="logo-marca" src="${logoUrl}" alt="${marca.nombre}" />
-    <h1>${qrActual.nombre}</h1>
-    <p>Escanea este código QR para fichar tu entrada/salida<span class="sub-ar" lang="ar" dir="rtl">امسح رمز QR هذا لتسجيل دخولك/خروجك</span></p>
-    <img class="qr" src="${dataUrl}" />
-    <div class="aviso-obligatorio">
-      <div class="es">En esta obra es obligatorio fichar tanto a la entrada como a la salida. El incumplimiento puede tener consecuencias disciplinarias.</div>
-      <div class="ar" lang="ar" dir="rtl">في هذا الموقع، تسجيل الحضور عند الدخول والخروج إلزامي.<br>عدم الامتثال قد يترتب عليه عواقب تأديبية.</div>
-    </div>
-    <script>window.onload=()=>{window.print()}<\/script></body></html>`);
+  win.document.write(`<!DOCTYPE html><html><head><title>QR — ${qrActual.nombre}</title><style>body{font-family:sans-serif;text-align:center;padding:40px}.logo-marca{max-height:60px;max-width:220px;margin-bottom:20px}h1{font-size:24px;margin-bottom:8px}p{color:#666;font-size:14px;margin-bottom:24px}.sub-ar{display:block;margin-top:8px;font-size:18px;font-weight:700;color:#444;direction:rtl}img.qr{display:block;margin:0 auto;width:280px}.aviso-obligatorio{margin:26px auto 0;max-width:560px;border:2px solid #111;border-radius:12px;padding:16px 18px;color:#111;background:#fff}.aviso-obligatorio .es{font-size:16px;font-weight:800;line-height:1.35;margin-bottom:10px}.aviso-obligatorio .ar{font-size:18px;font-weight:800;line-height:1.6;direction:rtl}</style></head><body><img class="logo-marca" src="${logoUrl}" alt="${marca.nombre}" /><h1>${qrActual.nombre}</h1><p>Escanea este código QR para fichar tu entrada/salida<span class="sub-ar" lang="ar" dir="rtl">امسح رمز QR هذا لتسجيل دخولك/خروجك</span></p><img class="qr" src="${dataUrl}" /><div class="aviso-obligatorio"><div class="es">En esta obra es obligatorio fichar tanto a la entrada como a la salida. El incumplimiento puede tener consecuencias disciplinarias.</div><div class="ar" lang="ar" dir="rtl">في هذا الموقع، تسجيل الحضور عند الدخول والخروج إلزامي.<br>عدم الامتثال قد يترتب عليه عواقب تأديبية.</div></div><script>window.onload=()=>{window.print()}<\/script></body></html>`);
   win.document.close();
 }
 
@@ -734,69 +461,29 @@ async function abrirEquipoPorId(id) {
   if (!o) { alert('No se ha encontrado la obra.'); return; }
   obraEquipoId = o.id;
   document.getElementById('equipo-titulo').textContent = '👥 Equipo — ' + (o.nombre || 'Obra');
-  ocultarMensajesEquipo();
-  limpiarFormularioNuevoUsuario();
+  ocultarMensajesEquipo(); limpiarFormularioNuevoUsuario();
   document.getElementById('modal-equipo').classList.add('visible');
   await cargarEquipo();
   rellenarSelectUsuarios();
 }
 
 async function cargarEquipo() {
-  // Si el modal Equipo NO está abierto, la acción viene del Directorio:
-  // refrescamos esa vista en lugar de la lista del modal (oculta).
-  if (!document.getElementById('modal-equipo').classList.contains('visible')) {
-    if (vistaActual === 'directorio') await cargarDirectorio();
-    return;
-  }
+  if (!document.getElementById('modal-equipo').classList.contains('visible')) { if (vistaActual === 'directorio') await cargarDirectorio(); return; }
   document.getElementById('equipo-lista').innerHTML = '<div class="cargando">Cargando…</div>';
-  // CAMBIO 6.2: añadido auth_user_id al select para detectar usuarios sin vincular
-  const { data, error } = await sb.from('usuarios_obra')
-    .select('id, rol_en_obra, usuario_app:usuario_app_id(id, nombre, email, auth_user_id, telefono, activo)')
-    .eq('obra_id', obraEquipoId);
+  const { data, error } = await sb.from('usuarios_obra').select('id, rol_en_obra, usuario_app:usuario_app_id(id, nombre, email, auth_user_id, telefono, activo)').eq('obra_id', obraEquipoId);
   if (error) { document.getElementById('equipo-lista').innerHTML = '<div class="equipo-vacio">Error al cargar el equipo.</div>'; return; }
   if (!data || data.length === 0) { document.getElementById('equipo-lista').innerHTML = '<div class="equipo-vacio">Esta obra no tiene equipo asignado todavía.</div>'; return; }
-  document.getElementById('equipo-lista').innerHTML = data.map(item => `
-    <div class="equipo-item">
-      <div class="equipo-item-info">
-        <span class="equipo-item-nombre">${esc(item.usuario_app?.nombre || '—')}${item.usuario_app?.activo === false ? ' <span class="pill gris">De baja</span>' : ''}</span>
-        <span class="equipo-item-email">
-          ${esc(item.usuario_app?.email || '')} · <span class="pill ${item.rol_en_obra === 'jefe_obra' ? 'azul' : 'naranja'}">${item.rol_en_obra === 'jefe_obra' ? 'Jefe de obra' : 'Encargado'}</span>
-          ${!item.usuario_app?.auth_user_id ? ' <span class="pill naranja">⚠️ Sin vincular</span>' : ''}
-          ${!item.usuario_app?.auth_user_id
-          ? ` <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;" onclick="editarEmail('${item.usuario_app?.id}', '${esc(item.usuario_app?.email || '')}')">Editar email</button>`
-          : ` <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;" onclick="enviarEnlaceAcceso('${esc(item.usuario_app?.email || '')}', '${esc(item.usuario_app?.nombre || '')}')">Enviar enlace de acceso</button>`}
-        </span>
-        <span class="equipo-item-email">
-          📞 ${item.usuario_app?.telefono ? esc(item.usuario_app.telefono) : '<em>sin teléfono</em>'}
-          <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;"
-            onclick="editarTelefono('${item.usuario_app?.id}', '${esc(item.usuario_app?.telefono || '')}')">Editar</button>
-        </span>
-      </div>
-      <div style="display:flex; gap:6px;">
-        ${item.usuario_app?.activo === false
-          ? `<button class="btn-secundario" onclick="reactivarUsuario('${item.usuario_app?.id}', '${esc(item.usuario_app?.nombre || '')}')">Reactivar</button>`
-          : `<button class="btn-peligro" onclick="darDeBaja('${item.usuario_app?.id}', '${esc(item.usuario_app?.nombre || '')}')">Dar de baja</button>`}
-        <button class="btn-peligro" onclick="quitarDelEquipo('${item.id}')">Quitar</button>
-      </div>
-    </div>`).join('');
+  document.getElementById('equipo-lista').innerHTML = data.map(item => `<div class="equipo-item"><div class="equipo-item-info"><span class="equipo-item-nombre">${esc(item.usuario_app?.nombre || '—')}${item.usuario_app?.activo === false ? ' <span class="pill gris">De baja</span>' : ''}</span><span class="equipo-item-email">${esc(item.usuario_app?.email || '')} · <span class="pill ${item.rol_en_obra === 'jefe_obra' ? 'azul' : 'naranja'}">${item.rol_en_obra === 'jefe_obra' ? 'Jefe de obra' : 'Encargado'}</span>${!item.usuario_app?.auth_user_id ? ' <span class="pill naranja">⚠️ Sin vincular</span>' : ''}${!item.usuario_app?.auth_user_id ? ` <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;" onclick="editarEmail('${item.usuario_app?.id}', '${esc(item.usuario_app?.email || '')}')">Editar email</button>` : ` <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;" onclick="enviarEnlaceAcceso('${esc(item.usuario_app?.email || '')}', '${esc(item.usuario_app?.nombre || '')}')">Enviar enlace de acceso</button>`}</span><span class="equipo-item-email">📞 ${item.usuario_app?.telefono ? esc(item.usuario_app.telefono) : '<em>sin teléfono</em>'} <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;" onclick="editarTelefono('${item.usuario_app?.id}', '${esc(item.usuario_app?.telefono || '')}')">Editar</button></span></div><div style="display:flex; gap:6px;">${item.usuario_app?.activo === false ? `<button class="btn-secundario" onclick="reactivarUsuario('${item.usuario_app?.id}', '${esc(item.usuario_app?.nombre || '')}')">Reactivar</button>` : `<button class="btn-peligro" onclick="darDeBaja('${item.usuario_app?.id}', '${esc(item.usuario_app?.nombre || '')}')">Dar de baja</button>`}<button class="btn-peligro" onclick="quitarDelEquipo('${item.id}')">Quitar</button></div></div>`).join('');
 }
 
 async function editarTelefono(usuarioAppId, actual) {
   if (!usuarioAppId) return;
-  const nuevo = prompt(
-    'Teléfono móvil en formato internacional (ej: +34600111222).\nDéjalo vacío para borrarlo.',
-    actual || '+34'
-  );
-  if (nuevo === null) return; // cancelado
+  const nuevo = prompt('Teléfono móvil en formato internacional (ej: +34600111222).\nDéjalo vacío para borrarlo.', actual || '+34');
+  if (nuevo === null) return;
   const limpio = nuevo.replace(/[\s\-\.]/g, '');
-  if (limpio !== '' && !/^\+\d{9,15}$/.test(limpio)) {
-    mostrarErrorEquipo('Formato no válido. Debe empezar por + y el prefijo del país, ej: +34600111222.');
-    return;
-  }
+  if (limpio !== '' && !/^\+\d{9,15}$/.test(limpio)) { mostrarErrorEquipo('Formato no válido. Debe empezar por + y el prefijo del país, ej: +34600111222.'); return; }
   ocultarMensajesEquipo();
-  const { error } = await sb.from('usuarios_app')
-    .update({ telefono: limpio === '' ? null : limpio })
-    .eq('id', usuarioAppId);
+  const { error } = await sb.from('usuarios_app').update({ telefono: limpio === '' ? null : limpio }).eq('id', usuarioAppId);
   if (error) { mostrarErrorEquipo('Error al guardar el teléfono: ' + error.message); return; }
   mostrarOkEquipo('✓ Teléfono actualizado.');
   await cargarEquipo();
@@ -804,102 +491,53 @@ async function editarTelefono(usuarioAppId, actual) {
 
 async function editarEmail(usuarioAppId, actual) {
   if (!usuarioAppId) return;
-  const nuevo = prompt(
-    'Corrige el email de acceso de este usuario.\n' +
-    'Debe ser su email real: es la llave con la que creará su contraseña y entrará en la app.\n\n' +
-    '(Solo se puede editar mientras el usuario todavía NO ha creado su contraseña.)',
-    actual || ''
-  );
-  if (nuevo === null) return; // cancelado
+  const nuevo = prompt('Corrige el email de acceso de este usuario.\n(Solo se puede editar mientras todavía NO ha creado su contraseña.)', actual || '');
+  if (nuevo === null) return;
   const limpio = nuevo.trim().toLowerCase();
-  if (limpio === '') { mostrarErrorEquipo('El email no puede quedar vacío: es la llave de acceso del usuario.'); return; }
+  if (limpio === '') { mostrarErrorEquipo('El email no puede quedar vacío.'); return; }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(limpio)) { mostrarErrorEquipo('El email no tiene un formato válido.'); return; }
   ocultarMensajesEquipo();
-  // Barandilla: solo actualiza si sigue SIN vincular (auth_user_id null).
-  const { data, error } = await sb.from('usuarios_app')
-    .update({ email: limpio })
-    .eq('id', usuarioAppId)
-    .is('auth_user_id', null)
-    .select('id');
+  const { data, error } = await sb.from('usuarios_app').update({ email: limpio }).eq('id', usuarioAppId).is('auth_user_id', null).select('id');
   if (error) { mostrarErrorEquipo(error.code === '23505' ? 'Ya existe otro usuario con ese email.' : 'Error al guardar el email: ' + error.message); return; }
   if (!data || data.length === 0) { mostrarErrorEquipo('Este usuario ya creó su contraseña: su email no puede cambiarse desde aquí.'); await cargarEquipo(); return; }
-  mostrarOkEquipo('✓ Email actualizado. Dile que entre en la web y pulse "¿Primera vez? Crea tu contraseña" con este email.');
+  mostrarOkEquipo('✓ Email actualizado.');
   await cargarEquipo();
 }
 
-// OPS-012 · Callejón sin salida operativo: la pantalla de acceso manda a los
-// usuarios a pedirle la cuenta al administrador, y el administrador no tenía
-// ningún botón que pulsar. Ahora puede lanzar el mismo correo de recuperación
-// que el usuario se lanzaría a sí mismo desde «¿Has olvidado tu contraseña?».
-//
-// El enlace va al correo DEL USUARIO, no al del administrador, y a propósito:
-// poner una contraseña por cuenta ajena necesitaría la clave de servicio de
-// Supabase, y esa clave no puede vivir en un repositorio público.
 async function enviarEnlaceAcceso(email, nombre) {
   const limpio = String(email || '').trim().toLowerCase();
-  if (!limpio) { mostrarErrorEquipo('Ese usuario no tiene email guardado: no se le puede enviar ningún enlace.'); return; }
-  const ok = confirm(
-    `Enviar a "${nombre || limpio}" un enlace para crear una contraseña nueva.\n\n` +
-    `El correo llega a: ${limpio}\n\n` +
-    'Es el mismo enlace que sale de "¿Has olvidado tu contraseña?" en la pantalla de acceso. ' +
-    'Caduca en una hora y no cambia nada hasta que la persona lo abra.\n\n¿Enviar?'
-  );
-  if (!ok) return;
+  if (!limpio) { mostrarErrorEquipo('Ese usuario no tiene email guardado.'); return; }
+  if (!confirm(`Enviar a "${nombre || limpio}" un enlace para crear una contraseña nueva.\n\nEl correo llega a: ${limpio}\n\n¿Enviar?`)) return;
   ocultarMensajesEquipo();
-  const { error } = await sb.auth.resetPasswordForEmail(limpio, {
-    redirectTo: 'https://canostboi.github.io/fichaje-obras-bp-recop/nueva-password.html'
-  });
+  const { error } = await sb.auth.resetPasswordForEmail(limpio, { redirectTo: 'https://canostboi.github.io/fichaje-obras-bp-recop/nueva-password.html' });
   if (error) { mostrarErrorEquipo('No se ha podido enviar el enlace: ' + error.message); return; }
-  mostrarOkEquipo(`✓ Enlace enviado a ${limpio}. Dile que lo busque también en la carpeta de spam y que lo abra antes de una hora.`);
+  mostrarOkEquipo(`✓ Enlace enviado a ${limpio}.`);
 }
 
 async function darDeBaja(usuarioAppId, nombre) {
   if (!usuarioAppId) return;
-  const ok = confirm(
-    `⚠️ BAJA TOTAL de "${nombre}".\n\n` +
-    'No es quitarlo de esta obra: se desactiva del TODO.\n' +
-    '• No podrá volver a entrar en la app.\n' +
-    '• Si ahora mismo tiene la sesión abierta, las pantallas le seguirán ' +
-    'cargando hasta que cierre sesión, pero le saldrán vacías: la base de ' +
-    'datos ya no le deja leer ni escribir nada.\n' +
-    '• Dejará de recibir SMS y emails de avisos.\n' +
-    '• Desaparecerá del selector de "Añadir usuario existente".\n\n' +
-    'Se puede deshacer con el botón "Reactivar".\n\n¿Dar de baja?'
-  );
-  if (!ok) return;
+  if (!confirm(`⚠️ BAJA TOTAL de "${nombre}".\n\nNo es quitarlo de esta obra: se desactiva del TODO.\n\nSe puede deshacer con el botón "Reactivar".\n\n¿Dar de baja?`)) return;
   ocultarMensajesEquipo();
-  const { error } = await sb.from('usuarios_app')
-    .update({ activo: false })
-    .eq('id', usuarioAppId);
+  const { error } = await sb.from('usuarios_app').update({ activo: false }).eq('id', usuarioAppId);
   if (error) { mostrarErrorEquipo('Error al dar de baja: ' + error.message); return; }
-  mostrarOkEquipo(`✓ "${nombre}" dado de baja. Opcional (higiene): borrar también su cuenta en Supabase → Authentication.`);
-  await cargarEquipo();
-  await cargarUsuarios();
-  rellenarSelectUsuarios();
+  mostrarOkEquipo(`✓ "${nombre}" dado de baja.`);
+  await cargarEquipo(); await cargarUsuarios(); rellenarSelectUsuarios();
 }
 
 async function reactivarUsuario(usuarioAppId, nombre) {
   if (!usuarioAppId) return;
-  if (!confirm(`Reactivar a "${nombre}": vuelve a poder entrar en la app y a recibir avisos.\n\n¿Reactivar?`)) return;
+  if (!confirm(`Reactivar a "${nombre}".\n\n¿Reactivar?`)) return;
   ocultarMensajesEquipo();
-  const { error } = await sb.from('usuarios_app')
-    .update({ activo: true })
-    .eq('id', usuarioAppId);
+  const { error } = await sb.from('usuarios_app').update({ activo: true }).eq('id', usuarioAppId);
   if (error) { mostrarErrorEquipo('Error al reactivar: ' + error.message); return; }
   mostrarOkEquipo(`✓ "${nombre}" reactivado.`);
-  await cargarEquipo();
-  await cargarUsuarios();
-  rellenarSelectUsuarios();
+  await cargarEquipo(); await cargarUsuarios(); rellenarSelectUsuarios();
 }
 
 function rellenarSelectUsuarios() {
   const select = document.getElementById('eq-usuario');
   select.innerHTML = '<option value="">Selecciona un usuario…</option>';
-  todosUsuarios.forEach(u => {
-    const opt = document.createElement('option');
-    opt.value = u.id; opt.textContent = `${u.nombre || 'Sin nombre'} (${u.email || 'sin email'})`;
-    select.appendChild(opt);
-  });
+  todosUsuarios.forEach(u => { const opt = document.createElement('option'); opt.value = u.id; opt.textContent = `${u.nombre || 'Sin nombre'} (${u.email || 'sin email'})`; select.appendChild(opt); });
 }
 
 document.getElementById('btn-anadir-equipo').onclick = async () => {
@@ -923,16 +561,15 @@ document.getElementById('btn-crear-usuario').onclick = async () => {
   if (!email)  { mostrarErrorEquipo('El email es obligatorio.'); return; }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { mostrarErrorEquipo('El email no tiene un formato válido.'); return; }
   const telefono = telefonoRaw.replace(/[\s\-\.]/g, '');
-  if (telefono !== '' && !/^\+\d{9,15}$/.test(telefono)) { mostrarErrorEquipo('El teléfono debe ir en formato internacional, ej: +34600111222 (o déjalo vacío).'); return; }
+  if (telefono !== '' && !/^\+\d{9,15}$/.test(telefono)) { mostrarErrorEquipo('El teléfono debe ir en formato internacional, ej: +34600111222.'); return; }
   const { data: nuevoUsuario, error: errorInsert } = await sb.from('usuarios_app').insert({ nombre, email, rol, activo: true, telefono: telefono === '' ? null : telefono }).select('id').single();
   if (errorInsert) { mostrarErrorEquipo(errorInsert.code === '23505' ? 'Ya existe un usuario con ese email.' : 'Error al crear usuario: ' + errorInsert.message); return; }
   const { error: errorAsignar } = await sb.from('usuarios_obra').insert({ usuario_app_id: nuevoUsuario.id, obra_id: obraEquipoId, rol_en_obra: rol });
   if (errorAsignar) { mostrarErrorEquipo('Usuario creado pero error al asignarlo a la obra: ' + errorAsignar.message); return; }
   todosUsuarios.push({ id: nuevoUsuario.id, nombre, email, rol });
-  rellenarSelectUsuarios();
-  limpiarFormularioNuevoUsuario();
+  rellenarSelectUsuarios(); limpiarFormularioNuevoUsuario();
   await cargarEquipo();
-  mostrarOkEquipo(`✓ Usuario "${nombre}" creado y asignado. Dile que entre en la web y pulse "¿Primera vez? Crea tu contraseña" con este email.`);
+  mostrarOkEquipo(`✓ Usuario "${nombre}" creado y asignado.`);
 };
 
 async function quitarDelEquipo(usuariosObraId) {
@@ -943,27 +580,11 @@ async function quitarDelEquipo(usuariosObraId) {
 }
 
 document.getElementById('btn-cerrar-equipo').onclick = () => { document.getElementById('modal-equipo').classList.remove('visible'); };
-function limpiarFormularioNuevoUsuario() { document.getElementById('nu-nombre').value = ''; document.getElementById('nu-email').value = ''; document.getElementById('nu-telefono').value = ''; document.getElementById('nu-rol').value = 'jefe_obra'; }
-function ctxDirectorio() {
-  return vistaActual === 'directorio' && !document.getElementById('modal-equipo').classList.contains('visible');
-}
-function mostrarErrorEquipo(msg) {
-  const id = ctxDirectorio() ? 'error-directorio' : 'error-equipo';
-  const okId = ctxDirectorio() ? 'ok-directorio' : 'ok-equipo';
-  const el = document.getElementById(id); el.textContent = msg; el.style.display = 'block';
-  document.getElementById(okId).style.display = 'none';
-}
-function mostrarOkEquipo(msg) {
-  const id = ctxDirectorio() ? 'ok-directorio' : 'ok-equipo';
-  const errId = ctxDirectorio() ? 'error-directorio' : 'error-equipo';
-  const el = document.getElementById(id); el.textContent = msg; el.style.display = 'block';
-  document.getElementById(errId).style.display = 'none';
-}
-function ocultarMensajesEquipo() {
-  ['error-equipo','ok-equipo','error-directorio','ok-directorio'].forEach(i => {
-    const el = document.getElementById(i); if (el) el.style.display = 'none';
-  });
-}
+function limpiarFormularioNuevoUsuario() { ['nu-nombre','nu-email','nu-telefono'].forEach(id => document.getElementById(id).value = ''); document.getElementById('nu-rol').value = 'jefe_obra'; }
+function ctxDirectorio() { return vistaActual === 'directorio' && !document.getElementById('modal-equipo').classList.contains('visible'); }
+function mostrarErrorEquipo(msg) { const id = ctxDirectorio() ? 'error-directorio' : 'error-equipo'; const okId = ctxDirectorio() ? 'ok-directorio' : 'ok-equipo'; const el = document.getElementById(id); el.textContent = msg; el.style.display = 'block'; document.getElementById(okId).style.display = 'none'; }
+function mostrarOkEquipo(msg) { const id = ctxDirectorio() ? 'ok-directorio' : 'ok-equipo'; const errId = ctxDirectorio() ? 'error-directorio' : 'error-equipo'; const el = document.getElementById(id); el.textContent = msg; el.style.display = 'block'; document.getElementById(errId).style.display = 'none'; }
+function ocultarMensajesEquipo() { ['error-equipo','ok-equipo','error-directorio','ok-directorio'].forEach(i => { const el = document.getElementById(i); if (el) el.style.display = 'none'; }); }
 
 function abrirFotoPorId(id) {
   const o = todasObras.find(x => x.id === id);
@@ -1021,10 +642,7 @@ document.getElementById('btn-guardar-foto').onclick = async () => {
     okEl.textContent = '✓ Foto guardada correctamente.'; okEl.style.display = 'block';
     await cargarObras();
     setTimeout(() => { document.getElementById('modal-foto').classList.remove('visible'); }, 1200);
-  } catch (err) {
-    errEl.textContent = err.message; errEl.style.display = 'block';
-    btnGuardar.disabled = false; btnGuardar.textContent = 'Subir foto';
-  }
+  } catch (err) { errEl.textContent = err.message; errEl.style.display = 'block'; btnGuardar.disabled = false; btnGuardar.textContent = 'Subir foto'; }
 };
 
 async function quitarFotoActual() {
@@ -1044,37 +662,17 @@ document.getElementById('btn-cerrar-foto').onclick = () => { document.getElement
 function mostrarError(msg) { const el = document.getElementById('error-modal'); el.textContent = msg; el.style.display = 'block'; }
 function ocultarError() { document.getElementById('error-modal').style.display = 'none'; document.getElementById('ubic-estado').style.display = 'none'; }
 function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
-
-function estadoPill(estado) {
-  const mapa = {
-    activa:    { clase: 'verde',   texto: 'Activa' },
-    pausada:   { clase: 'naranja', texto: 'Pausada' },
-    terminada: { clase: 'azul',    texto: 'Terminada' },
-    oculta:    { clase: 'gris',    texto: 'Oculta' }
-  };
-  const e = mapa[estado] || { clase: 'gris', texto: esc(estado || '—') };
-  return `<span class="pill ${e.clase}">${e.texto}</span>`;
-}
-
+function estadoPill(estado) { const mapa = { activa: { clase: 'verde', texto: 'Activa' }, pausada: { clase: 'naranja', texto: 'Pausada' }, terminada: { clase: 'azul', texto: 'Terminada' }, oculta: { clase: 'gris', texto: 'Oculta' } }; const e = mapa[estado] || { clase: 'gris', texto: esc(estado || '—') }; return `<span class="pill ${e.clase}">${e.texto}</span>`; }
 function syncBadge(iso, centro) {
   const tieneCentro = !!(centro && String(centro).trim());
-  // Obra que NO usa e-Coordina: no es un fallo, no hay que alarmar.
-  if (!tieneCentro)
-    return '<span class="pill gris" title="Esta obra no está vinculada a e-Coordina">—</span>';
-  // Tiene centro pero NUNCA ha sincronizado: casi siempre = texto mal copiado.
-  if (!iso)
-    return '<span class="pill roja" title="Tiene centro de e-Coordina pero NUNCA ha sincronizado. Si sigue así tras la próxima sync nocturna, revisa que el texto del centro coincida EXACTO con e-Coordina.">⚠ Nunca</span>';
-  const d = new Date(iso);
-  const ahora = new Date();
+  if (!tieneCentro) return '<span class="pill gris" title="Esta obra no está vinculada a e-Coordina">—</span>';
+  if (!iso) return '<span class="pill roja" title="Tiene centro de e-Coordina pero NUNCA ha sincronizado.">⚠ Nunca</span>';
+  const d = new Date(iso), ahora = new Date();
   const horaTxt = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   const fechaTxt = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
   const dias = (ahora - d) / 86400000;
-  if (d.toDateString() === ahora.toDateString())
-    return `<span class="pill verde" title="Sincronizada hoy a las ${horaTxt}">Al día</span>`;
-  // Hasta 3 días tolera el fin de semana (la sync es L-V).
-  if (dias <= 3)
-    return `<span class="pill verde" title="Última sincronización: ${fechaTxt} ${horaTxt}">Al día</span>`;
-  // Más de 3 días: la sync lleva días sin funcionar para esta obra.
+  if (d.toDateString() === ahora.toDateString()) return `<span class="pill verde" title="Sincronizada hoy a las ${horaTxt}">Al día</span>`;
+  if (dias <= 3) return `<span class="pill verde" title="Última sincronización: ${fechaTxt} ${horaTxt}">Al día</span>`;
   return `<span class="pill naranja" title="Sin sincronizar desde ${fechaTxt} ${horaTxt}. Revisa que el texto del centro coincida EXACTO con e-Coordina.">⚠ Desde ${fechaTxt}</span>`;
 }
 function hora(t) { if (!t) return '—'; return String(t).substring(0, 5); }
