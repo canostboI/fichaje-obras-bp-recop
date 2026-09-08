@@ -6,23 +6,15 @@
 <title>Informe de incidencias — Fichaje Obras</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/guardian.js"></script>
+<script src="../js/menu-admin.js"></script>
 <style>
   :root {
-    --verde: #4caf50;
-    --naranja: #ff9800;
-    --rojo: #f44336;
-    --azul: #2196f3;
-    --bg: #111318;
-    --bg2: #1a1d24;
-    --bg3: #22262f;
-    --borde: #2e3340;
-    --texto: #e8eaf0;
-    --texto2: #8b909e;
-    --sidebar-w: 200px;
+    --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
+    --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
+    --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
-
   .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
   .sidebar-brand { padding: 18px 16px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: center; gap: 14px; }
   .sidebar-brand img { height: 22px; width: auto; opacity: 0.9; }
@@ -34,14 +26,11 @@
   .sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid var(--borde); }
   .btn-salir { width: 100%; background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 8px; transition: background 0.15s, color 0.15s; }
   .btn-salir:hover { background: var(--bg3); color: var(--texto); }
-
   .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
   .topbar { padding: 20px 28px 0; display: flex; align-items: center; justify-content: space-between; }
   .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
   .topbar .usuario { font-size: 13px; color: var(--texto2); }
   .contenido { padding: 24px 28px; }
-
-  /* Barra de controles (no se imprime) */
   .controles { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 18px 20px; margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
   .campo { display: flex; flex-direction: column; gap: 6px; }
   .campo label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--texto2); }
@@ -56,13 +45,9 @@
   .btn-imprimir { background: transparent; border: 1px solid var(--borde); color: var(--texto); padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
   .btn-imprimir:hover { background: var(--bg3); }
   .btn-imprimir:disabled { opacity: 0.4; cursor: not-allowed; }
-
   .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 15px; }
   .aviso-error { padding: 16px 20px; background: rgba(244,67,54,0.12); border: 1px solid var(--rojo); border-radius: 10px; color: var(--texto); font-size: 14px; margin-bottom: 20px; }
-
-  /* ── El informe en sí (se imprime) ── */
   .informe { background: #fff; color: #1a1a1a; border-radius: 10px; padding: 40px 44px; max-width: 820px; }
-
   .inf-cabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; border-bottom: 3px solid #1a1a1a; padding-bottom: 20px; margin-bottom: 28px; }
   .inf-cabecera .logo-marca { height: 34px; width: auto; }
   .inf-cabecera .logos { display: flex; gap: 14px; align-items: center; justify-content: flex-end; }
@@ -70,7 +55,6 @@
   .inf-obra { font-size: 26px; font-weight: 800; margin-top: 4px; color: #1a1a1a; }
   .inf-meta { font-size: 13px; color: #555; margin-top: 8px; line-height: 1.5; }
   .inf-cabecera .lado-derecho { text-align: right; }
-
   .inf-titular { background: #f6f2f2; border-left: 5px solid var(--rojo); padding: 22px 26px; border-radius: 6px; margin-bottom: 32px; }
   .inf-titular .cifra { font-size: 44px; font-weight: 800; color: var(--rojo); line-height: 1; }
   .inf-titular .frase { font-size: 16px; color: #333; margin-top: 10px; line-height: 1.5; max-width: 60ch; text-wrap: pretty; }
@@ -81,9 +65,6 @@
   .inf-aviso-rojo strong { color: #6b1f1f; }
   .des-limite { margin-top: 10px; padding: 12px 16px; background: #f6f6f4; border-radius: 6px; font-size: 13.5px; color: #555; line-height: 1.55; }
   .des-limite strong { color: #1a1a1a; }
-  .inf-titular .reparto { font-size: 15px; color: #444; margin-top: 14px; padding-top: 12px; border-top: 1px solid #ddd; line-height: 1.6; }
-  .inf-titular .reparto strong { color: #1a1a1a; }
-
   .des-fila { display: flex; align-items: baseline; gap: 16px; padding: 13px 0; border-bottom: 1px solid #eee; }
   .des-fila:last-child { border-bottom: none; }
   .des-num { font-size: 26px; font-weight: 800; min-width: 58px; text-align: right; color: #1a1a1a; }
@@ -93,16 +74,10 @@
   .des-causas { margin: 2px 0 4px 74px; font-size: 13px; color: #666; line-height: 1.6; }
   .des-causas .doc { color: #333; }
   .des-causas .n { font-weight: 700; color: #1a1a1a; }
-  .des-anidada { margin: 4px 0 2px 74px; padding: 10px 14px; background: #f4f8f4; border-left: 3px solid var(--verde); border-radius: 4px; font-size: 13.5px; color: #33553a; line-height: 1.5; }
-  .des-anidada strong { color: #1d3d24; }
-  .des-cero .des-num { color: var(--verde); }
-  .des-cero .des-tit { color: #2c6b35; }
   .cat-corte td { background: #f4f4f2; font-size: 11.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #666; padding: 7px 10px; }
-
   .inf-seccion { margin-bottom: 30px; }
   .inf-seccion h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #1a1a1a; border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-bottom: 4px; }
   .inf-seccion .subtitulo { font-size: 12px; color: #888; margin-bottom: 12px; }
-
   table.inf-tabla { width: 100%; border-collapse: collapse; font-size: 14px; }
   table.inf-tabla th { text-align: left; padding: 9px 12px; font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #ddd; }
   table.inf-tabla th.num, table.inf-tabla td.num { text-align: right; }
@@ -110,17 +85,13 @@
   table.inf-tabla tr:last-child td { border-bottom: none; }
   table.inf-tabla td.destacado { font-weight: 700; }
   table.inf-tabla tr.fila-suave td { color: #999; font-style: italic; }
-
   .inf-genericos { background: #f8f8f8; border: 1px dashed #ccc; border-radius: 6px; padding: 16px 20px; font-size: 13px; color: #555; line-height: 1.6; }
   .inf-genericos strong { color: #333; }
-
   .inf-pie { margin-top: 36px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 11px; color: #999; line-height: 1.5; }
-
   .inf-vacio { text-align: center; padding: 40px 20px; color: #999; font-size: 15px; }
-
   @media print {
     body { display: block; background: #fff; }
-    .sidebar, .topbar, .controles, .btn-imprimir, .no-print { display: none !important; }
+    .sidebar, .topbar, .controles, .rangos, .btn-imprimir, .no-print { display: none !important; }
     .main { margin-left: 0; }
     .contenido { padding: 0; }
     .informe { max-width: none; padding: 0; border-radius: 0; }
@@ -130,29 +101,7 @@
 </head>
 <body>
 
-<div class="sidebar">
-  <div class="sidebar-brand">
-    <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
-    <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
-  </div>
-  <div class="sidebar-section">Principal</div>
-  <a href="cuadro-mando.html"><span class="ico">🛰️</span> Cuadro de mando</a>
-  <a href="index.html"><span class="ico">📊</span> Dashboard</a>
-  <div class="sidebar-section">Gestión</div>
-  <a href="obras.html"><span class="ico">🏗</span> Obras</a>
-  <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
-  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
-  <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
-  <a href="cierre-mes.html"><span class="ico">🔒</span> Cierre de mes</a>
-  <a href="foto-mes.html"><span class="ico">📷</span> Foto del mes</a>
-  <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
-  <a href="informe-rojos.html" class="activo"><span class="ico">📕</span> Informe de incidencias</a>
-  <a href="informe-excepciones.html"><span class="ico">⚠️</span> Excepciones asumidas</a>
-  <a href="importar-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
-  <div class="sidebar-bottom">
-    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
-  </div>
-</div>
+<div id="sidebar-admin"></div>
 
 <div class="main">
   <div class="topbar">
@@ -200,36 +149,22 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const LOGOS = {
-  bosch_pascual: '../assets/logos/bosch_pascual_logo_white.svg',
-  recop: '../assets/logos/recop_logo_white.svg'
-};
+const LOGOS = { bosch_pascual: '../assets/logos/bosch_pascual_logo_white.svg', recop: '../assets/logos/recop_logo_white.svg' };
 
 function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt == null ? '' : txt); return d.innerHTML; }
-
-function fmtFecha(iso) {
-  if (!iso) return null;
-  const d = new Date(iso + 'T00:00:00');
-  return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
-}
-
-function fmtHoy() {
-  return new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
-}
+function fmtFecha(iso) { if (!iso) return null; const d = new Date(iso + 'T00:00:00'); return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }); }
+function fmtHoy() { return new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }); }
+function fmtFechaCorta(iso) { if (!iso) return ''; const d = new Date(iso + 'T00:00:00'); return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
 
 async function cargarObras() {
   const sel = document.getElementById('sel-obra');
   const { data, error } = await sb.from('obras').select('id, nombre, estado').neq('estado', 'oculta').order('nombre');
   if (error) { sel.innerHTML = '<option value="">Error al cargar obras</option>'; return; }
   if (!data || !data.length) { sel.innerHTML = '<option value="">No hay obras</option>'; return; }
-  sel.innerHTML = '<option value="">Todas las obras</option>' +
-    data.map(o => `<option value="${esc(o.id)}">${esc(o.nombre)}${(o.estado && o.estado !== 'activa') ? ` (${esc(o.estado)})` : ''}</option>`).join('');
+  sel.innerHTML = '<option value="">Todas las obras</option>' + data.map(o => `<option value="${esc(o.id)}">${esc(o.nombre)}${(o.estado && o.estado !== 'activa') ? ` (${esc(o.estado)})` : ''}</option>`).join('');
 }
 
-function marcarRango(btn) {
-  document.querySelectorAll('.btn-rango').forEach(b => b.classList.remove('activo'));
-  if (btn) btn.classList.add('activo');
-}
+function marcarRango(btn) { document.querySelectorAll('.btn-rango').forEach(b => b.classList.remove('activo')); if (btn) btn.classList.add('activo'); }
 
 function aplicarRango(rango) {
   const iso = f => f.toISOString().slice(0, 10);
@@ -237,18 +172,9 @@ function aplicarRango(rango) {
   const desde = document.getElementById('inp-desde');
   const hasta = document.getElementById('inp-hasta');
   if (rango === 'todo') { desde.value = ''; hasta.value = ''; return; }
-  if (rango === 'mes') {
-    desde.value = iso(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
-    hasta.value = iso(hoy);
-  } else if (rango === 'mes-anterior') {
-    desde.value = iso(new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1));
-    hasta.value = iso(new Date(hoy.getFullYear(), hoy.getMonth(), 0));
-  } else if (rango === '30dias' || rango === '7dias') {
-    const d = new Date(hoy);
-    d.setDate(d.getDate() - (rango === '30dias' ? 30 : 7));
-    desde.value = iso(d);
-    hasta.value = iso(hoy);
-  }
+  if (rango === 'mes') { desde.value = iso(new Date(hoy.getFullYear(), hoy.getMonth(), 1)); hasta.value = iso(hoy); }
+  else if (rango === 'mes-anterior') { desde.value = iso(new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1)); hasta.value = iso(new Date(hoy.getFullYear(), hoy.getMonth(), 0)); }
+  else if (rango === '30dias' || rango === '7dias') { const d = new Date(hoy); d.setDate(d.getDate() - (rango === '30dias' ? 30 : 7)); desde.value = iso(d); hasta.value = iso(hoy); }
 }
 
 async function generar() {
@@ -258,10 +184,7 @@ async function generar() {
   const zona = document.getElementById('zona-informe');
   const btnImp = document.getElementById('btn-imprimir');
   btnImp.disabled = true;
-  if (desde && hasta && desde > hasta) {
-    zona.innerHTML = '<div class="aviso-error">La fecha «Desde» es posterior a «Hasta». Revísalas.</div>';
-    return;
-  }
+  if (desde && hasta && desde > hasta) { zona.innerHTML = '<div class="aviso-error">La fecha «Desde» es posterior a «Hasta». Revísalas.</div>'; return; }
   zona.innerHTML = '<div class="cargando">Generando informe…</div>';
   const { data, error } = await sb.rpc('informe_rojos', { p_obra_id: obraId || null, p_desde: desde, p_hasta: hasta });
   if (error) { zona.innerHTML = `<div class="aviso-error">No se pudo generar el informe: ${esc(error.message)}</div>`; return; }
@@ -269,379 +192,71 @@ async function generar() {
   btnImp.disabled = false;
 }
 
+function cabeceraHTML(logos, obraNombre, periodoTxt) {
+  const lista = Array.isArray(logos) ? logos : [logos];
+  return `<div class="inf-cabecera"><div><div class="inf-titulo">Informe de incidencias</div><div class="inf-obra">${esc(obraNombre || 'Obra')}</div><div class="inf-meta">${esc(periodoTxt)}</div></div><div class="lado-derecho"><div class="logos">${lista.map(l => `<img class="logo-marca" src="${l}" alt="" onerror="this.style.display='none'">`).join('')}</div><div class="inf-meta">Generado el ${fmtHoy()}</div></div></div>`;
+}
+
+function pieHTML() { return `<div class="inf-pie">Datos reales registrados de forma automática por el sistema de control de acceso, sin intervención manual.</div>`; }
+
 function pintarInforme(d, rango) {
   const zona = document.getElementById('zona-informe');
-  const logos = (!d.obra_marca && (d.obras_incluidas || 1) > 1)
-    ? [LOGOS.bosch_pascual, LOGOS.recop]
-    : [LOGOS[d.obra_marca] || LOGOS.bosch_pascual];
+  const logos = (!d.obra_marca && (d.obras_incluidas || 1) > 1) ? [LOGOS.bosch_pascual, LOGOS.recop] : [LOGOS[d.obra_marca] || LOGOS.bosch_pascual];
+  const fd = fmtFecha(rango.desde), fh = fmtFecha(rango.hasta);
+  const periodoTxt = fd && fh ? `Del ${fd} al ${fh}` : fd ? `Desde ${fd}` : fh ? `Hasta ${fh}` : 'Todo el histórico registrado';
+  const total = d.total_intentos || 0, personas = d.total_personas || 0;
+  const ex = d.excepciones || {}, exJefes = Array.isArray(ex.jefes) ? ex.jefes : [], exEmpresas = Array.isArray(ex.empresas) ? ex.empresas : [], exDetalle = Array.isArray(ex.detalle) ? ex.detalle : [], exTotal = ex.total || 0, exPersonas = ex.personas || 0, exRevocadas = ex.revocadas || 0;
+  const sr = d.sin_registrar || {}, srPersonas = Array.isArray(sr.personas) ? sr.personas : [], srEmpresas = Array.isArray(sr.empresas) ? sr.empresas : [], srTotalPersonas = sr.total_personas || 0, srTotalIntentos = sr.total_intentos || 0;
 
-  let periodoTxt;
-  const fd = fmtFecha(rango.desde);
-  const fh = fmtFecha(rango.hasta);
-  if (fd && fh) periodoTxt = `Del ${fd} al ${fh}`;
-  else if (fd) periodoTxt = `Desde ${fd}`;
-  else if (fh) periodoTxt = `Hasta ${fh}`;
-  else periodoTxt = 'Todo el histórico registrado';
+  if (total === 0 && srTotalPersonas === 0 && exTotal === 0 && !(d.rondas && d.rondas.rondas > 0)) { zona.innerHTML = `<div class="informe">${cabeceraHTML(logos, d.obra_nombre, periodoTxt)}<div class="inf-vacio">No se registraron accesos denegados durante el periodo seleccionado.</div>${pieHTML()}</div>`; return; }
 
-  const total = d.total_intentos || 0;
-  const personas = d.total_personas || 0;
-
-  const ex = d.excepciones || {};
-  const exJefes    = Array.isArray(ex.jefes) ? ex.jefes : [];
-  const exEmpresas = Array.isArray(ex.empresas) ? ex.empresas : [];
-  const exDetalle  = Array.isArray(ex.detalle) ? ex.detalle : [];
-  const exTotal    = ex.total || 0;
-  const exPersonas = ex.personas || 0;
-  const exRevocadas = ex.revocadas || 0;
-
-  const sr = d.sin_registrar || {};
-  const srPersonas = Array.isArray(sr.personas) ? sr.personas : [];
-  const srEmpresas = Array.isArray(sr.empresas) ? sr.empresas : [];
-  const srTotalPersonas = sr.total_personas || 0;
-  const srTotalIntentos = sr.total_intentos || 0;
-
-  if (total === 0 && srTotalPersonas === 0 && exTotal === 0 && !(d.rondas && d.rondas.rondas > 0)) {
-    zona.innerHTML = `
-      <div class="informe">
-        ${cabeceraHTML(logos, d.obra_nombre, periodoTxt)}
-        <div class="inf-vacio">No se registraron accesos denegados durante el periodo seleccionado.</div>
-        ${pieHTML()}
-      </div>`;
-    return;
-  }
-
-  let titular = '';
-  if (total > 0) {
-    titular = `
-    <div class="inf-titular">
-      <div class="dos">
-        <div>
-          <div class="cifra">${personas}</div>
-          <div class="rot">${personas === 1 ? 'Persona frenada' : 'Personas frenadas'} por el sistema</div>
-          <div class="nota">Les faltaba algún documento por presentar o renovar</div>
-        </div>
-        <div>
-          <div class="cifra">${total}</div>
-          <div class="rot">${total === 1 ? 'Alerta detectada' : 'Alertas detectadas'}</div>
-          <div class="nota">Una misma persona puede tener varios documentos pendientes, y se le avisa cada día que lo intenta</div>
-        </div>
-      </div>
-    </div>`;
-  }
+  const titular = total > 0 ? `<div class="inf-titular"><div class="dos"><div><div class="cifra">${personas}</div><div class="rot">${personas === 1 ? 'Persona frenada' : 'Personas frenadas'} por el sistema</div><div class="nota">Les faltaba algún documento por presentar o renovar</div></div><div><div class="cifra">${total}</div><div class="rot">${total === 1 ? 'Alerta detectada' : 'Alertas detectadas'}</div><div class="nota">Una misma persona puede tener varios documentos pendientes, y se le avisa cada día que lo intenta</div></div></div></div>` : '';
 
   const des = d.desenlace || {};
   let desenlaceHTML = '';
   if ((des.personas || 0) > 0) {
     const causas = des.causas || {};
-    const filas = [
-      ['mismo_dia', des.mismo_dia || 0, 'Resolvieron el problema y entraron ese mismo día',
-       'Se les frenó en la puerta, se resolvió la documentación y entraron esa jornada.'],
-      ['volvio_despues', des.volvio_despues || 0, 'No entraron ese día, y volvieron más adelante',
-       `Se fueron sin entrar y volvieron ya con la documentación en regla${des.volvio_7d ? `. ${des.volvio_7d} de ellos dentro de los 7 días siguientes` : ''}.`],
-      ['con_excepcion', des.con_excepcion || 0, 'Entraron con excepción firmada por un jefe de obra',
-       'El papel seguía mal. Un jefe de obra asumió la responsabilidad por escrito.'],
-      ['no_volvio', des.no_volvio || 0, 'No entraron, y no han vuelto',
-       'Sin fichajes posteriores en ninguna obra. Puede ser fin de trabajo o cambio de obra: el sistema no lo sabe.']
-    ];
-    function causasHTML(clave) {
-      const lista = Array.isArray(causas[clave]) ? causas[clave] : [];
-      if (!lista.length) return '';
-      const txt = lista.map(c => `<span class="n">${c.personas}</span> <span class="doc">${esc(c.doc)}</span>`).join(' &nbsp;·&nbsp; ');
-      return `<div class="des-causas">${txt}</div>`;
-    }
+    const filas = [['mismo_dia', des.mismo_dia || 0, 'Resolvieron el problema y entraron ese mismo día', 'Se les frenó en la puerta, se resolvió la documentación y entraron esa jornada.'], ['volvio_despues', des.volvio_despues || 0, 'No entraron ese día, y volvieron más adelante', `Se fueron sin entrar y volvieron ya con la documentación en regla${des.volvio_7d ? `. ${des.volvio_7d} de ellos dentro de los 7 días siguientes` : ''}.`], ['con_excepcion', des.con_excepcion || 0, 'Entraron con excepción firmada por un jefe de obra', 'El papel seguía mal. Un jefe de obra asumió la responsabilidad por escrito.'], ['no_volvio', des.no_volvio || 0, 'No entraron, y no han vuelto', 'Sin fichajes posteriores en ninguna obra. Puede ser fin de trabajo o cambio de obra: el sistema no lo sabe.']];
+    function causasHTML(clave) { const lista = Array.isArray(causas[clave]) ? causas[clave] : []; if (!lista.length) return ''; return `<div class="des-causas">${lista.map(c => `<span class="n">${c.personas}</span> <span class="doc">${esc(c.doc)}</span>`).join(' &nbsp;·&nbsp; ')}</div>`; }
     const colados = des.colado || 0;
-    desenlaceHTML = `
-      <div class="inf-seccion">
-        <h2>Cómo acabó cada una de las ${des.personas} personas</h2>
-        <div class="subtitulo">Cada persona cuenta en una sola línea, por su desenlace final. Todas suman ${des.personas}. Bajo cada línea, qué documento faltaba.</div>
-        ${filas.map(([clave, n, tit, exp]) => `
-          <div class="des-fila">
-            <div class="des-num">${n}</div>
-            <div class="des-cuerpo">
-              <div class="des-tit">${esc(tit)}</div>
-              <div class="des-exp">${esc(exp)}</div>
-            </div>
-          </div>
-          ${causasHTML(clave)}`).join('')}
-        ${colados > 0 ? `
-        <div class="inf-aviso-rojo">
-          <strong>${colados} ${colados === 1 ? 'persona entró' : 'personas entraron'} en rojo sin que nadie lo autorizara.</strong>
-          Hay que revisarlo: no debería poder ocurrir.
-        </div>` : ''}
-        ${(d.rondas && d.rondas.rondas_con_rojo > 0) ? `
-        <div class="des-limite">
-          Los datos anteriores solo cuentan lo que pasa en la puerta.
-          Además, el encargado cerró <strong>${d.rondas.rondas_con_rojo}</strong>
-          ${d.rondas.rondas_con_rojo === 1 ? 'ronda' : 'rondas'} con personas en rojo
-          <strong>dentro</strong> de la obra${d.rondas.peor_rojo_dentro > 1 ? `, hasta ${d.rondas.peor_rojo_dentro} a la vez` : ''}.
-          Todas con excepción firmada, pero estaban trabajando con documentación pendiente.
-        </div>` : ''}
-      </div>`;
+    desenlaceHTML = `<div class="inf-seccion"><h2>Cómo acabó cada una de las ${des.personas} personas</h2><div class="subtitulo">Cada persona cuenta en una sola línea, por su desenlace final. Todas suman ${des.personas}. Bajo cada línea, qué documento faltaba.</div>${filas.map(([clave, n, tit, exp]) => `<div class="des-fila"><div class="des-num">${n}</div><div class="des-cuerpo"><div class="des-tit">${esc(tit)}</div><div class="des-exp">${esc(exp)}</div></div></div>${causasHTML(clave)}`).join('')}${colados > 0 ? `<div class="inf-aviso-rojo"><strong>${colados} ${colados === 1 ? 'persona entró' : 'personas entraron'} en rojo sin que nadie lo autorizara.</strong> Hay que revisarlo: no debería poder ocurrir.</div>` : ''}${(d.rondas && d.rondas.rondas_con_rojo > 0) ? `<div class="des-limite">Los datos anteriores solo cuentan lo que pasa en la puerta. Además, el encargado cerró <strong>${d.rondas.rondas_con_rojo}</strong> ${d.rondas.rondas_con_rojo === 1 ? 'ronda' : 'rondas'} con personas en rojo <strong>dentro</strong> de la obra${d.rondas.peor_rojo_dentro > 1 ? `, hasta ${d.rondas.peor_rojo_dentro} a la vez` : ''}. Todas con excepción firmada, pero estaban trabajando con documentación pendiente.</div>` : ''}</div>`;
   }
 
   const ron = d.rondas || {};
   let rondasHTML = '';
   if ((ron.rondas || 0) > 0) {
     const mr = Array.isArray(ron.motivos_rojo_dentro) ? ron.motivos_rojo_dentro : [];
-    const motivosRondaHTML = mr.length
-      ? `<div class="des-causas">${mr.map(m => `<span class="n">${m.personas}</span> <span class="doc">${esc(m.doc)}</span>`).join(' &nbsp;·&nbsp; ')}</div>`
-      : '';
-    rondasHTML = `
-      <div class="inf-seccion">
-        <h2>Rondas del encargado: quién estaba dentro sin fichar</h2>
-        <div class="subtitulo">El control de acceso vigila la entrada. La ronda comprueba, sobre el terreno, cuánta gente hay realmente en la obra.</div>
-        <div class="des-fila">
-          <div class="des-num">${ron.rondas_con_rojo || 0}</div>
-          <div class="des-cuerpo">
-            <div class="des-tit">Rondas que encontraron gente en rojo dentro de la obra</div>
-            <div class="des-exp">Sobre ${ron.rondas} rondas realizadas${ron.peor_rojo_dentro > 1 ? `. En la peor había ${ron.peor_rojo_dentro} personas a la vez` : ''}. Todas con excepción firmada por un jefe de obra.</div>
-          </div>
-        </div>
-        ${motivosRondaHTML}
-        <div class="des-fila">
-          <div class="des-num">${ron.con_hallazgo || 0}</div>
-          <div class="des-cuerpo">
-            <div class="des-tit">Rondas que encontraron gente sin fichar</div>
-            <div class="des-exp">Sin fichar no es estar en rojo. Casi siempre es gente con documentación correcta que aún no había pasado el QR${ron.presencias > 0 ? `. Supone el ${(100 * (ron.personas_sin_fichar || 0) / ron.presencias).toFixed(1)} % de las presencias vistas en obra` : ''}.</div>
-          </div>
-        </div>
-        ${Array.isArray(ron.por_obra) && ron.por_obra.length > 1 ? `
-        <table class="inf-tabla" style="margin-top:18px">
-          <thead><tr><th>Obra</th><th class="num">Rondas</th><th class="num">Días</th><th class="num">Con hallazgo</th><th class="num">% sin fichar</th></tr></thead>
-          <tbody>
-            ${ron.por_obra.map(o => `
-              <tr>
-                <td class="destacado">${esc(o.obra_nombre)}</td>
-                <td class="num">${o.rondas}</td>
-                <td class="num">${o.dias != null ? o.dias : '—'}</td>
-                <td class="num">${o.con_hallazgo}</td>
-                <td class="num">${o.presencias > 0 ? (100 * o.personas_sin_fichar / o.presencias).toFixed(1) + '%' : '—'}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>` : ''}
-        <div class="inf-genericos" style="margin-top:16px">
-          La ronda registra <strong>cuántas</strong> personas había sin fichar, no quiénes son.
-        </div>
-      </div>`;
+    const motivosRondaHTML = mr.length ? `<div class="des-causas">${mr.map(m => `<span class="n">${m.personas}</span> <span class="doc">${esc(m.doc)}</span>`).join(' &nbsp;·&nbsp; ')}</div>` : '';
+    rondasHTML = `<div class="inf-seccion"><h2>Rondas del encargado: quién estaba dentro sin fichar</h2><div class="subtitulo">El control de acceso vigila la entrada. La ronda comprueba, sobre el terreno, cuánta gente hay realmente en la obra.</div><div class="des-fila"><div class="des-num">${ron.rondas_con_rojo || 0}</div><div class="des-cuerpo"><div class="des-tit">Rondas que encontraron gente en rojo dentro de la obra</div><div class="des-exp">Sobre ${ron.rondas} rondas realizadas${ron.peor_rojo_dentro > 1 ? `. En la peor había ${ron.peor_rojo_dentro} personas a la vez` : ''}. Todas con excepción firmada por un jefe de obra.</div></div></div>${motivosRondaHTML}<div class="des-fila"><div class="des-num">${ron.con_hallazgo || 0}</div><div class="des-cuerpo"><div class="des-tit">Rondas que encontraron gente sin fichar</div><div class="des-exp">Sin fichar no es estar en rojo.${ron.presencias > 0 ? ` Supone el ${(100 * (ron.personas_sin_fichar || 0) / ron.presencias).toFixed(1)} % de las presencias vistas en obra` : ''}</div></div></div>${Array.isArray(ron.por_obra) && ron.por_obra.length > 1 ? `<table class="inf-tabla" style="margin-top:18px"><thead><tr><th>Obra</th><th class="num">Rondas</th><th class="num">Días</th><th class="num">Con hallazgo</th><th class="num">% sin fichar</th></tr></thead><tbody>${ron.por_obra.map(o => `<tr><td class="destacado">${esc(o.obra_nombre)}</td><td class="num">${o.rondas}</td><td class="num">${o.dias != null ? o.dias : '—'}</td><td class="num">${o.con_hallazgo}</td><td class="num">${o.presencias > 0 ? (100 * o.personas_sin_fichar / o.presencias).toFixed(1) + '%' : '—'}</td></tr>`).join('')}</tbody></table>` : ''}<div class="inf-genericos" style="margin-top:16px">La ronda registra <strong>cuántas</strong> personas había sin fichar, no quiénes son.</div></div>`;
   }
 
   const porObra = Array.isArray(d.por_obra) ? d.por_obra : [];
-  let porObraHTML = '';
-  if (porObra.length > 1) {
-    porObraHTML = `
-      <div class="inf-seccion">
-        <h2>Desglose por obra</h2>
-        <div class="subtitulo">El total de arriba, repartido.</div>
-        <table class="inf-tabla">
-          <thead><tr><th>Obra</th><th class="num">Bloqueos</th><th class="num">Personas</th></tr></thead>
-          <tbody>
-            ${porObra.map(o => `
-              <tr>
-                <td class="destacado">${esc(o.obra_nombre)}</td>
-                <td class="num">${o.veces}</td>
-                <td class="num">${o.personas}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>`;
-  }
+  const porObraHTML = porObra.length > 1 ? `<div class="inf-seccion"><h2>Desglose por obra</h2><div class="subtitulo">El total de arriba, repartido.</div><table class="inf-tabla"><thead><tr><th>Obra</th><th class="num">Bloqueos</th><th class="num">Personas</th></tr></thead><tbody>${porObra.map(o => `<tr><td class="destacado">${esc(o.obra_nombre)}</td><td class="num">${o.veces}</td><td class="num">${o.personas}</td></tr>`).join('')}</tbody></table></div>` : '';
 
   const cats = Array.isArray(d.categorias) ? d.categorias : [];
-  let categoriasHTML = '';
-  if (cats.length) {
-    categoriasHTML = `
-      <div class="inf-seccion">
-        <h2>Qué documento faltaba</h2>
-        <div class="subtitulo">Las detecciones son más que las personas porque a cada una se le detecta cada día que se presenta.</div>
-        <table class="inf-tabla">
-          <thead><tr><th>Documento que faltaba</th><th class="num">Personas</th><th class="num">Detecciones en rojo</th></tr></thead>
-          <tbody>
-            ${cats.map((c, i) => `
-              ${(i > 0 && cats[i-1].es_empresa && !c.es_empresa)
-                ? '<tr class="cat-corte"><td colspan="3">Documentación del trabajador</td></tr>' : ''}
-              ${(i === 0 && c.es_empresa)
-                ? '<tr class="cat-corte"><td colspan="3">Documentación de la empresa</td></tr>' : ''}
-              <tr>
-                <td class="destacado">${esc(c.categoria)}</td>
-                <td class="num">${c.personas}</td>
-                <td class="num">${c.veces}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>`;
-  }
+  const categoriasHTML = cats.length ? `<div class="inf-seccion"><h2>Qué documento faltaba</h2><table class="inf-tabla"><thead><tr><th>Documento que faltaba</th><th class="num">Personas</th><th class="num">Detecciones en rojo</th></tr></thead><tbody>${cats.map((c, i) => `${(i > 0 && cats[i-1].es_empresa && !c.es_empresa) ? '<tr class="cat-corte"><td colspan="3">Documentación del trabajador</td></tr>' : ''}${(i === 0 && c.es_empresa) ? '<tr class="cat-corte"><td colspan="3">Documentación de la empresa</td></tr>' : ''}<tr><td class="destacado">${esc(c.categoria)}</td><td class="num">${c.personas}</td><td class="num">${c.veces}</td></tr>`).join('')}</tbody></table></div>` : '';
 
   const emps = Array.isArray(d.empresas) ? d.empresas : [];
-  let empresasHTML = '';
-  if (emps.length) {
-    empresasHTML = `
-      <div class="inf-seccion">
-        <h2>Empresas con más accesos denegados</h2>
-        <table class="inf-tabla">
-          <thead><tr><th>Empresa</th><th class="num">Personas</th><th class="num">Detecciones en rojo</th></tr></thead>
-          <tbody>
-            ${emps.map(e => {
-              const suave = e.empresa_nombre === 'Sin empresa asignada';
-              return `<tr class="${suave ? 'fila-suave' : ''}">
-                <td class="${suave ? '' : 'destacado'}">${esc(e.empresa_nombre)}</td>
-                <td class="num">${e.personas}</td>
-                <td class="num">${e.veces}</td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>`;
-  }
+  const empresasHTML = emps.length ? `<div class="inf-seccion"><h2>Empresas con más accesos denegados</h2><table class="inf-tabla"><thead><tr><th>Empresa</th><th class="num">Personas</th><th class="num">Detecciones en rojo</th></tr></thead><tbody>${emps.map(e => { const s = e.empresa_nombre === 'Sin empresa asignada'; return `<tr class="${s ? 'fila-suave' : ''}"><td class="${s ? '' : 'destacado'}">${esc(e.empresa_nombre)}</td><td class="num">${e.personas}</td><td class="num">${e.veces}</td></tr>`; }).join('')}</tbody></table></div>` : '';
 
   const gen = d.genericos_intentos || 0;
-  let genericosHTML = '';
-  if (gen > 0) {
-    genericosHTML = `
-      <div class="inf-seccion">
-        <h2>Frenados sin desglose</h2>
-        <div class="inf-genericos">
-          <strong>${gen}</strong> de los ${total} intentos (de ${d.genericos_personas} personas) se registraron antes de que el sistema guardara el motivo detallado.
-        </div>
-      </div>`;
-  }
+  const genericosHTML = gen > 0 ? `<div class="inf-seccion"><h2>Frenados sin desglose</h2><div class="inf-genericos"><strong>${gen}</strong> de los ${total} intentos (de ${d.genericos_personas} personas) se registraron antes de que el sistema guardara el motivo detallado.</div></div>` : '';
 
-  let sinRegHTML = '';
-  if (srPersonas.length) {
-    sinRegHTML = `
-      <div class="inf-seccion">
-        <h2>Presentes sin registrar</h2>
-        <div class="subtitulo">Personas que estaban físicamente en la obra e intentaron fichar sin constar en el sistema. Total: ${srTotalPersonas} ${srTotalPersonas === 1 ? 'persona' : 'personas'} · ${srTotalIntentos} ${srTotalIntentos === 1 ? 'intento' : 'intentos'}.</div>
-        <table class="inf-tabla">
-          <thead><tr><th>Persona (declarada)</th><th>Empresa declarada</th><th>DNI</th><th class="num">Intentos</th></tr></thead>
-          <tbody>
-            ${srPersonas.map(p => `
-              <tr>
-                <td class="destacado">${esc(p.nombre || '(no facilitado)')}</td>
-                <td>${esc(p.empresa || '(no facilitada)')}</td>
-                <td>${esc(p.dni || '')}</td>
-                <td class="num">${p.intentos || 1}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>
-        ${srEmpresas.length ? `
-        <table class="inf-tabla" style="margin-top:14px">
-          <thead><tr><th>Empresa declarada</th><th class="num">Personas</th><th class="num">Intentos</th></tr></thead>
-          <tbody>
-            ${srEmpresas.map(e => `
-              <tr>
-                <td class="destacado">${esc(e.empresa_nombre)}</td>
-                <td class="num">${e.personas}</td>
-                <td class="num">${e.intentos}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>` : ''}
-      </div>`;
-  }
+  const sinRegHTML = srPersonas.length ? `<div class="inf-seccion"><h2>Presentes sin registrar</h2><div class="subtitulo">Personas que intentaron fichar sin constar en el sistema. Total: ${srTotalPersonas} ${srTotalPersonas === 1 ? 'persona' : 'personas'} · ${srTotalIntentos} ${srTotalIntentos === 1 ? 'intento' : 'intentos'}.</div><table class="inf-tabla"><thead><tr><th>Persona (declarada)</th><th>Empresa declarada</th><th>DNI</th><th class="num">Intentos</th></tr></thead><tbody>${srPersonas.map(p => `<tr><td class="destacado">${esc(p.nombre || '(no facilitado)')}</td><td>${esc(p.empresa || '(no facilitada)')}</td><td>${esc(p.dni || '')}</td><td class="num">${p.intentos || 1}</td></tr>`).join('')}</tbody></table>${srEmpresas.length ? `<table class="inf-tabla" style="margin-top:14px"><thead><tr><th>Empresa declarada</th><th class="num">Personas</th><th class="num">Intentos</th></tr></thead><tbody>${srEmpresas.map(e => `<tr><td class="destacado">${esc(e.empresa_nombre)}</td><td class="num">${e.personas}</td><td class="num">${e.intentos}</td></tr>`).join('')}</tbody></table>` : ''}</div>` : '';
 
-  let excepHTML = '';
-  if (exTotal > 0) {
-    excepHTML = `
-      <div class="inf-seccion">
-        <h2>Entradas autorizadas sin documentación en regla</h2>
-        <div class="subtitulo">Total: <strong>${exTotal}</strong> ${exTotal === 1 ? 'autorización' : 'autorizaciones'} sobre ${exPersonas} ${exPersonas === 1 ? 'persona' : 'personas'}${exRevocadas > 0 ? `, de las cuales ${exRevocadas} se retiraron después` : ''}.</div>
-        ${exJefes.length ? `
-        <table class="inf-tabla">
-          <thead><tr><th>Autorizado por</th><th class="num">Veces</th><th class="num">Personas</th></tr></thead>
-          <tbody>
-            ${exJefes.map(j => `
-              <tr><td class="destacado">${esc(j.jefe)}</td><td class="num">${j.veces}</td><td class="num">${j.personas}</td></tr>`).join('')}
-          </tbody>
-        </table>` : ''}
-        ${exEmpresas.length ? `
-        <table class="inf-tabla" style="margin-top:14px">
-          <thead><tr><th>Empresa</th><th class="num">Veces</th><th class="num">Personas</th></tr></thead>
-          <tbody>
-            ${exEmpresas.map(e => {
-              const suave = e.empresa_nombre === 'Sin empresa asignada';
-              return `<tr class="${suave ? 'fila-suave' : ''}">
-                <td class="${suave ? '' : 'destacado'}">${esc(e.empresa_nombre)}</td>
-                <td class="num">${e.veces}</td><td class="num">${e.personas}</td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>` : ''}
-        <table class="inf-tabla" style="margin-top:14px">
-          <thead><tr><th>Fecha</th><th>Persona</th><th>Empresa</th><th>Autoriza</th><th>Motivo</th></tr></thead>
-          <tbody>
-            ${exDetalle.map(x => {
-              const retirada = x.estado === 'revocada';
-              const motivo = esc(x.motivo_autorizacion || '(sin motivo)') +
-                (retirada ? `<br><em>Retirada: ${esc(x.motivo_revocacion || 'sin motivo')}</em>` : '');
-              return `<tr class="${retirada ? 'fila-suave' : ''}">
-                <td>${esc(fmtFechaCorta(x.fecha))}</td>
-                <td class="${retirada ? '' : 'destacado'}">${esc(x.persona)}</td>
-                <td>${esc(x.empresa_nombre)}</td>
-                <td>${esc(x.jefe)}</td>
-                <td>${motivo}</td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>`;
-  }
+  const excepHTML = exTotal > 0 ? `<div class="inf-seccion"><h2>Entradas autorizadas sin documentación en regla</h2><div class="subtitulo">Total: <strong>${exTotal}</strong> ${exTotal === 1 ? 'autorización' : 'autorizaciones'} sobre ${exPersonas} ${exPersonas === 1 ? 'persona' : 'personas'}${exRevocadas > 0 ? `, de las cuales ${exRevocadas} se retiraron después` : ''}.</div>${exJefes.length ? `<table class="inf-tabla"><thead><tr><th>Autorizado por</th><th class="num">Veces</th><th class="num">Personas</th></tr></thead><tbody>${exJefes.map(j => `<tr><td class="destacado">${esc(j.jefe)}</td><td class="num">${j.veces}</td><td class="num">${j.personas}</td></tr>`).join('')}</tbody></table>` : ''}${exEmpresas.length ? `<table class="inf-tabla" style="margin-top:14px"><thead><tr><th>Empresa</th><th class="num">Veces</th><th class="num">Personas</th></tr></thead><tbody>${exEmpresas.map(e => { const s = e.empresa_nombre === 'Sin empresa asignada'; return `<tr class="${s ? 'fila-suave' : ''}"><td class="${s ? '' : 'destacado'}">${esc(e.empresa_nombre)}</td><td class="num">${e.veces}</td><td class="num">${e.personas}</td></tr>`; }).join('')}</tbody></table>` : ''}<table class="inf-tabla" style="margin-top:14px"><thead><tr><th>Fecha</th><th>Persona</th><th>Empresa</th><th>Autoriza</th><th>Motivo</th></tr></thead><tbody>${exDetalle.map(x => { const r = x.estado === 'revocada'; const m = esc(x.motivo_autorizacion || '(sin motivo)') + (r ? `<br><em>Retirada: ${esc(x.motivo_revocacion || 'sin motivo')}</em>` : ''); return `<tr class="${r ? 'fila-suave' : ''}"><td>${esc(fmtFechaCorta(x.fecha))}</td><td class="${r ? '' : 'destacado'}">${esc(x.persona)}</td><td>${esc(x.empresa_nombre)}</td><td>${esc(x.jefe)}</td><td>${m}</td></tr>`; }).join('')}</tbody></table></div>` : '';
 
-  zona.innerHTML = `
-    <div class="informe">
-      ${cabeceraHTML(logos, d.obra_nombre, periodoTxt)}
-      ${titular}
-      ${desenlaceHTML}
-      ${rondasHTML}
-      ${porObraHTML}
-      ${categoriasHTML}
-      ${empresasHTML}
-      ${excepHTML}
-      ${sinRegHTML}
-      ${genericosHTML}
-      ${pieHTML()}
-    </div>`;
-}
-
-function fmtFechaCorta(iso) {
-  if (!iso) return '';
-  const d = new Date(iso + 'T00:00:00');
-  return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-function cabeceraHTML(logos, obraNombre, periodoTxt) {
-  const lista = Array.isArray(logos) ? logos : [logos];
-  return `
-    <div class="inf-cabecera">
-      <div>
-        <div class="inf-titulo">Informe de incidencias</div>
-        <div class="inf-obra">${esc(obraNombre || 'Obra')}</div>
-        <div class="inf-meta">${esc(periodoTxt)}</div>
-      </div>
-      <div class="lado-derecho">
-        <div class="logos">${lista.map(l => `<img class="logo-marca" src="${l}" alt="" onerror="this.style.display='none'">`).join('')}</div>
-        <div class="inf-meta">Generado el ${fmtHoy()}</div>
-      </div>
-    </div>`;
-}
-
-function pieHTML() {
-  return `
-    <div class="inf-pie">
-      Datos reales registrados de forma automática por el sistema de control de acceso, sin intervención manual.
-    </div>`;
+  zona.innerHTML = `<div class="informe">${cabeceraHTML(logos, d.obra_nombre, periodoTxt)}${titular}${desenlaceHTML}${rondasHTML}${porObraHTML}${categoriasHTML}${empresasHTML}${excepHTML}${sinRegHTML}${genericosHTML}${pieHTML()}</div>`;
 }
 
 (async function init() {
   const g = await Guardian.entrar(sb, { rol: 'admin', campos: 'nombre', volver: '../' });
   if (!g) return;
-  const session = g.session;
-  const usuario = g.usuario;
-  document.getElementById('usuario-email').textContent = usuario.nombre || session.user.email;
+  document.getElementById('usuario-email').textContent = g.usuario.nombre || g.session.user.email;
   if (window.AutoLogout) AutoLogout.init(sb);
   await cargarObras();
   document.getElementById('btn-generar').addEventListener('click', () => { marcarRango(null); generar(); });
-  document.querySelectorAll('.btn-rango').forEach(b => {
-    b.addEventListener('click', () => { aplicarRango(b.dataset.rango); marcarRango(b); generar(); });
-  });
+  document.querySelectorAll('.btn-rango').forEach(b => { b.addEventListener('click', () => { aplicarRango(b.dataset.rango); marcarRango(b); generar(); }); });
   marcarRango(document.querySelector('.btn-rango[data-rango="todo"]'));
   await generar();
   document.getElementById('btn-imprimir').addEventListener('click', () => window.print());
