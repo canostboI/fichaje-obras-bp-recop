@@ -6,6 +6,7 @@
 <title>Trabajadores — Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/guardian.js"></script>
+<script src="../js/menu-admin.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -48,8 +49,6 @@
   td { padding: 13px 20px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: var(--bg3); }
-
-  /* Grupos empresa */
   tr.grupo-empresa-cab { cursor: pointer; user-select: none; }
   tr.grupo-empresa-cab td { background: var(--bg3); border-bottom: 1px solid var(--borde); border-top: 2px solid var(--borde); padding: 10px 20px; }
   tr.grupo-empresa-cab:first-child td { border-top: none; }
@@ -63,12 +62,11 @@
   .badge-empresa.naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
   .badge-empresa.total   { background: rgba(139,144,158,0.15); color: var(--texto2); }
   tr.grupo-fila.oculto { display: none; }
-
   .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin: 2px; white-space: nowrap; }
-  .pill.verde  { background: rgba(76,175,80,0.15);  color: var(--verde); }
-  .pill.naranja{ background: rgba(255,152,0,0.15);  color: var(--naranja); }
-  .pill.rojo   { background: rgba(244,67,54,0.15);  color: var(--rojo); }
-  .pill.gris   { background: rgba(139,144,158,0.15); color: var(--texto2); }
+  .pill.verde   { background: rgba(76,175,80,0.15);  color: var(--verde); }
+  .pill.naranja { background: rgba(255,152,0,0.15);  color: var(--naranja); }
+  .pill.rojo    { background: rgba(244,67,54,0.15);  color: var(--rojo); }
+  .pill.gris    { background: rgba(139,144,158,0.15); color: var(--texto2); }
   .acciones { display: flex; gap: 8px; }
   .vacio { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); }
@@ -91,28 +89,7 @@
 </head>
 <body>
 
-<div class="sidebar">
-  <div class="sidebar-brand">
-    <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
-    <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
-  </div>
-  <div class="sidebar-section">Principal</div>
-  <a href="cuadro-mando.html"><span class="ico">🛰️</span> Cuadro de mando</a>
-  <a href="index.html"><span class="ico">📊</span> Dashboard</a>
-  <div class="sidebar-section">Gestión</div>
-  <a href="obras.html"><span class="ico">🏗</span> Obras</a>
-  <a href="trabajadores.html" class="activo"><span class="ico">👷</span> Trabajadores</a>
-  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
-  <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
-  <a href="cierre-mes.html"><span class="ico">🔒</span> Cierre de mes</a>
-  <a href="foto-mes.html"><span class="ico">📷</span> Foto del mes</a>
-  <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
-  <a href="informe-rojos.html"><span class="ico">📕</span> Informe de incidencias</a>
-  <a href="importar-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
-  <div class="sidebar-bottom">
-    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
-  </div>
-</div>
+<div id="sidebar-admin"></div>
 
 <div class="main">
   <div class="topbar">
@@ -122,12 +99,8 @@
   <div class="contenido">
     <div class="barra-filtros">
       <input type="text" id="filtro" placeholder="Buscar por nombre o DNI…">
-      <select id="filtro-empresa">
-        <option value="">Todas las empresas</option>
-      </select>
-      <select id="filtro-obra">
-        <option value="">Todas las obras</option>
-      </select>
+      <select id="filtro-empresa"><option value="">Todas las empresas</option></select>
+      <select id="filtro-obra"><option value="">Todas las obras</option></select>
     </div>
     <div class="seccion">
       <div id="tabla-trabajadores"><div class="cargando">Cargando…</div></div>
@@ -139,28 +112,12 @@
   <div class="modal">
     <h2 id="modal-titulo">Nuevo trabajador</h2>
     <div class="error-modal" id="error-modal"></div>
-
     <div class="campo-fila">
-      <div class="campo">
-        <label>Nombre</label>
-        <input type="text" id="f-nombre" placeholder="Juan">
-      </div>
-      <div class="campo">
-        <label>Apellidos</label>
-        <input type="text" id="f-apellidos" placeholder="García López">
-      </div>
+      <div class="campo"><label>Nombre</label><input type="text" id="f-nombre" placeholder="Juan"></div>
+      <div class="campo"><label>Apellidos</label><input type="text" id="f-apellidos" placeholder="García López"></div>
     </div>
-
-    <div class="campo">
-      <label>DNI / NIE</label>
-      <input type="text" id="f-dni" placeholder="12345678A" maxlength="15">
-    </div>
-
-    <div class="campo">
-      <label>Teléfono (opcional)</label>
-      <input type="text" id="f-telefono" placeholder="600 000 000">
-    </div>
-
+    <div class="campo"><label>DNI / NIE</label><input type="text" id="f-dni" placeholder="12345678A" maxlength="15"></div>
+    <div class="campo"><label>Teléfono (opcional)</label><input type="text" id="f-telefono" placeholder="600 000 000"></div>
     <div class="campo-fila">
       <div class="campo">
         <label>Categoría</label>
@@ -173,23 +130,11 @@
           <option value="restaurador">Restaurador</option>
           <option value="otra">Otra…</option>
         </select>
-        <input type="text" id="f-categoria-otra" placeholder="Escribe la categoría"
-               maxlength="40" style="display:none;margin-top:6px;">
+        <input type="text" id="f-categoria-otra" placeholder="Escribe la categoría" maxlength="40" style="display:none;margin-top:6px;">
       </div>
-      <div class="campo">
-        <label>Precio hora</label>
-        <input type="number" id="f-precio-hora" placeholder="18.30" step="0.01" min="0">
-      </div>
+      <div class="campo"><label>Precio hora</label><input type="number" id="f-precio-hora" placeholder="18.30" step="0.01" min="0"></div>
     </div>
-
-    <div class="campo">
-      <label>Estado</label>
-      <select id="f-activo">
-        <option value="true">Activo</option>
-        <option value="false">Inactivo</option>
-      </select>
-    </div>
-
+    <div class="campo"><label>Estado</label><select id="f-activo"><option value="true">Activo</option><option value="false">Inactivo</option></select></div>
     <div class="modal-acciones">
       <button class="btn-secundario" id="btn-cancelar">Cancelar</button>
       <button class="btn-primario" id="btn-guardar">Guardar</button>
@@ -197,7 +142,6 @@
   </div>
 </div>
 
-<!-- Modal confirmar quitar de la obra -->
 <div class="modal-overlay" id="modal-quitar-overlay">
   <div class="modal" style="max-width:480px;">
     <h2>🚪 Quitar de la obra</h2>
@@ -213,110 +157,55 @@
 <script>
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
-
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 AutoLogout.init(sb);
 
-// Iconos de habilitación: js/habilitaciones.js (window.Hab).
-// El diccionario estaba copiado aquí y en otros siete archivos.
 if (!window.Fechas || !window.Hab) {
-  document.body.innerHTML =
-    '<div style="padding:40px;font-family:system-ui;color:#f44336">' +
-    'No se han cargado js/fechas.js y js/habilitaciones.js. Recarga la página.</div>';
+  document.body.innerHTML = '<div style="padding:40px;font-family:system-ui;color:#f44336">No se han cargado js/fechas.js y js/habilitaciones.js. Recarga la página.</div>';
   throw new Error('Faltan los módulos Fechas/Hab');
 }
 
-let trabajadorEditandoId = null;
-let todosTrabajadores = [];
-let habIconosPorTrabajador = {};
+let trabajadorEditandoId = null, todosTrabajadores = [], habIconosPorTrabajador = {};
 const gruposAbiertos = {};
 
 (async function init() {
-  // El guardián de sesión vive en js/guardian.js, igual en las 20 pantallas.
-  // Separa "no tienes permiso" de "ha fallado la red" y de "estás de baja",
-  // que antes se confundían en un mismo redirect mudo al login.
   const g = await Guardian.entrar(sb, { rol: 'admin', volver: '../' });
   if (!g) return;
-
   await cargarTrabajadores();
 })();
 
-document.getElementById('btn-salir').onclick = async () => {
-  await sb.auth.signOut();
-  window.location.href = '../';
-};
+document.getElementById('btn-salir').onclick = async () => { await sb.auth.signOut(); window.location.href = '../'; };
 
 async function cargarTrabajadores() {
   document.getElementById('tabla-trabajadores').innerHTML = '<div class="cargando">Cargando…</div>';
-
-  const { data, error } = await sb
-    .from('trabajadores')
-    .select(`
-      id, nombre, apellidos, dni, telefono, activo, categoria, categoria_otra, precio_hora_personalizado,
-      empresa:empresa_id(id, nombre),
-      validaciones_obra ( estado, obra:obra_id ( id, nombre ) )
-    `)
-    .order('apellidos');
-
-  if (error || !data) {
-    document.getElementById('tabla-trabajadores').innerHTML = '<div class="vacio">Error al cargar trabajadores</div>';
-    return;
-  }
-
+  const { data, error } = await sb.from('trabajadores').select(`id, nombre, apellidos, dni, telefono, activo, categoria, categoria_otra, precio_hora_personalizado, empresa:empresa_id(id, nombre), validaciones_obra ( estado, obra:obra_id ( id, nombre ) )`).order('apellidos');
+  if (error || !data) { document.getElementById('tabla-trabajadores').innerHTML = '<div class="vacio">Error al cargar trabajadores</div>'; return; }
   todosTrabajadores = data;
-
-  // Cargar habilitaciones activas en paralelo
   const ids = data.map(t => t.id);
   habIconosPorTrabajador = {};
   if (ids.length > 0) {
-    const { data: habs } = await sb
-      .from('habilitaciones_trabajador')
-      .select('trabajador_id, tipo:tipo_habilitacion_id(nombre)')
-      .in('trabajador_id', ids)
-      .eq('activo', true);
-
-    (habs || []).forEach(h => {
-      const icono = Hab.icono(h.tipo?.nombre || '');
-      if (!habIconosPorTrabajador[h.trabajador_id]) habIconosPorTrabajador[h.trabajador_id] = [];
-      if (!habIconosPorTrabajador[h.trabajador_id].includes(icono))
-        habIconosPorTrabajador[h.trabajador_id].push(icono);
-    });
+    const { data: habs } = await sb.from('habilitaciones_trabajador').select('trabajador_id, tipo:tipo_habilitacion_id(nombre)').in('trabajador_id', ids).eq('activo', true);
+    (habs || []).forEach(h => { const icono = Hab.icono(h.tipo?.nombre || ''); if (!habIconosPorTrabajador[h.trabajador_id]) habIconosPorTrabajador[h.trabajador_id] = []; if (!habIconosPorTrabajador[h.trabajador_id].includes(icono)) habIconosPorTrabajador[h.trabajador_id].push(icono); });
   }
-
   rellenarFiltros(data);
   aplicarFiltros();
 }
 
 function rellenarFiltros(trabajadores) {
-  // Selector empresa
   const empresasMapa = new Map();
-  trabajadores.forEach(t => {
-    if (t.empresa?.id && !empresasMapa.has(t.empresa.id)) {
-      empresasMapa.set(t.empresa.id, t.empresa.nombre);
-    }
-  });
+  trabajadores.forEach(t => { if (t.empresa?.id && !empresasMapa.has(t.empresa.id)) empresasMapa.set(t.empresa.id, t.empresa.nombre); });
   const empresas = [...empresasMapa.entries()].sort((a, b) => a[1].localeCompare(b[1], 'es'));
   const selEmpresa = document.getElementById('filtro-empresa');
   const valEmpresa = selEmpresa.value;
-  selEmpresa.innerHTML = '<option value="">Todas las empresas</option>' +
-    empresas.map(([id, nombre]) => `<option value="${id}">${esc(nombre)}</option>`).join('');
+  selEmpresa.innerHTML = '<option value="">Todas las empresas</option>' + empresas.map(([id, nombre]) => `<option value="${id}">${esc(nombre)}</option>`).join('');
   if (valEmpresa && empresasMapa.has(valEmpresa)) selEmpresa.value = valEmpresa;
-
-  // Selector obra
   const obrasMapa = new Map();
-  trabajadores.forEach(t => {
-    (t.validaciones_obra || []).forEach(v => {
-      if (v.obra?.id && !obrasMapa.has(v.obra.id)) {
-        obrasMapa.set(v.obra.id, v.obra.nombre);
-      }
-    });
-  });
+  trabajadores.forEach(t => { (t.validaciones_obra || []).forEach(v => { if (v.obra?.id && !obrasMapa.has(v.obra.id)) obrasMapa.set(v.obra.id, v.obra.nombre); }); });
   const obras = [...obrasMapa.entries()].sort((a, b) => a[1].localeCompare(b[1], 'es'));
   const selObra = document.getElementById('filtro-obra');
   const valObra = selObra.value;
-  selObra.innerHTML = '<option value="">Todas las obras</option>' +
-    obras.map(([id, nombre]) => `<option value="${id}">${esc(nombre)}</option>`).join('');
+  selObra.innerHTML = '<option value="">Todas las obras</option>' + obras.map(([id, nombre]) => `<option value="${id}">${esc(nombre)}</option>`).join('');
   if (valObra && obrasMapa.has(valObra)) selObra.value = valObra;
 }
 
@@ -324,138 +213,42 @@ function aplicarFiltros() {
   const q = document.getElementById('filtro').value.toLowerCase();
   const empresaId = document.getElementById('filtro-empresa').value;
   const obraId = document.getElementById('filtro-obra').value;
-
   const filtrados = todosTrabajadores.filter(t => {
     const nombreCompleto = `${t.nombre || ''} ${t.apellidos || ''}`.toLowerCase();
-
-    const coincideTexto = !q ||
-      nombreCompleto.includes(q) ||
-      (t.dni || '').toLowerCase().includes(q);
-
-    const coincideEmpresa = !empresaId || t.empresa?.id === empresaId;
-
-    const coincideObra = !obraId ||
-      (t.validaciones_obra || []).some(v => v.obra?.id === obraId);
-
-    return coincideTexto && coincideEmpresa && coincideObra;
+    return (!q || nombreCompleto.includes(q) || (t.dni || '').toLowerCase().includes(q)) &&
+           (!empresaId || t.empresa?.id === empresaId) &&
+           (!obraId || (t.validaciones_obra || []).some(v => v.obra?.id === obraId));
   });
-
   renderTabla(filtrados);
 }
 
 function renderTabla(data) {
   const obraIdFiltro = document.getElementById('filtro-obra').value;
-  if (data.length === 0) {
-    document.getElementById('tabla-trabajadores').innerHTML = '<div class="vacio">No hay trabajadores</div>';
-    return;
-  }
-
-  // Agrupar por empresa
+  if (data.length === 0) { document.getElementById('tabla-trabajadores').innerHTML = '<div class="vacio">No hay trabajadores</div>'; return; }
   const porEmpresa = {};
-  data.forEach(t => {
-    const empresa = t.empresa?.nombre || 'Sin empresa asignada';
-    if (!porEmpresa[empresa]) porEmpresa[empresa] = [];
-    porEmpresa[empresa].push(t);
-  });
-
+  data.forEach(t => { const empresa = t.empresa?.nombre || 'Sin empresa asignada'; if (!porEmpresa[empresa]) porEmpresa[empresa] = []; porEmpresa[empresa].push(t); });
   const empresasOrdenadas = Object.keys(porEmpresa).sort((a, b) => a.localeCompare(b, 'es'));
-
-  const cabecera = `
-    <thead>
-      <tr>
-        <th>Nombre</th>
-        <th>DNI</th>
-        <th>Teléfono</th>
-        <th>Categoría</th>
-        <th>Precio hora</th>
-        <th>Estado doc.</th>
-        <th>Obras</th>
-        <th>Activo</th>
-        <th>Acciones</th>
-      </tr>
-    </thead>`;
-
+  const cabecera = `<thead><tr><th>Nombre</th><th>DNI</th><th>Teléfono</th><th>Categoría</th><th>Precio hora</th><th>Estado doc.</th><th>Obras</th><th>Activo</th><th>Acciones</th></tr></thead>`;
   let filasBody = '';
-
   empresasOrdenadas.forEach(empresa => {
     const trabajadores = porEmpresa[empresa];
-
-    // Calcular badges
     let rojos = 0, naranjas = 0;
-    trabajadores.forEach(t => {
-      const estado = estadoDocumental(t.validaciones_obra);
-      if (estado === 'rojo') rojos++;
-      else if (estado === 'naranja') naranjas++;
-    });
-
+    trabajadores.forEach(t => { const estado = estadoDocumental(t.validaciones_obra); if (estado === 'rojo') rojos++; else if (estado === 'naranja') naranjas++; });
     const grupoAbierto = gruposAbiertos[empresa] !== false;
-    const chevronClase = grupoAbierto ? 'grupo-empresa-chevron abierto' : 'grupo-empresa-chevron';
-    const filaClase = grupoAbierto ? 'grupo-fila' : 'grupo-fila oculto';
     const empresaEsc = esc(empresa);
-
-    const badgesHtml = [
-      rojos > 0    ? `<span class="badge-empresa rojo">${rojos} rojo${rojos > 1 ? 's' : ''}</span>` : '',
-      naranjas > 0 ? `<span class="badge-empresa naranja">${naranjas} naranja${naranjas > 1 ? 's' : ''}</span>` : '',
-      `<span class="badge-empresa total">${trabajadores.length} trabajador${trabajadores.length > 1 ? 'es' : ''}</span>`
-    ].join('');
-
-    // Escapar empresa para uso en atributos JS: usar índice en lugar del nombre
-    const grupoKey = empresaEsc;
-
-    filasBody += `
-      <tr class="grupo-empresa-cab" onclick="toggleGrupo(${JSON.stringify(empresa)})">
-        <td colspan="9">
-          <div class="grupo-empresa-label">
-            <span class="${chevronClase}" id="chevron-${empresaEsc}">${grupoAbierto ? '▶' : '▶'}</span>
-            ${empresaEsc}
-            <div class="grupo-empresa-badges">${badgesHtml}</div>
-          </div>
-        </td>
-      </tr>`;
-
+    const badgesHtml = [rojos > 0 ? `<span class="badge-empresa rojo">${rojos} rojo${rojos > 1 ? 's' : ''}</span>` : '', naranjas > 0 ? `<span class="badge-empresa naranja">${naranjas} naranja${naranjas > 1 ? 's' : ''}</span>` : '', `<span class="badge-empresa total">${trabajadores.length} trabajador${trabajadores.length > 1 ? 'es' : ''}</span>`].join('');
+    filasBody += `<tr class="grupo-empresa-cab" onclick="toggleGrupo(${JSON.stringify(empresa)})"><td colspan="9"><div class="grupo-empresa-label"><span class="grupo-empresa-chevron${grupoAbierto ? ' abierto' : ''}" id="chevron-${empresaEsc}">▶</span>${empresaEsc}<div class="grupo-empresa-badges">${badgesHtml}</div></div></td></tr>`;
+    const filaClase = grupoAbierto ? 'grupo-fila' : 'grupo-fila oculto';
     trabajadores.forEach(t => {
       const estadoGeneral = estadoDocumental(t.validaciones_obra);
-      const obras = (t.validaciones_obra || []).map(v =>
-        `<span class="pill ${esc(v.estado)}">${esc(v.obra?.nombre)}</span>`
-      ).join(' ') || '—';
-
+      const obras = (t.validaciones_obra || []).map(v => `<span class="pill ${esc(v.estado)}">${esc(v.obra?.nombre)}</span>`).join(' ') || '—';
       const iconos = (habIconosPorTrabajador[t.id] || []).join(' ');
-      const iconosHtml = iconos
-        ? `<span class="iconos-hab" title="Habilitaciones: ${iconos}">${iconos}</span>`
-        : '';
-
-      filasBody += `
-        <tr class="${filaClase}" data-grupo="${empresaEsc}">
-          <td><strong>${esc(t.nombre)} ${esc(t.apellidos)}</strong>${iconosHtml}</td>
-          <td>${esc(t.dni)}</td>
-          <td>${esc(t.telefono || '—')}</td>
-          <td>${esc(t.categoria === 'otra' ? (t.categoria_otra || 'Otra') : (t.categoria || '—'))}</td>
-          <td>${formatearPrecio(t.precio_hora_personalizado)}</td>
-          <td><span class="pill ${estadoGeneral}">${estadoGeneral}</span></td>
-          <td>${obras}</td>
-          <td><span class="pill ${t.activo ? 'verde' : 'gris'}">${t.activo ? 'Sí' : 'No'}</span></td>
-          <td>
-            <div class="acciones">
-              <button class="btn-secundario" onclick="abrirEditarPorId('${t.id}')">Editar</button>${obraIdFiltro ? `
-              <button class="btn-secundario peligro" onclick="abrirModalQuitar('${t.id}')">Quitar de la obra</button>` : ''}
-            </div>
-          </td>
-        </tr>`;
+      const iconosHtml = iconos ? `<span class="iconos-hab" title="Habilitaciones: ${iconos}">${iconos}</span>` : '';
+      filasBody += `<tr class="${filaClase}" data-grupo="${empresaEsc}"><td><strong>${esc(t.nombre)} ${esc(t.apellidos)}</strong>${iconosHtml}</td><td>${esc(t.dni)}</td><td>${esc(t.telefono || '—')}</td><td>${esc(t.categoria === 'otra' ? (t.categoria_otra || 'Otra') : (t.categoria || '—'))}</td><td>${formatearPrecio(t.precio_hora_personalizado)}</td><td><span class="pill ${estadoGeneral}">${estadoGeneral}</span></td><td>${obras}</td><td><span class="pill ${t.activo ? 'verde' : 'gris'}">${t.activo ? 'Sí' : 'No'}</span></td><td><div class="acciones"><button class="btn-secundario" onclick="abrirEditarPorId('${t.id}')">Editar</button>${obraIdFiltro ? `<button class="btn-secundario peligro" onclick="abrirModalQuitar('${t.id}')">Quitar de la obra</button>` : ''}</div></td></tr>`;
     });
   });
-
-  document.getElementById('tabla-trabajadores').innerHTML = `
-    <table>
-      ${cabecera}
-      <tbody>${filasBody}</tbody>
-    </table>`;
-
-  // Aplicar estado de chevrons tras render
-  empresasOrdenadas.forEach(empresa => {
-    const abierto = gruposAbiertos[empresa] !== false;
-    const chevron = document.getElementById(`chevron-${esc(empresa)}`);
-    if (chevron) chevron.classList.toggle('abierto', abierto);
-  });
+  document.getElementById('tabla-trabajadores').innerHTML = `<table>${cabecera}<tbody>${filasBody}</tbody></table>`;
+  empresasOrdenadas.forEach(empresa => { const abierto = gruposAbiertos[empresa] !== false; const chevron = document.getElementById(`chevron-${esc(empresa)}`); if (chevron) chevron.classList.toggle('abierto', abierto); });
 }
 
 function toggleGrupo(empresa) {
@@ -463,9 +256,7 @@ function toggleGrupo(empresa) {
   gruposAbiertos[empresa] = !abierto;
   const chevron = document.getElementById(`chevron-${esc(empresa)}`);
   if (chevron) chevron.classList.toggle('abierto', !abierto);
-  document.querySelectorAll(`tr.grupo-fila[data-grupo="${esc(empresa)}"]`).forEach(fila => {
-    fila.classList.toggle('oculto', abierto);
-  });
+  document.querySelectorAll(`tr.grupo-fila[data-grupo="${esc(empresa)}"]`).forEach(fila => { fila.classList.toggle('oculto', abierto); });
 }
 
 function estadoDocumental(validaciones) {
@@ -482,14 +273,10 @@ document.getElementById('filtro-obra').addEventListener('change', aplicarFiltros
 document.getElementById('btn-nuevo').onclick = () => {
   trabajadorEditandoId = null;
   document.getElementById('modal-titulo').textContent = 'Nuevo trabajador';
-  document.getElementById('f-nombre').value = '';
-  document.getElementById('f-apellidos').value = '';
-  document.getElementById('f-dni').value = '';
-  document.getElementById('f-telefono').value = '';
+  ['f-nombre','f-apellidos','f-dni','f-telefono','f-precio-hora'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('f-categoria').value = 'peon';
   document.getElementById('f-categoria-otra').value = '';
   sincronizarCategoriaOtra();
-  document.getElementById('f-precio-hora').value = '';
   document.getElementById('f-activo').value = 'true';
   ocultarError();
   document.getElementById('modal-trabajador').classList.add('visible');
@@ -515,17 +302,9 @@ function abrirEditarPorId(id) {
   document.getElementById('modal-trabajador').classList.add('visible');
 }
 
-// El campo de texto libre solo se ve (y solo se guarda) con la opción "Otra…".
-function sincronizarCategoriaOtra() {
-  const sel = document.getElementById('f-categoria');
-  const txt = document.getElementById('f-categoria-otra');
-  txt.style.display = (sel.value === 'otra') ? 'block' : 'none';
-}
+function sincronizarCategoriaOtra() { const sel = document.getElementById('f-categoria'); const txt = document.getElementById('f-categoria-otra'); txt.style.display = (sel.value === 'otra') ? 'block' : 'none'; }
 document.getElementById('f-categoria').addEventListener('change', sincronizarCategoriaOtra);
-
-document.getElementById('btn-cancelar').onclick = () => {
-  document.getElementById('modal-trabajador').classList.remove('visible');
-};
+document.getElementById('btn-cancelar').onclick = () => { document.getElementById('modal-trabajador').classList.remove('visible'); };
 
 document.getElementById('btn-guardar').onclick = async () => {
   const nombre = document.getElementById('f-nombre').value.trim();
@@ -536,126 +315,57 @@ document.getElementById('btn-guardar').onclick = async () => {
   const categoriaOtra = document.getElementById('f-categoria-otra').value.trim();
   const precioHoraRaw = document.getElementById('f-precio-hora').value.trim().replace(',', '.');
   const activo = document.getElementById('f-activo').value === 'true';
-
   if (!nombre) { mostrarError('El nombre es obligatorio.'); return; }
   if (!dni) { mostrarError('El DNI es obligatorio.'); return; }
-  if (categoria === 'otra' && !categoriaOtra) {
-    mostrarError('Has elegido «Otra…»: escribe el nombre de la categoría.');
-    return;
-  }
-
+  if (categoria === 'otra' && !categoriaOtra) { mostrarError('Has elegido «Otra…»: escribe el nombre de la categoría.'); return; }
   let precio_hora_personalizado = null;
-  if (precioHoraRaw !== '') {
-    precio_hora_personalizado = Number(precioHoraRaw);
-    if (isNaN(precio_hora_personalizado) || precio_hora_personalizado < 0) {
-      mostrarError('El precio hora debe ser un número válido.');
-      return;
-    }
-  }
-
-  const payload = {
-    nombre, apellidos, dni, activo,
-    telefono: telefono || null,
-    categoria: categoria || null,
-    categoria_otra: categoria === 'otra' ? categoriaOtra : null,
-    precio_hora_personalizado
-  };
-
+  if (precioHoraRaw !== '') { precio_hora_personalizado = Number(precioHoraRaw); if (isNaN(precio_hora_personalizado) || precio_hora_personalizado < 0) { mostrarError('El precio hora debe ser un número válido.'); return; } }
+  const payload = { nombre, apellidos, dni, activo, telefono: telefono || null, categoria: categoria || null, categoria_otra: categoria === 'otra' ? categoriaOtra : null, precio_hora_personalizado };
   let error;
-  if (trabajadorEditandoId) {
-    ({ error } = await sb.from('trabajadores').update(payload).eq('id', trabajadorEditandoId));
-  } else {
-    ({ error } = await sb.from('trabajadores').insert(payload));
-  }
-
-  if (error) {
-    mostrarError(error.code === '23505' ? 'Ya existe un trabajador con ese DNI.' : 'Error al guardar: ' + error.message);
-    return;
-  }
-
+  if (trabajadorEditandoId) { ({ error } = await sb.from('trabajadores').update(payload).eq('id', trabajadorEditandoId)); }
+  else { ({ error } = await sb.from('trabajadores').insert(payload)); }
+  if (error) { mostrarError(error.code === '23505' ? 'Ya existe un trabajador con ese DNI.' : 'Error al guardar: ' + error.message); return; }
   document.getElementById('modal-trabajador').classList.remove('visible');
   await cargarTrabajadores();
 };
 
-function mostrarError(msg) {
-  const el = document.getElementById('error-modal');
-  el.textContent = msg;
-  el.style.display = 'block';
-}
+function mostrarError(msg) { const el = document.getElementById('error-modal'); el.textContent = msg; el.style.display = 'block'; }
+function ocultarError() { document.getElementById('error-modal').style.display = 'none'; }
+function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
+function formatearPrecio(valor) { if (valor === null || valor === undefined || valor === '') return '—'; const n = Number(valor); if (isNaN(n)) return '—'; return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €/h'; }
 
-function ocultarError() {
-  document.getElementById('error-modal').style.display = 'none';
-}
-
-function esc(txt) {
-  const d = document.createElement('div');
-  d.textContent = String(txt || '');
-  return d.innerHTML;
-}
-
-function formatearPrecio(valor) {
-  if (valor === null || valor === undefined || valor === '') return '—';
-  const n = Number(valor);
-  if (isNaN(n)) return '—';
-  return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €/h';
-}
-
-// ----- Quitar trabajador de la obra -----
 let quitarCtx = null;
 
 function abrirModalQuitar(trabajadorId) {
   const sel = document.getElementById('filtro-obra');
   const obraId = sel.value;
-  if (!obraId) return; // seguridad: solo con obra concreta
+  if (!obraId) return;
   const obraNombre = sel.selectedOptions[0] ? sel.selectedOptions[0].textContent : 'esta obra';
   const t = todosTrabajadores.find(x => x.id === trabajadorId);
   if (!t) return;
   quitarCtx = { trabajador_id: trabajadorId, obra_id: obraId };
-  document.getElementById('quitar-intro').innerHTML =
-    `Vas a quitar a <strong>${esc(t.nombre)} ${esc(t.apellidos)}</strong> de la obra <strong>${esc(obraNombre)}</strong>.<br><br>` +
-    `Dejará de poder fichar con el QR de esta obra. ` +
-    `Seguirá saliendo en el listado, en <strong>rojo</strong> y marcado como quitado a mano, para que quede constancia. ` +
-    `Su histórico de fichajes se conserva.<br><br>` +
-    `La sincronización nocturna de e-Coordina <strong>ya no lo reincorporará</strong>, aunque su empresa lo siga teniendo apuntado. ` +
-    `Para deshacerlo, usa «Quitar el forzado» en la pantalla de trabajadores del jefe de obra.`;
+  document.getElementById('quitar-intro').innerHTML = `Vas a quitar a <strong>${esc(t.nombre)} ${esc(t.apellidos)}</strong> de la obra <strong>${esc(obraNombre)}</strong>.<br><br>Dejará de poder fichar con el QR de esta obra. Seguirá saliendo en el listado, en <strong>rojo</strong> y marcado como quitado a mano, para que quede constancia. Su histórico de fichajes se conserva.<br><br>La sincronización nocturna de e-Coordina <strong>ya no lo reincorporará</strong>. Para deshacerlo, usa «Quitar el forzado» en la pantalla de trabajadores del jefe de obra.`;
   const msg = document.getElementById('quitar-msg');
   msg.className = ''; msg.textContent = '';
   document.getElementById('btn-confirmar-quitar').disabled = false;
   document.getElementById('modal-quitar-overlay').classList.add('visible');
 }
 
-function cerrarModalQuitar() {
-  document.getElementById('modal-quitar-overlay').classList.remove('visible');
-  quitarCtx = null;
-}
-
+function cerrarModalQuitar() { document.getElementById('modal-quitar-overlay').classList.remove('visible'); quitarCtx = null; }
 document.getElementById('btn-cancelar-quitar').addEventListener('click', cerrarModalQuitar);
-document.getElementById('modal-quitar-overlay').addEventListener('click', e => {
-  if (e.target === document.getElementById('modal-quitar-overlay')) cerrarModalQuitar();
-});
+document.getElementById('modal-quitar-overlay').addEventListener('click', e => { if (e.target === document.getElementById('modal-quitar-overlay')) cerrarModalQuitar(); });
 
 document.getElementById('btn-confirmar-quitar').addEventListener('click', async () => {
   if (!quitarCtx) return;
   const btn = document.getElementById('btn-confirmar-quitar');
   const msg = document.getElementById('quitar-msg');
-  btn.disabled = true;
-  msg.className = ''; msg.textContent = 'Quitando…';
-  const { data, error } = await sb.rpc('quitar_trabajador_de_obra', {
-    p_trabajador_id: quitarCtx.trabajador_id,
-    p_obra_id: quitarCtx.obra_id
-  });
-  if (error) {
-    msg.className = 'msg-error'; msg.textContent = 'Error: ' + error.message;
-    btn.disabled = false; return;
-  }
-  if (data && data.ok === false) {
-    msg.className = 'msg-error'; msg.textContent = 'Error: ' + (data.error || 'No se pudo quitar');
-    btn.disabled = false; return;
-  }
+  btn.disabled = true; msg.className = ''; msg.textContent = 'Quitando…';
+  const { data, error } = await sb.rpc('quitar_trabajador_de_obra', { p_trabajador_id: quitarCtx.trabajador_id, p_obra_id: quitarCtx.obra_id });
+  if (error) { msg.className = 'msg-error'; msg.textContent = 'Error: ' + error.message; btn.disabled = false; return; }
+  if (data && data.ok === false) { msg.className = 'msg-error'; msg.textContent = 'Error: ' + (data.error || 'No se pudo quitar'); btn.disabled = false; return; }
   msg.className = 'msg-ok'; msg.textContent = 'Quitado de la obra. Queda en rojo en el listado.';
   setTimeout(() => { cerrarModalQuitar(); cargarTrabajadores(); }, 700);
 });
 </script>
-
 </body>
 </html>
