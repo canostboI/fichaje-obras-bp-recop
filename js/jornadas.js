@@ -21,14 +21,20 @@
    `obras`, exactamente como antes. Ésa es la garantía de que desplegar
    esto no mueve ni un minuto de lo ya facturado.
 
-   PRECEDENCIA (decidida por Dani, 76ª):
-     1. El TIPO ASIGNADO A LA PERSONA manda siempre.
-     2. Si no tiene tipo propio y ese día está marcado en el calendario
-        de la obra, manda el tipo del día.
-     3. Si no, el horario normal de la obra.
-   El calendario de la obra NO pisa a quien tiene un horario pactado
-   propio: a Verónica no se le cambia su jornada porque la obra marque
-   un día intensiva.
+   PRECEDENCIA (decidida por Dani, 78ª–79ª):
+     1. Sábado — acuerdo de obra, no personal. Manda sobre todo.
+     2. Tipo propio de la persona, SALVO que:
+        - El día esté marcado ☀ en la obra, Y
+        - La asignación tenga seguir_intensiva_obra = true (defecto).
+        En ese caso, la persona cede a la intensiva de la obra ese día.
+     3. Tipo propio con seguir_intensiva_obra = false — nunca cede.
+     4. Sin tipo propio: el tipo del día marcado en el calendario de obra.
+     5. Horario normal de la obra.
+
+   La casilla seguir_intensiva_obra permite que el mismo horario pactado
+   se conserve en verano (false) o ceda a la jornada de obra (true, por
+   defecto). Como la asignación lleva vigencia, puede cambiar de año en
+   año sin tocar lo pasado.
 
    DEPENDE de js/sb-paginado.js. Supabase corta en 1.000 filas SIN AVISAR:
    si `asignaciones_jornada` pasara de ahí, faltarían personas y esas
@@ -50,7 +56,7 @@
   // Un fallo de red no puede convertirse en una factura distinta.
   // ---------------------------------------------------------------
   async function cargar(sb, obraId) {
-    const vacio = { tipos: {}, asignaciones: {}, diasTipo: {}, error: null };
+    const vacio = { tipos: {}, asignaciones: {}, diasIntensiva: new Set(), diasTipo: {}, error: null };
     if (!sb || !obraId) return vacio;
 
     try {
@@ -66,47 +72,55 @@
           .select('id,nombre,entrada,salida,almuerzo_fin,almuerzo_min,comida_fin,comida_min,activo')
           .eq('obra_id', obraId).order('id', { ascending: true })),
         window.SbPaginado.traerTodo(() => sb.from('asignaciones_jornada')
-          .select('trabajador_id,tipo_jornada_id,desde,hasta')
+          // 79ª: añadido seguir_intensiva_obra para respetar la casilla
+          .select('trabajador_id,tipo_jornada_id,desde,hasta,seguir_intensiva_obra')
           .eq('obra_id', obraId).order('id', { ascending: true })),
         window.SbPaginado.traerTodo(() => sb.from('dias_intensiva_obra')
           .select('fecha,tipo_jornada_id')
-          .eq('obra_id', obraId).not('tipo_jornada_id', 'is', null)
+          .eq('obra_id', obraId)
           .order('fecha', { ascending: true }))
       ]);
 
-      const rTipos = { data: datosTipos };
-      const rAsig  = { data: datosAsig };
-      const rDias  = { data: datosDias };
-
       const tipos = {};
-      (rTipos.data || []).forEach(t => { tipos[t.id] = normalizarTipo(t); });
+      (datosTipos || []).forEach(t => { tipos[t.id] = normalizarTipo(t); });
 
       // Una persona puede tener varias asignaciones a lo largo del
       // tiempo (la vigencia es lo que impide que asignar hoy reescriba
       // julio). Se guardan todas y se elige por fecha al preguntar.
       const asignaciones = {};
-      (rAsig.data || []).forEach(a => {
+      (datosAsig || []).forEach(a => {
         if (!asignaciones[a.trabajador_id]) asignaciones[a.trabajador_id] = [];
         asignaciones[a.trabajador_id].push({
           tipo_id: a.tipo_jornada_id,
           desde: a.desde ? String(a.desde).slice(0, 10) : null,
-          hasta: a.hasta ? String(a.hasta).slice(0, 10) : null
+          hasta: a.hasta ? String(a.hasta).slice(0, 10) : null,
+          // 79ª: true = cede a la intensiva de la obra en días ☀ (defecto)
+          seguir_intensiva_obra: a.seguir_intensiva_obra !== false
         });
       });
 
+      // diasTipo: qué tipo aplica ese día (puede ser null si solo está
+      // marcado el día sin tipo concreto asignado).
+      // diasIntensiva: Set de fechas 'YYYY-MM-DD' que están marcadas como
+      // intensiva en la obra, independientemente de si tienen tipo o no.
+      // Necesario para que tipoDelDia() pueda evaluar la casilla.
       const diasTipo = {};
-      (rDias.data || []).forEach(d => {
-        if (d.fecha) diasTipo[String(d.fecha).slice(0, 10)] = d.tipo_jornada_id;
+      const diasIntensiva = new Set();
+      (datosDias || []).forEach(d => {
+        if (!d.fecha) return;
+        const f = String(d.fecha).slice(0, 10);
+        diasIntensiva.add(f);
+        if (d.tipo_jornada_id) diasTipo[f] = d.tipo_jornada_id;
       });
 
-      return { tipos, asignaciones, diasTipo, error: null };
+      return { tipos, asignaciones, diasIntensiva, diasTipo, error: null };
 
     } catch (e) {
       // No se lanza. Se devuelve el contexto vacío y se deja constancia
       // para que la pantalla pueda avisar si quiere. Calcular como antes
       // es un resultado conocido; calcular a medias no lo es.
       console.error('[jornadas] no se pudieron cargar los tipos:', e);
-      return { tipos: {}, asignaciones: {}, diasTipo: {}, error: e };
+      return { tipos: {}, asignaciones: {}, diasIntensiva: new Set(), diasTipo: {}, error: e };
     }
   }
 
@@ -146,13 +160,23 @@
   function tipoDelDia(ctx, trabId, fechaISO) {
     if (!ctx || !ctx.tipos) return null;
 
-    // 1 · El tipo de la persona manda siempre.
+    // ¿El día está marcado ☀ en la obra?
+    const esDiaIntensivo = ctx.diasIntensiva && ctx.diasIntensiva.has(fechaISO);
+
+    // 1 · El tipo de la persona, con matiz de la 79ª.
     const lista = ctx.asignaciones && ctx.asignaciones[trabId];
     if (lista && lista.length && fechaISO) {
       for (let i = 0; i < lista.length; i++) {
         const a = lista[i];
         if (a.desde && fechaISO < a.desde) continue;
         if (a.hasta && fechaISO > a.hasta) continue;
+
+        // 79ª · Si el día es ☀ y la casilla está marcada (defecto), la
+        // persona cede a la intensiva de la obra: se ignora su tipo propio
+        // para que el motor tome el camino de la intensiva (rama null).
+        // Si la casilla está desmarcada, su horario pactado manda siempre.
+        if (esDiaIntensivo && a.seguir_intensiva_obra !== false) continue;
+
         const t = ctx.tipos[a.tipo_id];
         // FICH-019 trasladada: un tipo que no existe o está inactivo no
         // inventa un horario. Cae al de la obra, que es lo conocido.
@@ -160,7 +184,7 @@
       }
     }
 
-    // 2 · Sin tipo propio: el que diga el calendario de la obra ese día.
+    // 2 · Sin tipo propio (o cedido): el que diga el calendario de la obra ese día.
     const idDia = ctx.diasTipo && fechaISO ? ctx.diasTipo[fechaISO] : null;
     if (idDia) {
       const t = ctx.tipos[idDia];
