@@ -6,19 +6,12 @@
 <title>Admin — Fichaje Obras</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/guardian.js"></script>
+<script src="../js/menu-admin.js"></script>
 <style>
   :root {
-    --verde: #4caf50;
-    --naranja: #ff9800;
-    --rojo: #f44336;
-    --azul: #2196f3;
-    --bg: #111318;
-    --bg2: #1a1d24;
-    --bg3: #22262f;
-    --borde: #2e3340;
-    --texto: #e8eaf0;
-    --texto2: #8b909e;
-    --sidebar-w: 200px;
+    --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
+    --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
+    --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
@@ -74,7 +67,6 @@
   .fallo { padding: 14px 16px; background: rgba(244,67,54,0.10); border: 1px solid rgba(244,67,54,0.45); border-radius: 10px; color: var(--rojo); font-size: 13px; font-weight: 700; line-height: 1.45; }
   .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .iconos-hab { display: inline; margin-left: 4px; font-size: 14px; letter-spacing: 1px; }
-
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
   .modal-overlay.visible { display: flex; }
   .modal-accesos { background: var(--bg2); color: var(--texto); border: 1px solid var(--borde); border-radius: 14px; padding: 24px; max-width: 820px; width: 94%; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
@@ -123,28 +115,7 @@
 </head>
 <body>
 
-<div class="sidebar">
-  <div class="sidebar-brand">
-    <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
-    <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
-  </div>
-  <div class="sidebar-section">Principal</div>
-  <a href="cuadro-mando.html"><span class="ico">🛰️</span> Cuadro de mando</a>
-  <a href="#" class="activo"><span class="ico">📊</span> Dashboard</a>
-  <div class="sidebar-section">Gestión</div>
-  <a href="obras.html"><span class="ico">🏗</span> Obras</a>
-  <a href="trabajadores.html"><span class="ico">👷</span> Trabajadores</a>
-  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
-  <a href="fichajes.html"><span class="ico">📋</span> Fichajes</a>
-  <a href="cierre-mes.html"><span class="ico">🔒</span> Cierre de mes</a>
-  <a href="foto-mes.html"><span class="ico">📷</span> Foto del mes</a>
-  <a href="reglas.html"><span class="ico">📋</span> Reglas documentales</a>
-  <a href="informe-rojos.html"><span class="ico">📕</span> Informe de incidencias</a>
-  <a href="importar-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
-  <div class="sidebar-bottom">
-    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
-  </div>
-</div>
+<div id="sidebar-admin"></div>
 
 <div class="main">
   <div class="topbar">
@@ -189,10 +160,7 @@
 <div class="modal-overlay" id="modal-accesos-overlay">
   <div class="modal-accesos">
     <div class="modal-accesos-cab">
-      <div>
-        <h3>Accesos denegados hoy</h3>
-        <div class="modal-accesos-sub">Detalle global de intentos bloqueados por documentación en rojo</div>
-      </div>
+      <div><h3>Accesos denegados hoy</h3><div class="modal-accesos-sub">Detalle global de intentos bloqueados por documentación en rojo</div></div>
       <button class="btn-cerrar-accesos" onclick="cerrarModalAccesos()" aria-label="Cerrar">×</button>
     </div>
     <div id="modal-accesos-resumen" class="accesos-resumen" style="display:none"></div>
@@ -203,10 +171,7 @@
 <div class="modal-overlay" id="modal-incidencias-overlay">
   <div class="modal-accesos">
     <div class="modal-accesos-cab">
-      <div>
-        <h3>Incidencias hoy</h3>
-        <div class="modal-accesos-sub">Detalle global de incidencias registradas durante el día</div>
-      </div>
+      <div><h3>Incidencias hoy</h3><div class="modal-accesos-sub">Detalle global de incidencias registradas durante el día</div></div>
       <button class="btn-cerrar-accesos" onclick="cerrarModalIncidencias()" aria-label="Cerrar">×</button>
     </div>
     <div id="modal-incidencias-resumen" class="accesos-resumen naranja" style="display:none"></div>
@@ -221,554 +186,186 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 AutoLogout.init(sb);
 
-// Iconos de habilitación: js/habilitaciones.js (window.Hab).
-// El diccionario estaba copiado aquí y en otros siete archivos.
 if (!window.Fechas || !window.Hab) {
-  document.body.innerHTML =
-    '<div style="padding:40px;font-family:system-ui;color:#f44336">' +
-    'No se han cargado js/fechas.js y js/habilitaciones.js. Recarga la página.</div>';
+  document.body.innerHTML = '<div style="padding:40px;font-family:system-ui;color:#f44336">No se han cargado js/fechas.js y js/habilitaciones.js. Recarga la página.</div>';
   throw new Error('Faltan los módulos Fechas/Hab');
 }
 
 const cardIncidencias = document.getElementById('card-incidencias');
-if (cardIncidencias) {
-  cardIncidencias.addEventListener('click', abrirModalIncidencias);
-  cardIncidencias.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirModalIncidencias(); }
-  });
-}
-
+if (cardIncidencias) { cardIncidencias.addEventListener('click', abrirModalIncidencias); cardIncidencias.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirModalIncidencias(); } }); }
 const cardRojos = document.getElementById('card-rojos');
-if (cardRojos) {
-  cardRojos.addEventListener('click', abrirModalAccesosDenegados);
-  cardRojos.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirModalAccesosDenegados(); }
-  });
-}
+if (cardRojos) { cardRojos.addEventListener('click', abrirModalAccesosDenegados); cardRojos.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirModalAccesosDenegados(); } }); }
 
-function rangoHoyLocal() {
-  const ahora = new Date();
-  const desde = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 0, 0, 0, 0);
-  const hasta = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 23, 59, 59, 999);
-  return { desdeISO: desde.toISOString(), hastaISO: hasta.toISOString() };
-}
+function rangoHoyLocal() { const ahora = new Date(); const desde = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 0, 0, 0, 0); const hasta = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 23, 59, 59, 999); return { desdeISO: desde.toISOString(), hastaISO: hasta.toISOString() }; }
 
 (async function init() {
-  // El guardián de sesión vive en js/guardian.js, igual en las 20 pantallas.
-  // Separa "no tienes permiso" de "ha fallado la red" y de "estás de baja",
-  // que antes se confundían en un mismo redirect mudo al login.
-  // Esta pantalla ya distinguía el fallo de red (fue la primera). Ahora usa
-  // el módulo común, y de paso gana la comprobación de cuenta dada de baja.
   const g = await Guardian.entrar(sb, { rol: 'admin', campos: 'nombre', volver: '../' });
   if (!g) return;
-  const session = g.session;
-  const usuario = g.usuario;
-  document.getElementById('usuario-email').textContent = usuario.nombre || session.user.email;
-  await Promise.all([
-    cargarFichajes(),
-    cargarObras(),
-    cargarAccesosDenegadosHoy(),
-    cargarTablaRojos(),
-    cargarIncidencias(),
-    cargarSyncEcoordina(),
-    cargarSaludCrons(),
-    cargarVigilantePermisos(),
-    cargarAvisosRonda(),
-    cargarCierresPendientes()
-  ]);
+  document.getElementById('usuario-email').textContent = g.usuario.nombre || g.session.user.email;
+  await Promise.all([cargarFichajes(), cargarObras(), cargarAccesosDenegadosHoy(), cargarTablaRojos(), cargarIncidencias(), cargarSyncEcoordina(), cargarSaludCrons(), cargarVigilantePermisos(), cargarAvisosRonda(), cargarCierresPendientes()]);
 })();
 
-// ── Meses sin cerrar ───────────────────────────────────────────────────────
-// ENTRADA 50 · La foto del mes se hace pulsando un botón, no sola. Eso es a
-// propósito: un cierre automático el día 1 congelaría un mes a medio ordenar.
-// Pero un botón que nadie pulsa es un mes que nunca se firma, así que hace
-// falta la red de seguridad: avisar desde el día 5 del mes siguiente.
-//
-// TRES REGLAS QUE ESTE CONTADOR RESPETA:
-//  1. Solo mira meses que se PUEDEN cerrar. Un mes sin ningún fichaje en esa
-//     obra no se puede congelar (la RPC lo rechaza: no hay líneas), así que
-//     avisar de él sería un contador que nunca llega a cero.
-//  2. No mira antes de agosto de 2026, que es el primer mes que factura de
-//     verdad. Lo anterior eran pruebas y no se va a firmar nunca.
-//  3. Del mes recién terminado no avisa hasta el día 5: antes de eso todavía
-//     falta cuadrar sábados y ausencias.
 const PRIMER_MES_FACTURABLE = '2026-08';
-const MESES_ATRAS_MAX = 4;   // tope de consultas; la ventana va corriendo
+const MESES_ATRAS_MAX = 4;
 
-// Devuelve los meses 'YYYY-MM' que YA deberían estar cerrados a fecha `hoy`.
-// Separada a propósito para poder probarla con cualquier fecha.
 function mesesCandidatos(hoy) {
   const meses = [];
-  let y = hoy.getFullYear();
-  let m = hoy.getMonth();          // 0-11; el mes ANTERIOR al actual
-  if (m === 0) { m = 12; y -= 1; } // enero → diciembre del año pasado
-  // El mes recién terminado no se reclama hasta el día 5.
-  if (hoy.getDate() < 5) {
-    m -= 1;
-    if (m === 0) { m = 12; y -= 1; }
-  }
+  let y = hoy.getFullYear(), m = hoy.getMonth();
+  if (m === 0) { m = 12; y -= 1; }
+  if (hoy.getDate() < 5) { m -= 1; if (m === 0) { m = 12; y -= 1; } }
   for (let i = 0; i < MESES_ATRAS_MAX; i++) {
     const etiqueta = y + '-' + String(m).padStart(2, '0');
     if (etiqueta < PRIMER_MES_FACTURABLE) break;
     meses.push(etiqueta);
-    m -= 1;
-    if (m === 0) { m = 12; y -= 1; }
+    m -= 1; if (m === 0) { m = 12; y -= 1; }
   }
   return meses;
 }
 
-function nombreMes(etiqueta) {
-  const [y, m] = etiqueta.split('-').map(Number);
-  const n = new Date(y, m - 1, 1).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-  return n.charAt(0).toUpperCase() + n.slice(1);
-}
+function nombreMes(etiqueta) { const [y, m] = etiqueta.split('-').map(Number); const n = new Date(y, m - 1, 1).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }); return n.charAt(0).toUpperCase() + n.slice(1); }
 
 async function cargarCierresPendientes() {
   const el = document.getElementById('banner-cierres');
   const meses = mesesCandidatos(new Date());
-  // Todavía no hay ningún mes que reclamar: el banner no existe.
   if (!meses.length) return;
-
   let obras, cierres;
   try {
-    const [ro, rc] = await Promise.all([
-      sb.from('obras').select('id, nombre').neq('estado', 'oculta').order('nombre'),
-      sb.from('cierres_mes').select('obra_id, mes').eq('vigente', true).gte('mes', PRIMER_MES_FACTURABLE + '-01')
-    ]);
-    if (ro.error) throw ro.error;
-    if (rc.error) throw rc.error;
-    obras = ro.data || [];
-    cierres = rc.data || [];
-  } catch (e) {
-    // No poder comprobarlo es en sí mismo la noticia: no se calla.
-    el.style.display = 'block'; el.style.border = 'none';
-    el.style.background = 'rgba(255,152,0,0.15)'; el.style.color = '#ff9800';
-    el.textContent = '⚠️ Cierre de mes: no se ha podido comprobar qué meses están cerrados (' + (e.message || 'error desconocido') + ').';
-    return;
-  }
-
+    const [ro, rc] = await Promise.all([sb.from('obras').select('id, nombre').neq('estado', 'oculta').order('nombre'), sb.from('cierres_mes').select('obra_id, mes').eq('vigente', true).gte('mes', PRIMER_MES_FACTURABLE + '-01')]);
+    if (ro.error) throw ro.error; if (rc.error) throw rc.error;
+    obras = ro.data || []; cierres = rc.data || [];
+  } catch (e) { el.style.display = 'block'; el.style.border = 'none'; el.style.background = 'rgba(255,152,0,0.15)'; el.style.color = '#ff9800'; el.textContent = '⚠️ Cierre de mes: no se ha podido comprobar qué meses están cerrados (' + (e.message || 'error desconocido') + ').'; return; }
   const cerrado = new Set(cierres.map(c => c.obra_id + '|' + String(c.mes).slice(0, 7)));
-
-  // De los que faltan, solo cuentan los que se pueden cerrar de verdad: los
-  // que tienen al menos un fichaje. Se pregunta por `count`, no trayendo
-  // filas: el servidor corta a 1.000 y aquí solo importa si hay o no hay.
   const pendientes = [];
   for (const mes of meses) {
     const [y, m] = mes.split('-').map(Number);
-    const desde = new Date(y, m - 1, 1, 0, 0, 0, 0).toISOString();
-    const hasta = new Date(y, m, 1, 0, 0, 0, 0).toISOString();
+    const desde = new Date(y, m - 1, 1, 0, 0, 0, 0).toISOString(), hasta = new Date(y, m, 1, 0, 0, 0, 0).toISOString();
     for (const o of obras) {
       if (cerrado.has(o.id + '|' + mes)) continue;
-      const { count, error } = await sb.from('fichajes')
-        .select('id', { count: 'exact', head: true })
-        .eq('obra_id', o.id).gte('hora', desde).lt('hora', hasta);
+      const { count, error } = await sb.from('fichajes').select('id', { count: 'exact', head: true }).eq('obra_id', o.id).gte('hora', desde).lt('hora', hasta);
       if (error) { console.warn('cierres pendientes:', error.message); continue; }
-      if (count > 0) pendientes.push({ obra: o.nombre, mes: mes, fichajes: count });
+      if (count > 0) pendientes.push({ obra: o.nombre, mes: mes });
     }
   }
-
-  el.style.display = 'block';
-  el.style.border = 'none';
-
-  if (!pendientes.length) {
-    el.style.background = 'rgba(76,175,80,0.15)'; el.style.color = '#4caf50';
-    el.textContent = '✅ Cierre de mes: todo lo facturable está cerrado (' + nombreMes(meses[0]) +
-      (meses.length > 1 ? ' y ' + (meses.length - 1) + ' mes(es) anterior(es)' : '') + ').';
-    return;
-  }
-
+  el.style.display = 'block'; el.style.border = 'none';
+  if (!pendientes.length) { el.style.background = 'rgba(76,175,80,0.15)'; el.style.color = '#4caf50'; el.textContent = '✅ Cierre de mes: todo lo facturable está cerrado (' + nombreMes(meses[0]) + (meses.length > 1 ? ' y ' + (meses.length - 1) + ' mes(es) anterior(es)' : '') + ').'; return; }
   el.style.background = 'rgba(244,67,54,0.15)'; el.style.color = '#f44336';
   const lista = pendientes.map(p => nombreMes(p.mes) + ' · ' + p.obra).join(' · ');
-  el.innerHTML = '🔒 <b>' + pendientes.length + ' mes(es) sin cerrar:</b> ' +
-    lista.replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c])) +
-    '. Mientras no se firmen, esas horas se recalculan solas cada vez que alguien mira. ' +
-    '<a href="cierre-mes.html" style="color:inherit;text-decoration:underline">Ir a Cierre de mes</a>';
+  el.innerHTML = '🔒 <b>' + pendientes.length + ' mes(es) sin cerrar:</b> ' + lista.replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c])) + '. <a href="cierre-mes.html" style="color:inherit;text-decoration:underline">Ir a Cierre de mes</a>';
 }
 
-// ── Vigilante de permisos: ¿corrió, y salió el aviso? ───────────────────────
-// OPS-007 · `auditoria_permisos_log` era el ÚNICO sitio donde constaba si el
-// aviso de seguridad llegó a salir, y no lo pintaba ninguna pantalla. El
-// vigilante estuvo quince días diciendo «todo bien» sin que nadie pudiera
-// verlo. Un aviso que falla se ve; uno que calla, no.
 async function cargarVigilantePermisos() {
   const el = document.getElementById('banner-vigilante');
   let data, error;
-  try {
-    ({ data, error } = await sb.from('auditoria_permisos_log')
-      .select('ejecutada_en, hay_desviacion, cuantas, aviso_enviado, aviso_error')
-      .order('ejecutada_en', { ascending: false }).limit(1).maybeSingle());
-  } catch (e) { error = e; }
-
-  el.style.display = 'block';
-  el.style.border = 'none';
-
-  // No poder leerlo es en sí mismo la noticia: no se pinta verde ni se calla.
-  if (error) {
-    el.style.background = 'rgba(255,152,0,0.15)'; el.style.color = '#ff9800';
-    el.textContent = '⚠️ Vigilante de permisos: no se ha podido leer su registro (' + (error.message || 'error desconocido') + ').';
-    return;
-  }
-  if (!data) {
-    el.style.background = 'rgba(255,152,0,0.15)'; el.style.color = '#ff9800';
-    el.textContent = '⚠️ Vigilante de permisos: no hay ninguna ejecución registrada.';
-    return;
-  }
-
+  try { ({ data, error } = await sb.from('auditoria_permisos_log').select('ejecutada_en, hay_desviacion, cuantas, aviso_enviado, aviso_error').order('ejecutada_en', { ascending: false }).limit(1).maybeSingle()); } catch (e) { error = e; }
+  el.style.display = 'block'; el.style.border = 'none';
+  if (error) { el.style.background = 'rgba(255,152,0,0.15)'; el.style.color = '#ff9800'; el.textContent = '⚠️ Vigilante de permisos: no se ha podido leer su registro (' + (error.message || 'error desconocido') + ').'; return; }
+  if (!data) { el.style.background = 'rgba(255,152,0,0.15)'; el.style.color = '#ff9800'; el.textContent = '⚠️ Vigilante de permisos: no hay ninguna ejecución registrada.'; return; }
   const d = new Date(data.ejecutada_en);
-  const cuando = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' a las ' +
-                 d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const cuando = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' a las ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   const horas = (Date.now() - d.getTime()) / 3600000;
-
-  // Corre todos los días a las 07:00 de Madrid. Más de 30 h es que no corrió.
-  if (horas > 30) {
-    el.style.background = 'rgba(244,67,54,0.15)'; el.style.color = '#f44336';
-    el.style.border = '1px solid rgba(244,67,54,0.4)';
-    el.textContent = `🚨 Vigilante de permisos: su última comprobación es del ${cuando} — lleva ${Math.round(horas)}h sin correr.`;
-    return;
-  }
-  if (data.aviso_error) {
-    el.style.background = 'rgba(244,67,54,0.15)'; el.style.color = '#f44336';
-    el.style.border = '1px solid rgba(244,67,54,0.4)';
-    el.innerHTML = `🚨 <strong>Vigilante de permisos: encontró algo y EL AVISO NO SALIÓ</strong><br>` +
-      `Comprobación del ${esc(cuando)} · ${Number(data.cuantas) || 0} desviación(es) · error del envío: ${esc(String(data.aviso_error).slice(0, 200))}`;
-    return;
-  }
-  if (data.hay_desviacion) {
-    el.style.background = 'rgba(244,67,54,0.15)'; el.style.color = '#f44336';
-    el.style.border = '1px solid rgba(244,67,54,0.4)';
-    el.textContent = `🚨 Vigilante de permisos: ${Number(data.cuantas) || 0} permiso(s) fuera de lo esperado en la comprobación del ${cuando}` +
-      (data.aviso_enviado ? ' (aviso enviado por correo).' : '.');
-    return;
-  }
+  if (horas > 30) { el.style.background = 'rgba(244,67,54,0.15)'; el.style.color = '#f44336'; el.style.border = '1px solid rgba(244,67,54,0.4)'; el.textContent = `🚨 Vigilante de permisos: su última comprobación es del ${cuando} — lleva ${Math.round(horas)}h sin correr.`; return; }
+  if (data.aviso_error) { el.style.background = 'rgba(244,67,54,0.15)'; el.style.color = '#f44336'; el.style.border = '1px solid rgba(244,67,54,0.4)'; el.innerHTML = `🚨 <strong>Vigilante de permisos: encontró algo y EL AVISO NO SALIÓ</strong><br>Comprobación del ${esc(cuando)} · ${Number(data.cuantas) || 0} desviación(es) · error del envío: ${esc(String(data.aviso_error).slice(0, 200))}`; return; }
+  if (data.hay_desviacion) { el.style.background = 'rgba(244,67,54,0.15)'; el.style.color = '#f44336'; el.style.border = '1px solid rgba(244,67,54,0.4)'; el.textContent = `🚨 Vigilante de permisos: ${Number(data.cuantas) || 0} permiso(s) fuera de lo esperado en la comprobación del ${cuando}${data.aviso_enviado ? ' (aviso enviado por correo).' : '.'}`; return; }
   el.style.background = 'rgba(76,175,80,0.15)'; el.style.color = '#4caf50';
   el.textContent = `✅ Vigilante de permisos: sin desviaciones. Última comprobación el ${cuando}.`;
 }
 
-// ── Avisos de ronda: ¿salieron los SMS y los correos? ───────────────────────
-// OPS-002 · El fallo del correo de la ronda se perdía: la respuesta de
-// `marcar_ronda` llega al navegador del encargado y se descarta, y nadie mira
-// `avisos_ronda_enviados`. Aquí se enseña lo de los últimos siete días.
-// OJO: si `marcar_ronda` no puede leer la clave de Brevo del Vault, NO escribe
-// ninguna fila. Por eso «0 envíos» no se pinta en verde: se dice tal cual.
 async function cargarAvisosRonda() {
   const el = document.getElementById('banner-avisos-ronda');
   const desde = new Date(Date.now() - 7 * 24 * 3600000).toISOString();
   let data, error;
-  try {
-    ({ data, error } = await sb.from('avisos_ronda_enviados')
-      .select('nivel, telefono, status_http, respuesta, created_at')
-      .gte('created_at', desde)
-      .order('created_at', { ascending: false })
-      .limit(200));
-  } catch (e) { error = e; }
-
-  el.style.display = 'block';
-  el.style.border = 'none';
-
-  if (error) {
-    el.style.background = 'rgba(255,152,0,0.15)'; el.style.color = '#ff9800';
-    el.textContent = '⚠️ Avisos de ronda: no se ha podido leer su registro (' + (error.message || 'error desconocido') + ').';
-    return;
-  }
-
-  const filas = data || [];
-  const fallidos = filas.filter(f => f.status_http == null || Number(f.status_http) >= 300);
-
+  try { ({ data, error } = await sb.from('avisos_ronda_enviados').select('nivel, telefono, status_http, respuesta, created_at').gte('created_at', desde).order('created_at', { ascending: false }).limit(200)); } catch (e) { error = e; }
+  el.style.display = 'block'; el.style.border = 'none';
+  if (error) { el.style.background = 'rgba(255,152,0,0.15)'; el.style.color = '#ff9800'; el.textContent = '⚠️ Avisos de ronda: no se ha podido leer su registro (' + (error.message || 'error desconocido') + ').'; return; }
+  const filas = data || [], fallidos = filas.filter(f => f.status_http == null || Number(f.status_http) >= 300);
   if (fallidos.length) {
-    const detalle = fallidos.slice(0, 5).map(f => {
-      const c = new Date(f.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
-      const via = Number(f.nivel) === 4 ? 'correo' : 'SMS';
-      const cod = f.status_http == null ? 'sin respuesta' : 'HTTP ' + f.status_http;
-      return `· ${c} · aviso nivel ${esc(String(f.nivel))} por ${via} a ${esc(String(f.telefono || '—'))} — ${esc(cod)}`;
-    }).join('<br>');
-    el.style.background = 'rgba(244,67,54,0.15)'; el.style.color = '#f44336';
-    el.style.border = '1px solid rgba(244,67,54,0.4)';
-    el.innerHTML = `🚨 <strong>Avisos de ronda: ${fallidos.length} envío(s) fallido(s) en los últimos 7 días</strong><br>${detalle}` +
-      (fallidos.length > 5 ? `<br>…y ${fallidos.length - 5} más.` : '');
-    return;
+    const detalle = fallidos.slice(0, 5).map(f => { const c = new Date(f.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }); const via = Number(f.nivel) === 4 ? 'correo' : 'SMS'; const cod = f.status_http == null ? 'sin respuesta' : 'HTTP ' + f.status_http; return `· ${c} · aviso nivel ${esc(String(f.nivel))} por ${via} a ${esc(String(f.telefono || '—'))} — ${esc(cod)}`; }).join('<br>');
+    el.style.background = 'rgba(244,67,54,0.15)'; el.style.color = '#f44336'; el.style.border = '1px solid rgba(244,67,54,0.4)';
+    el.innerHTML = `🚨 <strong>Avisos de ronda: ${fallidos.length} envío(s) fallido(s) en los últimos 7 días</strong><br>${detalle}${fallidos.length > 5 ? `<br>…y ${fallidos.length - 5} más.` : ''}`; return;
   }
-
-  if (filas.length === 0) {
-    el.style.background = 'rgba(139,144,158,0.15)'; el.style.color = '#8b909e';
-    el.textContent = 'ℹ️ Avisos de ronda: ningún envío en los últimos 7 días. Puede ser que no haya hecho falta ninguno, o que el envío ni siquiera se intentara (falta la clave de Brevo).';
-    return;
-  }
-
+  if (filas.length === 0) { el.style.background = 'rgba(139,144,158,0.15)'; el.style.color = '#8b909e'; el.textContent = 'ℹ️ Avisos de ronda: ningún envío en los últimos 7 días.'; return; }
   el.style.background = 'rgba(76,175,80,0.15)'; el.style.color = '#4caf50';
   el.textContent = `✅ Avisos de ronda: ${filas.length} envío(s) en los últimos 7 días, todos aceptados.`;
 }
 
-// ── Vigilante de crons ──────────────────────────────────────────────────────
-// Llama a salud_crons() y muestra banner ROJO si algún cron falló o lleva
-// demasiado sin correr. Si la comprobación misma falla, banner NARANJA
-// (el vigilante no debe fallar en silencio). Si todo está bien, banner VERDE.
 async function cargarSaludCrons() {
   const el = document.getElementById('banner-crons');
   let data, error;
-  try {
-    ({ data, error } = await sb.rpc('salud_crons'));
-  } catch (e) {
-    error = e;
-  }
-
-  if (error) {
-    el.style.display = 'block';
-    el.style.background = 'rgba(255,152,0,0.15)'; el.style.color = '#ff9800';
-    el.textContent = '⚠️ No se pudo comprobar la salud de los crons: ' + (error.message || 'error desconocido');
-    return;
-  }
-  if (!data || data.length === 0) {
-    el.style.display = 'block';
-    el.style.background = 'rgba(255,152,0,0.15)'; el.style.color = '#ff9800';
-    el.textContent = '⚠️ Vigilante de crons: no se encontró ningún cron programado en la base de datos.';
-    return;
-  }
-
-  // Día de la semana en Madrid (0=domingo, 1=lunes, 6=sábado)
+  try { ({ data, error } = await sb.rpc('salud_crons')); } catch (e) { error = e; }
+  if (error) { el.style.display = 'block'; el.style.background = 'rgba(255,152,0,0.15)'; el.style.color = '#ff9800'; el.textContent = '⚠️ No se pudo comprobar la salud de los crons: ' + (error.message || 'error desconocido'); return; }
+  if (!data || data.length === 0) { el.style.display = 'block'; el.style.background = 'rgba(255,152,0,0.15)'; el.style.color = '#ff9800'; el.textContent = '⚠️ Vigilante de crons: no se encontró ningún cron programado en la base de datos.'; return; }
   const diaMadrid = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Madrid' })).getDay();
   const esFinDeSemanaOLunes = (diaMadrid === 0 || diaMadrid === 6 || diaMadrid === 1);
-
-  // OPS-006 · Antes esto solo miraba lo que VENÍA. Un cron borrado no aparece
-  // en la respuesta y uno desactivado se saltaba con un `return`: las dos
-  // formas de quedarse sin automatismo eran invisibles. El de las 00:30 es del
-  // que más depende todo, y si se apaga no había ninguna señal. Ahora se
-  // compara contra una línea base, en los dos sentidos, igual que hace
-  // auditoria_permisos() con los permisos.
-  const CRONS_ESPERADOS = [
-    'autocierre_nocturno',
-    'aviso_ronda_1',
-    'aviso_ronda_2',
-    'aviso_ronda_3',
-    'auditoria_permisos_diaria'
-  ];
+  const CRONS_ESPERADOS = ['autocierre_nocturno', 'aviso_ronda_1', 'aviso_ronda_2', 'aviso_ronda_3', 'auditoria_permisos_diaria'];
   const problemas = [];
   const presentes = new Set(data.map(c => c.jobname));
-  CRONS_ESPERADOS.forEach(nombre => {
-    if (!presentes.has(nombre)) problemas.push(`«${nombre}» NO EXISTE en la base de datos (se ha borrado o nunca se creó)`);
-  });
+  CRONS_ESPERADOS.forEach(nombre => { if (!presentes.has(nombre)) problemas.push(`«${nombre}» NO EXISTE en la base de datos`); });
   data.forEach(c => {
-    if (!c.activo) {
-      // Desactivado no es lo mismo que ausente, pero tampoco es "todo bien":
-      // si es uno de los cinco de la lista, se dice.
-      if (CRONS_ESPERADOS.includes(c.jobname)) problemas.push(`«${c.jobname}» está DESACTIVADO`);
-      return;
-    }
+    if (!c.activo) { if (CRONS_ESPERADOS.includes(c.jobname)) problemas.push(`«${c.jobname}» está DESACTIVADO`); return; }
     const esLaborable = (c.schedule || '').includes('1-5');
     const umbral = esLaborable && esFinDeSemanaOLunes ? 80 : 26;
-
-    if (!c.ultima_ejecucion) {
-      problemas.push(`«${c.jobname}» nunca ha llegado a ejecutarse`);
-    } else if (c.estado === 'failed') {
-      const msg = (c.mensaje || '').slice(0, 120);
-      problemas.push(`«${c.jobname}» FALLÓ en su última ejecución${msg ? ' — ' + msg : ''}`);
-    } else if (Number(c.horas_desde_ultima) > umbral) {
-      problemas.push(`«${c.jobname}» lleva ${Math.round(c.horas_desde_ultima)}h sin correr (no corrió cuando tocaba)`);
-    }
+    if (!c.ultima_ejecucion) { problemas.push(`«${c.jobname}» nunca ha llegado a ejecutarse`); }
+    else if (c.estado === 'failed') { problemas.push(`«${c.jobname}» FALLÓ en su última ejecución${c.mensaje ? ' — ' + String(c.mensaje).slice(0, 120) : ''}`); }
+    else if (Number(c.horas_desde_ultima) > umbral) { problemas.push(`«${c.jobname}» lleva ${Math.round(c.horas_desde_ultima)}h sin correr`); }
   });
-
   if (problemas.length === 0) {
     const activos = data.filter(c => c.activo).length;
-    el.style.display = 'block';
-    el.style.background = 'rgba(76,175,80,0.15)';
-    el.style.color = '#4caf50';
-    el.style.border = 'none';
-    el.textContent = `✅ Crons automáticos: los ${activos} activos corrieron correctamente en su horario.`;
-    return;
+    el.style.display = 'block'; el.style.background = 'rgba(76,175,80,0.15)'; el.style.color = '#4caf50'; el.style.border = 'none';
+    el.textContent = `✅ Crons automáticos: los ${activos} activos corrieron correctamente en su horario.`; return;
   }
-
-  el.style.display = 'block';
-  el.style.background = 'rgba(244,67,54,0.15)';
-  el.style.color = '#f44336';
-  el.style.border = '1px solid rgba(244,67,54,0.4)';
-  el.innerHTML = '🚨 <strong>Problema en los crons automáticos:</strong><br>' +
-    problemas.map(p => '· ' + esc(p)).join('<br>') +
-    '<br><small style="opacity:0.85">Revisa cron.job_run_details en Supabase (JOIN con cron.job).</small>';
+  el.style.display = 'block'; el.style.background = 'rgba(244,67,54,0.15)'; el.style.color = '#f44336'; el.style.border = '1px solid rgba(244,67,54,0.4)';
+  el.innerHTML = '🚨 <strong>Problema en los crons automáticos:</strong><br>' + problemas.map(p => '· ' + esc(p)).join('<br>') + '<br><small style="opacity:0.85">Revisa cron.job_run_details en Supabase.</small>';
 }
 
-// La sync de e-Coordina corre de LUNES A VIERNES de madrugada (ecoordina.yml).
-// Devuelve el día en que DEBERÍA haber corrido por última vez, para no dar
-// aviso naranja un domingo solo por no haber sincronizado en sábado.
-function ultimaSyncEsperada() {
-  const d = new Date();
-  if (d.getHours() < 6) d.setDate(d.getDate() - 1);                        // la de hoy aún no ha corrido
-  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1); // sáb/dom → atrás hasta viernes
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
+function ultimaSyncEsperada() { const d = new Date(); if (d.getHours() < 6) d.setDate(d.getDate() - 1); while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1); d.setHours(0, 0, 0, 0); return d; }
 
 async function cargarSyncEcoordina() {
   const el = document.getElementById('banner-ecoordina');
-  const { data, error } = await sb.from('ecoordina_sync')
-    .select('ejecutada_en, estado, obras_ok, obras_error')
-    .order('ejecutada_en', { ascending: false }).limit(1).maybeSingle();
-  if (error || !data) {
-    el.style.display = 'block';
-    el.style.background = 'rgba(139,144,158,0.15)'; el.style.color = '#8b909e';
-    el.textContent = 'e-Coordina: aún no hay ninguna sincronización registrada.';
-    return;
-  }
-  const d = new Date(data.ejecutada_en);
-  const esHoy = d.toDateString() === new Date().toDateString();
-  const alDia = d >= ultimaSyncEsperada();
-  const fecha = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
-  const hora = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const { data, error } = await sb.from('ecoordina_sync').select('ejecutada_en, estado, obras_ok, obras_error').order('ejecutada_en', { ascending: false }).limit(1).maybeSingle();
+  if (error || !data) { el.style.display = 'block'; el.style.background = 'rgba(139,144,158,0.15)'; el.style.color = '#8b909e'; el.textContent = 'e-Coordina: aún no hay ninguna sincronización registrada.'; return; }
+  const d = new Date(data.ejecutada_en), esHoy = d.toDateString() === new Date().toDateString(), alDia = d >= ultimaSyncEsperada();
+  const fecha = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' }), hora = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   let bg, color, txt;
-  if (data.estado === 'error') {
-    bg = 'rgba(244,67,54,0.15)'; color = '#f44336';
-    // OPS-023 (2.3-C): si el estado es error pero no hay obras con error, la
-    // causa es que NO se actualizó ninguna (CSV vacío/sin Centro). Decirlo claro.
-    txt = data.obras_error > 0
-      ? `⚠️ e-Coordina: la última sincronización (${esHoy ? 'hoy' : fecha} ${hora}) tuvo errores en ${data.obras_error} obra(s).`
-      : `⚠️ e-Coordina: la última sincronización (${esHoy ? 'hoy' : fecha} ${hora}) no actualizó ninguna obra. Revisa el CSV o el workflow en GitHub Actions.`;
-  } else if (esHoy) {
-    bg = 'rgba(76,175,80,0.15)'; color = '#4caf50';
-    txt = `✅ e-Coordina: sincronizado hoy a las ${hora} · ${data.obras_ok} obra(s) actualizada(s).`;
-  } else if (alDia) {
-    bg = 'rgba(76,175,80,0.15)'; color = '#4caf50';
-    txt = `✅ e-Coordina: al día. Última sincronización el ${fecha} a las ${hora} (se ejecuta de lunes a viernes).`;
-  } else {
-    bg = 'rgba(255,152,0,0.15)'; color = '#ff9800';
-    txt = `⏳ e-Coordina: última sincronización el ${fecha} a las ${hora}. Ya debería haberse actualizado — revisa el workflow "ecoordina.yml" en GitHub Actions.`;
-  }
-  el.style.display = 'block';
-  el.style.background = bg; el.style.color = color;
-  el.textContent = txt;
+  if (data.estado === 'error') { bg = 'rgba(244,67,54,0.15)'; color = '#f44336'; txt = data.obras_error > 0 ? `⚠️ e-Coordina: la última sincronización (${esHoy ? 'hoy' : fecha} ${hora}) tuvo errores en ${data.obras_error} obra(s).` : `⚠️ e-Coordina: la última sincronización (${esHoy ? 'hoy' : fecha} ${hora}) no actualizó ninguna obra. Revisa el CSV o el workflow en GitHub Actions.`; }
+  else if (esHoy) { bg = 'rgba(76,175,80,0.15)'; color = '#4caf50'; txt = `✅ e-Coordina: sincronizado hoy a las ${hora} · ${data.obras_ok} obra(s) actualizada(s).`; }
+  else if (alDia) { bg = 'rgba(76,175,80,0.15)'; color = '#4caf50'; txt = `✅ e-Coordina: al día. Última sincronización el ${fecha} a las ${hora} (se ejecuta de lunes a viernes).`; }
+  else { bg = 'rgba(255,152,0,0.15)'; color = '#ff9800'; txt = `⏳ e-Coordina: última sincronización el ${fecha} a las ${hora}. Ya debería haberse actualizado — revisa el workflow "ecoordina.yml" en GitHub Actions.`; }
+  el.style.display = 'block'; el.style.background = bg; el.style.color = color; el.textContent = txt;
 }
 
-document.getElementById('btn-salir').addEventListener('click', async () => {
-  await sb.auth.signOut(); window.location.href = '../';
-});
+document.getElementById('btn-salir').addEventListener('click', async () => { await sb.auth.signOut(); window.location.href = '../'; });
 
-// Tope de filas que se traen para la tabla. El contador de arriba NO depende
-// de este tope (va por count exacto) y, si se supera, se avisa bajo la tabla.
 const LIMITE_FICHAJES_TABLA = 400;
 
 async function cargarFichajes() {
   const { desdeISO, hastaISO } = rangoHoyLocal();
-
-  // Contador REAL del día, sin límite: antes se contaban solo las filas traídas.
-  const { count: totalFichajes, error: errCount } = await sb.from('fichajes')
-    .select('id', { count: 'exact', head: true })
-    .gte('hora', desdeISO).lte('hora', hastaISO);
-
-  const { data, error: errData } = await sb.from('fichajes')
-    .select('tipo, hora, trabajador_id, obra_id, cierre_automatico, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)')
-    .gte('hora', desdeISO).lte('hora', hastaISO)
-    .order('hora', { ascending: true }).limit(LIMITE_FICHAJES_TABLA);
-
-  // Un cero aquí es la cifra más visible del panel: si la consulta falla no se
-  // dice "0 fichajes hoy", se dice que no se sabe.
-  if (errCount || errData) {
-    document.getElementById('stat-fichajes').textContent = '—';
-    document.getElementById('badge-fichajes').textContent = 'sin datos';
-    document.getElementById('tabla-fichajes').innerHTML = '<div class="fallo">⚠ No se han podido consultar los fichajes de hoy. El contador no dice cero: dice que no se sabe. Vuelve a cargar la página.</div>';
-    return;
-  }
-
+  const { count: totalFichajes, error: errCount } = await sb.from('fichajes').select('id', { count: 'exact', head: true }).gte('hora', desdeISO).lte('hora', hastaISO);
+  const { data, error: errData } = await sb.from('fichajes').select('tipo, hora, trabajador_id, obra_id, cierre_automatico, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)').gte('hora', desdeISO).lte('hora', hastaISO).order('hora', { ascending: true }).limit(LIMITE_FICHAJES_TABLA);
+  if (errCount || errData) { document.getElementById('stat-fichajes').textContent = '—'; document.getElementById('badge-fichajes').textContent = 'sin datos'; document.getElementById('tabla-fichajes').innerHTML = '<div class="fallo">⚠ No se han podido consultar los fichajes de hoy. El contador no dice cero: dice que no se sabe. Vuelve a cargar la página.</div>'; return; }
   const total = (typeof totalFichajes === 'number') ? totalFichajes : (data ? data.length : 0);
   document.getElementById('stat-fichajes').textContent = total;
-
-  if (!data || data.length === 0) {
-    document.getElementById('badge-fichajes').textContent = '0 personas';
-    document.getElementById('tabla-fichajes').innerHTML = '<div class="vacio">No hay fichajes hoy</div>';
-    return;
-  }
-
-  // ── Agrupar por PERSONA + OBRA: una fila por jornada, no una por fichaje ──
-  // Los datos llegan en orden ascendente, así que la primera entrada que se ve es
-  // la primera del día y la última salida que se ve es la definitiva.
+  if (!data || data.length === 0) { document.getElementById('badge-fichajes').textContent = '0 personas'; document.getElementById('tabla-fichajes').innerHTML = '<div class="vacio">No hay fichajes hoy</div>'; return; }
   const grupos = new Map();
   data.forEach(f => {
     const clave = (f.trabajador_id || 'sin-id') + '|' + (f.obra_id || 'sin-obra');
-    if (!grupos.has(clave)) {
-      grupos.set(clave, {
-        trabajador_id: f.trabajador_id, trabajador: f.trabajador, obra: f.obra,
-        entrada: null, salida: null, nEntradas: 0, nSalidas: 0,
-        salidaAuto: false, ultimoTipo: null
-      });
-    }
+    if (!grupos.has(clave)) grupos.set(clave, { trabajador_id: f.trabajador_id, trabajador: f.trabajador, obra: f.obra, entrada: null, salida: null, nEntradas: 0, nSalidas: 0, salidaAuto: false, ultimoTipo: null });
     const g = grupos.get(clave);
-    if (f.tipo === 'entrada') {
-      g.nEntradas++;
-      if (!g.entrada) g.entrada = f.hora;
-    } else {
-      g.nSalidas++;
-      g.salida = f.hora;
-      g.salidaAuto = !!f.cierre_automatico;
-    }
+    if (f.tipo === 'entrada') { g.nEntradas++; if (!g.entrada) g.entrada = f.hora; }
+    else { g.nSalidas++; g.salida = f.hora; g.salidaAuto = !!f.cierre_automatico; }
     g.ultimoTipo = f.tipo;
   });
-
-  // Primero los que siguen en obra; dentro de cada bloque, por orden de llegada.
-  const filas = [...grupos.values()].sort((a, b) => {
-    const enA = a.ultimoTipo === 'entrada' ? 0 : 1;
-    const enB = b.ultimoTipo === 'entrada' ? 0 : 1;
-    if (enA !== enB) return enA - enB;
-    return String(a.entrada || '').localeCompare(String(b.entrada || ''));
-  });
-
-  document.getElementById('badge-fichajes').textContent =
-    filas.length + (filas.length === 1 ? ' persona' : ' personas') + ' · ' + total + ' fichajes';
-
-  // Cargar habilitaciones de los trabajadores en la tabla
+  const filas = [...grupos.values()].sort((a, b) => { const enA = a.ultimoTipo === 'entrada' ? 0 : 1, enB = b.ultimoTipo === 'entrada' ? 0 : 1; if (enA !== enB) return enA - enB; return String(a.entrada || '').localeCompare(String(b.entrada || '')); });
+  document.getElementById('badge-fichajes').textContent = filas.length + (filas.length === 1 ? ' persona' : ' personas') + ' · ' + total + ' fichajes';
   const ids = [...new Set(filas.map(g => g.trabajador_id).filter(Boolean))];
   const habIconos = {};
-  if (ids.length > 0) {
-    const { data: habs } = await sb
-      .from('habilitaciones_trabajador')
-      .select('trabajador_id, tipo:tipo_habilitacion_id(nombre)')
-      .in('trabajador_id', ids)
-      .eq('activo', true);
-    (habs || []).forEach(h => {
-      const icono = Hab.icono(h.tipo?.nombre || '');
-      if (!habIconos[h.trabajador_id]) habIconos[h.trabajador_id] = [];
-      if (!habIconos[h.trabajador_id].includes(icono)) habIconos[h.trabajador_id].push(icono);
-    });
-  }
-
-  const aviso = (total > data.length)
-    ? `<div class="vacio" style="margin-top:10px">Se muestran los ${data.length} primeros fichajes de hoy, de ${total}. Para el listado completo del día, usa la página de Fichajes.</div>`
-    : '';
-
-  document.getElementById('tabla-fichajes').innerHTML = `
-    <table><thead><tr>
-      <th>Estado</th><th>Nombre</th><th>DNI</th><th>Obra</th><th>Entrada</th><th>Salida</th>
-    </tr></thead><tbody>
-    ${filas.map(g => {
-      const iconos = (habIconos[g.trabajador_id] || []).join(' ');
-      const iconosHtml = iconos ? `<span class="iconos-hab" title="Habilitaciones: ${iconos}">${iconos}</span>` : '';
-      const enObra = g.ultimoTipo === 'entrada';
-      const repetido = (g.nEntradas > 1 || g.nSalidas > 1)
-        ? `<span style="opacity:0.6;font-size:11px;margin-left:5px" title="${g.nEntradas} entrada(s) y ${g.nSalidas} salida(s) hoy en esta obra. Se muestran la primera entrada y la última salida.">⇄${g.nEntradas + g.nSalidas}</span>`
-        : '';
-      const auto = (g.salida && g.salidaAuto)
-        ? `<span style="opacity:0.75;font-size:11px;margin-left:4px" title="Salida puesta por el cierre automático de la noche. Conviene corregirla.">🕛</span>`
-        : '';
-      return `<tr>
-        <td><span class="pill ${enObra ? 'verde' : 'azul'}">${enObra ? 'En obra' : 'Salió'}</span></td>
-        <td><strong>${esc(g.trabajador?.nombre)} ${esc(g.trabajador?.apellidos)}</strong>${iconosHtml}${repetido}</td>
-        <td>${esc(g.trabajador?.dni)}</td>
-        <td>${esc(g.obra?.nombre)}</td>
-        <td>${formatHora(g.entrada)}</td>
-        <td>${g.salida ? formatHora(g.salida) + auto : '—'}</td>
-      </tr>`;
-    }).join('')}
-    </tbody></table>${aviso}`;
+  if (ids.length > 0) { const { data: habs } = await sb.from('habilitaciones_trabajador').select('trabajador_id, tipo:tipo_habilitacion_id(nombre)').in('trabajador_id', ids).eq('activo', true); (habs || []).forEach(h => { const icono = Hab.icono(h.tipo?.nombre || ''); if (!habIconos[h.trabajador_id]) habIconos[h.trabajador_id] = []; if (!habIconos[h.trabajador_id].includes(icono)) habIconos[h.trabajador_id].push(icono); }); }
+  const aviso = total > data.length ? `<div class="vacio" style="margin-top:10px">Se muestran los ${data.length} primeros fichajes de hoy, de ${total}.</div>` : '';
+  document.getElementById('tabla-fichajes').innerHTML = `<table><thead><tr><th>Estado</th><th>Nombre</th><th>DNI</th><th>Obra</th><th>Entrada</th><th>Salida</th></tr></thead><tbody>${filas.map(g => { const iconos = (habIconos[g.trabajador_id] || []).join(' '); const iconosHtml = iconos ? `<span class="iconos-hab" title="Habilitaciones: ${iconos}">${iconos}</span>` : ''; const enObra = g.ultimoTipo === 'entrada'; const repetido = (g.nEntradas > 1 || g.nSalidas > 1) ? `<span style="opacity:0.6;font-size:11px;margin-left:5px" title="${g.nEntradas} entrada(s) y ${g.nSalidas} salida(s) hoy.">⇄${g.nEntradas + g.nSalidas}</span>` : ''; const auto = (g.salida && g.salidaAuto) ? `<span style="opacity:0.75;font-size:11px;margin-left:4px" title="Salida puesta por el cierre automático.">🕛</span>` : ''; return `<tr><td><span class="pill ${enObra ? 'verde' : 'azul'}">${enObra ? 'En obra' : 'Salió'}</span></td><td><strong>${esc(g.trabajador?.nombre)} ${esc(g.trabajador?.apellidos)}</strong>${iconosHtml}${repetido}</td><td>${esc(g.trabajador?.dni)}</td><td>${esc(g.obra?.nombre)}</td><td>${formatHora(g.entrada)}</td><td>${g.salida ? formatHora(g.salida) + auto : '—'}</td></tr>`; }).join('')}</tbody></table>${aviso}`;
 }
 
 async function cargarObras() {
-  // US-4: la fuente de verdad es `obras.estado`. `activa` es un espejo derivado
-  // y dejaba pasar pausadas y terminadas como si fueran activas.
-  const { data, error } = await sb.from('obras')
-    .select('nombre, direccion, empresa_marca')
-    .eq('estado', 'activa')
-    .order('nombre');
-  if (error) {
-    document.getElementById('stat-obras').textContent = '—';
-    document.getElementById('badge-obras').textContent = 'sin datos';
-    document.getElementById('tabla-obras').innerHTML = '<div class="fallo">⚠ No se han podido consultar las obras. Vuelve a cargar la página.</div>';
-    return;
-  }
+  const { data, error } = await sb.from('obras').select('nombre, direccion, empresa_marca').eq('estado', 'activa').order('nombre');
+  if (error) { document.getElementById('stat-obras').textContent = '—'; document.getElementById('badge-obras').textContent = 'sin datos'; document.getElementById('tabla-obras').innerHTML = '<div class="fallo">⚠ No se han podido consultar las obras. Vuelve a cargar la página.</div>'; return; }
   const n = data ? data.length : 0;
   document.getElementById('stat-obras').textContent = n;
   document.getElementById('badge-obras').textContent = n + ' obras';
@@ -776,249 +373,85 @@ async function cargarObras() {
   document.getElementById('tabla-obras').innerHTML = `<table><thead><tr><th>Nombre</th><th>Dirección</th><th>Empresa</th></tr></thead><tbody>${data.map(o => `<tr><td><strong>${esc(o.nombre)}</strong></td><td>${esc(o.direccion || '—')}</td><td>${esc(o.empresa_marca || '—')}</td></tr>`).join('')}</tbody></table>`;
 }
 
-// ── Accesos denegados de hoy (todas las obras) ──────────────────────────
-// La REGLA de qué sigue pendiente y qué se resolvió solo vive en
-// js/accesos-resueltos.js, compartida con jefe/ y encargado/. Un intento
-// denegado que acabó en ENTRADA no es trabajo pendiente: el GPS del móvil
-// da la posición de la antena y al reintentar entra, o la sync de
-// e-Coordina pasa a la persona de rojo a naranja y entra al rato.
-//
-// El módulo trabaja con UNA obra cada vez, a propósito: si mezclara obras,
-// alguien denegado en Muralla y presente en Escola saldría como resuelto.
-// Por eso aquí se agrupa por obra y se llama una vez por cada una.
-
 async function obtenerAccesosHoy() {
   const { desdeISO, hastaISO } = rangoHoyLocal();
-
-  // OPS-021 (2.5): los denegados de un día pueden pasar de 1.000 filas (tope
-  // del servidor). Se leen por tandas para no perder el final de la lista.
   let incidencias;
-  try {
-    incidencias = await SbPaginado.traerTodo(() => sb
-      .from('incidencias')
-      .select('id, tipo, detalle, estado, created_at, trabajador_id, obra_id, trabajador:trabajador_id(id, nombre, apellidos, dni), obra:obra_id(id, nombre)')
-      .in('tipo', ['bloqueo_rojo', 'fuera_de_zona'])
-      .gte('created_at', desdeISO)
-      .lte('created_at', hastaISO)
-      .order('created_at', { ascending: false }),
-      { etiqueta: 'accesos denegados de hoy' });
-  } catch (e) {
-    return { error: e.message };
-  }
-
-  // Fichajes de hoy: para saber quién de los denegados acabó entrando.
-  // Si esta consulta falla no se da nada por resuelto (se avisa en el modal).
-  // OPS-021 (2.5): los fichajes del día también pueden pasar de 1.000. Si se
-  // truncaran, gente que SÍ entró no se vería y saldría como pendiente.
-  // .order() es obligatorio para paginar sin duplicar/perder filas.
+  try { incidencias = await SbPaginado.traerTodo(() => sb.from('incidencias').select('id, tipo, detalle, estado, created_at, trabajador_id, obra_id, trabajador:trabajador_id(id, nombre, apellidos, dni), obra:obra_id(id, nombre)').in('tipo', ['bloqueo_rojo', 'fuera_de_zona']).gte('created_at', desdeISO).lte('created_at', hastaISO).order('created_at', { ascending: false }), { etiqueta: 'accesos denegados de hoy' }); } catch (e) { return { error: e.message }; }
   let fichajes = null;
-  try {
-    fichajes = await SbPaginado.traerTodo(() => sb
-      .from('fichajes')
-      .select('tipo, hora, obra_id, trabajador_id, trabajador:trabajador_id(id, dni)')
-      .gte('hora', desdeISO)
-      .lte('hora', hastaISO)
-      .order('hora', { ascending: true }),
-      { etiqueta: 'fichajes de hoy' });
-  } catch (_) {
-    fichajes = null; // como antes: si falla, no se da nada por resuelto
-  }
-
+  try { fichajes = await SbPaginado.traerTodo(() => sb.from('fichajes').select('tipo, hora, obra_id, trabajador_id, trabajador:trabajador_id(id, dni)').gte('hora', desdeISO).lte('hora', hastaISO).order('hora', { ascending: true }), { etiqueta: 'fichajes de hoy' }); } catch (_) { fichajes = null; }
   const porObra = {};
-  (incidencias || []).forEach(inc => {
-    const k = inc.obra_id || 'sin_obra';
-    if (!porObra[k]) porObra[k] = { obraId: inc.obra_id, obraNombre: inc.obra?.nombre || 'Obra no disponible', incidencias: [] };
-    porObra[k].incidencias.push(inc);
-  });
-
-  const obras = Object.keys(porObra).map(k => {
-    const o = porObra[k];
-    const suyos = (fichajes === null) ? null : fichajes.filter(f => f.obra_id === o.obraId);
-    const clas = AccesosResueltos.clasificar({ incidencias: o.incidencias, fichajes: suyos });
-    clas.personas.forEach(g => { g.obraNombre = o.obraNombre; });
-    return { obraNombre: o.obraNombre, clas: clas };
-  });
-
+  (incidencias || []).forEach(inc => { const k = inc.obra_id || 'sin_obra'; if (!porObra[k]) porObra[k] = { obraId: inc.obra_id, obraNombre: inc.obra?.nombre || 'Obra no disponible', incidencias: [] }; porObra[k].incidencias.push(inc); });
+  const obras = Object.keys(porObra).map(k => { const o = porObra[k]; const suyos = (fichajes === null) ? null : fichajes.filter(f => f.obra_id === o.obraId); const clas = AccesosResueltos.clasificar({ incidencias: o.incidencias, fichajes: suyos }); clas.personas.forEach(g => { g.obraNombre = o.obraNombre; }); return { obraNombre: o.obraNombre, clas: clas }; });
   const total = { pendientes: 0, resueltos: 0, intentos: 0 };
-  obras.forEach(o => {
-    total.pendientes += o.clas.totales.personasPendientes;
-    total.resueltos += o.clas.totales.personasResueltas;
-    total.intentos += o.clas.totales.intentos;
-  });
-
+  obras.forEach(o => { total.pendientes += o.clas.totales.personasPendientes; total.resueltos += o.clas.totales.personasResueltas; total.intentos += o.clas.totales.intentos; });
   return { obras: obras, total: total, entradasConocidas: fichajes !== null };
 }
 
 async function cargarAccesosDenegadosHoy() {
   const desglose = document.getElementById('stat-rojos-desglose');
-  desglose.style.display = 'none';
-  desglose.textContent = '';
+  desglose.style.display = 'none'; desglose.textContent = '';
   const res = await obtenerAccesosHoy();
   if (res.error) { document.getElementById('stat-rojos').textContent = '—'; return; }
   document.getElementById('stat-rojos').textContent = res.total.pendientes;
-  if (res.total.resueltos > 0) {
-    desglose.style.display = 'block';
-    desglose.textContent = `✅ ${res.total.resueltos} ${res.total.resueltos === 1 ? 'resuelto' : 'resueltos'} solo${res.total.resueltos === 1 ? '' : 's'} hoy`;
-  }
+  if (res.total.resueltos > 0) { desglose.style.display = 'block'; desglose.textContent = `✅ ${res.total.resueltos} ${res.total.resueltos === 1 ? 'resuelto' : 'resueltos'} solo${res.total.resueltos === 1 ? '' : 's'} hoy`; }
 }
 
 async function abrirModalAccesosDenegados() {
-  const overlay = document.getElementById('modal-accesos-overlay');
-  const contenido = document.getElementById('modal-accesos-contenido');
-  const resumen = document.getElementById('modal-accesos-resumen');
-
-  overlay.classList.add('visible');
-  contenido.innerHTML = '<div class="cargando">Cargando…</div>';
-  resumen.style.display = 'none';
-  resumen.textContent = '';
-
+  const overlay = document.getElementById('modal-accesos-overlay'), contenido = document.getElementById('modal-accesos-contenido'), resumen = document.getElementById('modal-accesos-resumen');
+  overlay.classList.add('visible'); contenido.innerHTML = '<div class="cargando">Cargando…</div>'; resumen.style.display = 'none'; resumen.textContent = '';
   const res = await obtenerAccesosHoy();
-  if (res.error) {
-    contenido.innerHTML = `<div class="vacio">No se pudo cargar el detalle: ${esc(res.error)}</div>`;
-    return;
-  }
+  if (res.error) { contenido.innerHTML = `<div class="vacio">No se pudo cargar el detalle: ${esc(res.error)}</div>`; return; }
   pintarDetalleAccesos(res);
 }
 
-// Motivos del bloqueo: arriba lo que DENIEGA, abajo lo que solo AVISA.
-// Salen de `incidencias.detalle` (la foto congelada del momento del intento).
-// Antes se pintaba ese campo EN CRUDO, con sus corchetes y comillas.
 function pintarMotivosAcceso(g) {
   const partes = [];
   if (g.tipos.indexOf('bloqueo_rojo') !== -1) {
     const cls = AccesosResueltos.clasificarMotivos(g.detalles);
-    if (cls.rojos.length) {
-      partes.push('<div class="acceso-bloque-titulo">🚫 Le bloquea:</div>');
-      partes.push(cls.rojos.map(m => `<div class="acceso-motivo-item">${esc(m)}</div>`).join(''));
-    } else {
-      partes.push('<div class="acceso-sin-motivo">Motivo no registrado (bloqueo anterior a junio).</div>');
-    }
-    if (cls.naranjas.length) {
-      const visibles = cls.naranjas.slice(0, 3);
-      const resto = cls.naranjas.length - visibles.length;
-      partes.push('<div class="acceso-bloque-titulo naranja">⚠️ Además tiene aviso:</div>');
-      partes.push(visibles.map(m => `<div class="acceso-motivo-item naranja">${esc(m)}</div>`).join(''));
-      if (resto > 0) partes.push(`<div class="acceso-motivo-item naranja">+${resto} aviso${resto === 1 ? '' : 's'} más</div>`);
-    }
+    if (cls.rojos.length) { partes.push('<div class="acceso-bloque-titulo">🚫 Le bloquea:</div>'); partes.push(cls.rojos.map(m => `<div class="acceso-motivo-item">${esc(m)}</div>`).join('')); }
+    else { partes.push('<div class="acceso-sin-motivo">Motivo no registrado (bloqueo anterior a junio).</div>'); }
+    if (cls.naranjas.length) { const visibles = cls.naranjas.slice(0, 3), resto = cls.naranjas.length - visibles.length; partes.push('<div class="acceso-bloque-titulo naranja">⚠️ Además tiene aviso:</div>'); partes.push(visibles.map(m => `<div class="acceso-motivo-item naranja">${esc(m)}</div>`).join('')); if (resto > 0) partes.push(`<div class="acceso-motivo-item naranja">+${resto} aviso${resto === 1 ? '' : 's'} más</div>`); }
   }
-  if (g.detallesGps.length) {
-    partes.push('<div class="acceso-bloque-titulo">📍 GPS:</div>');
-    partes.push(g.detallesGps.slice(0, 3).map(d => `<div class="acceso-motivo-item">${esc(d)}</div>`).join(''));
-  }
+  if (g.detallesGps.length) { partes.push('<div class="acceso-bloque-titulo">📍 GPS:</div>'); partes.push(g.detallesGps.slice(0, 3).map(d => `<div class="acceso-motivo-item">${esc(d)}</div>`).join('')); }
   return partes.length ? `<div class="acceso-motivos">${partes.join('')}</div>` : '';
 }
 
 function tarjetaAcceso(g, resuelto) {
-  const dni = g.dni ? `DNI: ${g.dni}` : 'DNI no disponible';
-  const obra = g.obraNombre ? ` · Obra: ${g.obraNombre}` : '';
+  const dni = g.dni ? `DNI: ${g.dni}` : 'DNI no disponible', obra = g.obraNombre ? ` · Obra: ${g.obraNombre}` : '';
   const etiquetaTxt = AccesosResueltos.etiquetas(g).join(' · ');
-  const revisado = g.pendientes > 0
-    ? `${g.pendientes} pendiente${g.pendientes === 1 ? '' : 's'} de revisar${g.revisados ? ` · ${g.revisados} revisado${g.revisados === 1 ? '' : 's'}` : ''}`
-    : `Todo revisado (${g.revisados})`;
-  const desenlace = resuelto
-    ? `<div class="acceso-desenlace">✅ ${esc(AccesosResueltos.textoDesenlace(g))}</div>`
-    : '';
-  return `
-    <div class="acceso-item${resuelto ? ' resuelto' : ''}">
-      <div class="acceso-top">
-        <div>
-          <div class="acceso-nombre">${esc(g.nombre)}</div>
-          <div class="acceso-meta">${esc(dni)}${esc(obra)} · Último intento: ${esc(formatHora(g.ultimoIntento))}</div>
-        </div>
-        <div class="acceso-contador">${g.intentos} ${g.intentos === 1 ? 'intento' : 'intentos'}</div>
-      </div>
-      <div class="acceso-detalle">${etiquetaTxt ? '<strong>' + etiquetaTxt + '</strong> · ' : ''}${esc(revisado)}</div>
-      ${desenlace}
-      ${pintarMotivosAcceso(g)}
-    </div>`;
+  const revisado = g.pendientes > 0 ? `${g.pendientes} pendiente${g.pendientes === 1 ? '' : 's'} de revisar${g.revisados ? ` · ${g.revisados} revisado${g.revisados === 1 ? '' : 's'}` : ''}` : `Todo revisado (${g.revisados})`;
+  const desenlace = resuelto ? `<div class="acceso-desenlace">✅ ${esc(AccesosResueltos.textoDesenlace(g))}</div>` : '';
+  return `<div class="acceso-item${resuelto ? ' resuelto' : ''}"><div class="acceso-top"><div><div class="acceso-nombre">${esc(g.nombre)}</div><div class="acceso-meta">${esc(dni)}${esc(obra)} · Último intento: ${esc(formatHora(g.ultimoIntento))}</div></div><div class="acceso-contador">${g.intentos} ${g.intentos === 1 ? 'intento' : 'intentos'}</div></div><div class="acceso-detalle">${etiquetaTxt ? '<strong>' + etiquetaTxt + '</strong> · ' : ''}${esc(revisado)}</div>${desenlace}${pintarMotivosAcceso(g)}</div>`;
 }
 
 function pintarDetalleAccesos(res) {
-  const contenido = document.getElementById('modal-accesos-contenido');
-  const resumen = document.getElementById('modal-accesos-resumen');
-
-  if (!res || !res.obras || res.obras.length === 0) {
-    resumen.style.display = 'none';
-    contenido.innerHTML = '<div class="vacio">Hoy no hay accesos denegados.</div>';
-    return;
-  }
-
+  const contenido = document.getElementById('modal-accesos-contenido'), resumen = document.getElementById('modal-accesos-resumen');
+  if (!res || !res.obras || res.obras.length === 0) { resumen.style.display = 'none'; contenido.innerHTML = '<div class="vacio">Hoy no hay accesos denegados.</div>'; return; }
   const pendientes = [], resueltos = [], rapidos = [];
-  res.obras.forEach(o => {
-    pendientes.push(...o.clas.pendientes);
-    resueltos.push(...o.clas.resueltos);
-    rapidos.push(...o.clas.rapidos);
-  });
+  res.obras.forEach(o => { pendientes.push(...o.clas.pendientes); resueltos.push(...o.clas.resueltos); rapidos.push(...o.clas.rapidos); });
   const porFecha = (a, b) => new Date(b.ultimoIntento) - new Date(a.ultimoIntento);
   pendientes.sort(porFecha); resueltos.sort(porFecha); rapidos.sort(porFecha);
-
   const t = res.total;
-  resumen.style.display = 'block';
-  resumen.className = t.pendientes > 0 ? 'accesos-resumen' : 'accesos-resumen naranja';
-  resumen.textContent = t.pendientes > 0
-    ? `${t.pendientes} sin poder entrar · ${t.resueltos} resuelto${t.resueltos === 1 ? '' : 's'} · ${t.intentos} intento${t.intentos === 1 ? '' : 's'} hoy`
-    : `Nadie se ha quedado fuera · ${t.resueltos} caso${t.resueltos === 1 ? '' : 's'} resuelto${t.resueltos === 1 ? '' : 's'} · ${t.intentos} intento${t.intentos === 1 ? '' : 's'} hoy`;
-
+  resumen.style.display = 'block'; resumen.className = t.pendientes > 0 ? 'accesos-resumen' : 'accesos-resumen naranja';
+  resumen.textContent = t.pendientes > 0 ? `${t.pendientes} sin poder entrar · ${t.resueltos} resuelto${t.resueltos === 1 ? '' : 's'} · ${t.intentos} intento${t.intentos === 1 ? '' : 's'} hoy` : `Nadie se ha quedado fuera · ${t.resueltos} caso${t.resueltos === 1 ? '' : 's'} resuelto${t.resueltos === 1 ? '' : 's'} · ${t.intentos} intento${t.intentos === 1 ? '' : 's'} hoy`;
   let html = '';
-  if (!res.entradasConocidas) {
-    html += '<div class="accesos-aviso">No se han podido leer los fichajes de hoy, así que no se sabe quién acabó entrando: se muestran todos como pendientes.</div>';
-  }
-  if (pendientes.length) {
-    html += '<div class="accesos-seccion-titulo">🚫 Se quedaron fuera</div>';
-    html += pendientes.map(g => tarjetaAcceso(g, false)).join('');
-  }
-  if (resueltos.length) {
-    html += '<div class="accesos-seccion"><div class="accesos-seccion-titulo">✅ Resueltos hoy · entraron más tarde</div>';
-    html += resueltos.map(g => tarjetaAcceso(g, true)).join('');
-    html += '</div>';
-  }
-  if (rapidos.length) {
-    const n = rapidos.length;
-    const gracia = res.obras[0].clas.minutosGracia;
-    html += `
-      <details class="accesos-rapidos">
-        <summary>${n} ${n === 1 ? 'caso resuelto solo' : 'casos resueltos solos'} en menos de ${gracia} min (GPS impreciso o sincronización): no ${n === 1 ? 'requiere' : 'requieren'} nada</summary>
-        <div class="accesos-rapidos-lista">
-          ${rapidos.map(g => {
-            const causa = g.detallesGps[0] || AccesosResueltos.clasificarMotivos(g.detalles).rojos[0] || '';
-            return `• ${esc(g.nombre)}${g.obraNombre ? ' (' + esc(g.obraNombre) + ')' : ''} — ${esc(AccesosResueltos.textoDesenlace(g))}${causa ? ' · ' + esc(causa) : ''}`;
-          }).join('<br>')}
-        </div>
-      </details>`;
-  }
-  html += '<div class="accesos-nota">Todos los intentos quedan registrados en la bandeja de incidencias, se muestren aquí como pendientes o no.</div>';
-
+  if (!res.entradasConocidas) html += '<div class="accesos-aviso">No se han podido leer los fichajes de hoy, así que no se sabe quién acabó entrando.</div>';
+  if (pendientes.length) { html += '<div class="accesos-seccion-titulo">🚫 Se quedaron fuera</div>'; html += pendientes.map(g => tarjetaAcceso(g, false)).join(''); }
+  if (resueltos.length) { html += '<div class="accesos-seccion"><div class="accesos-seccion-titulo">✅ Resueltos hoy · entraron más tarde</div>'; html += resueltos.map(g => tarjetaAcceso(g, true)).join(''); html += '</div>'; }
+  if (rapidos.length) { const n = rapidos.length, gracia = res.obras[0].clas.minutosGracia; html += `<details class="accesos-rapidos"><summary>${n} ${n === 1 ? 'caso resuelto solo' : 'casos resueltos solos'} en menos de ${gracia} min</summary><div class="accesos-rapidos-lista">${rapidos.map(g => { const causa = g.detallesGps[0] || AccesosResueltos.clasificarMotivos(g.detalles).rojos[0] || ''; return `• ${esc(g.nombre)}${g.obraNombre ? ' (' + esc(g.obraNombre) + ')' : ''} — ${esc(AccesosResueltos.textoDesenlace(g))}${causa ? ' · ' + esc(causa) : ''}`; }).join('<br>')}</div></details>`; }
+  html += '<div class="accesos-nota">Todos los intentos quedan registrados en la bandeja de incidencias.</div>';
   contenido.innerHTML = html;
 }
 
-// Tope de filas de la tabla. El badge NO depende de este tope: va por count
-// exacto, y si hay más de las que caben se avisa debajo de la tabla.
 const LIMITE_ROJOS_TABLA = 50;
 
 async function cargarTablaRojos() {
-  // `!inner` es obligatorio para poder filtrar por columnas del relacionado.
-  // Se excluyen trabajadores de baja y obras ocultas: una persona dada de baja
-  // o la obra de pruebas no son trabajo pendiente de nadie.
-  const { data, count, error } = await sb.from('validaciones_obra')
-    .select('motivos, trabajador:trabajador_id!inner(nombre, apellidos, dni, activo), obra:obra_id!inner(nombre, estado)', { count: 'exact' })
-    .eq('estado', 'rojo')
-    .eq('trabajador.activo', true)
-    .neq('obra.estado', 'oculta')
-    .limit(LIMITE_ROJOS_TABLA);
-  // Si esto falla NO se puede escribir "Ningún trabajador en rojo ✓": sería
-  // afirmar lo contrario de lo que se sabe.
-  if (error) {
-    document.getElementById('badge-rojos').textContent = 'sin datos';
-    document.getElementById('tabla-rojos').innerHTML = '<div class="fallo">⚠ No se ha podido consultar la documentación en rojo. Esto NO significa que no haya ninguno. Vuelve a cargar la página.</div>';
-    return;
-  }
-  const total = (typeof count === 'number') ? count : (data ? data.length : 0);
-  const n = data ? data.length : 0;
+  const { data, count, error } = await sb.from('validaciones_obra').select('motivos, trabajador:trabajador_id!inner(nombre, apellidos, dni, activo), obra:obra_id!inner(nombre, estado)', { count: 'exact' }).eq('estado', 'rojo').eq('trabajador.activo', true).neq('obra.estado', 'oculta').limit(LIMITE_ROJOS_TABLA);
+  if (error) { document.getElementById('badge-rojos').textContent = 'sin datos'; document.getElementById('tabla-rojos').innerHTML = '<div class="fallo">⚠ No se ha podido consultar la documentación en rojo. Esto NO significa que no haya ninguno. Vuelve a cargar la página.</div>'; return; }
+  const total = (typeof count === 'number') ? count : (data ? data.length : 0), n = data ? data.length : 0;
   document.getElementById('badge-rojos').textContent = total + ' trabajadores';
   if (!data || data.length === 0) { document.getElementById('tabla-rojos').innerHTML = '<div class="vacio">Ningún trabajador en rojo ✓</div>'; return; }
-  const avisoRojos = (total > n)
-    ? `<div class="vacio" style="margin-top:10px">Se muestran los ${n} primeros, de ${total}. Para el listado completo, usa la página de Trabajadores.</div>`
-    : '';
+  const avisoRojos = total > n ? `<div class="vacio" style="margin-top:10px">Se muestran los ${n} primeros, de ${total}.</div>` : '';
   document.getElementById('tabla-rojos').innerHTML = `<table><thead><tr><th>Trabajador</th><th>DNI</th><th>Obra</th><th>Motivos</th></tr></thead><tbody>${data.map(v => `<tr><td><strong>${esc(v.trabajador?.nombre)} ${esc(v.trabajador?.apellidos)}</strong></td><td>${esc(v.trabajador?.dni)}</td><td>${esc(v.obra?.nombre)}</td><td>${Array.isArray(v.motivos) ? v.motivos.map(m => esc(m)).join(', ') : '—'}</td></tr>`).join('')}</tbody></table>${avisoRojos}`;
 }
 
@@ -1026,114 +459,39 @@ const LIMITE_INCIDENCIAS_TABLA = 50;
 
 async function cargarIncidencias() {
   const { desdeISO, hastaISO } = rangoHoyLocal();
-  const { data, count, error } = await sb.from('incidencias')
-    .select('tipo, detalle, comentario, created_at, trabajador:trabajador_id(nombre, apellidos), obra:obra_id(nombre)', { count: 'exact' })
-    .gte('created_at', desdeISO).lte('created_at', hastaISO)
-    .order('created_at', { ascending: false }).limit(LIMITE_INCIDENCIAS_TABLA);
-  if (error) {
-    document.getElementById('stat-incidencias').textContent = '—';
-    document.getElementById('badge-incidencias').textContent = 'sin datos';
-    document.getElementById('tabla-incidencias').innerHTML = '<div class="fallo">⚠ No se han podido consultar las incidencias de hoy. Vuelve a cargar la página.</div>';
-    return;
-  }
-  const total = (typeof count === 'number') ? count : (data ? data.length : 0);
-  const n = data ? data.length : 0;
+  const { data, count, error } = await sb.from('incidencias').select('tipo, detalle, comentario, created_at, trabajador:trabajador_id(nombre, apellidos), obra:obra_id(nombre)', { count: 'exact' }).gte('created_at', desdeISO).lte('created_at', hastaISO).order('created_at', { ascending: false }).limit(LIMITE_INCIDENCIAS_TABLA);
+  if (error) { document.getElementById('stat-incidencias').textContent = '—'; document.getElementById('badge-incidencias').textContent = 'sin datos'; document.getElementById('tabla-incidencias').innerHTML = '<div class="fallo">⚠ No se han podido consultar las incidencias de hoy. Vuelve a cargar la página.</div>'; return; }
+  const total = (typeof count === 'number') ? count : (data ? data.length : 0), n = data ? data.length : 0;
   document.getElementById('stat-incidencias').textContent = total;
   document.getElementById('badge-incidencias').textContent = total + ' hoy';
   if (!data || data.length === 0) { document.getElementById('tabla-incidencias').innerHTML = '<div class="vacio">No hay incidencias hoy</div>'; return; }
-  const avisoInc = (total > n)
-    ? `<div class="vacio" style="margin-top:10px">Se muestran las ${n} más recientes, de ${total}. Para el listado completo, usa la bandeja de Incidencias.</div>`
-    : '';
+  const avisoInc = total > n ? `<div class="vacio" style="margin-top:10px">Se muestran las ${n} más recientes, de ${total}.</div>` : '';
   document.getElementById('tabla-incidencias').innerHTML = `<table><thead><tr><th>Trabajador</th><th>Obra</th><th>Tipo</th><th>Detalle</th><th>Hora</th></tr></thead><tbody>${data.map(i => `<tr><td><strong>${esc(i.trabajador?.nombre)} ${esc(i.trabajador?.apellidos)}</strong></td><td>${esc(i.obra?.nombre)}</td><td><span class="pill naranja">${esc(i.tipo)}</span></td><td>${esc(i.detalle || '—')}${i.comentario ? '<br><small style="color:var(--texto2)">' + esc(i.comentario) + '</small>' : ''}</td><td>${formatHora(i.created_at)}</td></tr>`).join('')}</tbody></table>${avisoInc}`;
 }
 
-function cerrarModalAccesos() {
-  document.getElementById('modal-accesos-overlay').classList.remove('visible');
-}
-
-document.getElementById('modal-accesos-overlay').addEventListener('click', e => {
-  if (e.target === document.getElementById('modal-accesos-overlay')) cerrarModalAccesos();
-});
-
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { cerrarModalAccesos(); cerrarModalIncidencias(); }
-});
+function cerrarModalAccesos() { document.getElementById('modal-accesos-overlay').classList.remove('visible'); }
+document.getElementById('modal-accesos-overlay').addEventListener('click', e => { if (e.target === document.getElementById('modal-accesos-overlay')) cerrarModalAccesos(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { cerrarModalAccesos(); cerrarModalIncidencias(); } });
 
 async function abrirModalIncidencias() {
-  const overlay = document.getElementById('modal-incidencias-overlay');
-  const contenido = document.getElementById('modal-incidencias-contenido');
-  const resumen = document.getElementById('modal-incidencias-resumen');
-
-  overlay.classList.add('visible');
-  contenido.innerHTML = '<div class="cargando">Cargando…</div>';
-  resumen.style.display = 'none';
-  resumen.textContent = '';
-
+  const overlay = document.getElementById('modal-incidencias-overlay'), contenido = document.getElementById('modal-incidencias-contenido'), resumen = document.getElementById('modal-incidencias-resumen');
+  overlay.classList.add('visible'); contenido.innerHTML = '<div class="cargando">Cargando…</div>'; resumen.style.display = 'none'; resumen.textContent = '';
   const { desdeISO, hastaISO } = rangoHoyLocal();
-  const { data, error } = await sb
-    .from('incidencias')
-    .select('id, tipo, detalle, estado, comentario, created_at, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)')
-    .gte('created_at', desdeISO)
-    .lte('created_at', hastaISO)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    contenido.innerHTML = `<div class="vacio">No se pudo cargar el detalle: ${esc(error.message)}</div>`;
-    return;
-  }
-
+  const { data, error } = await sb.from('incidencias').select('id, tipo, detalle, estado, comentario, created_at, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)').gte('created_at', desdeISO).lte('created_at', hastaISO).order('created_at', { ascending: false });
+  if (error) { contenido.innerHTML = `<div class="vacio">No se pudo cargar el detalle: ${esc(error.message)}</div>`; return; }
   pintarDetalleIncidencias(data || []);
 }
 
 function pintarDetalleIncidencias(incidencias) {
-  const contenido = document.getElementById('modal-incidencias-contenido');
-  const resumen = document.getElementById('modal-incidencias-resumen');
-
-  if (!incidencias || incidencias.length === 0) {
-    resumen.style.display = 'none';
-    contenido.innerHTML = '<div class="vacio">Hoy no hay incidencias.</div>';
-    return;
-  }
-
-  const porTipo = incidencias.reduce((acc, inc) => {
-    const tipo = inc.tipo || 'sin_tipo';
-    acc[tipo] = (acc[tipo] || 0) + 1;
-    return acc;
-  }, {});
-
-  resumen.style.display = 'block';
-  resumen.textContent = `${incidencias.length} ${incidencias.length === 1 ? 'incidencia' : 'incidencias'} hoy · ` +
-    Object.entries(porTipo).map(([tipo, n]) => `${tipo}: ${n}`).join(' · ');
-
-  contenido.innerHTML = incidencias.map(inc => {
-    const t = inc.trabajador || {};
-    const o = inc.obra || {};
-    const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || 'Trabajador no identificado';
-    const dni = t.dni ? `DNI: ${t.dni}` : 'DNI no disponible';
-    const obra = o.nombre ? `Obra: ${o.nombre}` : 'Obra no disponible';
-    const estado = inc.estado || 'nueva';
-    const detalle = inc.detalle || inc.comentario || 'Sin detalle registrado';
-    return `
-      <div class="acceso-item">
-        <div class="acceso-top">
-          <div>
-            <div class="acceso-nombre">${esc(nombre)}</div>
-            <div class="acceso-meta">${esc(dni)} · ${esc(obra)} · ${esc(formatHora(inc.created_at))}</div>
-          </div>
-          <div class="acceso-contador naranja">${esc(inc.tipo || 'incidencia')}</div>
-        </div>
-        <div class="acceso-detalle">Estado: ${esc(estado)}<br>${esc(detalle)}</div>
-      </div>`;
-  }).join('');
+  const contenido = document.getElementById('modal-incidencias-contenido'), resumen = document.getElementById('modal-incidencias-resumen');
+  if (!incidencias || incidencias.length === 0) { resumen.style.display = 'none'; contenido.innerHTML = '<div class="vacio">Hoy no hay incidencias.</div>'; return; }
+  const porTipo = incidencias.reduce((acc, inc) => { const tipo = inc.tipo || 'sin_tipo'; acc[tipo] = (acc[tipo] || 0) + 1; return acc; }, {});
+  resumen.style.display = 'block'; resumen.textContent = `${incidencias.length} ${incidencias.length === 1 ? 'incidencia' : 'incidencias'} hoy · ` + Object.entries(porTipo).map(([tipo, n]) => `${tipo}: ${n}`).join(' · ');
+  contenido.innerHTML = incidencias.map(inc => { const t = inc.trabajador || {}, o = inc.obra || {}; const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || 'Trabajador no identificado', dni = t.dni ? `DNI: ${t.dni}` : 'DNI no disponible', obra = o.nombre ? `Obra: ${o.nombre}` : 'Obra no disponible', estado = inc.estado || 'nueva', detalle = inc.detalle || inc.comentario || 'Sin detalle registrado'; return `<div class="acceso-item"><div class="acceso-top"><div><div class="acceso-nombre">${esc(nombre)}</div><div class="acceso-meta">${esc(dni)} · ${esc(obra)} · ${esc(formatHora(inc.created_at))}</div></div><div class="acceso-contador naranja">${esc(inc.tipo || 'incidencia')}</div></div><div class="acceso-detalle">Estado: ${esc(estado)}<br>${esc(detalle)}</div></div>`; }).join('');
 }
 
-function cerrarModalIncidencias() {
-  document.getElementById('modal-incidencias-overlay').classList.remove('visible');
-}
-
-document.getElementById('modal-incidencias-overlay').addEventListener('click', e => {
-  if (e.target === document.getElementById('modal-incidencias-overlay')) cerrarModalIncidencias();
-});
+function cerrarModalIncidencias() { document.getElementById('modal-incidencias-overlay').classList.remove('visible'); }
+document.getElementById('modal-incidencias-overlay').addEventListener('click', e => { if (e.target === document.getElementById('modal-incidencias-overlay')) cerrarModalIncidencias(); });
 
 function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
 function formatHora(iso) { if (!iso) return '—'; return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); }
