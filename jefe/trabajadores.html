@@ -9,6 +9,7 @@
 <script src="../js/branding.js"></script>
   <script src="../js/auto-logout.js"></script>
   <script src="../js/fechas.js"></script>
+  <script src="../js/sb-paginado.js"></script>
   <script src="../js/jornadas.js"></script>
   <script src="../js/habilitaciones.js"></script>
   <script src="../js/foto-identidad.js"></script>
@@ -639,6 +640,11 @@ let obraFiltroTrabajadores = '';
 // Solo tiene sentido con una obra elegida: el tipo se asigna por obra.
 let tiposJornadaObra = [];
 let asigJornadaPorTrab = {};
+// Asignaciones que empiezan MÁS ADELANTE. Sin esto, asignar con fecha
+// futura guardaba bien pero la columna no cambiaba, y parecía que había
+// fallado. Una pantalla que no enseña lo que acabas de guardar te hace
+// guardarlo otra vez.
+let asigFuturaPorTrab = {};
 let jornadasError = false;
 let miUsuarioId = null;
 
@@ -1148,22 +1154,33 @@ function prepararFiltroTrabajadores() {
 // lanza: si falla, la columna dice "no disponible" en vez de mentir con un
 // "sin tipo" que haría pensar que nadie tiene horario propio.
 async function cargarJornadasTrabajadores() {
-  tiposJornadaObra = []; asigJornadaPorTrab = {}; jornadasError = false;
+  tiposJornadaObra = []; asigJornadaPorTrab = {}; asigFuturaPorTrab = {};
+  jornadasError = false;
   if (!obraFiltroTrabajadores) return;
   try {
+    if (!window.SbPaginado) throw new Error('falta js/sb-paginado.js');
     const hoy = new Date().toISOString().slice(0, 10);
-    const [rT, rA] = await Promise.all([
-      sb.from('tipos_jornada')
+    // Paginado: Supabase corta en 1.000 filas sin avisar, y cada cambio de
+    // tipo añade una fila. Sin esto, el día que se pasara de 1.000 habría
+    // gente saliendo como "Por defecto" sin ser verdad y sin ningún error.
+    const [datosT, datosA] = await Promise.all([
+      window.SbPaginado.traerTodo(() => sb.from('tipos_jornada')
         .select('id,nombre,entrada,salida,almuerzo_min,comida_min,activo')
-        .eq('obra_id', obraFiltroTrabajadores).eq('activo', true).order('nombre'),
-      sb.from('asignaciones_jornada')
+        .eq('obra_id', obraFiltroTrabajadores).eq('activo', true)
+        .order('nombre', { ascending: true })),
+      window.SbPaginado.traerTodo(() => sb.from('asignaciones_jornada')
         .select('trabajador_id,tipo_jornada_id,desde,hasta')
-        .eq('obra_id', obraFiltroTrabajadores).lte('desde', hoy)
+        .eq('obra_id', obraFiltroTrabajadores)
+        .order('desde', { ascending: true }))
     ]);
-    if (rT.error) throw rT.error;
-    if (rA.error) throw rA.error;
-    tiposJornadaObra = rT.data || [];
-    (rA.data || []).forEach(a => {
+    tiposJornadaObra = datosT || [];
+    (datosA || []).forEach(a => {
+      if (a.desde > hoy) {
+        // Programada para más adelante. Se guarda la MÁS PRÓXIMA: vienen
+        // ordenadas por fecha, así que la primera que llega es esa.
+        if (!asigFuturaPorTrab[a.trabajador_id]) asigFuturaPorTrab[a.trabajador_id] = a;
+        return;
+      }
       if (a.hasta && a.hasta < hoy) return;
       asigJornadaPorTrab[a.trabajador_id] = a.tipo_jornada_id;
     });
@@ -1177,9 +1194,17 @@ function nombreTipoJornada(trabId) {
   if (!obraFiltroTrabajadores) return null;
   if (jornadasError) return '⚠ no disponible';
   const id = asigJornadaPorTrab[trabId];
-  if (!id) return 'Por defecto';
-  const t = tiposJornadaObra.find(x => x.id === id);
-  return t ? t.nombre : '⚠ tipo borrado';
+  const t = id ? tiposJornadaObra.find(x => x.id === id) : null;
+  let txt = id ? (t ? t.nombre : '⚠ tipo borrado') : 'Por defecto';
+
+  const fut = asigFuturaPorTrab[trabId];
+  if (fut) {
+    const tf = fut.tipo_jornada_id
+      ? tiposJornadaObra.find(x => x.id === fut.tipo_jornada_id) : null;
+    const d = String(fut.desde).slice(0, 10).split('-');
+    txt += ' → ' + (tf ? tf.nombre : 'otro') + ' el ' + d[2] + '/' + d[1];
+  }
+  return txt;
 }
 
 function obtenerObraFiltro() {
