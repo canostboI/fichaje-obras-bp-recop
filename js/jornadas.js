@@ -30,8 +30,13 @@
    propio: a Verónica no se le cambia su jornada porque la obra marque
    un día intensiva.
 
-   DEPENDE de js/fechas.js NO — trabaja con fechas 'YYYY-MM-DD' ya
-   normalizadas por quien llama.
+   DEPENDE de js/sb-paginado.js. Supabase corta en 1.000 filas SIN AVISAR:
+   si `asignaciones_jornada` pasara de ahí, faltarían personas y esas
+   calcularían con el horario general sin que nada fallara. Silencioso y
+   caro. Si el paginador no está cargado, esto se niega a leer en vez de
+   leer a medias.
+
+   Trabaja con fechas 'YYYY-MM-DD' ya normalizadas por quien llama.
    ============================================================ */
 (function () {
   'use strict';
@@ -49,22 +54,29 @@
     if (!sb || !obraId) return vacio;
 
     try {
-      const [rTipos, rAsig, rDias] = await Promise.all([
-        sb.from('tipos_jornada')
+      if (!window.SbPaginado) {
+        throw new Error('falta js/sb-paginado.js: no se lee a medias');
+      }
+
+      // traerTodo() LANZA si algo falla; no devuelve datos incompletos.
+      // El .order() es obligatorio: sin orden fijo la paginación duplica
+      // unas filas y se deja otras.
+      const [datosTipos, datosAsig, datosDias] = await Promise.all([
+        window.SbPaginado.traerTodo(() => sb.from('tipos_jornada')
           .select('id,nombre,entrada,salida,almuerzo_fin,almuerzo_min,comida_fin,comida_min,activo')
-          .eq('obra_id', obraId),
-        sb.from('asignaciones_jornada')
+          .eq('obra_id', obraId).order('id', { ascending: true })),
+        window.SbPaginado.traerTodo(() => sb.from('asignaciones_jornada')
           .select('trabajador_id,tipo_jornada_id,desde,hasta')
-          .eq('obra_id', obraId),
-        sb.from('dias_intensiva_obra')
+          .eq('obra_id', obraId).order('id', { ascending: true })),
+        window.SbPaginado.traerTodo(() => sb.from('dias_intensiva_obra')
           .select('fecha,tipo_jornada_id')
-          .eq('obra_id', obraId)
-          .not('tipo_jornada_id', 'is', null)
+          .eq('obra_id', obraId).not('tipo_jornada_id', 'is', null)
+          .order('fecha', { ascending: true }))
       ]);
 
-      if (rTipos.error) throw rTipos.error;
-      if (rAsig.error)  throw rAsig.error;
-      if (rDias.error)  throw rDias.error;
+      const rTipos = { data: datosTipos };
+      const rAsig  = { data: datosAsig };
+      const rDias  = { data: datosDias };
 
       const tipos = {};
       (rTipos.data || []).forEach(t => { tipos[t.id] = normalizarTipo(t); });
