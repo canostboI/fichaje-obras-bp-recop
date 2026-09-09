@@ -1315,6 +1315,40 @@ function pintarPanelIntensiva(mes) {
   }
 }
 
+// 81ª. Cuánta gente del mes en pantalla NO tiene tipo propio y, por tanto,
+// cobra contra el horario normal de la obra. Es a quien afecta cambiarlo.
+// Si no se puede saber, devuelve null: el aviso lo dirá en genérico en vez
+// de inventarse una cifra.
+function personasSinTipoPropio() {
+  if (!ctxJornadas || !ctxJornadas.asignaciones) return null;
+  const ids = Object.keys(resumenTrabajadores || {});
+  if (ids.length === 0) return null;
+  let n = 0;
+  ids.forEach(id => {
+    const asig = ctxJornadas.asignaciones[id];
+    if (!asig || asig.length === 0) n++;
+  });
+  return { sinTipo: n, total: ids.length };
+}
+
+// Meses ya cerrados de esta obra cuyo cierre se calculó con el horario que
+// se está a punto de cambiar. El cierre guarda las reglas usadas, así que
+// se puede decir exactamente cuáles dejarían de cuadrar.
+async function cierresQueDejarianDeCuadrar(entrada, salida, descanso) {
+  const { data, error } = await sb.from('cierres_mes')
+    .select('mes, total_horas, reglas')
+    .eq('obra_id', obraActual).eq('vigente', true);
+  if (error || !data) return null;
+
+  const hhmmss = t => (t ? String(t).slice(0, 5) : '');
+  return data.filter(c => {
+    const r = c.reglas || {};
+    return hhmmss(r.hora_entrada_default) !== entrada
+        || hhmmss(r.hora_salida_default) !== salida
+        || Number(r.minutos_descanso) !== Number(descanso);
+  }).sort((a, b) => String(a.mes).localeCompare(String(b.mes)));
+}
+
 async function guardarHorarioNormal() {
   const nm = document.getElementById('norm-msg');
   if (!obraActual) { nm.textContent = 'No hay obra seleccionada.'; return; }
@@ -1323,6 +1357,45 @@ async function guardarHorarioNormal() {
   const descanso = parseInt(document.getElementById('norm-descanso').value, 10);
   if (!entrada || !salida) { nm.textContent = 'Hace falta hora de entrada y de salida.'; return; }
   if (isNaN(descanso) || descanso < 0 || descanso > 480) { nm.textContent = 'El descanso debe estar entre 0 y 480 min.'; return; }
+
+  // ¿Cambia algo de verdad? Si le das a guardar sin tocar nada, no hay que
+  // asustar a nadie.
+  const igual = horarioNormal
+    && String(horarioNormal.entrada || '').slice(0,5) === entrada
+    && String(horarioNormal.salida  || '').slice(0,5) === salida
+    && Number(horarioNormal.descanso) === Number(descanso);
+
+  if (!igual) {
+    // El horario normal NO tiene fecha de vigencia: cambiarlo recalcula
+    // hacia atrás todo lo que se pinte en pantalla. A diferencia de los
+    // tipos de jornada, aquí no hay nada que lo impida, así que al menos
+    // que no sea silencioso.
+    nm.textContent = 'Comprobando a quién afecta…';
+    const cuenta = personasSinTipoPropio();
+    const cierres = await cierresQueDejarianDeCuadrar(entrada, salida, descanso);
+
+    let texto = 'Vas a cambiar el HORARIO NORMAL de la obra.\n\n';
+    texto += cuenta
+      ? `Afecta a ${cuenta.sinTipo} de las ${cuenta.total} personas del mes en pantalla: todas las que no tienen un tipo de jornada propio.\n\n`
+      : 'Afecta a todas las personas que no tienen un tipo de jornada propio.\n\n';
+    texto += 'Este horario NO tiene fecha de vigencia: el cambio recalcula también los días ya trabajados, no solo los de aquí en adelante.\n\n';
+
+    if (cierres === null) {
+      texto += 'No se ha podido comprobar si hay meses cerrados afectados.\n\n';
+    } else if (cierres.length > 0) {
+      texto += `ATENCIÓN — ${cierres.length} mes(es) ya cerrados se calcularon con el horario actual:\n`;
+      cierres.forEach(c => {
+        const m = String(c.mes).slice(0, 7);
+        texto += `   · ${m}: ${Number(c.total_horas).toFixed(2).replace('.', ',')} h firmadas\n`;
+      });
+      texto += '\nEsos totales quedan registrados, pero la pantalla los recalculará con el horario nuevo y dejará de cuadrar con lo firmado.\n\n';
+    }
+
+    texto += '¿Continuar?';
+
+    if (!confirm(texto)) { nm.textContent = 'Cancelado. No se ha cambiado nada.'; return; }
+  }
+
   nm.textContent = 'Guardando…';
   const { error } = await sb.rpc('guardar_horario_normal', {
     p_obra_id: obraActual, p_entrada: entrada, p_salida: salida, p_descanso: descanso
