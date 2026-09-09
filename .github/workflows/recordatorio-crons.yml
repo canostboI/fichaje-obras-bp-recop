@@ -9,6 +9,12 @@ name: Recordatorio · cambio de hora en crons
 # Minuto "raro" a propósito (congestión de GitHub Actions).
 # También se puede lanzar a mano desde la pestaña Actions.
 #
+# ⚠️ ACTUALIZADO 9/9/2026: los tres `aviso_ronda_*` (jobids 2, 3 y 4) pasaron
+# el 8/9 de `1-5` a `1-6` (ahora también avisan en sábado; la función comprueba
+# que haya alguien fichado antes de mandar nada). Las tablas de abajo llevaban
+# el `1-5` viejo: la issue de octubre habría hecho revertir el sábado sin que
+# nadie se diera cuenta. Corregido. **Solo cambia la HORA, nunca los días.**
+#
 # ⚠️ ACTUALIZADO 3/9/2026: añadido `caducar_forzados_diario` (jobid=11),
 # el que retira los estados forzados cuando se les acaba el margen de 5 días.
 # **NO necesita ajuste estacional**: corre a `30 3 * * *` (05:30 Madrid en
@@ -78,9 +84,9 @@ jobs:
           |------|----------------|----------------------|
           | GitHub · \`ecoordina.yml\` (1ª línea, la buena) | \`43 22 * * 0-4\` | \`43 23 * * 0-4\` |
           | GitHub · \`ecoordina.yml\` (2ª línea, refuerzo) | \`43 1 * * 1-5\` | \`43 2 * * 1-5\` |
-          | pg_cron · \`aviso_ronda_1\` | \`30 7 * * 1-5\` | \`30 8 * * 1-5\` |
-          | pg_cron · \`aviso_ronda_2\` | \`0 8 * * 1-5\` | \`0 9 * * 1-5\` |
-          | pg_cron · \`aviso_ronda_3\` | \`0 9 * * 1-5\` | \`0 10 * * 1-5\` |
+          | pg_cron · \`aviso_ronda_1\` | \`30 7 * * 1-6\` | \`30 8 * * 1-6\` |
+          | pg_cron · \`aviso_ronda_2\` | \`0 8 * * 1-6\` | \`0 9 * * 1-6\` |
+          | pg_cron · \`aviso_ronda_3\` | \`0 9 * * 1-6\` | \`0 10 * * 1-6\` |
           | pg_cron · \`auditoria_permisos_diaria\` | \`0 5 * * *\` | \`0 6 * * *\` |"
           else
             TITULO="🕑 Cambio de hora (VERANO): adelantar los crons — $(date -u +'%Y')"
@@ -89,9 +95,9 @@ jobs:
           |------|------------------|--------------------|
           | GitHub · \`ecoordina.yml\` (1ª línea, la buena) | \`43 23 * * 0-4\` | \`43 22 * * 0-4\` |
           | GitHub · \`ecoordina.yml\` (2ª línea, refuerzo) | \`43 2 * * 1-5\` | \`43 1 * * 1-5\` |
-          | pg_cron · \`aviso_ronda_1\` | \`30 8 * * 1-5\` | \`30 7 * * 1-5\` |
-          | pg_cron · \`aviso_ronda_2\` | \`0 9 * * 1-5\` | \`0 8 * * 1-5\` |
-          | pg_cron · \`aviso_ronda_3\` | \`0 10 * * 1-5\` | \`0 9 * * 1-5\` |
+          | pg_cron · \`aviso_ronda_1\` | \`30 8 * * 1-6\` | \`30 7 * * 1-6\` |
+          | pg_cron · \`aviso_ronda_2\` | \`0 9 * * 1-6\` | \`0 8 * * 1-6\` |
+          | pg_cron · \`aviso_ronda_3\` | \`0 10 * * 1-6\` | \`0 9 * * 1-6\` |
           | pg_cron · \`auditoria_permisos_diaria\` | \`0 6 * * *\` | \`0 5 * * *\` |"
           fi
 
