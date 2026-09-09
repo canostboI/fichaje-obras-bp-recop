@@ -1319,14 +1319,35 @@ function pintarPanelIntensiva(mes) {
 // cobra contra el horario normal de la obra. Es a quien afecta cambiarlo.
 // Si no se puede saber, devuelve null: el aviso lo dirá en genérico en vez
 // de inventarse una cifra.
+//
+// Se mira la VIGENCIA dentro del mes, no si la persona tiene alguna
+// asignación en su historia. No es lo mismo: las asignaciones que empiezan
+// el 01/09 no existían en julio, así que en julio esa gente cobraba contra
+// el horario de la obra igual que el resto. Contando por historia el aviso
+// decía 36 de 45 cuando el impacto real de julio eran las 45.
 function personasSinTipoPropio() {
   if (!ctxJornadas || !ctxJornadas.asignaciones) return null;
   const ids = Object.keys(resumenTrabajadores || {});
   if (ids.length === 0) return null;
+
+  const mes = document.getElementById('filtro-mes').value;
+  if (!/^\d{4}-\d{2}$/.test(mes)) return null;
+  const [y, m] = mes.split('-').map(Number);
+  const primerDia = `${mes}-01`;
+  const ultimoDia = `${mes}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`;
+
+  // ¿Solapa la asignación con algún día del mes? Un 'hasta' vacío es
+  // "sigue abierta", no "terminó".
+  const solapaElMes = a => {
+    const desde = a.desde || '0000-01-01';
+    const hasta = a.hasta || '9999-12-31';
+    return desde <= ultimoDia && hasta >= primerDia;
+  };
+
   let n = 0;
   ids.forEach(id => {
     const asig = ctxJornadas.asignaciones[id];
-    if (!asig || asig.length === 0) n++;
+    if (!asig || !asig.some(solapaElMes)) n++;
   });
   return { sinTipo: n, total: ids.length };
 }
