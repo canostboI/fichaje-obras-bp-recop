@@ -342,6 +342,7 @@ document.getElementById('btn-salir').addEventListener('click', async () => { awa
 const LIMITE_FICHAJES_TABLA = 400;
 
 async function cargarFichajes() {
+  try {
   const { desdeISO, hastaISO } = rangoHoyLocal();
   const { count: totalFichajes, error: errCount } = await sb.from('fichajes').select('id', { count: 'exact', head: true }).gte('hora', desdeISO).lte('hora', hastaISO);
   const { data, error: errData } = await sb.from('fichajes').select('tipo, hora, trabajador_id, obra_id, cierre_automatico, trabajador:trabajador_id(nombre, apellidos, dni), obra:obra_id(nombre)').gte('hora', desdeISO).lte('hora', hastaISO).order('hora', { ascending: true }).limit(LIMITE_FICHAJES_TABLA);
@@ -365,6 +366,7 @@ async function cargarFichajes() {
   if (ids.length > 0) { const { data: habs } = await sb.from('habilitaciones_trabajador').select('trabajador_id, tipo:tipo_habilitacion_id(nombre)').in('trabajador_id', ids).eq('activo', true); (habs || []).forEach(h => { const icono = Hab.icono(h.tipo?.nombre || ''); if (!habIconos[h.trabajador_id]) habIconos[h.trabajador_id] = []; if (!habIconos[h.trabajador_id].includes(icono)) habIconos[h.trabajador_id].push(icono); }); }
   const aviso = total > data.length ? `<div class="vacio" style="margin-top:10px">Se muestran los ${data.length} primeros fichajes de hoy, de ${total}.</div>` : '';
   document.getElementById('tabla-fichajes').innerHTML = `<table><thead><tr><th>Estado</th><th>Nombre</th><th>DNI</th><th>Obra</th><th>Entrada</th><th>Salida</th></tr></thead><tbody>${filas.map(g => { const iconos = (habIconos[g.trabajador_id] || []).join(' '); const iconosHtml = iconos ? `<span class="iconos-hab" title="Habilitaciones: ${iconos}">${iconos}</span>` : ''; const enObra = g.ultimoTipo === 'entrada'; const repetido = (g.nEntradas > 1 || g.nSalidas > 1) ? `<span style="opacity:0.6;font-size:11px;margin-left:5px" title="${g.nEntradas} entrada(s) y ${g.nSalidas} salida(s) hoy.">⇄${g.nEntradas + g.nSalidas}</span>` : ''; const auto = (g.salida && g.salidaAuto) ? `<span style="opacity:0.75;font-size:11px;margin-left:4px" title="Salida puesta por el cierre automático.">🕛</span>` : ''; return `<tr><td><span class="pill ${enObra ? 'verde' : 'azul'}">${enObra ? 'En obra' : 'Salió'}</span></td><td><strong>${esc(g.trabajador?.nombre)} ${esc(g.trabajador?.apellidos)}</strong>${iconosHtml}${repetido}</td><td>${esc(g.trabajador?.dni)}</td><td>${esc(g.obra?.nombre)}</td><td>${formatHora(g.entrada)}</td><td>${g.salida ? formatHora(g.salida) + auto : '—'}</td></tr>`; }).join('')}</tbody></table>${aviso}`;
+  } catch (ex) { console.error('cargarFichajes:', ex); document.getElementById('stat-fichajes').textContent = '!'; document.getElementById('badge-fichajes').textContent = 'error'; document.getElementById('tabla-fichajes').innerHTML = '<div class="fallo">⚠ Error inesperado al cargar fichajes: ' + esc(ex.message || String(ex)) + '</div>'; }
 }
 
 async function cargarObras() {
@@ -462,6 +464,7 @@ async function cargarTablaRojos() {
 const LIMITE_INCIDENCIAS_TABLA = 50;
 
 async function cargarIncidencias() {
+  try {
   const { desdeISO, hastaISO } = rangoHoyLocal();
   const { data, count, error } = await sb.from('incidencias').select('tipo, detalle, comentario, created_at, trabajador:trabajador_id(nombre, apellidos), obra:obra_id(nombre)', { count: 'exact' }).gte('created_at', desdeISO).lte('created_at', hastaISO).order('created_at', { ascending: false }).limit(LIMITE_INCIDENCIAS_TABLA);
   if (error) { document.getElementById('stat-incidencias').textContent = '—'; document.getElementById('badge-incidencias').textContent = 'sin datos'; document.getElementById('tabla-incidencias').innerHTML = '<div class="fallo">⚠ No se han podido consultar las incidencias de hoy. Vuelve a cargar la página.</div>'; return; }
@@ -471,6 +474,7 @@ async function cargarIncidencias() {
   if (!data || data.length === 0) { document.getElementById('tabla-incidencias').innerHTML = '<div class="vacio">No hay incidencias hoy</div>'; return; }
   const avisoInc = total > n ? `<div class="vacio" style="margin-top:10px">Se muestran las ${n} más recientes, de ${total}.</div>` : '';
   document.getElementById('tabla-incidencias').innerHTML = `<table><thead><tr><th>Trabajador</th><th>Obra</th><th>Tipo</th><th>Detalle</th><th>Hora</th></tr></thead><tbody>${data.map(i => `<tr><td><strong>${esc(i.trabajador?.nombre)} ${esc(i.trabajador?.apellidos)}</strong></td><td>${esc(i.obra?.nombre)}</td><td><span class="pill naranja">${esc(i.tipo)}</span></td><td>${esc(i.detalle || '—')}${i.comentario ? '<br><small style="color:var(--texto2)">' + esc(i.comentario) + '</small>' : ''}</td><td>${formatHora(i.created_at)}</td></tr>`).join('')}</tbody></table>${avisoInc}`;
+  } catch (ex) { console.error('cargarIncidencias:', ex); document.getElementById('stat-incidencias').textContent = '!'; document.getElementById('badge-incidencias').textContent = 'error'; document.getElementById('tabla-incidencias').innerHTML = '<div class="fallo">⚠ Error inesperado al cargar incidencias: ' + esc(ex.message || String(ex)) + '</div>'; }
 }
 
 function cerrarModalAccesos() { document.getElementById('modal-accesos-overlay').classList.remove('visible'); }
