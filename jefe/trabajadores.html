@@ -1398,6 +1398,14 @@ function abrirModalJornada(ids, etiqueta) {
       <input type="date" id="mj-desde" value="${primeroMes}" style="width:100%;padding:8px;margin-bottom:4px;background:#2a2a2a;color:#eee;border:1px solid #555;border-radius:6px">
       <div style="font-size:.8rem;opacity:.6;margin-bottom:12px">Los días anteriores a esta fecha no cambian. Un mes ya cerrado no se puede tocar.</div>
 
+      <label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:12px;cursor:pointer">
+        <input type="checkbox" id="mj-intensiva" checked style="margin-top:3px;flex:0 0 auto">
+        <span>
+          <span style="font-size:.9rem">En los días marcados ☀ hace el horario de la obra</span>
+          <span style="display:block;font-size:.8rem;opacity:.6;margin-top:2px">Déjala marcada si en verano esta gente hace la jornada intensiva como el resto de la obra. Desmárcala solo si mantiene su horario pactado también esos días.</span>
+        </span>
+      </label>
+
       <label style="display:block;font-size:.85rem;opacity:.8;margin-bottom:4px">Motivo (opcional)</label>
       <input type="text" id="mj-motivo" placeholder="p. ej. cambio de turno acordado con el encargado" style="width:100%;padding:8px;margin-bottom:16px;background:#2a2a2a;color:#eee;border:1px solid #555;border-radius:6px">
 
@@ -1423,6 +1431,7 @@ async function guardarJornada() {
   const tipo = document.getElementById('mj-tipo').value || null;
   const desde = document.getElementById('mj-desde').value;
   const motivo = document.getElementById('mj-motivo').value;
+  const seguirIntensiva = document.getElementById('mj-intensiva').checked;
 
   if (!desde) { msg.innerHTML = '<span style="color:#f88">Falta la fecha.</span>'; return; }
   btn.disabled = true; msg.textContent = 'Guardando…';
@@ -1432,7 +1441,8 @@ async function guardarJornada() {
     p_obra_id: obraFiltroTrabajadores,
     p_tipo_jornada_id: tipo,
     p_desde: desde,
-    p_motivo: motivo
+    p_motivo: motivo,
+    p_seguir_intensiva_obra: seguirIntensiva
   });
 
   if (error || !data || data.ok !== true) {
