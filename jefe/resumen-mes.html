@@ -251,6 +251,37 @@ function etiquetaCat(t) {
   .pi-fila input, .pi-marcar input { background: var(--bg3); border: 1px solid var(--borde); border-radius: 6px; color: var(--texto); padding: 6px 8px; font-family: inherit; font-size: 14px; color-scheme: dark; }
   .pi-marcar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; font-size: 14px; }
   .pi-estado { font-size: 13px; color: var(--texto2); }
+
+  /* 81ª. Tipos de jornada: viven en este mismo panel porque son la cuarta
+     pieza de "los horarios de esta obra", junto a normal, intensiva y sábados. */
+  .pi-sep { border-top: 1px solid var(--borde); margin: 6px 0 2px; }
+  .pi-tipos-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .pi-tipos-nota { font-size: 11.5px; color: var(--texto2); line-height: 1.5; max-width: 720px; }
+  table.tipos { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 4px; }
+  table.tipos th { text-align: left; padding: 7px 10px; font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--borde); }
+  table.tipos td { padding: 9px 10px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+  table.tipos tr:last-child td { border-bottom: none; }
+  table.tipos tr.inactivo td { opacity: 0.45; }
+  table.tipos .horas { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .tj-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+  .tj-uso { background: rgba(255,152,0,0.15); color: var(--naranja); border: 1px solid rgba(255,152,0,0.4); }
+  .tj-libre { background: rgba(76,175,80,0.13); color: var(--verde); border: 1px solid rgba(76,175,80,0.4); }
+  .tj-off { background: var(--bg3); color: var(--texto2); border: 1px solid var(--borde); }
+  .btn-mini { background: transparent; border: 1px solid var(--borde); color: var(--texto2); border-radius: 6px; padding: 4px 9px; font-size: 12px; cursor: pointer; font-family: inherit; margin-right: 5px; }
+  .btn-mini:hover:not(:disabled) { background: var(--bg3); color: var(--texto); }
+  .btn-mini:disabled { opacity: 0.3; cursor: not-allowed; }
+  .btn-mini.peligro { border-color: rgba(244,67,54,0.4); color: var(--rojo); }
+  .btn-mini.peligro:hover:not(:disabled) { background: rgba(244,67,54,0.12); }
+  .tj-vacio { font-size: 13px; color: var(--texto2); padding: 10px 0; }
+  .tj-previo { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 12px 14px; font-size: 13px; line-height: 1.5; margin-bottom: 4px; }
+  .tj-previo .grande { font-size: 19px; font-weight: 800; color: var(--naranja); font-variant-numeric: tabular-nums; }
+  .tj-previo.malo { border-color: rgba(244,67,54,0.5); }
+  .tj-previo.malo .grande { color: var(--rojo); }
+  .tj-fila2 { display: flex; gap: 12px; }
+  .tj-fila2 > * { flex: 1; }
+  .tj-ayuda { font-size: 11.5px; color: var(--texto2); line-height: 1.45; margin-top: 5px; }
+  .tj-error { color: var(--rojo); font-size: 13px; line-height: 1.5; margin-bottom: 12px; display: none; }
+  .tj-error.visible { display: block; }
   table.mes th.intensiva { box-shadow: inset 0 -3px 0 #ff9800; }
   table.mes th.intensiva .num::after { content: " ☀"; }
 </style>
@@ -296,7 +327,7 @@ function etiquetaCat(t) {
     </div>
 
     <details class="panel-intensiva" id="panel-intensiva">
-      <summary>☀️ Jornada intensiva (horario de verano)</summary>
+      <summary>☀️ Horarios de la obra (jornada normal, verano, sábados y tipos)</summary>
       <div class="pi-cuerpo">
         <div class="pi-cols">
           <div class="pi-col">
@@ -336,6 +367,20 @@ function etiquetaCat(t) {
           <button class="btn-secundario" id="btn-quitar-intensiva">Quitar</button>
         </div>
         <div class="pi-estado"><b id="int-count">0</b> día(s) marcados como intensiva este mes. <span class="msg-info" id="int-msg"></span></div>
+
+        <div class="pi-sep"></div>
+        <div class="pi-tipos-cab">
+          <div class="pi-tit" style="margin:0">Tipos de jornada de la obra</div>
+          <button class="btn-naranja" id="btn-tj-nuevo">➕ Nuevo tipo</button>
+        </div>
+        <div class="pi-tipos-nota">
+          Horarios alternativos que puedes asignar a personas concretas desde <b>Trabajadores</b>.
+          Quien no lleve ninguno hace la jornada normal de arriba.
+          Un tipo <b>que ya tiene gente asignada no se puede modificar ni borrar</b>: cambiarle una hora
+          recalcularía días ya trabajados. Si el horario cambia, crea un tipo nuevo y reasigna a esa gente
+          con la fecha desde la que empieza.
+        </div>
+        <div id="tj-zona"><div class="tj-vacio">Cargando…</div></div>
       </div>
     </details>
 
@@ -487,6 +532,47 @@ function etiquetaCat(t) {
     <div class="modal-acciones">
       <button class="btn-secundario" id="btn-cancelar-eliminar">Cancelar</button>
       <button class="btn-primario-rojo" id="btn-confirmar-eliminar">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- 81ª. Alta y edición de tipos de jornada. Vive junto al panel de horarios. -->
+<div class="modal-overlay" id="modal-tj">
+  <div class="modal" style="max-width:520px">
+    <h2 id="tj-titulo">Nuevo tipo de jornada</h2>
+    <div class="subtitulo" id="tj-sub"></div>
+    <div class="tj-error" id="tj-error"></div>
+
+    <div class="campo">
+      <label>Nombre</label>
+      <input type="text" id="tj-nombre" maxlength="60" placeholder="Ej.: E · Sin ruido a partir de las 14:00">
+      <div class="tj-ayuda">Que se entienda de un vistazo en la lista de trabajadores.</div>
+    </div>
+
+    <div class="tj-fila2">
+      <div class="campo"><label>Entrada</label><input type="time" id="tj-entrada" value="08:00"></div>
+      <div class="campo"><label>Salida</label><input type="time" id="tj-salida" value="17:00"></div>
+    </div>
+
+    <div class="tj-fila2">
+      <div class="campo"><label>Almuerzo — acaba</label><input type="time" id="tj-alm-fin"></div>
+      <div class="campo"><label>Almuerzo — min</label><input type="number" id="tj-alm-min" min="0" max="240" step="5" value="0"></div>
+    </div>
+
+    <div class="tj-fila2">
+      <div class="campo"><label>Comida — acaba</label><input type="time" id="tj-com-fin"></div>
+      <div class="campo"><label>Comida — min</label><input type="number" id="tj-com-min" min="0" max="240" step="5" value="0"></div>
+    </div>
+    <div class="tj-ayuda" style="margin:-8px 0 16px">
+      Si una pausa no existe, déjala en 0 minutos. Las horas de fin son las que usa
+      el sistema para saber si alguien fichó antes o después de la pausa.
+    </div>
+
+    <div class="tj-previo" id="tj-previo"></div>
+
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-tj-cancelar">Cancelar</button>
+      <button class="btn-primario" id="btn-tj-guardar">Guardar</button>
     </div>
   </div>
 </div>
@@ -698,6 +784,16 @@ function textoCalculoIncompleto(queSale) {
   // El botón del panel de cierre es el mismo paso, no una función aparte
   document.getElementById('pc-btn-exportar').addEventListener('click', exportarExcelProforma);
   document.getElementById('btn-guardar-normal').addEventListener('click', guardarHorarioNormal);
+
+  // 81ª. Tipos de jornada, dentro del mismo panel de horarios.
+  document.getElementById('btn-tj-nuevo').addEventListener('click', () => abrirModalTipo(null));
+  document.getElementById('btn-tj-cancelar').addEventListener('click', cerrarModalTipo);
+  document.getElementById('btn-tj-guardar').addEventListener('click', guardarTipoJornada);
+  document.getElementById('modal-tj').addEventListener('click', e => {
+    if (e.target.id === 'modal-tj') cerrarModalTipo();
+  });
+  ['tj-nombre','tj-entrada','tj-salida','tj-alm-fin','tj-alm-min','tj-com-fin','tj-com-min']
+    .forEach(id => document.getElementById(id).addEventListener('input', refrescarPrevioTipo));
 
   // Revisión de dobles pases del QR. Delegado: las filas se repintan.
   document.getElementById('btn-cerrar-qr').addEventListener('click', cerrarRevisionQR);
@@ -1290,6 +1386,9 @@ async function cargarIntensiva(mes) {
 }
 
 function pintarPanelIntensiva(mes) {
+  // Los tipos se releen aquí: así cambiar de obra o de mes deja el panel
+  // coherente sin tener que acordarse de refrescarlos en cada sitio.
+  cargarTiposJornada();
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   const val = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
   val('norm-entrada', (horarioNormal.entrada ? String(horarioNormal.entrada).slice(0,5) : '08:00'));
@@ -1458,6 +1557,250 @@ async function guardarHorarioSabado() {
   await cargarResumen();
   const sm2 = document.getElementById('sab-msg');
   if (sm2) sm2.textContent = salida === '' ? '✓ Sábado sin hora especial.' : '✓ Hora de sábado guardada.';
+}
+
+// ============================================================
+// 81ª. TIPOS DE JORNADA DE LA OBRA
+// Criterio: crear libre; un tipo EN USO no se edita ni se borra. Así el
+// recálculo retroactivo no puede ocurrir, en vez de tener que protegerlo.
+// La base impone lo mismo; esto solo lo dice en cristiano antes.
+// ============================================================
+
+let tiposJornadaLista = [];
+let tjEditandoId = null;   // null = alta
+
+function tjHhmm(t) { return t ? String(t).slice(0, 5) : '—'; }
+
+function tjAMin(t) {
+  if (!t) return null;
+  const p = String(t).split(':');
+  if (p.length < 2) return null;
+  const h = parseInt(p[0], 10), m = parseInt(p[1], 10);
+  if (isNaN(h) || isNaN(m)) return null;
+  return h * 60 + m;
+}
+
+// Lo que paga el tipo: (salida - entrada) menos las pausas. Mismo cálculo
+// que hace el motor. Se enseña para que un dedazo se vea ANTES de guardar.
+function tjHorasNetas(t) {
+  const e = tjAMin(t.entrada), s = tjAMin(t.salida);
+  if (e === null || s === null || s <= e) return null;
+  const netas = (s - e) - (Number(t.almuerzo_min) || 0) - (Number(t.comida_min) || 0);
+  return netas > 0 ? netas / 60 : null;
+}
+
+function tjFmtHoras(h) { return h === null ? '—' : h.toFixed(2).replace('.', ',') + ' h'; }
+
+function tjEsc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+async function cargarTiposJornada() {
+  const zona = document.getElementById('tj-zona');
+  if (!zona) return;
+  tiposJornadaLista = [];
+
+  if (!obraActual) { zona.innerHTML = '<div class="tj-vacio">No hay obra seleccionada.</div>'; return; }
+  zona.innerHTML = '<div class="tj-vacio">Cargando…</div>';
+
+  const { data, error } = await sb.rpc('listar_tipos_jornada', { p_obra_id: obraActual });
+
+  // Un fallo aquí se dice. Una lista vacía por error parece una obra sin
+  // tipos, y se acabarían creando duplicados encima de los que ya hay.
+  if (error || !data || data.ok === false) {
+    zona.innerHTML = `<div class="tj-vacio" style="color:var(--rojo)">No se ha podido cargar la lista de tipos: ${tjEsc(error?.message || data?.error || 'error desconocido')}</div>`;
+    return;
+  }
+
+  tiposJornadaLista = data.tipos || [];
+  pintarTiposJornada();
+}
+
+function pintarTiposJornada() {
+  const zona = document.getElementById('tj-zona');
+  if (!zona) return;
+
+  if (tiposJornadaLista.length === 0) {
+    zona.innerHTML = '<div class="tj-vacio">Esta obra no tiene ningún tipo de jornada: todo el mundo hace la jornada normal de arriba.</div>';
+    return;
+  }
+
+  const filas = tiposJornadaLista.map(t => {
+    const enUso = Number(t.en_uso) || 0;
+    const pausas = [];
+    if (Number(t.almuerzo_min) > 0) pausas.push(`${t.almuerzo_min} min hasta ${tjHhmm(t.almuerzo_fin)}`);
+    if (Number(t.comida_min) > 0) pausas.push(`${t.comida_min} min hasta ${tjHhmm(t.comida_fin)}`);
+
+    const bloqueo = enUso > 0
+      ? `Lo tienen asignado ${enUso} persona(s): modificarlo recalcularía días ya trabajados. Crea un tipo nuevo y reasigna.`
+      : '';
+
+    return `<tr class="${t.activo ? '' : 'inactivo'}">
+      <td><b>${tjEsc(t.nombre)}</b>${t.activo ? '' : ' <span class="tj-pill tj-off">Desactivado</span>'}</td>
+      <td>${tjHhmm(t.entrada)} – ${tjHhmm(t.salida)}</td>
+      <td>${pausas.length ? tjEsc(pausas.join(' · ')) : '<span style="color:var(--texto2)">Sin pausas</span>'}</td>
+      <td class="horas">${tjFmtHoras(tjHorasNetas(t))}</td>
+      <td>${enUso > 0
+        ? `<span class="tj-pill tj-uso">${enUso} ${enUso === 1 ? 'persona' : 'personas'}</span>`
+        : '<span class="tj-pill tj-libre">Sin usar</span>'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn-mini" ${enUso > 0 ? 'disabled' : ''} title="${tjEsc(bloqueo || 'Editar este tipo')}" onclick="abrirModalTipo('${tjEsc(t.id)}')">Editar</button>
+        <button class="btn-mini" title="${t.activo ? 'Quitarlo del desplegable al asignar. No cambia ningún cálculo.' : 'Volver a ofrecerlo al asignar'}" onclick="cambiarActivoTipo('${tjEsc(t.id)}', ${t.activo ? 'false' : 'true'})">${t.activo ? 'Desactivar' : 'Reactivar'}</button>
+        <button class="btn-mini peligro" ${enUso > 0 ? 'disabled' : ''} title="${tjEsc(bloqueo || 'Borrar este tipo')}" onclick="borrarTipoJornada('${tjEsc(t.id)}')">Borrar</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  zona.innerHTML = `<table class="tipos">
+    <thead><tr><th>Nombre</th><th>Horario</th><th>Pausas</th><th>Paga</th><th>En uso</th><th></th></tr></thead>
+    <tbody>${filas}</tbody></table>`;
+}
+
+function abrirModalTipo(id) {
+  tjEditandoId = id || null;
+  const t = id ? tiposJornadaLista.find(x => x.id === id) : null;
+
+  document.getElementById('tj-titulo').textContent = t ? 'Editar tipo de jornada' : 'Nuevo tipo de jornada';
+  document.getElementById('tj-sub').textContent = nombreObraActual();
+  document.getElementById('tj-error').classList.remove('visible');
+
+  document.getElementById('tj-nombre').value  = t ? t.nombre : '';
+  document.getElementById('tj-entrada').value = t ? tjHhmm(t.entrada) : '08:00';
+  document.getElementById('tj-salida').value  = t ? tjHhmm(t.salida) : '17:00';
+  document.getElementById('tj-alm-fin').value = (t && t.almuerzo_fin) ? tjHhmm(t.almuerzo_fin) : '';
+  document.getElementById('tj-alm-min').value = t ? (t.almuerzo_min || 0) : 0;
+  document.getElementById('tj-com-fin').value = (t && t.comida_fin) ? tjHhmm(t.comida_fin) : '';
+  document.getElementById('tj-com-min').value = t ? (t.comida_min || 0) : 0;
+
+  refrescarPrevioTipo();
+  document.getElementById('modal-tj').classList.add('visible');
+  document.getElementById('tj-nombre').focus();
+}
+
+function cerrarModalTipo() {
+  document.getElementById('modal-tj').classList.remove('visible');
+  tjEditandoId = null;
+}
+
+function nombreObraActual() {
+  const sel = document.getElementById('selector-obra');
+  if (sel && sel.selectedIndex >= 0 && sel.options[sel.selectedIndex]) {
+    return sel.options[sel.selectedIndex].textContent || '';
+  }
+  return '';
+}
+
+function leerFormularioTipo() {
+  const almMin = Math.max(0, parseInt(document.getElementById('tj-alm-min').value, 10) || 0);
+  const comMin = Math.max(0, parseInt(document.getElementById('tj-com-min').value, 10) || 0);
+  return {
+    nombre: document.getElementById('tj-nombre').value.trim(),
+    entrada: document.getElementById('tj-entrada').value,
+    salida: document.getElementById('tj-salida').value,
+    almuerzo_fin: almMin > 0 ? (document.getElementById('tj-alm-fin').value || null) : null,
+    almuerzo_min: almMin,
+    comida_fin: comMin > 0 ? (document.getElementById('tj-com-fin').value || null) : null,
+    comida_min: comMin
+  };
+}
+
+// Las mismas reglas que la base, aquí para poder decirlo en cristiano
+// antes de tocar nada. La base las vuelve a comprobar igualmente: una
+// validación solo en pantalla no es una validación.
+function problemaConTipo(f) {
+  if (!f.nombre) return 'Ponle un nombre al tipo de jornada.';
+  if (!f.entrada || !f.salida) return 'Faltan la hora de entrada o la de salida.';
+  const e = tjAMin(f.entrada), s = tjAMin(f.salida);
+  if (s <= e) return 'La salida tiene que ser posterior a la entrada. Las jornadas que cruzan la medianoche todavía no están soportadas.';
+  if (f.almuerzo_min > 0 && !f.almuerzo_fin) return 'Has puesto minutos de almuerzo pero no a qué hora acaba.';
+  if (f.comida_min > 0 && !f.comida_fin) return 'Has puesto minutos de comida pero no a qué hora acaba.';
+  const a = tjAMin(f.almuerzo_fin), c = tjAMin(f.comida_fin);
+  if (a !== null && (a <= e || a >= s)) return 'La hora de fin del almuerzo tiene que estar dentro de la jornada.';
+  if (c !== null && (c <= e || c >= s)) return 'La hora de fin de la comida tiene que estar dentro de la jornada.';
+  if (a !== null && c !== null && a >= c) return 'El almuerzo tiene que ser antes que la comida.';
+  if ((s - e) - f.almuerzo_min - f.comida_min <= 0) return 'Las pausas se comen la jornada entera: no quedan horas que pagar.';
+  return null;
+}
+
+function refrescarPrevioTipo() {
+  const f = leerFormularioTipo();
+  const div = document.getElementById('tj-previo');
+  const problema = problemaConTipo(f);
+  const btn = document.getElementById('btn-tj-guardar');
+
+  if (problema) {
+    div.className = 'tj-previo malo';
+    div.innerHTML = `<span class="grande">—</span><br>${tjEsc(problema)}`;
+    btn.disabled = true;
+    return;
+  }
+
+  const pausas = f.almuerzo_min + f.comida_min;
+  div.className = 'tj-previo';
+  div.innerHTML = `Este tipo paga <span class="grande">${tjFmtHoras(tjHorasNetas(f))}</span> al día.<br>
+    De ${tjHhmm(f.entrada)} a ${tjHhmm(f.salida)}${pausas > 0 ? `, menos ${pausas} min de pausas` : ', sin pausas'}.`;
+  btn.disabled = false;
+}
+
+function errorTipo(msg) {
+  const e = document.getElementById('tj-error');
+  e.textContent = msg;
+  e.classList.add('visible');
+}
+
+async function guardarTipoJornada() {
+  const f = leerFormularioTipo();
+  const problema = problemaConTipo(f);
+  if (problema) { errorTipo(problema); return; }
+
+  const btn = document.getElementById('btn-tj-guardar');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  document.getElementById('tj-error').classList.remove('visible');
+
+  const { data, error } = await sb.rpc('guardar_tipo_jornada', {
+    p_obra_id: obraActual,
+    p_nombre: f.nombre,
+    p_entrada: f.entrada,
+    p_salida: f.salida,
+    p_almuerzo_fin: f.almuerzo_fin,
+    p_almuerzo_min: f.almuerzo_min,
+    p_comida_fin: f.comida_fin,
+    p_comida_min: f.comida_min,
+    p_id: tjEditandoId
+  });
+
+  btn.textContent = 'Guardar'; btn.disabled = false;
+
+  if (error) { errorTipo('No se ha podido guardar: ' + error.message); return; }
+  if (!data || data.ok === false) { errorTipo(data?.error || 'No se ha podido guardar.'); return; }
+
+  cerrarModalTipo();
+  await cargarTiposJornada();
+}
+
+async function cambiarActivoTipo(id, activo) {
+  const t = tiposJornadaLista.find(x => x.id === id);
+  if (!t) return;
+  if (!activo && !confirm(
+      `¿Desactivar «${t.nombre}»?\n\nDejará de aparecer al asignar el tipo a una persona.\n` +
+      `Los meses ya calculados no se tocan y quien lo tenga asignado sigue igual.`)) return;
+
+  const { data, error } = await sb.rpc('activar_tipo_jornada', { p_id: id, p_activo: activo });
+  if (error) { alert('No se ha podido cambiar: ' + error.message); return; }
+  if (!data || data.ok === false) { alert(data?.error || 'No se ha podido cambiar.'); return; }
+  await cargarTiposJornada();
+}
+
+async function borrarTipoJornada(id) {
+  const t = tiposJornadaLista.find(x => x.id === id);
+  if (!t) return;
+  if (!confirm(`¿Borrar «${t.nombre}»?\n\nNo lo usa nadie, así que se puede borrar sin consecuencias.\nEsto no se puede deshacer.`)) return;
+
+  const { data, error } = await sb.rpc('borrar_tipo_jornada', { p_id: id });
+  if (error) { alert('No se ha podido borrar: ' + error.message); return; }
+  if (!data || data.ok === false) { alert(data?.error || 'No se ha podido borrar.'); return; }
+  await cargarTiposJornada();
 }
 
 async function marcarIntensiva(marcar) {
