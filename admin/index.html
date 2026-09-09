@@ -303,8 +303,11 @@ async function cargarSaludCrons() {
   CRONS_ESPERADOS.forEach(nombre => { if (!presentes.has(nombre)) problemas.push(`«${nombre}» NO EXISTE en la base de datos`); });
   data.forEach(c => {
     if (!c.activo) { if (CRONS_ESPERADOS.includes(c.jobname)) problemas.push(`«${c.jobname}» está DESACTIVADO`); return; }
+    const partes = (c.schedule || '').trim().split(/\s+/);
+    const dow = partes.length >= 5 ? partes[4] : '*';
+    const esSemanal = (dow !== '*' && !dow.includes('-') && !dow.includes(','));
     const esLaborable = (c.schedule || '').includes('1-5');
-    const umbral = esLaborable && esFinDeSemanaOLunes ? 80 : 26;
+    const umbral = esSemanal ? 170 : (esLaborable && esFinDeSemanaOLunes ? 80 : 26);
     if (!c.ultima_ejecucion) { problemas.push(`«${c.jobname}» nunca ha llegado a ejecutarse`); }
     else if (c.estado === 'failed') { problemas.push(`«${c.jobname}» FALLÓ en su última ejecución${c.mensaje ? ' — ' + String(c.mensaje).slice(0, 120) : ''}`); }
     else if (Number(c.horas_desde_ultima) > umbral) { problemas.push(`«${c.jobname}» lleva ${Math.round(c.horas_desde_ultima)}h sin correr`); }
