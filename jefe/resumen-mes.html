@@ -1649,7 +1649,7 @@ function repartoTiposDelMes() {
     if (asig.length === 0) { normal++; return; }
     const elegida = asig.reduce((mejor, a) =>
       String(a.desde || '') > String(mejor.desde || '') ? a : mejor, asig[0]);
-    const tid = elegida.tipo_jornada_id;
+    const tid = elegida.tipo_id;
     porTipo[tid] = (porTipo[tid] || 0) + 1;
   });
 
