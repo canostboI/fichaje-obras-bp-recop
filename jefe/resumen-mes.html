@@ -3037,7 +3037,7 @@ function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
     filas += `<tr>
       <td class="col-nombre">
         <div class="nombre">${escapeHtml(t.nombre)}</div>
-        <div class="sub">${escapeHtml(t.dni || '')}${etiquetaCat(t) ? ' · ' + escapeHtml(etiquetaCat(t)) : ''}${(() => { const tj = etiquetaTipoJornada(t.id, year, month); return tj ? ' <span style="display:inline-block;padding:1px 6px;border-radius:4px;background:rgba(255,152,0,0.18);color:var(--naranja);font-size:10.5px;font-weight:700;letter-spacing:.3px;margin-left:2px" title="Tipo de jornada asignado este mes">' + escapeHtml(tj) + '</span>' : ''; })()}</div>
+        <div class="sub">${escapeHtml(t.dni || '')}${etiquetaCat(t) ? ' · ' + escapeHtml(etiquetaCat(t)) : ''}${(() => { const tj = etiquetaTipoJornada(t.id, year, month); return tj ? ' <span style="display:inline-block;padding:1px 6px;border-radius:4px;background:var(--bg3);color:var(--texto2);font-size:10.5px;font-weight:700;letter-spacing:.3px;margin-left:2px" title="Tipo de jornada asignado este mes">' + escapeHtml(tj) + '</span>' : ''; })()}</div>
       </td>
       ${celdas}
       <td class="col-total">${formatHoras(t.horas_mes)}</td>
