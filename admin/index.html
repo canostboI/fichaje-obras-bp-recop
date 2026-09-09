@@ -199,6 +199,10 @@ if (cardRojos) { cardRojos.addEventListener('click', abrirModalAccesosDenegados)
 
 function rangoHoyLocal() { const ahora = new Date(); const desde = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 0, 0, 0, 0); const hasta = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 23, 59, 59, 999); return { desdeISO: desde.toISOString(), hastaISO: hasta.toISOString() }; }
 
+const LIMITE_FICHAJES_TABLA = 400;
+const LIMITE_ROJOS_TABLA = 50;
+const LIMITE_INCIDENCIAS_TABLA = 50;
+
 (async function init() {
   const g = await Guardian.entrar(sb, { rol: 'admin', campos: 'nombre', volver: '../' });
   if (!g) return;
@@ -339,7 +343,6 @@ async function cargarSyncEcoordina() {
 
 document.getElementById('btn-salir').addEventListener('click', async () => { await sb.auth.signOut(); window.location.href = '../'; });
 
-const LIMITE_FICHAJES_TABLA = 400;
 
 async function cargarFichajes() {
   try {
@@ -449,8 +452,6 @@ function pintarDetalleAccesos(res) {
   contenido.innerHTML = html;
 }
 
-const LIMITE_ROJOS_TABLA = 50;
-
 async function cargarTablaRojos() {
   const { data, count, error } = await sb.from('validaciones_obra').select('motivos, trabajador:trabajador_id!inner(nombre, apellidos, dni, activo), obra:obra_id!inner(nombre, estado)', { count: 'exact' }).eq('estado', 'rojo').eq('trabajador.activo', true).neq('obra.estado', 'oculta').limit(LIMITE_ROJOS_TABLA);
   if (error) { document.getElementById('badge-rojos').textContent = 'sin datos'; document.getElementById('tabla-rojos').innerHTML = '<div class="fallo">⚠ No se ha podido consultar la documentación en rojo. Esto NO significa que no haya ninguno. Vuelve a cargar la página.</div>'; return; }
@@ -460,8 +461,6 @@ async function cargarTablaRojos() {
   const avisoRojos = total > n ? `<div class="vacio" style="margin-top:10px">Se muestran los ${n} primeros, de ${total}.</div>` : '';
   document.getElementById('tabla-rojos').innerHTML = `<table><thead><tr><th>Trabajador</th><th>DNI</th><th>Obra</th><th>Motivos</th></tr></thead><tbody>${data.map(v => `<tr><td><strong>${esc(v.trabajador?.nombre)} ${esc(v.trabajador?.apellidos)}</strong></td><td>${esc(v.trabajador?.dni)}</td><td>${esc(v.obra?.nombre)}</td><td>${Array.isArray(v.motivos) ? v.motivos.map(m => esc(m)).join(', ') : '—'}</td></tr>`).join('')}</tbody></table>${avisoRojos}`;
 }
-
-const LIMITE_INCIDENCIAS_TABLA = 50;
 
 async function cargarIncidencias() {
   try {
