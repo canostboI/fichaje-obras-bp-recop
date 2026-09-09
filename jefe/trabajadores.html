@@ -640,6 +640,10 @@ let obraFiltroTrabajadores = '';
 // Solo tiene sentido con una obra elegida: el tipo se asigna por obra.
 let tiposJornadaObra = [];
 let asigJornadaPorTrab = {};
+// 81ª: quién NO hace la intensiva de la obra en los días ☀. Se guarda
+// aparte porque es la EXCEPCIÓN: sin esto, dos personas con el mismo
+// tipo se pintan igual y cobran distinto en julio.
+let asigSinIntensivaPorTrab = {};
 // Asignaciones que empiezan MÁS ADELANTE. Sin esto, asignar con fecha
 // futura guardaba bien pero la columna no cambiaba, y parecía que había
 // fallado. Una pantalla que no enseña lo que acabas de guardar te hace
@@ -1155,6 +1159,7 @@ function prepararFiltroTrabajadores() {
 // "sin tipo" que haría pensar que nadie tiene horario propio.
 async function cargarJornadasTrabajadores() {
   tiposJornadaObra = []; asigJornadaPorTrab = {}; asigFuturaPorTrab = {};
+  asigSinIntensivaPorTrab = {};
   jornadasError = false;
   if (!obraFiltroTrabajadores) return;
   try {
@@ -1169,7 +1174,7 @@ async function cargarJornadasTrabajadores() {
         .eq('obra_id', obraFiltroTrabajadores).eq('activo', true)
         .order('nombre', { ascending: true })),
       window.SbPaginado.traerTodo(() => sb.from('asignaciones_jornada')
-        .select('trabajador_id,tipo_jornada_id,desde,hasta')
+        .select('trabajador_id,tipo_jornada_id,desde,hasta,seguir_intensiva_obra')
         .eq('obra_id', obraFiltroTrabajadores)
         .order('desde', { ascending: true }))
     ]);
@@ -1183,6 +1188,7 @@ async function cargarJornadasTrabajadores() {
       }
       if (a.hasta && a.hasta < hoy) return;
       asigJornadaPorTrab[a.trabajador_id] = a.tipo_jornada_id;
+      asigSinIntensivaPorTrab[a.trabajador_id] = a.seguir_intensiva_obra === false;
     });
   } catch (e) {
     jornadasError = true;
@@ -1196,6 +1202,9 @@ function nombreTipoJornada(trabId) {
   const id = asigJornadaPorTrab[trabId];
   const t = id ? tiposJornadaObra.find(x => x.id === id) : null;
   let txt = id ? (t ? t.nombre : '⚠ tipo borrado') : 'Por defecto';
+  // Solo se marca la excepción. Si se marcara también el caso normal,
+  // saldrían 15 marcas de 15 y no señalarían nada.
+  if (id && asigSinIntensivaPorTrab[trabId]) txt += ' 🚫☀';
 
   const fut = asigFuturaPorTrab[trabId];
   if (fut) {
@@ -1205,6 +1214,13 @@ function nombreTipoJornada(trabId) {
     txt += ' → ' + (tf ? tf.nombre : 'otro') + ' el ' + d[2] + '/' + d[1];
   }
   return txt;
+}
+
+function tituloJornada(trabId) {
+  if (asigJornadaPorTrab[trabId] && asigSinIntensivaPorTrab[trabId]) {
+    return '🚫☀ En los días marcados ☀ mantiene su horario, NO hace la jornada intensiva de la obra. Pulsa para cambiarlo.';
+  }
+  return 'Cambiar el tipo de jornada de esta persona';
 }
 
 function obtenerObraFiltro() {
@@ -1337,7 +1353,7 @@ function renderTabla(lista) {
           <td>${esc(etiquetaCategoria(t) || '—')}</td>
           <td>${formatearPrecio(t.precio_hora_personalizado)}</td>
           <td>${obraFiltroTrabajadores
-                ? `<button class="btn-accion" style="font-size:.8rem;padding:3px 8px" title="Cambiar el tipo de jornada de esta persona" onclick="abrirModalJornada(['${esc(t.id)}'], '${esc(nombreCompleto(t)).replace(/'/g, "\\'")}')">${esc(nombreTipoJornada(t.id))}</button>`
+                ? `<button class="btn-accion" style="font-size:.8rem;padding:3px 8px" title="${esc(tituloJornada(t.id))}" onclick="abrirModalJornada(['${esc(t.id)}'], '${esc(nombreCompleto(t)).replace(/'/g, "\\'")}')">${esc(nombreTipoJornada(t.id))}</button>`
                 : '<span style="opacity:.5">elige una obra</span>'}</td>
           <td>${t.obras.map(o => pillObra(t, o)).join('')}</td>
           <td><div class="acciones">${t.hay_foto ? '<button class="fi-icono" title="Ver foto" onclick="clicFoto(\'' + t.id + '\', this)">📷</button>' : '<button class="fi-icono sin-dato-clicable" title="Sin foto — clic para hacerla" onclick="clicFoto(\'' + t.id + '\', this)">📷</button>'}${t.hay_verif ? '<button class="fi-icono" title="Ver/editar verificación" onclick="clicVerif(\'' + t.id + '\', this)">🪪</button>' : '<button class="fi-icono sin-dato-clicable" title="Sin verificación — clic para registrar" onclick="clicVerif(\'' + t.id + '\', this)">🪪</button>'}<button class="btn-accion primario" onclick="abrirEdicion('${t.id}')">Editar</button>${obraFiltroTrabajadores ? `<button class="btn-accion peligro" onclick="abrirModalQuitar('${t.id}')">Quitar de la obra</button>` : ''}</div></td>
@@ -1376,6 +1392,12 @@ function abrirModalJornada(ids, etiqueta) {
   }
 
   const hoy = new Date();
+  // La casilla abre con el valor REAL de la persona, no siempre marcada.
+  // Si abriera siempre marcada, editar a alguien que está en 🚫☀ por
+  // cualquier otro motivo le devolvería la intensiva en silencio.
+  // Con varias personas (botón de empresa) se marca salvo que TODAS
+  // estén en la excepción, que es el criterio prudente.
+  const intensivaMarcada = !ids.every(id => asigSinIntensivaPorTrab[id] === true);
   const primeroMes = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-01`;
   const desc = t => {
     const p = (t.almuerzo_min || 0) + (t.comida_min || 0);
@@ -1399,7 +1421,7 @@ function abrirModalJornada(ids, etiqueta) {
       <div style="font-size:.8rem;opacity:.6;margin-bottom:12px">Los días anteriores a esta fecha no cambian. Un mes ya cerrado no se puede tocar.</div>
 
       <label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:12px;cursor:pointer">
-        <input type="checkbox" id="mj-intensiva" checked style="margin-top:3px;flex:0 0 auto">
+        <input type="checkbox" id="mj-intensiva"${intensivaMarcada ? ' checked' : ''} style="margin-top:3px;flex:0 0 auto">
         <span>
           <span style="font-size:.9rem">En los días marcados ☀ hace el horario de la obra</span>
           <span style="display:block;font-size:.8rem;opacity:.6;margin-top:2px">Déjala marcada si en verano esta gente hace la jornada intensiva como el resto de la obra. Desmárcala solo si mantiene su horario pactado también esos días.</span>
