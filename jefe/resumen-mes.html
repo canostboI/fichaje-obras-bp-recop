@@ -16,8 +16,39 @@
 <script>
 // Cómo se escribe una categoría en pantalla. Con "otra" manda el texto libre.
 // El motor del proforma tiene la suya; esta es solo para la lista de esta página.
-function etiquetaCat(t) {
-  const ETQ = { peon:'Peón', oficial:'Oficial', encargado:'Encargado',
+// 81ª. Nombre corto del tipo de jornada vigente para una persona en el mes
+// que se está mostrando. Se pinta junto al DNI para que quien mira el
+// proforma sepa de un vistazo por qué unos tienen 8h y otros 7,50h.
+// Devuelve null si hace el horario normal de la obra (que es la norma:
+// no hace falta marcarlo, solo marcar quien se desvía).
+function etiquetaTipoJornada(trabajadorId, year, month) {
+  if (!ctxJornadas || !ctxJornadas.asignaciones) return null;
+  const asig = ctxJornadas.asignaciones[trabajadorId];
+  if (!asig || asig.length === 0) return null;
+
+  const primerDia = year + '-' + String(month).padStart(2,'0') + '-01';
+  const ultimoDia = year + '-' + String(month).padStart(2,'0') + '-' + String(new Date(year, month, 0).getDate()).padStart(2,'0');
+
+  const vigentes = asig.filter(a => {
+    const desde = a.desde || '0000-01-01';
+    const hasta  = a.hasta  || '9999-12-31';
+    return desde <= ultimoDia && hasta >= primerDia;
+  });
+  if (vigentes.length === 0) return null;
+
+  const elegida = vigentes.reduce((m, a) =>
+    String(a.desde || '') > String(m.desde || '') ? a : m, vigentes[0]);
+
+  const tipo = ctxJornadas.tipos[elegida.tipo_id];
+  if (!tipo) return null;
+
+  // Solo el primer trozo antes de ' · ' (ej: "B · 30 + 30" -> "B").
+  // El nombre completo esta en el panel; aqui solo necesitamos una marca
+  // discreta que no tape el DNI.
+  return String(tipo.nombre).split('·')[0].trim();
+}
+
+function etiquetaCat(t) {  const ETQ = { peon:'Peón', oficial:'Oficial', encargado:'Encargado',
                 gruista:'Gruista', electricista:'Electricista', restaurador:'Restaurador' };
   const clave = String((t && t.categoria) || '').toLowerCase().trim();
   if (clave === 'otra') return String((t && t.categoria_otra) || '').trim() || 'Otra';
@@ -1649,7 +1680,7 @@ function repartoTiposDelMes() {
     if (asig.length === 0) { normal++; return; }
     const elegida = asig.reduce((mejor, a) =>
       String(a.desde || '') > String(mejor.desde || '') ? a : mejor, asig[0]);
-    const tid = elegida.tipo_id;
+    const tid = elegida.tipo_jornada_id;
     porTipo[tid] = (porTipo[tid] || 0) + 1;
   });
 
@@ -3006,7 +3037,7 @@ function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
     filas += `<tr>
       <td class="col-nombre">
         <div class="nombre">${escapeHtml(t.nombre)}</div>
-        <div class="sub">${escapeHtml(t.dni || '')}${etiquetaCat(t) ? ' · ' + escapeHtml(etiquetaCat(t)) : ''}</div>
+        <div class="sub">${escapeHtml(t.dni || '')}${etiquetaCat(t) ? ' · ' + escapeHtml(etiquetaCat(t)) : ''}${(() => { const tj = etiquetaTipoJornada(t.id, year, month); return tj ? ' <span style="display:inline-block;padding:1px 6px;border-radius:4px;background:rgba(255,152,0,0.18);color:var(--naranja);font-size:10.5px;font-weight:700;letter-spacing:.3px;margin-left:2px" title="Tipo de jornada asignado este mes">' + escapeHtml(tj) + '</span>' : ''; })()}</div>
       </td>
       ${celdas}
       <td class="col-total">${formatHoras(t.horas_mes)}</td>
