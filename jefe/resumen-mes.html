@@ -272,6 +272,9 @@ function etiquetaCat(t) {
   .btn-mini:disabled { opacity: 0.3; cursor: not-allowed; }
   .btn-mini.peligro { border-color: rgba(244,67,54,0.4); color: var(--rojo); }
   .btn-mini.peligro:hover:not(:disabled) { background: rgba(244,67,54,0.12); }
+  /* El envoltorio recoge el hover que el botón deshabilitado no recibe. */
+  .tj-bloqueado { display: inline-block; cursor: help; }
+  #btn-tj-nuevo { padding: 9px 18px; font-size: 14px; border-radius: 8px; }
   .tj-vacio { font-size: 13px; color: var(--texto2); padding: 10px 0; }
   .tj-previo { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 12px 14px; font-size: 13px; line-height: 1.5; margin-bottom: 4px; }
   .tj-previo .grande { font-size: 19px; font-weight: 800; color: var(--naranja); font-variant-numeric: tabular-nums; }
@@ -1636,6 +1639,13 @@ function pintarTiposJornada() {
       ? `Lo tienen asignado ${enUso} persona(s): modificarlo recalcularía días ya trabajados. Crea un tipo nuevo y reasigna.`
       : '';
 
+    // Un botón deshabilitado NO dispara eventos de ratón, así que su title
+    // no se llega a ver nunca: solo sale el cursor de prohibido. Por eso el
+    // motivo va en un <span> que lo envuelve, que sí recibe el hover.
+    const conMotivo = (html, motivo) => motivo
+      ? `<span class="tj-bloqueado" title="${tjEsc(motivo)}">${html}</span>`
+      : html;
+
     return `<tr class="${t.activo ? '' : 'inactivo'}">
       <td><b>${tjEsc(t.nombre)}</b>${t.activo ? '' : ' <span class="tj-pill tj-off">Desactivado</span>'}</td>
       <td>${tjHhmm(t.entrada)} – ${tjHhmm(t.salida)}</td>
@@ -1645,9 +1655,9 @@ function pintarTiposJornada() {
         ? `<span class="tj-pill tj-uso">${enUso} ${enUso === 1 ? 'persona' : 'personas'}</span>`
         : '<span class="tj-pill tj-libre">Sin usar</span>'}</td>
       <td style="white-space:nowrap">
-        <button class="btn-mini" ${enUso > 0 ? 'disabled' : ''} title="${tjEsc(bloqueo || 'Editar este tipo')}" onclick="abrirModalTipo('${tjEsc(t.id)}')">Editar</button>
+        ${conMotivo(`<button class="btn-mini" ${enUso > 0 ? 'disabled' : ''} title="${tjEsc(bloqueo || 'Editar este tipo')}" onclick="abrirModalTipo('${tjEsc(t.id)}')">Editar</button>`, bloqueo)}
         <button class="btn-mini" title="${t.activo ? 'Quitarlo del desplegable al asignar. No cambia ningún cálculo.' : 'Volver a ofrecerlo al asignar'}" onclick="cambiarActivoTipo('${tjEsc(t.id)}', ${t.activo ? 'false' : 'true'})">${t.activo ? 'Desactivar' : 'Reactivar'}</button>
-        <button class="btn-mini peligro" ${enUso > 0 ? 'disabled' : ''} title="${tjEsc(bloqueo || 'Borrar este tipo')}" onclick="borrarTipoJornada('${tjEsc(t.id)}')">Borrar</button>
+        ${conMotivo(`<button class="btn-mini peligro" ${enUso > 0 ? 'disabled' : ''} title="${tjEsc(bloqueo || 'Borrar este tipo')}" onclick="borrarTipoJornada('${tjEsc(t.id)}')">Borrar</button>`, bloqueo)}
       </td>
     </tr>`;
   }).join('');
