@@ -21,15 +21,29 @@
    `obras`, exactamente como antes. Ésa es la garantía de que desplegar
    esto no mueve ni un minuto de lo ya facturado.
 
-   PRECEDENCIA (decidida por Dani, 78ª–79ª):
-     1. Sábado — acuerdo de obra, no personal. Manda sobre todo.
-     2. Tipo propio de la persona, SALVO que:
+   PRECEDENCIA (decidida por Dani, 78ª–79ª; revisada en la 82ª):
+     1. Tipo propio de la persona, SALVO que:
         - El día esté marcado ☀ en la obra, Y
+        - Haya una intensiva real detrás (la obra la tiene configurada, o
+          el día trae su propio tipo), Y
         - La asignación tenga seguir_intensiva_obra = true (defecto).
         En ese caso, la persona cede a la intensiva de la obra ese día.
-     3. Tipo propio con seguir_intensiva_obra = false — nunca cede.
-     4. Sin tipo propio: el tipo del día marcado en el calendario de obra.
-     5. Horario normal de la obra.
+     2. Tipo propio con seguir_intensiva_obra = false — nunca cede.
+     3. Sin tipo propio: el tipo del día marcado en el calendario de obra.
+     4. Horario normal de la obra.
+
+   ⚠️ EL SÁBADO NO ENTRA AQUÍ. Una versión anterior de este comentario
+   decía que el sábado mandaba sobre todo; es falso y confundía.
+   `obras.hora_salida_sabado` solo se usa para la hora del CIERRE
+   AUTOMÁTICO. No cambia ni un minuto del proforma: el sábado se paga
+   fijando las horas del día a mano. El motor solo guarda la marca
+   es_sabado para que la pantalla lo pinte.
+
+   ⚠️ `activo` ES VISIBILIDAD DE CATÁLOGO, NO UNA REGLA DE CÁLCULO.
+   Un tipo desactivado se sigue aplicando a quien ya lo tiene asignado y a
+   los días ya marcados con él; lo único que impide es asignarlo a alguien
+   nuevo. Hasta la 82ª no era así, y desactivar un tipo reescribía las
+   horas de su gente hacia atrás sin avisar.
 
    La casilla seguir_intensiva_obra permite que el mismo horario pactado
    se conserve en verano (false) o ceda a la jornada de obra (true, por
@@ -56,7 +70,7 @@
   // Un fallo de red no puede convertirse en una factura distinta.
   // ---------------------------------------------------------------
   async function cargar(sb, obraId) {
-    const vacio = { tipos: {}, asignaciones: {}, diasIntensiva: new Set(), diasTipo: {}, error: null };
+    const vacio = { tipos: {}, asignaciones: {}, diasIntensiva: new Set(), diasTipo: {}, intensivaConfigurada: false, error: null };
     if (!sb || !obraId) return vacio;
 
     try {
@@ -67,7 +81,7 @@
       // traerTodo() LANZA si algo falla; no devuelve datos incompletos.
       // El .order() es obligatorio: sin orden fijo la paginación duplica
       // unas filas y se deja otras.
-      const [datosTipos, datosAsig, datosDias] = await Promise.all([
+      const [datosTipos, datosAsig, datosDias, datosObra] = await Promise.all([
         window.SbPaginado.traerTodo(() => sb.from('tipos_jornada')
           .select('id,nombre,entrada,salida,almuerzo_fin,almuerzo_min,comida_fin,comida_min,activo')
           .eq('obra_id', obraId).order('id', { ascending: true })),
@@ -78,7 +92,12 @@
         window.SbPaginado.traerTodo(() => sb.from('dias_intensiva_obra')
           .select('fecha,tipo_jornada_id')
           .eq('obra_id', obraId)
-          .order('fecha', { ascending: true }))
+          .order('fecha', { ascending: true })),
+        // 82ª · Hace falta saber si la obra tiene horario intensivo guardado,
+        // para no "ceder" a una intensiva inexistente. Una sola fila.
+        sb.from('obras')
+          .select('hora_entrada_intensiva,hora_salida_intensiva')
+          .eq('id', obraId).maybeSingle()
       ]);
 
       const tipos = {};
@@ -113,14 +132,17 @@
         if (d.tipo_jornada_id) diasTipo[f] = d.tipo_jornada_id;
       });
 
-      return { tipos, asignaciones, diasIntensiva, diasTipo, error: null };
+      const obraInt = (datosObra && datosObra.data) || {};
+      const intensivaConfigurada = !!(obraInt.hora_entrada_intensiva && obraInt.hora_salida_intensiva);
+
+      return { tipos, asignaciones, diasIntensiva, diasTipo, intensivaConfigurada, error: null };
 
     } catch (e) {
       // No se lanza. Se devuelve el contexto vacío y se deja constancia
       // para que la pantalla pueda avisar si quiere. Calcular como antes
       // es un resultado conocido; calcular a medias no lo es.
       console.error('[jornadas] no se pudieron cargar los tipos:', e);
-      return { tipos: {}, asignaciones: {}, diasIntensiva: new Set(), diasTipo: {}, error: e };
+      return { tipos: {}, asignaciones: {}, diasIntensiva: new Set(), diasTipo: {}, intensivaConfigurada: false, error: e };
     }
   }
 
@@ -161,7 +183,17 @@
     if (!ctx || !ctx.tipos) return null;
 
     // ¿El día está marcado ☀ en la obra?
-    const esDiaIntensivo = ctx.diasIntensiva && ctx.diasIntensiva.has(fechaISO);
+    // 82ª · Y además, ¿hay una intensiva de verdad detrás? El motor solo
+    // aplica el horario de verano si la obra tiene entrada Y salida
+    // intensivas guardadas (o si el día trae su propio tipo). Si aquí no se
+    // comprobara lo mismo, una persona con horario pactado "cedería" a una
+    // intensiva que no existe y acabaría con el horario NORMAL de la obra:
+    // lo peor de las dos opciones.
+    const hayIntensivaDetras = !!(
+      (ctx.diasTipo && ctx.diasTipo[fechaISO]) || ctx.intensivaConfigurada
+    );
+    const esDiaIntensivo = !!(ctx.diasIntensiva && ctx.diasIntensiva.has(fechaISO))
+                           && hayIntensivaDetras;
 
     // 1 · El tipo de la persona, con matiz de la 79ª.
     const lista = ctx.asignaciones && ctx.asignaciones[trabId];
@@ -178,9 +210,16 @@
         if (esDiaIntensivo && a.seguir_intensiva_obra !== false) continue;
 
         const t = ctx.tipos[a.tipo_id];
-        // FICH-019 trasladada: un tipo que no existe o está inactivo no
-        // inventa un horario. Cae al de la obra, que es lo conocido.
-        if (t && t.activo) return t;
+        // 82ª · `activo` es VISIBILIDAD DE CATÁLOGO, no una regla de cálculo.
+        // Antes esto exigía `t.activo`, así que desactivar un tipo tiraba a
+        // su gente al horario de la obra — hacia atrás, en todos los meses
+        // abiertos, y descuadrando los cerrados. Media hora al día por
+        // persona con un clic y sin ningún aviso.
+        // Un tipo que ya está ASIGNADO se aplica aunque esté desactivado;
+        // desactivarlo solo impide asignarlo a alguien nuevo.
+        // Lo que sigue en pie (FICH-019) es que un tipo INEXISTENTE no
+        // inventa horario: eso sí cae al de la obra, que es lo conocido.
+        if (t) return t;
       }
     }
 
@@ -188,7 +227,10 @@
     const idDia = ctx.diasTipo && fechaISO ? ctx.diasTipo[fechaISO] : null;
     if (idDia) {
       const t = ctx.tipos[idDia];
-      if (t && t.activo) return t;
+      // 82ª · Igual que arriba: un día ya marcado con este tipo lo conserva
+      // aunque el tipo se desactive. Si no, desactivar el tipo Intensiva
+      // reescribiría los 50 días marcados de cada verano.
+      if (t) return t;
     }
 
     // 3 · Nada: horario de la obra.
