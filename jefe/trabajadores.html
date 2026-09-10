@@ -720,7 +720,7 @@ let avisosTabla = [];
   if (params.get('forzar') === '1' && params.get('trabajador')) {
     const obraValidaForzar = misObras.some(o => o.id === params.get('obra')) ? params.get('obra') : '';
     if (obraValidaForzar) {
-      const twEnLista = todosTrabajadores.some(t => t.id === params.get('trabajador'));
+      const twEnLista = todosTrabajadores.some(t => t.id === params.get('trabajador') && t.obras.some(o => o.obra_id === obraValidaForzar));
       if (twEnLista) {
         abrirModalForzar(params.get('trabajador'), obraValidaForzar);
       } else {
