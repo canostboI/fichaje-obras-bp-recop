@@ -1903,13 +1903,16 @@ async function cargarBloqueos() {
     const boton = g.incidencia_id
       ? `<button class="btn-visto-rojo" onclick="marcarVistoRojo('${g.incidencia_id}', this)">✓ Visto</button>`
       : '';
+    const enlaceFicha = (g.trabajador_id && g.tipos.indexOf('bloqueo_rojo') !== -1)
+      ? `<a class="btn-visto-rojo" href="trabajadores.html?trabajador=${encodeURIComponent(g.trabajador_id)}&obra=${encodeURIComponent(obraActual || '')}&forzar=1" style="text-decoration:none">📋 Ver ficha</a>`
+      : '';
     return `
       <div class="bloqueo-item" data-id="${esc(g.incidencia_id || '')}">
         <div class="bloqueo-info">
           <strong>${esc(g.nombre)}</strong>
           <div class="detalle">${esc(etiquetaTxt)} · ${esc(horaUltimo)} · ${esc(intentosTexto)}${esc(dni)}</div>
         </div>
-        ${boton}
+        ${enlaceFicha}${boton}
       </div>`;
   }).join('');
   panel.classList.remove('oculto');
