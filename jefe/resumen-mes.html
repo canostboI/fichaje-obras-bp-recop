@@ -1735,13 +1735,22 @@ function pintarTiposJornada() {
 
   const filas = tiposJornadaLista.map(t => {
     const enUso = Number(t.en_uso) || 0;           // historia completa: manda para bloquear
+    const diasCal = Number(t.dias_calendario) || 0; // 82ª: días ☀ que dependen de este tipo
     const esteMes = reparto ? (reparto.porTipo[t.id] || 0) : null;   // el mes en pantalla
     const pausas = [];
     if (Number(t.almuerzo_min) > 0) pausas.push(`${t.almuerzo_min} min hasta ${tjHhmm(t.almuerzo_fin)}`);
     if (Number(t.comida_min) > 0) pausas.push(`${t.comida_min} min hasta ${tjHhmm(t.comida_fin)}`);
 
-    const bloqueo = enUso > 0
-      ? `Lo tienen asignado ${enUso} persona(s): modificarlo recalcularía días ya trabajados. Crea un tipo nuevo y reasigna.`
+    // 82ª · Un tipo puede estar "en uso" de dos maneras: por personas
+    // asignadas, o por días marcados ☀ en el calendario. El tipo Intensiva
+    // tenía 0 asignaciones y gobernaba 50 días por obra — incluido un mes
+    // cerrado — y salía como libre para editar y borrar.
+    const razones = [];
+    if (enUso > 0)  razones.push(`${enUso} persona(s) lo tienen asignado`);
+    if (diasCal > 0) razones.push(`${diasCal} día(s) del calendario ☀ lo usan`);
+    const bloqueado = razones.length > 0;
+    const bloqueo = bloqueado
+      ? `No se puede tocar: ${razones.join(' y ')}. Cambiarlo recalcularía días ya trabajados. Crea un tipo nuevo y reasigna con su fecha de inicio.`
       : '';
 
     // Un botón deshabilitado NO dispara eventos de ratón, así que su title
@@ -1752,7 +1761,7 @@ function pintarTiposJornada() {
       : html;
 
     return `<tr class="${t.activo ? '' : 'inactivo'}">
-      <td><b>${tjEsc(t.nombre)}</b>${t.activo ? '' : ' <span class="tj-pill tj-off">Desactivado</span>'}</td>
+      <td><b>${tjEsc(t.nombre)}</b>${t.activo ? '' : ' <span class="tj-pill tj-off">Desactivado</span>'}${t.es_intensiva_obra ? ' <span class="tj-pill tj-uso" title="Es el horario que se aplica a los días marcados ☀ del calendario de esta obra">☀ de la obra</span>' : ''}</td>
       <td>${tjHhmm(t.entrada)} – ${tjHhmm(t.salida)}</td>
       <td>${pausas.length ? tjEsc(pausas.join(' · ')) : '<span style="color:var(--texto2)">Sin pausas</span>'}</td>
       <td class="horas">${tjFmtHoras(tjHorasNetas(t))}</td>
@@ -1760,18 +1769,43 @@ function pintarTiposJornada() {
         ? '<span class="tj-pill tj-off">—</span>'
         : (esteMes > 0
             ? `<span class="tj-pill tj-uso">${esteMes} ${esteMes === 1 ? 'persona' : 'personas'}</span>`
-            : `<span class="tj-pill tj-libre">Nadie${enUso > 0 ? ' este mes' : ''}</span>`)}</td>
+            : (diasCal > 0
+                ? `<span class="tj-pill tj-uso" title="No hay personas con este tipo asignado, pero ${diasCal} día(s) del calendario lo usan">${diasCal} días ☀</span>`
+                : `<span class="tj-pill tj-libre">Nadie${enUso > 0 ? ' este mes' : ''}</span>`))}</td>
       <td style="white-space:nowrap">
-        ${conMotivo(`<button class="btn-mini" ${enUso > 0 ? 'disabled' : ''} title="${tjEsc(bloqueo || 'Editar este tipo')}" onclick="abrirModalTipo('${tjEsc(t.id)}')">Editar</button>`, bloqueo)}
-        <button class="btn-mini" title="${t.activo ? 'Quitarlo del desplegable al asignar. No cambia ningún cálculo.' : 'Volver a ofrecerlo al asignar'}" onclick="cambiarActivoTipo('${tjEsc(t.id)}', ${t.activo ? 'false' : 'true'})">${t.activo ? 'Desactivar' : 'Reactivar'}</button>
-        ${conMotivo(`<button class="btn-mini peligro" ${enUso > 0 ? 'disabled' : ''} title="${tjEsc(bloqueo || 'Borrar este tipo')}" onclick="borrarTipoJornada('${tjEsc(t.id)}')">Borrar</button>`, bloqueo)}
+        ${conMotivo(`<button class="btn-mini" ${bloqueado ? 'disabled' : ''} title="${tjEsc(bloqueo || 'Editar este tipo')}" onclick="abrirModalTipo('${tjEsc(t.id)}')">Editar</button>`, bloqueo)}
+        <button class="btn-mini" title="${t.activo ? 'Quitarlo del desplegable al asignar. Quien ya lo tenga sigue calculando igual.' : 'Volver a ofrecerlo al asignar'}" onclick="cambiarActivoTipo('${tjEsc(t.id)}', ${t.activo ? 'false' : 'true'})">${t.activo ? 'Desactivar' : 'Reactivar'}</button>
+        ${conMotivo(`<button class="btn-mini peligro" ${bloqueado ? 'disabled' : ''} title="${tjEsc(bloqueo || 'Borrar este tipo')}" onclick="borrarTipoJornada('${tjEsc(t.id)}')">Borrar</button>`, bloqueo)}
       </td>
     </tr>`;
   }).join('');
 
+  // 82ª · La intensiva está definida en dos sitios: las columnas de la obra
+  // (los campos «Jornada intensiva» de arriba) y el tipo marcado ☀ de la obra.
+  // Para los días que llevan tipo, MANDA EL TIPO — los campos de arriba no
+  // se aplican. Si no coinciden, hay que decirlo: si no, el jefe edita el
+  // horario de verano, guarda, y no cambia nada.
+  const tipoInt = tiposJornadaLista.find(x => x.es_intensiva_obra);
+  let avisoInt = '';
+  if (tipoInt) {
+    const hTipo = tjHorasNetas(tipoInt);
+    const eObra = tjAMin(horarioIntensiva.entrada), sObra = tjAMin(horarioIntensiva.salida);
+    const hObra = (eObra !== null && sObra !== null && sObra > eObra)
+      ? Math.max(0, (sObra - eObra) - (Number(horarioIntensiva.descanso) || 0)) / 60
+      : null;
+    if (hTipo !== null && hObra !== null && Math.abs(hTipo - hObra) > 0.001) {
+      avisoInt = `<div class="tj-vacio" style="color:var(--naranja);padding-top:8px;line-height:1.5">
+        ⚠ El horario de verano está definido dos veces y <b>no coinciden</b>:
+        los campos «Jornada intensiva» de arriba pagan ${tjFmtHoras(hObra)} y el tipo
+        «${tjEsc(tipoInt.nombre)}» paga ${tjFmtHoras(hTipo)}.
+        En los días marcados ☀ <b>manda el tipo</b>, así que hoy se aplican ${tjFmtHoras(hTipo)}
+        y editar los campos de arriba no cambia esos días.</div>`;
+    }
+  }
+
   zona.innerHTML = `<table class="tipos">
     <thead><tr><th>Nombre</th><th>Horario</th><th>Pausas</th><th>Paga</th><th>En ${tjEsc(mesTxt)}</th><th></th></tr></thead>
-    <tbody>${filaNormal}${filas}</tbody></table>${pie}`;
+    <tbody>${filaNormal}${filas}</tbody></table>${avisoInt}${pie}`;
 }
 
 function abrirModalTipo(id) {
@@ -1900,8 +1934,9 @@ async function cambiarActivoTipo(id, activo) {
   const t = tiposJornadaLista.find(x => x.id === id);
   if (!t) return;
   if (!activo && !confirm(
-      `¿Desactivar «${t.nombre}»?\n\nDejará de aparecer al asignar el tipo a una persona.\n` +
-      `Los meses ya calculados no se tocan y quien lo tenga asignado sigue igual.`)) return;
+      `¿Desactivar «${t.nombre}»?\n\nDejará de aparecer al asignar el tipo a una persona nueva.\n` +
+      `Quien ya lo tenga asignado y los días ya marcados con él siguen calculando exactamente igual: ` +
+      `desactivar no cambia ninguna hora, ni de este mes ni de los anteriores.`)) return;
 
   const { data, error } = await sb.rpc('activar_tipo_jornada', { p_id: id, p_activo: activo });
   if (error) { alert('No se ha podido cambiar: ' + error.message); return; }
