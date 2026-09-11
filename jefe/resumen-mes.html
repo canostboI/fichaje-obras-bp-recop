@@ -318,6 +318,17 @@ function etiquetaCat(t) {  const ETQ = { peon:'Peón', oficial:'Oficial', encarg
   .tj-error.visible { display: block; }
   table.mes th.intensiva { box-shadow: inset 0 -3px 0 #ff9800; }
   table.mes th.intensiva .num::after { content: " ☀"; }
+  /* Paso 6: cierre de mes */
+  .pc-cierre-resumen { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; font-size: 13px; line-height: 1.6; }
+  .pc-cierre-resumen b { color: var(--texto); }
+  .pc-cierre-motivo { width: 100%; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 10px 12px; font-family: inherit; resize: vertical; min-height: 60px; margin-bottom: 8px; }
+  .pc-cierre-motivo:focus { outline: none; border-color: var(--color-acento); }
+  .pc-cierre-contador { font-size: 12px; color: var(--texto2); margin-bottom: 12px; }
+  .btn-cerrar-mes { background: var(--rojo); color: white; border: none; padding: 12px 22px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .btn-cerrar-mes:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-cerrar-mes:hover:not(:disabled) { background: #d63a2f; }
+  .pc-cierre-ok { background: rgba(76,175,80,0.12); border: 1px solid var(--verde); border-radius: 8px; padding: 14px 18px; font-size: 14px; line-height: 1.5; }
+  .pc-cierre-error { background: rgba(244,67,54,0.12); border: 1px solid var(--rojo); border-radius: 8px; padding: 14px 18px; font-size: 14px; line-height: 1.5; margin-bottom: 12px; }
 </style>
 </head>
 <body>
@@ -470,6 +481,16 @@ function etiquetaCat(t) {  const ETQ = { peon:'Peón', oficial:'Oficial', encarg
             </div>
           </div>
           <button class="btn-primario" id="pc-btn-exportar">📥 Excel proforma</button>
+        </div>
+
+        <div class="pc-paso" id="pc-paso-6">
+          <div class="pc-cab"><span class="pc-num" id="pc-icono-6">6</span>
+            <div>
+              <div class="pc-tit">Cerrar el mes</div>
+              <div class="pc-desc" id="pc-desc-6">Congela las horas de cada persona y día. No se puede deshacer: si hay que rectificar, se vuelve a cerrar y nace una versión nueva.</div>
+            </div>
+          </div>
+          <div id="pc-cierre-zona" style="margin:10px 0 0 32px"></div>
         </div>
 
       </div>
@@ -2757,6 +2778,230 @@ async function cerrarRevisionSabado() {
   }
 }
 
+// 83ª. CIERRE DE MES DESDE EL JEFE DE OBRA
+// Mismo flujo que admin/cierre-mes.html, pero sin re-descargar nada:
+// los fichajes, ajustes, horarios y jornadas ya están en memoria.
+const MOTOR_ID = 'js/excel-proforma.js · dias_detalle v1 · tipos de jornada v1';
+let cierreEstado = null; // resultado de estado_mes
+
+// Construye las líneas de cierre a partir de los datos ya cargados.
+// Es el mismo cálculo que usa el Excel proforma.
+function construirLineasCierre() {
+  const mes = document.getElementById('filtro-mes').value;
+  if (!mes || !fichajesMesCache.length) return null;
+  const [cY, cM] = mes.split('-').map(Number);
+  const diasMes = new Date(cY, cM, 0).getDate();
+  const opts = {
+    horaEntrada: horarioNormal.entrada, horaSalida: horarioNormal.salida,
+    minutosDescanso: horarioNormal.descanso,
+    horaEntradaIntensiva: horarioIntensiva.entrada,
+    horaSalidaIntensiva: horarioIntensiva.salida,
+    minutosDescansoIntensiva: horarioIntensiva.descanso,
+    diasIntensiva: diasIntensivaSet, ajustes: ajustesMesMap,
+    jornadas: ctxJornadas
+  };
+  const grupos = window.ExcelProforma.agruparPorEmpresa(fichajesMesCache);
+  const empresas = Object.keys(grupos).sort((a, b) => a.localeCompare(b, 'es'));
+  const lineas = [];
+  let personas = 0, horas = 0;
+  const porEmpresa = [];
+  empresas.forEach(nombreEmpresa => {
+    const trabs = window.ExcelProforma.construirResumenTrabajadores(
+      grupos[nombreEmpresa], diasMes, opts);
+    let hEmp = 0, lEmp = 0;
+    trabs.forEach(t => {
+      personas++;
+      hEmp += t.horas_mes;
+      Object.keys(t.dias_detalle).forEach(d => {
+        const x = t.dias_detalle[d];
+        lEmp++;
+        lineas.push({
+          trabajador_id: t.id, fecha: x.fecha,
+          hora_entrada: x.hora_entrada, hora_salida: x.hora_salida,
+          horas_brutas: x.horas_brutas, descanso_min: x.descanso_min,
+          horas_netas: x.horas_netas, es_intensiva: x.es_intensiva,
+          es_sabado: x.es_sabado, hubo_autocierre: x.hubo_autocierre,
+          hubo_manual: x.hubo_manual, ajuste_horas: x.ajuste_horas
+        });
+      });
+    });
+    horas += hEmp;
+    porEmpresa.push({ empresa: nombreEmpresa, personas: trabs.length, lineas: lEmp, horas: redondear2(hEmp) });
+  });
+  return { lineas, personas, horas: redondear2(horas), porEmpresa };
+}
+
+async function actualizarPasoCierre() {
+  const zona = document.getElementById('pc-cierre-zona');
+  const paso = document.getElementById('pc-paso-6');
+  const mes = document.getElementById('filtro-mes').value;
+  if (!zona || !obraActual || !mes) return;
+
+  // ¿El mes ha terminado?
+  const [y, m] = mes.split('-').map(Number);
+  const ultimoDia = new Date(y, m, 0).getDate();
+  let hoyMadrid;
+  if (window.Fechas && window.Fechas.hoyMadrid) {
+    hoyMadrid = window.Fechas.hoyMadrid();
+  } else {
+    const h = new Date();
+    hoyMadrid = h.getFullYear() + '-' + String(h.getMonth()+1).padStart(2,'0') + '-' + String(h.getDate()).padStart(2,'0');
+  }
+  const mesTerminado = hoyMadrid > mes + '-' + String(ultimoDia).padStart(2,'0');
+
+  // Estado del cierre
+  cierreEstado = null;
+  try {
+    const { data, error } = await sb.rpc('estado_mes', { p_obra_id: obraActual, p_mes: mes + '-01' });
+    if (!error && data && data.ok !== false) cierreEstado = data;
+  } catch (e) { /* no bloquear el panel por esto */ }
+
+  const recierre = cierreEstado && cierreEstado.cerrado;
+  const datos = construirLineasCierre();
+
+  if (!mesTerminado) {
+    paso.className = 'pc-paso';
+    document.getElementById('pc-icono-6').textContent = '6';
+    document.getElementById('pc-desc-6').textContent =
+      'El mes no ha terminado. Se podrá cerrar a partir del ' + ultimoDia + '/' + m + '/' + y + '.';
+    zona.innerHTML = '';
+    return;
+  }
+
+  if (datosCalculoIncompletos || !datos || datos.lineas.length === 0) {
+    paso.className = 'pc-paso';
+    document.getElementById('pc-icono-6').textContent = '6';
+    document.getElementById('pc-desc-6').textContent =
+      datos && datos.lineas.length === 0
+        ? 'No hay líneas que congelar este mes.'
+        : 'No se puede cerrar: faltan datos del cálculo. Recarga la página.';
+    zona.innerHTML = '';
+    return;
+  }
+
+  // Resumen
+  let html = '';
+  if (recierre) {
+    const ce = cierreEstado;
+    const fechaCierre = ce.cerrado_en ? new Date(ce.cerrado_en).toLocaleString('es-ES', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+    html += '<div class="pc-cierre-error" style="border-color:var(--naranja);background:rgba(255,152,0,0.1)"><b>Este mes ya está cerrado</b> (versión '
+      + escapeHtml(ce.version) + ', por ' + escapeHtml(ce.cerrado_por) + ' el ' + escapeHtml(fechaCierre)
+      + ': ' + escapeHtml(ce.total_lineas) + ' líneas, '
+      + formatHoras(ce.total_horas) + ' h). Volver a cerrarlo crea la versión '
+      + (Number(ce.version) + 1) + '; la actual queda como sustituida. Hace falta un motivo.</div>';
+  }
+
+  html += '<div class="pc-cierre-resumen">'
+    + '<b>' + datos.personas + '</b> personas · '
+    + '<b>' + datos.lineas.length + '</b> días-persona · '
+    + '<b>' + formatHoras(datos.horas) + ' h</b> en total'
+    + (datos.porEmpresa.length > 1
+      ? '<br>' + datos.porEmpresa.map(e => escapeHtml(e.empresa) + ': ' + formatHoras(e.horas) + ' h').join(' · ')
+      : '')
+    + '</div>';
+
+  html += '<textarea class="pc-cierre-motivo" id="pc-cierre-motivo" placeholder="'
+    + (recierre ? 'Por qué se vuelve a cerrar este mes (mínimo 15 caracteres)…' : 'Opcional: una nota sobre este cierre.')
+    + '"></textarea>';
+  html += '<div class="pc-cierre-contador" id="pc-cierre-contador"></div>';
+  html += '<button class="btn-cerrar-mes" id="btn-cerrar-mes">'
+    + (recierre ? '🔒 Volver a cerrar — versión ' + (Number(cierreEstado.version) + 1) : '🔒 Cerrar ' + mes)
+    + '</button>';
+
+  zona.innerHTML = html;
+
+  if (recierre) {
+    paso.className = 'pc-paso alerta';
+    document.getElementById('pc-icono-6').textContent = '✓';
+    document.getElementById('pc-desc-6').textContent = 'Mes cerrado. Puedes volver a cerrarlo si las cifras han cambiado.';
+  } else {
+    paso.className = 'pc-paso';
+    document.getElementById('pc-icono-6').textContent = '6';
+    document.getElementById('pc-desc-6').textContent = 'Congela las horas día a día. No se puede deshacer: si hay que rectificar, se vuelve a cerrar.';
+  }
+
+  const btnCerrar = document.getElementById('btn-cerrar-mes');
+  const inpMotivo = document.getElementById('pc-cierre-motivo');
+  const contMotivo = document.getElementById('pc-cierre-contador');
+
+  function validarMotivo() {
+    const n = inpMotivo.value.trim().length;
+    if (recierre) {
+      contMotivo.textContent = n + ' / 15 caracteres mínimos';
+      contMotivo.style.color = n >= 15 ? 'var(--verde)' : 'var(--texto2)';
+      btnCerrar.disabled = n < 15;
+    } else {
+      contMotivo.textContent = n ? n + ' caracteres' : '';
+      btnCerrar.disabled = false;
+    }
+  }
+  inpMotivo.addEventListener('input', validarMotivo);
+  validarMotivo();
+  btnCerrar.addEventListener('click', firmarCierreMes);
+}
+
+async function firmarCierreMes() {
+  const mes = document.getElementById('filtro-mes').value;
+  const motivo = document.getElementById('pc-cierre-motivo').value.trim();
+  const btn = document.getElementById('btn-cerrar-mes');
+  const zona = document.getElementById('pc-cierre-zona');
+  const datos = construirLineasCierre();
+  if (!datos || !datos.lineas.length) return;
+
+  const obraNombre = (() => {
+    const sel = document.getElementById('selector-obra');
+    return sel && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex].textContent : 'esta obra';
+  })();
+
+  if (!confirm('Vas a congelar ' + datos.lineas.length + ' días-persona y '
+    + formatHoras(datos.horas) + ' h de ' + obraNombre + ' en ' + mes
+    + '.\n\nEsto NO se puede deshacer. ¿Firmamos?')) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Congelando…';
+
+  try {
+    const lineas = datos.lineas.map(l => ({
+      trabajador_id: l.trabajador_id, fecha: l.fecha,
+      hora_entrada: l.hora_entrada, hora_salida: l.hora_salida,
+      horas_brutas: l.horas_brutas, descanso_min: l.descanso_min,
+      horas_netas: l.horas_netas, es_intensiva: l.es_intensiva,
+      es_sabado: l.es_sabado, hubo_autocierre: l.hubo_autocierre,
+      hubo_manual: l.hubo_manual, ajuste_horas: l.ajuste_horas
+    }));
+
+    const { data, error } = await sb.rpc('cerrar_mes', {
+      p_obra_id: obraActual, p_mes: mes + '-01',
+      p_motivo: motivo || null, p_lineas: lineas, p_motor: MOTOR_ID
+    });
+
+    if (error) throw new Error(error.message);
+    if (!data || data.ok === false) throw new Error((data && data.error) || 'el servidor no ha cerrado el mes');
+
+    zona.innerHTML = '<div class="pc-cierre-ok"><b>Mes cerrado.</b> '
+      + escapeHtml(data.obra) + ' · ' + escapeHtml(data.mes)
+      + ' · versión ' + escapeHtml(data.version) + '<br>'
+      + escapeHtml(data.lineas) + ' días-persona congelados, '
+      + formatHoras(data.total_horas) + ' h.<br>'
+      + 'Firmado por ' + escapeHtml(data.cerrado_por) + '.'
+      + (data.sustituye_a ? '<br>La versión anterior queda marcada como sustituida.' : '')
+      + '</div>';
+
+    const paso = document.getElementById('pc-paso-6');
+    paso.className = 'pc-paso hecho';
+    document.getElementById('pc-icono-6').textContent = '✓';
+    document.getElementById('pc-desc-6').textContent = 'Mes cerrado. Las horas están congeladas.';
+
+  } catch (e) {
+    console.error('cerrar_mes:', e);
+    zona.insertAdjacentHTML('afterbegin',
+      '<div class="pc-cierre-error"><b>No se ha cerrado el mes.</b><br>'
+      + escapeHtml(e.message || e) + '</div>');
+    btn.disabled = false;
+    btn.textContent = '🔒 Reintentar';
+  }
+}
+
 function actualizarPanelCierre() {
   const panel = document.getElementById('panel-cierre');
   const pendientes = autocierresPendientes();
@@ -2950,6 +3195,10 @@ function actualizarPanelCierre() {
     estado.className = 'pc-estado listo';
     estado.textContent = '· listo para exportar';
   }
+
+  // 83ª. El paso 6 (cierre) se actualiza DESPUÉS del panel de cierre,
+  // porque necesita saber si los pasos 1-4 están limpios.
+  actualizarPasoCierre();
 }
 
 // Construye la fila de dias del mes (numero + letra + gris de finde + marca de
