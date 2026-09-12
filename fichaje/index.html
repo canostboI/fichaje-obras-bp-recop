@@ -411,6 +411,51 @@
   }
   .aviso-gps button.reintentar:active { transform: scale(0.98); }
 
+  /* 84ª — Tambor de horas recientes */
+  .tambor-horas {
+    margin: 18px auto 0;
+    max-width: 260px;
+    height: 160px;
+    overflow: hidden;
+    position: relative;
+    -webkit-mask-image: linear-gradient(to bottom,
+      transparent 0%, rgba(0,0,0,.3) 15%, black 40%, black 60%, rgba(0,0,0,.3) 85%, transparent 100%);
+    mask-image: linear-gradient(to bottom,
+      transparent 0%, rgba(0,0,0,.3) 15%, black 40%, black 60%, rgba(0,0,0,.3) 85%, transparent 100%);
+  }
+  .tambor-horas-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 56px;     /* centra la primera fila visualmente */
+  }
+  .tambor-fila {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: 6px 12px;
+    font-size: 17px;
+    color: var(--texto);
+    opacity: 0.55;
+    transform: scale(0.92);
+    transition: opacity .15s, transform .15s;
+  }
+  .tambor-fila.central {
+    font-weight: 700;
+    font-size: 20px;
+    opacity: 1;
+    transform: scale(1);
+  }
+  .tambor-fila .dia { text-transform: capitalize; }
+  .tambor-fila .horas { font-variant-numeric: tabular-nums; }
+  .tambor-titulo {
+    text-align: center;
+    font-size: 13px;
+    color: var(--color-principal);
+    margin-top: 12px;
+    font-weight: 600;
+  }
+
   .selector-idioma {
     display: flex;
     flex-wrap: wrap;          /* con siete idiomas no cabe una sola fila */
@@ -520,6 +565,11 @@
       <div class="hora" id="final-hora"></div>
       <div id="final-motivos" class="motivos oculto" style="text-align:left;"></div>
       <div id="final-olvido" class="aviso-olvido oculto"></div>
+      <!-- 84ª — Tambor de horas recientes (solo tras entrada) -->
+      <div id="tambor-horas-wrap" class="oculto">
+        <div class="tambor-titulo" id="tambor-titulo"></div>
+        <div class="tambor-horas"><div class="tambor-horas-inner" id="tambor-inner"></div></div>
+      </div>
     </div>
     <button type="button" class="secundario" id="btn-nuevo-fichaje" style="margin-top:10px;">Nuevo fichaje</button>
   </div>
@@ -687,6 +737,8 @@ const TEXTOS = {
     olvido_l4a:          'Consulta con tu encargado',
     olvido_l4b:          'y ficha siempre la salida antes de irte.',
     pie:                 'Control de acceso',
+    tambor_titulo:       'Tus últimas jornadas',
+    dias_semana:         ['dom','lun','mar','mié','jue','vie','sáb'],
     dni_invalido:        'Introduzca un DNI o NIE válido.',
     dni_letra_mal:       'La letra no coincide con los números. Revise su DNI.',
     dni_no_encontrado:   'DNI no encontrado. Revise números y letra.',
@@ -799,6 +851,8 @@ const TEXTOS = {
     olvido_l4a:          'Consulteu amb el vostre encarregat',
     olvido_l4b:          'i fitxeu sempre la sortida abans d\'anar-vos-en.',
     pie:                 "Control d'accés",
+    tambor_titulo:       'Les teves últimes jornades',
+    dias_semana:         ['dg','dl','dt','dc','dj','dv','ds'],
     dni_invalido:        'Introduïu un DNI o NIE vàlid.',
     dni_letra_mal:       'La lletra no coincideix amb els números. Reviseu el vostre DNI.',
     dni_no_encontrado:   'DNI no trobat. Reviseu números i lletra.',
@@ -902,6 +956,8 @@ const TEXTOS = {
     olvido_l4a:          'راجع المسؤول عنك',
     olvido_l4b:          'وسجّل الخروج دائماً قبل مغادرة الموقع.',
     pie:                 'مراقبة الدخول',
+    tambor_titulo:       'آخر أيام عملك',
+    dias_semana:         ['أحد','إثن','ثلا','أرب','خمي','جمع','سبت'],
     dni_invalido:        'يرجى إدخال رقم هوية صحيح.',
     dni_letra_mal:       'الحرف لا يتطابق مع الأرقام. يرجى مراجعة هويتك.',
     dni_no_encontrado:   'الهوية غير موجودة. تحقق من الأرقام والحرف.',
@@ -1005,6 +1061,8 @@ const TEXTOS = {
     olvido_l4a:          'Vorbește cu responsabilul tău',
     olvido_l4b:          'și înregistrează întotdeauna ieșirea înainte de a pleca.',
     pie:                 'Control acces',
+    tambor_titulo:       'Ultimele tale zile de lucru',
+    dias_semana:         ['dum','lun','mar','mie','joi','vin','sâm'],
     dni_invalido:        'Introduceți un DNI sau NIE valid.',
     dni_letra_mal:       'Litera nu corespunde cu cifrele. Verificați DNI-ul.',
     dni_no_encontrado:   'DNI negăsit. Verificați cifrele și litera.',
@@ -1115,6 +1173,8 @@ const TEXTOS = {
     olvido_l4a:          'اپنے انچارج سے رابطہ کریں',
     olvido_l4b:          'اور جانے سے پہلے ہمیشہ اخراج درج کریں۔',
     pie:                 'داخلہ کنٹرول',
+    tambor_titulo:       'آپ کے آخری کام کے دن',
+    dias_semana:         ['اتو','سوم','منگ','بدھ','جمر','جمع','ہفت'],
     dni_invalido:        'درست DNI یا NIE درج کریں۔',
     dni_letra_mal:       'حرف اعداد سے میل نہیں کھاتا۔ اپنا شناختی نمبر دوبارہ دیکھیں۔',
     dni_no_encontrado:   'شناختی نمبر نہیں ملا۔ اعداد اور حرف دوبارہ دیکھیں۔',
@@ -1224,6 +1284,8 @@ const TEXTOS = {
     olvido_l4a:          'ਆਪਣੇ ਇੰਚਾਰਜ ਨਾਲ ਗੱਲ ਕਰੋ',
     olvido_l4b:          'ਅਤੇ ਜਾਣ ਤੋਂ ਪਹਿਲਾਂ ਹਮੇਸ਼ਾ ਬਾਹਰ ਜਾਣ ਦੀ ਹਾਜ਼ਰੀ ਦਰਜ ਕਰੋ।',
     pie:                 'ਦਾਖ਼ਲਾ ਕੰਟਰੋਲ',
+    tambor_titulo:       'ਤੁਹਾਡੇ ਪਿਛਲੇ ਕੰਮ ਦੇ ਦਿਨ',
+    dias_semana:         ['ਐਤ','ਸੋਮ','ਮੰਗ','ਬੁੱਧ','ਵੀਰ','ਸ਼ੁੱਕ','ਸ਼ਨੀ'],
     dni_invalido:        'ਸਹੀ DNI ਜਾਂ NIE ਭਰੋ।',
     dni_letra_mal:       'ਅੱਖਰ ਅੰਕਾਂ ਨਾਲ ਮੇਲ ਨਹੀਂ ਖਾਂਦਾ। ਆਪਣਾ ਪਛਾਣ ਨੰਬਰ ਦੁਬਾਰਾ ਵੇਖੋ।',
     dni_no_encontrado:   'ਪਛਾਣ ਨੰਬਰ ਨਹੀਂ ਮਿਲਿਆ। ਅੰਕ ਅਤੇ ਅੱਖਰ ਦੁਬਾਰਾ ਵੇਖੋ।',
@@ -1328,6 +1390,8 @@ const TEXTOS = {
     olvido_l4a:          'Speak to your supervisor',
     olvido_l4b:          'and always clock out before you leave.',
     pie:                 'Access control',
+    tambor_titulo:       'Your recent work days',
+    dias_semana:         ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
     dni_invalido:        'Please enter a valid ID number (DNI or NIE).',
     dni_letra_mal:       'The letter does not match the numbers. Please check your ID.',
     dni_no_encontrado:   'ID not found. Please check the numbers and the letter.',
@@ -2568,6 +2632,14 @@ function mostrarConfirmacionFinal(r) {
     el.finalOlvido.classList.add('oculto');
   }
 
+  // 84ª — Tambor de horas recientes (solo tras entrada exitosa).
+  // Accesorio: si falla, el fichaje ya está hecho.
+  if (r.tipo === 'entrada') {
+    cargarTamborHoras(estado.dni, estado.obraId);
+  } else {
+    document.getElementById('tambor-horas-wrap').classList.add('oculto');
+  }
+
   // El fichaje ha salido bien: el idioma que hay en pantalla es el de esta
   // persona. Es el único momento en que idioma y DNI van juntos con certeza.
   recordarIdiomaDeDni(estado.dni, idiomaActual);
@@ -2576,6 +2648,43 @@ function mostrarConfirmacionFinal(r) {
   detectarMovilCompartido(estado.obraId, historial);
 
   irA(el.pasoFinal);
+}
+// 84ª — TAMBOR DE HORAS RECIENTES
+// Llama a la RPC pública horas_jornada_recientes y pinta un widget
+// tipo molinete con los últimos días. Accesorio: si falla, no pasa nada.
+async function cargarTamborHoras(dni, obraId) {
+  const wrap = document.getElementById('tambor-horas-wrap');
+  const inner = document.getElementById('tambor-inner');
+  const titulo = document.getElementById('tambor-titulo');
+  wrap.classList.add('oculto');
+  inner.innerHTML = '';
+  try {
+    const { data, error } = await sb.rpc('horas_jornada_recientes', {
+      p_dni: dni, p_obra_id: obraId
+    });
+    if (error || !data || !data.length) return;
+
+    titulo.textContent = T('tambor_titulo');
+    const diasSemana = T('dias_semana') || ['dom','lun','mar','mié','jue','vie','sáb'];
+
+    data.forEach((d, i) => {
+      const fecha = new Date(d.fecha + 'T12:00:00'); // mediodía para evitar DST
+      const diaSem = diasSemana[fecha.getDay()];
+      const diaMes = fecha.getDate();
+      const h = Math.floor(d.horas_netas);
+      const m = Math.round((d.horas_netas - h) * 60);
+      const fila = document.createElement('div');
+      fila.className = 'tambor-fila' + (i === 0 ? ' central' : '');
+      fila.innerHTML =
+        '<span class="dia">' + escapar(diaSem) + ' ' + diaMes + '</span>' +
+        '<span class="horas">' + h + 'h ' + String(m).padStart(2, '0') + 'min</span>';
+      inner.appendChild(fila);
+    });
+
+    wrap.classList.remove('oculto');
+  } catch (e) {
+    console.warn('[tambor] Error (no bloquea):', e);
+  }
 }
 </script>
 
