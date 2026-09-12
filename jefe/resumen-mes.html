@@ -365,6 +365,7 @@ function etiquetaCat(t) {  const ETQ = { peon:'Peón', oficial:'Oficial', encarg
       <input type="month" id="filtro-mes">
       <button class="btn-secundario" id="btn-mes-actual">Mes actual</button>
       <button class="btn-primario" id="btn-exportar-excel">📥 Excel proforma</button>
+      <button class="btn-secundario" id="btn-añadir-trabajador" title="Añadir un trabajador de la obra que no tiene fichajes este mes">➕ Añadir trabajador</button>
       <span class="sep-controles"></span>
       <label for="filtro-dia" class="lbl-dia">Día:</label>
       <input type="date" id="filtro-dia">
@@ -684,6 +685,28 @@ function etiquetaCat(t) {  const ETQ = { peon:'Peón', oficial:'Oficial', encarg
       <button class="btn-secundario" id="btn-cancelar-fijar">Cancelar</button>
       <button class="btn-rojo" id="btn-quitar-fijar" style="display:none">Quitar y volver al cálculo</button>
       <button class="btn-primario" id="btn-guardar-fijar">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- 83ª · Modal Añadir trabajador: para quien trabajó pero no fichó (ej: primer día, rojo autorizado de palabra) -->
+<div class="modal-overlay" id="modal-añadir-trab">
+  <div class="modal" style="max-width:560px">
+    <h2>➕ Añadir trabajador al mes</h2>
+    <div class="info-ajuste">Busca un trabajador de la obra que no tenga fichajes este mes. Le fijarás las horas de un día y aparecerá en la tabla y en el proforma.</div>
+    <div class="error-modal" id="error-añadir-trab"></div>
+    <div class="ok-modal" id="ok-añadir-trab"></div>
+    <div class="campo"><label>Buscar por nombre o DNI</label><input type="text" id="añadir-trab-busqueda" placeholder="Escribe al menos 3 letras…" autocomplete="off"></div>
+    <div id="añadir-trab-resultados" style="max-height:180px;overflow:auto;margin-bottom:8px"></div>
+    <div id="añadir-trab-seleccion" style="display:none">
+      <div class="subtitulo" id="añadir-trab-nombre">—</div>
+      <div class="campo"><label>Fecha</label><input type="date" id="añadir-trab-fecha"></div>
+      <div class="campo"><label>Horas reconocidas</label><input type="number" id="añadir-trab-horas" min="0" max="24" step="0.25"></div>
+      <div class="campo"><label>Motivo</label><textarea id="añadir-trab-motivo" placeholder="Ej: trabajó sin fichar, primer día"></textarea></div>
+    </div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cancelar-añadir-trab">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar-añadir-trab" disabled>Guardar</button>
     </div>
   </div>
 </div>
@@ -1100,15 +1123,28 @@ async function exportarExcelProforma() {
     const ajustes = await obtenerAjustesMes(obraActual, mes);
     if (mesCargado === mes) { ajustesMesMap = ajustes; }
 
-    // FICH-020 · Horas fijadas a quien no tiene NINGÚN fichaje ese mes: el
-    // proforma se construye a partir de los fichajes, así que esa gente no
-    // sale en ninguna hoja y sus horas no las paga nadie. No se bloquea la
-    // exportación (el resto del proforma es correcto), pero se dice.
+    // 83ª · Buscar datos de trabajadores con horas fijadas pero sin fichajes
+    // para inyectarlos en el proforma (antes solo se avisaba y se perdían).
     const sinFichajes = window.ExcelProforma.idsConHorasFijadasSinFichajes
       ? window.ExcelProforma.idsConHorasFijadasSinFichajes(fichajes, ajustes) : [];
+    let extrasTrabajadores = [];
+    if (sinFichajes.length > 0) {
+      const { data: tws, error: errTws } = await sb.from('trabajadores')
+        .select('id, nombre, apellidos, dni, categoria, categoria_otra, precio_hora_personalizado, empresa_id, empresas(nombre)')
+        .in('id', sinFichajes);
+      if (!errTws && tws) {
+        extrasTrabajadores = tws.map(tw => ({
+          id: tw.id, nombre: tw.nombre, apellidos: tw.apellidos || '',
+          dni: tw.dni || '', categoria: tw.categoria || '',
+          categoria_otra: tw.categoria_otra || '',
+          precio_hora_personalizado: tw.precio_hora_personalizado ?? null,
+          empresa: { nombre: tw.empresas?.nombre || 'Sin empresa' }
+        }));
+      }
+    }
 
-    if (!fichajes || fichajes.length === 0) {
-      msg.className = 'msg-info err'; msg.textContent = 'No hay fichajes en ese mes para esta obra.';
+    if ((!fichajes || fichajes.length === 0) && extrasTrabajadores.length === 0) {
+      msg.className = 'msg-info err'; msg.textContent = 'No hay fichajes ni horas fijadas en ese mes para esta obra.';
       btn.disabled = false; btn.textContent = textoOriginal; return;
     }
 
@@ -1154,27 +1190,7 @@ async function exportarExcelProforma() {
       }
     } catch (e) { logoBase64 = null; }
 
-    // FICH-020 · Se avisa ANTES de generar, no después: si esas horas tenían
-    // que estar dentro, el proforma hay que rehacerlo, no revisarlo.
-    if (sinFichajes.length > 0) {
-      const n = sinFichajes.length;
-      const seguirSF = window.confirm(
-        `Atención: ${n} ${n === 1 ? 'persona tiene' : 'personas tienen'} horas fijadas a mano este mes ` +
-        `pero NINGÚN fichaje en esta obra.\n\n` +
-        'El proforma se construye a partir de los fichajes, así que esas horas NO van a salir en ninguna hoja ' +
-        'y no las va a cobrar nadie.\n\n' +
-        'Suele pasar cuando se fijan horas a alguien que no llegó a fichar (baja, desplazamiento) ' +
-        'o cuando se han fijado en la obra equivocada.\n\n' +
-        '¿Quieres exportar igualmente?'
-      );
-      if (!seguirSF) {
-        msg.className = 'msg-info err';
-        msg.textContent = 'Exportación cancelada: hay horas fijadas que se quedarían fuera del proforma.';
-        btn.disabled = false; btn.textContent = textoOriginal; return;
-      }
-    }
-
-    const { buffer, autocierres } = await window.ExcelProforma.generar({ obra, mes, fichajes, logoBase64, ajustes, diasIntensiva: diasIntensivaSet, jornadas: ctxJornadas });
+    const { buffer, autocierres } = await window.ExcelProforma.generar({ obra, mes, fichajes, logoBase64, ajustes, diasIntensiva: diasIntensivaSet, jornadas: ctxJornadas, trabajadoresSinFichaje: extrasTrabajadores });
 
     if (autocierres > 0) {
       const seguir = window.confirm(
@@ -2058,18 +2074,48 @@ async function cargarResumen() {
   const [year, month] = mes.split('-').map(Number);
   const diasMes = new Date(year, month, 0).getDate();
 
-  if (!fichajes || fichajes.length === 0) {
-    zona.innerHTML = renderMesSinFichajes(year, month, diasMes);
-    return;
-  }
-
-  // Ajustes de horas fijadas del mes
+  // 83ª · Los ajustes se cargan ANTES de decidir si hay fichajes, porque
+  // un trabajador puede tener solo horas fijadas a mano y ningún fichaje.
+  // Sin mover esto arriba, ese caso se pierde en el return temprano.
   ajustesMesMap = {};
   try {
     ajustesMesMap = await obtenerAjustesMes(obraActual, mes);
   } catch (e) {
     datosCalculoIncompletos = true;
     avisosCarga.push(e.message || 'no se han podido leer las horas fijadas a mano');
+  }
+
+  // 83ª · Trabajadores con horas fijadas a mano pero sin fichajes este mes.
+  // En vez de solo avisar (FICH-020), se buscan sus datos para inyectarlos
+  // en el motor y que aparezcan en la tabla y en el proforma.
+  const idsSinFichaje = window.ExcelProforma.idsConHorasFijadasSinFichajes
+    ? window.ExcelProforma.idsConHorasFijadasSinFichajes(fichajes, ajustesMesMap) : [];
+  let trabajadoresSinFichajeCache = [];
+  if (idsSinFichaje.length > 0) {
+    try {
+      const { data: tws, error: errTws } = await sb.from('trabajadores')
+        .select('id, nombre, apellidos, dni, categoria, categoria_otra, precio_hora_personalizado, empresa_id, empresas(nombre)')
+        .in('id', idsSinFichaje);
+      if (!errTws && tws) {
+        trabajadoresSinFichajeCache = tws.map(tw => ({
+          id: tw.id,
+          nombre: tw.nombre,
+          apellidos: tw.apellidos || '',
+          dni: tw.dni || '',
+          categoria: tw.categoria || '',
+          categoria_otra: tw.categoria_otra || '',
+          precio_hora_personalizado: tw.precio_hora_personalizado ?? null,
+          empresa: { nombre: tw.empresas?.nombre || 'Sin empresa' }
+        }));
+      }
+    } catch (e) {
+      console.error('trabajadoresSinFichaje:', e);
+    }
+  }
+
+  if ((!fichajes || fichajes.length === 0) && trabajadoresSinFichajeCache.length === 0) {
+    zona.innerHTML = renderMesSinFichajes(year, month, diasMes);
+    return;
   }
 
   // Horas oficiales de la obra (suelo/techo del cómputo de horas).
@@ -2099,6 +2145,19 @@ async function cargarResumen() {
   horasObraActual = horasObra;
 
   const grupos = window.ExcelProforma.agruparPorEmpresa(fichajes);
+
+  // 83ª · Distribuir trabajadores sin fichajes en sus grupos de empresa
+  // para que el motor les aplique los ajustes.
+  const extrasPorEmpresa = {};
+  if (trabajadoresSinFichajeCache.length > 0) {
+    trabajadoresSinFichajeCache.forEach(tw => {
+      const empresa = tw.empresa?.nombre || 'Sin empresa';
+      if (!grupos[empresa]) grupos[empresa] = [];
+      if (!extrasPorEmpresa[empresa]) extrasPorEmpresa[empresa] = [];
+      extrasPorEmpresa[empresa].push(tw);
+    });
+  }
+
   const nombresEmpresa = Object.keys(grupos).sort((a, b) => a.localeCompare(b, 'es'));
 
   let html = '';
@@ -2109,7 +2168,9 @@ async function cargarResumen() {
       grupos[nombreEmpresa], diasMes,
       { horaEntrada: horasObra.entrada, horaSalida: horasObra.salida, ajustes: ajustesMesMap, minutosDescanso: horasObra.descanso,
         horaEntradaIntensiva: horarioIntensiva.entrada, horaSalidaIntensiva: horarioIntensiva.salida, minutosDescansoIntensiva: horarioIntensiva.descanso,
-        diasIntensiva: diasIntensivaSet, jornadas: ctxJornadas }
+        diasIntensiva: diasIntensivaSet, jornadas: ctxJornadas,
+        trabajadoresSinFichaje: extrasPorEmpresa[nombreEmpresa] || null,
+        year, month }
     );
     trabajadores.forEach(t => {
       totalAutocierres += (t.autocierres_mes || 0);
@@ -2125,13 +2186,6 @@ async function cargarResumen() {
   // nunca desaparecía, así que acababa ignorándose.)
   const pendientes = autocierresPendientes();
 
-  // FICH-020 · Horas fijadas a mano a quien no tiene ningún fichaje este mes.
-  // No entra en `avisosCarga` a propósito: eso bloquea el Excel, y aquí el
-  // resto del proforma es correcto. Es un aviso, no un cerrojo. Puede llegar a
-  // cero (lo normal es que esté a cero) y por eso merece la pena escribirlo.
-  const sinFichajesPantalla = window.ExcelProforma.idsConHorasFijadasSinFichajes
-    ? window.ExcelProforma.idsConHorasFijadasSinFichajes(fichajes, ajustesMesMap) : [];
-
   const partes = [];
   if (avisosCarga.length) {
     partes.push('⛔ Estas horas pueden NO ser correctas: ' + avisosCarga.join('; ')
@@ -2139,10 +2193,6 @@ async function cargarResumen() {
   }
   if (pendientes.length > 0) {
     partes.push(`⚠️ ${pendientes.length} ${pendientes.length === 1 ? 'salida' : 'salidas'} con cierre automático sin resolver (en naranja).`);
-  }
-  if (sinFichajesPantalla.length > 0) {
-    const n = sinFichajesPantalla.length;
-    partes.push(`⚠️ ${n} ${n === 1 ? 'persona tiene horas fijadas' : 'personas tienen horas fijadas'} a mano y ningún fichaje este mes: esas horas NO salen en el proforma.`);
   }
   if (partes.length) {
     msg.className = avisosCarga.length ? 'msg-info err' : 'msg-info aviso';
@@ -3892,6 +3942,140 @@ function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c =>
     ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 }
+
+// =====================================================================
+// 83ª · AÑADIR TRABAJADOR SIN FICHAJES
+// Busca entre los de la obra (validaciones_obra) los que NO tienen
+// fichajes este mes, y permite fijar horas de un día para que aparezcan
+// en el resumen y el proforma.
+// =====================================================================
+let añadirTrabCache = []; // cache de trabajadores de la obra
+let añadirTrabSeleccionado = null;
+
+document.getElementById('btn-añadir-trabajador').addEventListener('click', async () => {
+  if (!obraActual || !mesCargado) return;
+  const modal = document.getElementById('modal-añadir-trab');
+  document.getElementById('añadir-trab-busqueda').value = '';
+  document.getElementById('añadir-trab-resultados').innerHTML = '';
+  document.getElementById('añadir-trab-seleccion').style.display = 'none';
+  document.getElementById('error-añadir-trab').style.display = 'none';
+  document.getElementById('ok-añadir-trab').style.display = 'none';
+  document.getElementById('btn-guardar-añadir-trab').disabled = true;
+  añadirTrabSeleccionado = null;
+
+  // Poner fecha por defecto = ayer (el caso más habitual)
+  const ayer = new Date(); ayer.setDate(ayer.getDate() - 1);
+  document.getElementById('añadir-trab-fecha').value =
+    `${ayer.getFullYear()}-${String(ayer.getMonth()+1).padStart(2,'0')}-${String(ayer.getDate()).padStart(2,'0')}`;
+  document.getElementById('añadir-trab-horas').value = '';
+  document.getElementById('añadir-trab-motivo').value = '';
+
+  // Cargar trabajadores de la obra que NO están ya en la tabla
+  try {
+    const { data: enObra, error: errO } = await sb.from('validaciones_obra')
+      .select('trabajador_id, trabajadores(id, nombre, apellidos, dni, categoria, categoria_otra, precio_hora_personalizado, empresa_id, empresas(nombre))')
+      .eq('obra_id', obraActual);
+    if (errO) throw errO;
+    const yaEnMes = new Set(Object.keys(resumenTrabajadores));
+    añadirTrabCache = (enObra || [])
+      .filter(v => v.trabajadores && !yaEnMes.has(v.trabajador_id))
+      .map(v => {
+        const t = v.trabajadores;
+        return {
+          id: t.id,
+          nombre: (t.nombre || '') + (t.apellidos ? ' ' + t.apellidos : ''),
+          dni: t.dni || '',
+          categoria: t.categoria || '',
+          categoria_otra: t.categoria_otra || '',
+          precio_hora_personalizado: t.precio_hora_personalizado ?? null,
+          empresa_nombre: t.empresas?.nombre || 'Sin empresa',
+          // guardar datos crudos para el motor
+          _raw: t
+        };
+      })
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  } catch (e) {
+    document.getElementById('error-añadir-trab').textContent = 'Error al cargar trabajadores: ' + (e.message || e);
+    document.getElementById('error-añadir-trab').style.display = 'block';
+    añadirTrabCache = [];
+  }
+
+  modal.classList.add('visible');
+  document.getElementById('añadir-trab-busqueda').focus();
+});
+
+document.getElementById('btn-cancelar-añadir-trab').addEventListener('click', () => {
+  document.getElementById('modal-añadir-trab').classList.remove('visible');
+});
+
+document.getElementById('añadir-trab-busqueda').addEventListener('input', () => {
+  const q = document.getElementById('añadir-trab-busqueda').value.trim().toLowerCase();
+  const zona = document.getElementById('añadir-trab-resultados');
+  if (q.length < 3) { zona.innerHTML = ''; return; }
+  const filtrados = añadirTrabCache.filter(t =>
+    t.nombre.toLowerCase().includes(q) || t.dni.toLowerCase().includes(q)
+  ).slice(0, 10);
+  if (filtrados.length === 0) { zona.innerHTML = '<div style="padding:6px;color:#888">Sin resultados.</div>'; return; }
+  zona.innerHTML = filtrados.map(t =>
+    `<div class="resultado-trab" data-id="${t.id}" style="padding:6px 8px;cursor:pointer;border-bottom:1px solid #eee">`
+    + `<b>${escapeHtml(t.nombre)}</b> · ${escapeHtml(t.dni)} · <span style="color:#888">${escapeHtml(t.empresa_nombre)}</span></div>`
+  ).join('');
+});
+
+document.getElementById('añadir-trab-resultados').addEventListener('click', (ev) => {
+  const fila = ev.target.closest('[data-id]');
+  if (!fila) return;
+  const id = fila.dataset.id;
+  const t = añadirTrabCache.find(x => x.id === id);
+  if (!t) return;
+  añadirTrabSeleccionado = t;
+  document.getElementById('añadir-trab-nombre').textContent = `${t.nombre} · ${t.dni} · ${t.empresa_nombre}`;
+  document.getElementById('añadir-trab-seleccion').style.display = '';
+  document.getElementById('añadir-trab-resultados').innerHTML = '';
+  document.getElementById('añadir-trab-busqueda').value = t.nombre;
+  document.getElementById('btn-guardar-añadir-trab').disabled = false;
+});
+
+document.getElementById('btn-guardar-añadir-trab').addEventListener('click', async () => {
+  if (!añadirTrabSeleccionado || !mesCargado) return;
+  const fecha = document.getElementById('añadir-trab-fecha').value;
+  const horas = parseFloat(document.getElementById('añadir-trab-horas').value);
+  const motivo = document.getElementById('añadir-trab-motivo').value.trim();
+  const err = document.getElementById('error-añadir-trab');
+  err.style.display = 'none';
+
+  // Validar que la fecha es del mes cargado
+  if (!fecha || !fecha.startsWith(mesCargado)) {
+    err.textContent = 'La fecha tiene que ser de ' + mesCargado + '.';
+    err.style.display = 'block'; return;
+  }
+  if (isNaN(horas) || horas < 0 || horas > 24) {
+    err.textContent = 'Pon un número de horas entre 0 y 24.';
+    err.style.display = 'block'; return;
+  }
+  if (motivo.length < 3) {
+    err.textContent = 'El motivo es obligatorio: es lo que justifica la decisión.';
+    err.style.display = 'block'; return;
+  }
+
+  document.getElementById('btn-guardar-añadir-trab').disabled = true;
+
+  const res = await guardarHorasDia(añadirTrabSeleccionado.id, fecha, horas, motivo);
+  if (!res.ok) {
+    err.textContent = res.error;
+    err.style.display = 'block';
+    document.getElementById('btn-guardar-añadir-trab').disabled = false;
+    return;
+  }
+
+  const ok = document.getElementById('ok-añadir-trab');
+  ok.textContent = `Horas guardadas para ${añadirTrabSeleccionado.nombre}. Recargando…`;
+  ok.style.display = 'block';
+  setTimeout(async () => {
+    document.getElementById('modal-añadir-trab').classList.remove('visible');
+    await cargarResumen();
+  }, 900);
+});
 </script>
 </body>
 </html>
