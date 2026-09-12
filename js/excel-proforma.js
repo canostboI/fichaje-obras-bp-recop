@@ -1272,6 +1272,37 @@
     });
   }
 
+  // 84ª · Guarda las horas netas calculadas en `horas_calculadas` para que
+  // la valla pueda enseñárselas al trabajador tras fichar. Fire and forget:
+  // si falla, no bloquea nada. Un INSERT en lote con ON CONFLICT UPDATE.
+  async function guardarHorasCalculadas(sb, obraId, trabajadores, userId) {
+    try {
+      const filas = [];
+      (trabajadores || []).forEach(t => {
+        if (!t.id || !t.dias_detalle) return;
+        Object.keys(t.dias_detalle).forEach(diaStr => {
+          const det = t.dias_detalle[diaStr];
+          if (!det || det.fecha == null || det.horas_netas == null) return;
+          filas.push({
+            trabajador_id: t.id,
+            obra_id: obraId,
+            fecha: det.fecha,
+            horas_netas: det.horas_netas,
+            calculado_en: new Date().toISOString(),
+            calculado_por: userId || null
+          });
+        });
+      });
+      if (filas.length === 0) return;
+      const { error } = await sb.from('horas_calculadas').upsert(filas, {
+        onConflict: 'trabajador_id,obra_id,fecha'
+      });
+      if (error) console.warn('[guardarHorasCalculadas] Supabase:', error.message);
+    } catch (e) {
+      console.warn('[guardarHorasCalculadas] Error (no bloquea):', e);
+    }
+  }
+
   // API pública.
   // - generar: crea el Excel proforma (uso original).
   // - agruparPorEmpresa y construirResumenTrabajadores: expuestas para P-07
@@ -1279,5 +1310,6 @@
   //   exactamente el mismo cálculo de horas.
   // - idsConHorasFijadasSinFichajes: la usan las dos `resumen-mes.html` para
   //   avisar de las horas fijadas que se quedarían fuera (FICH-020).
-  window.ExcelProforma = { generar, agruparPorEmpresa, construirResumenTrabajadores, idsConHorasFijadasSinFichajes };
+  // - guardarHorasCalculadas (84ª): persiste las horas en BD para la valla.
+  window.ExcelProforma = { generar, agruparPorEmpresa, construirResumenTrabajadores, idsConHorasFijadasSinFichajes, guardarHorasCalculadas };
 })();
