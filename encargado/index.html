@@ -14,6 +14,7 @@
   <script src="../js/motivos.js"></script>
   <script src="../js/accesos-resueltos.js"></script>
   <script src="../js/foto-identidad.js"></script>
+  <script src="../js/verificacion-identidad.js"></script>
 <script src="../js/impresion.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2680,17 +2681,6 @@
 var _fivEncTrabId = null;
 var _ficEncTrabId = null;
 var _ficEncMando  = null;
-var _vfmEncTrabId = null;
-var _vfmEncIdioma = null;
-
-var IDIOMAS_VFM_ENC = [
-  { code:'es', label:'Español' }, { code:'ca', label:'Català' },
-  { code:'en', label:'English' }, { code:'ro', label:'Română' },
-  { code:'ar', label:'العربية' }, { code:'ur', label:'اردو' },
-  { code:'pa', label:'ਪੰਜਾਬੀ' }
-];
-var METODOS_VFM_ENC = { dni: 'DNI/NIE físico', dni_tpc: 'App TPC' };
-
 function escEnc(t) {
   const d = document.createElement('div'); d.textContent = String(t == null ? '' : t); return d.innerHTML;
 }
@@ -2749,82 +2739,28 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('vfm-overlay').addEventListener('click', function(e) { if (e.target===this) cerrarVfmEnc(); });
 });
 
+// 🪪 Verificación de identidad — la lógica vive en js/verificacion-identidad.js (82ª, integrado 86ª).
+// Aquí solo quedan envoltorios para que el HTML (onclick) y el listener del overlay no cambien.
 async function clicVerifEnc(trabajadorId, btn) {
   btn.disabled = true;
   try {
-    const { data, error } = await sb.rpc('historial_verificacion_identidad', { p_trabajador_id: trabajadorId });
-    if (error || !data || !data.ok) throw new Error((data && data.error) || 'Error');
-    _vfmEncTrabId = trabajadorId; _vfmEncIdioma = null;
-    const lista = data.verificaciones || [];
-    document.getElementById('vfm-titulo').textContent = lista.length ? 'Verificación de identidad' : 'Registrar verificación';
-    document.getElementById('vfm-msg').textContent = ''; document.getElementById('vfm-msg').className = 'vfm-msg';
-
-    let html = '';
-    if (lista.length) {
-      html += '<span class="vfm-label">Verificaciones registradas</span>';
-      html += lista.map(v => {
-        const fecha = new Date(v.verificado_en).toLocaleString('es-ES',
-          { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone:'Europe/Madrid' });
-        return '<div class="vfm-h-item">📅 <strong>' + escEnc(fecha) + '</strong> · 👤 <strong>' + escEnc(v.verificado_por||'—') + '</strong><br>' +
-          '🏗️ ' + escEnc(v.obra||'—') + ' · 🪪 ' + escEnc(METODOS_VFM_ENC[v.metodo]||v.metodo||'—') + '<br>' +
-          '📄 Hoja: <strong>' + (v.informado ? '✓ ' + escEnc(v.idioma_informacion||'') : '✗ No entregada') + '</strong></div>';
-      }).join('');
-      html += '<hr class="vfm-sep"><span class="vfm-label">Añadir nueva verificación</span>';
-    }
-    html += '<div class="vfm-opciones"><label class="vfm-opcion"><input type="radio" name="vfm-metodo" value="dni"> <span>🪪 DNI / NIE físico</span></label>' +
-      '<label class="vfm-opcion"><input type="radio" name="vfm-metodo" value="dni_tpc"> <span>📱 App TPC</span></label></div>' +
-      '<div class="vfm-check-fila"><input type="checkbox" id="vfm-informado">' +
-      '<label class="vfm-check-txt" for="vfm-informado">He entregado y explicado la <strong>hoja informativa de protección de datos</strong></label></div>' +
-      '<div id="vfm-idiomas-wrap" style="display:none"><span class="vfm-label" style="margin:8px 0 4px;display:block">Idioma en que se explicó</span>' +
-      '<div class="vfm-idiomas">' + IDIOMAS_VFM_ENC.map(i => '<button class="vfm-idioma" data-code="' + i.code + '" onclick="selIdiomaEnc(this)">' + i.label + '</button>').join('') + '</div></div>' +
-      '<button class="vfm-hoja-btn" onclick="window.open(&quot;../assets/hoja-informativa.html&quot;,&quot;_blank&quot;)">📄 Ver hoja informativa (7 idiomas)</button>';
-
-    document.getElementById('vfm-cuerpo').innerHTML = html;
-    document.getElementById('vfm-btns-guardar').style.display = obraActualId ? 'flex' : 'none';
-    if (!obraActualId) { document.getElementById('vfm-msg').className='vfm-msg mal'; document.getElementById('vfm-msg').textContent='Selecciona una obra primero.'; }
-
-    const chk = document.getElementById('vfm-informado');
-    if (chk) chk.addEventListener('change', function() {
-      document.getElementById('vfm-idiomas-wrap').style.display = this.checked ? 'block' : 'none';
-      if (!this.checked) { _vfmEncIdioma=null; document.querySelectorAll('.vfm-idioma').forEach(b=>b.classList.remove('sel')); }
+    await VerifIdentidad.abrir(sb, trabajadorId, obraActualId, {
+      esc: escEnc,
+      onGuardado: function(tid) {
+        conVerifCache.add(tid);
+        document.querySelectorAll('.fi-icono-enc.sin-dato-clicable').forEach(b => {
+          if (b.getAttribute('onclick')?.includes(tid) && b.textContent.trim()==='🪪') {
+            b.classList.remove('sin-dato-clicable'); b.title='Ver/editar verificación';
+          }
+        });
+      }
     });
-    document.getElementById('vfm-overlay').classList.remove('oculto');
-  } catch(e) { alert('No se pudo cargar la verificación. ' + e.message); }
-  finally { btn.disabled = false; }
+  } finally {
+    btn.disabled = false;
+  }
 }
-
-function selIdiomaEnc(btn) {
-  document.querySelectorAll('.vfm-idioma').forEach(b=>b.classList.remove('sel'));
-  btn.classList.add('sel'); _vfmEncIdioma = btn.dataset.code;
-}
-
-async function guardarVerifEnc() {
-  const metodoEl = document.querySelector('input[name="vfm-metodo"]:checked');
-  const informado = document.getElementById('vfm-informado')?.checked;
-  const msg = document.getElementById('vfm-msg');
-  msg.className = 'vfm-msg';
-  if (!metodoEl) { msg.className='vfm-msg mal'; msg.textContent='Elige el método.'; return; }
-  if (informado && !_vfmEncIdioma) { msg.className='vfm-msg mal'; msg.textContent='Indica el idioma de la hoja.'; return; }
-  if (!obraActualId) { msg.className='vfm-msg mal'; msg.textContent='No hay obra seleccionada.'; return; }
-  const btn = document.getElementById('vfm-btn-guardar');
-  btn.disabled=true; msg.textContent='Guardando…';
-  const { data, error } = await sb.rpc('verificar_identidad', {
-    p_trabajador_id: _vfmEncTrabId, p_obra_id: obraActualId,
-    p_metodo: metodoEl.value, p_informado: !!informado,
-    p_idioma: informado ? _vfmEncIdioma : null
-  });
-  if (error || !data || !data.ok) { msg.className='vfm-msg mal'; msg.textContent=(data&&data.error)||'Error al guardar.'; btn.disabled=false; return; }
-  msg.className='vfm-msg ok'; msg.textContent='✓ Verificación registrada.';
-  conVerifCache.add(_vfmEncTrabId);
-  document.querySelectorAll('.fi-icono-enc.sin-dato-clicable').forEach(b => {
-    if (b.getAttribute('onclick')?.includes(_vfmEncTrabId) && b.textContent.trim()==='🪪') {
-      b.classList.remove('sin-dato-clicable'); b.title='Ver/editar verificación';
-    }
-  });
-  setTimeout(cerrarVfmEnc, 1000);
-}
-
-function cerrarVfmEnc() { document.getElementById('vfm-overlay').classList.add('oculto'); _vfmEncTrabId=null; _vfmEncIdioma=null; }
+function guardarVerifEnc() { return VerifIdentidad.guardar(sb); }
+function cerrarVfmEnc()    { VerifIdentidad.cerrar(); }
 // ─────────────────────────────────────────────────────────────────────
 </script>
 
