@@ -263,6 +263,22 @@
   .estado-verde   { background: #e8f5e9; color: var(--verde);   border: 2px solid var(--verde); }
   .estado-naranja { background: #fff4e6; color: var(--naranja); border: 2px solid var(--naranja); }
   .estado-rojo    { background: #fdecea; color: var(--rojo);    border: 2px solid var(--rojo); }
+  /* 85ª — El verde no compite con el botón: discreto. Naranja y rojo
+     siguen grandes a propósito (esos sí tienen que imponerse). */
+  .estado-box.compacta {
+    padding: 8px 12px;
+    font-size: 15px;
+    font-weight: 500;
+    border-width: 1px;
+    margin-bottom: 10px;
+  }
+  /* 85ª — Llamada a la acción: lo importante es PULSAR el botón */
+  .aviso-pulsar {
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    margin: 4px 0 12px;
+  }
 
   .motivos {
     background: #fff4e6;
@@ -591,6 +607,7 @@
     <div class="estado-box" id="estado-box"></div>
     <div class="motivos oculto" id="motivos-box"></div>
     <div class="error-banner oculto" id="error-resultado"></div>
+    <div class="aviso-pulsar oculto" id="aviso-pulsar"></div>
     <div class="botones-fichaje" id="botones-fichaje">
       <button type="button" id="btn-entrada"></button>
       <button type="button" id="btn-salida"></button>
@@ -765,6 +782,7 @@ const TEXTOS = {
     validando:           'Validando acceso…',
     registrando:         'Registrando fichaje…',
     acceso_ok:           '✓ Acceso autorizado',
+    pulsa_fichar:        'Aún no has fichado. Pulsa el botón:',
     acceso_aviso:        '⚠ Acceso con aviso',
     acceso_excepcion:    'Acceso autorizado excepcionalmente hoy',
     acceso_denegado:     '✗ Acceso denegado',
@@ -879,6 +897,7 @@ const TEXTOS = {
     validando:           "Validant l'accés…",
     registrando:         'Registrant el fitxatge…',
     acceso_ok:           '✓ Accés autoritzat',
+    pulsa_fichar:        'Encara no has fitxat. Prem el botó:',
     acceso_aviso:        '⚠ Accés amb avís',
     acceso_excepcion:    'Accés autoritzat excepcionalment avui',
     acceso_denegado:     '✗ Accés denegat',
@@ -984,6 +1003,7 @@ const TEXTOS = {
     validando:           'جارٍ التحقق من الوصول…',
     registrando:         'جارٍ تسجيل الحضور…',
     acceso_ok:           '✓ مسموح بالدخول',
+    pulsa_fichar:        'لم تسجّل بعد. اضغط الزر:',
     acceso_aviso:        '⚠ دخول مع تحذير',
     acceso_excepcion:    'مسموح بالدخول استثنائياً لهذا اليوم',
     acceso_denegado:     '✗ الدخول ممنوع',
@@ -1089,6 +1109,7 @@ const TEXTOS = {
     validando:           'Se verifică accesul…',
     registrando:         'Se înregistrează pontajul…',
     acceso_ok:           '✓ Acces autorizat',
+    pulsa_fichar:        'Încă nu ai pontat. Apasă butonul:',
     acceso_aviso:        '⚠ Acces cu avertisment',
     acceso_excepcion:    'Acces autorizat excepțional astăzi',
     acceso_denegado:     '✗ Acces refuzat',
@@ -1201,6 +1222,7 @@ const TEXTOS = {
     validando:           'رسائی کی تصدیق ہو رہی ہے…',
     registrando:         'حاضری درج کی جا رہی ہے…',
     acceso_ok:           '✓ داخلے کی اجازت ہے',
+    pulsa_fichar:        'ابھی حاضری درج نہیں ہوئی۔ بٹن دبائیں:',
     acceso_aviso:        '⚠ انتباہ کے ساتھ داخلہ',
     acceso_excepcion:    'آج استثنائی طور پر داخلے کی اجازت ہے',
     acceso_denegado:     '✗ داخلہ ممنوع',
@@ -1312,6 +1334,7 @@ const TEXTOS = {
     validando:           'ਦਾਖ਼ਲੇ ਦੀ ਜਾਂਚ ਹੋ ਰਹੀ ਹੈ…',
     registrando:         'ਹਾਜ਼ਰੀ ਦਰਜ ਹੋ ਰਹੀ ਹੈ…',
     acceso_ok:           '✓ ਦਾਖ਼ਲੇ ਦੀ ਇਜਾਜ਼ਤ ਹੈ',
+    pulsa_fichar:        'ਹਾਲੇ ਹਾਜ਼ਰੀ ਦਰਜ ਨਹੀਂ ਹੋਈ। ਬਟਨ ਦਬਾਓ:',
     acceso_aviso:        '⚠ ਚੇਤਾਵਨੀ ਨਾਲ ਦਾਖ਼ਲਾ',
     acceso_excepcion:    'ਅੱਜ ਖ਼ਾਸ ਛੋਟ ਵਜੋਂ ਦਾਖ਼ਲੇ ਦੀ ਇਜਾਜ਼ਤ ਹੈ',
     acceso_denegado:     '✗ ਦਾਖ਼ਲਾ ਮਨ੍ਹਾ ਹੈ',
@@ -1418,6 +1441,7 @@ const TEXTOS = {
     validando:           'Checking access…',
     registrando:         'Recording clock-in…',
     acceso_ok:           '✓ Access granted',
+    pulsa_fichar:        "You haven't clocked in yet. Press the button:",
     acceso_aviso:        '⚠ Access granted with a warning',
     acceso_excepcion:    'Access granted as an exception, today only',
     acceso_denegado:     '✗ Access denied',
@@ -2566,25 +2590,34 @@ function mostrarResultadoValidacion(v) {
   }
   ocultarErrorResultado();
   el.estadoBox.className = 'estado-box';
+  const avisoPulsar = document.getElementById('aviso-pulsar');
+  avisoPulsar.classList.add('oculto');
   const estadoEfectivo = (v.estado === 'rojo' && v.tiene_excepcion_hoy) ? 'excepcion' : v.estado;
   const tipoSugerido = v.tipo_sugerido || 'entrada';
 
   switch (estadoEfectivo) {
     case 'verde':
-      el.estadoBox.classList.add('estado-verde');
+      // 85ª: discreto — que el protagonista sea el botón, no el semáforo
+      el.estadoBox.classList.add('estado-verde', 'compacta');
       el.estadoBox.textContent = T('acceso_ok');
+      avisoPulsar.textContent = T('pulsa_fichar');
+      avisoPulsar.classList.remove('oculto');
       pintarMotivos(el.motivosBox, null);
       configurarBotonesFichaje('verde', tipoSugerido);
       break;
     case 'naranja':
       el.estadoBox.classList.add('estado-naranja');
       el.estadoBox.textContent = T('acceso_aviso');
+      avisoPulsar.textContent = T('pulsa_fichar');
+      avisoPulsar.classList.remove('oculto');
       pintarMotivos(el.motivosBox, [T('aviso_generico_docs')], false);
       configurarBotonesFichaje('naranja', tipoSugerido);
       break;
     case 'excepcion':
       el.estadoBox.classList.add('estado-naranja');
       el.estadoBox.textContent = T('acceso_excepcion');
+      avisoPulsar.textContent = T('pulsa_fichar');
+      avisoPulsar.classList.remove('oculto');
       pintarMotivos(el.motivosBox, [T('aviso_generico_docs')], false);
       configurarBotonesFichaje('naranja', tipoSugerido);
       break;
