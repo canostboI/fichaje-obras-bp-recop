@@ -311,7 +311,10 @@ async function cargarSaludCrons() {
     const dow = partes.length >= 5 ? partes[4] : '*';
     const esSemanal = (dow !== '*' && !dow.includes('-') && !dow.includes(','));
     const esLaborable = (c.schedule || '').includes('1-5');
-    const umbral = esSemanal ? 170 : (esLaborable && esFinDeSemanaOLunes ? 80 : 26);
+    const esConSabado = (c.schedule || '').includes('1-6'); // lunes-sábado (79ª): su hueco legítimo es sábado→lunes (48h)
+    const umbral = esSemanal ? 170
+      : esConSabado ? ((diaMadrid === 0 || diaMadrid === 1) ? 52 : 26)
+      : (esLaborable && esFinDeSemanaOLunes ? 80 : 26);
     if (!c.ultima_ejecucion) { problemas.push(`«${c.jobname}» nunca ha llegado a ejecutarse`); }
     else if (c.estado === 'failed') { problemas.push(`«${c.jobname}» FALLÓ en su última ejecución${c.mensaje ? ' — ' + String(c.mensaje).slice(0, 120) : ''}`); }
     else if (Number(c.horas_desde_ultima) > umbral) { problemas.push(`«${c.jobname}» lleva ${Math.round(c.horas_desde_ultima)}h sin correr`); }
