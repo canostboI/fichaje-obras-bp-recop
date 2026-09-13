@@ -411,34 +411,63 @@
   }
   .aviso-gps button.reintentar:active { transform: scale(0.98); }
 
-  /* 84ª — Tambor de horas recientes */
-  .tambor-horas {
-    margin: 18px auto 0;
-    max-width: 260px;
-    height: 160px;
+  /* 84ª — Tambor de horas recientes (85ª: scroll real + marco) */
+  .tambor-marco {
+    margin: 14px auto 0;
+    max-width: 280px;
+    position: relative;
+    border: 1.5px solid var(--gris-borde, #ccc);
+    border-radius: 14px;
+    background: rgba(0,0,0,0.03);
     overflow: hidden;
+  }
+  .tambor-banda {
+    position: absolute;
+    left: 8px; right: 8px;
+    top: 50%;
+    height: 40px;
+    transform: translateY(-50%);
+    border-top: 1.5px solid var(--color-principal);
+    border-bottom: 1.5px solid var(--color-principal);
+    border-radius: 8px;
+    background: rgba(0,0,0,0.04);
+    pointer-events: none;
+    z-index: 2;
+  }
+  .tambor-horas {
+    height: 150px;
+    overflow-y: auto;
+    scroll-snap-type: y mandatory;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
     position: relative;
     -webkit-mask-image: linear-gradient(to bottom,
-      transparent 0%, rgba(0,0,0,.3) 15%, black 40%, black 60%, rgba(0,0,0,.3) 85%, transparent 100%);
+      transparent 0%, rgba(0,0,0,.35) 18%, black 42%, black 58%, rgba(0,0,0,.35) 82%, transparent 100%);
     mask-image: linear-gradient(to bottom,
-      transparent 0%, rgba(0,0,0,.3) 15%, black 40%, black 60%, rgba(0,0,0,.3) 85%, transparent 100%);
+      transparent 0%, rgba(0,0,0,.35) 18%, black 42%, black 58%, rgba(0,0,0,.35) 82%, transparent 100%);
   }
+  .tambor-horas::-webkit-scrollbar { display: none; }
   .tambor-horas-inner {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding-top: 56px;     /* centra la primera fila visualmente */
+    align-items: stretch;
+    /* padding = (alto contenedor − alto fila) / 2 para poder centrar
+       la primera y la última fila en la banda */
+    padding: 55px 0;
   }
   .tambor-fila {
     display: flex;
     justify-content: space-between;
-    width: 100%;
-    padding: 6px 12px;
+    align-items: center;
+    height: 40px;
+    flex: 0 0 40px;
+    padding: 0 22px;
     font-size: 17px;
     color: var(--texto);
-    opacity: 0.55;
-    transform: scale(0.92);
-    transition: opacity .15s, transform .15s;
+    scroll-snap-align: center;
+    opacity: 0.45;
+    transform: scale(0.88);
+    transition: opacity .12s linear, transform .12s linear;
   }
   .tambor-fila.central {
     font-weight: 700;
@@ -454,6 +483,18 @@
     color: var(--color-principal);
     margin-top: 12px;
     font-weight: 600;
+  }
+  /* Pista de que se puede mover: flechitas a la derecha del marco */
+  .tambor-pista {
+    position: absolute;
+    right: 10px; top: 50%;
+    transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 22px;
+    font-size: 11px;
+    color: var(--color-principal);
+    opacity: 0.7;
+    pointer-events: none;
+    z-index: 3;
   }
 
   .selector-idioma {
@@ -568,7 +609,11 @@
       <!-- 84ª — Tambor de horas recientes (solo tras entrada) -->
       <div id="tambor-horas-wrap" class="oculto">
         <div class="tambor-titulo" id="tambor-titulo"></div>
-        <div class="tambor-horas"><div class="tambor-horas-inner" id="tambor-inner"></div></div>
+        <div class="tambor-marco">
+          <div class="tambor-banda"></div>
+          <div class="tambor-pista"><span>▲</span><span>▼</span></div>
+          <div class="tambor-horas" id="tambor-scroll"><div class="tambor-horas-inner" id="tambor-inner"></div></div>
+        </div>
       </div>
     </div>
     <button type="button" class="secundario" id="btn-nuevo-fichaje" style="margin-top:10px;">Nuevo fichaje</button>
@@ -684,7 +729,10 @@ const el = {
 // =====================================================================
 const IDIOMAS = [
   { cod: 'es', bandera: '🇪🇸', titulo: 'Español', rtl: false },
-  { cod: 'ca', bandera: '🇦🇩', titulo: 'Català',  rtl: false },
+  // 85ª: el catalán lleva senyera en vez de 🇦🇩 — la bandera de Andorra y
+  // la de Rumania son casi idénticas y se confundían en el selector.
+  // No hay emoji de senyera: se pinta en SVG (campo `svg` manda sobre `bandera`).
+  { cod: 'ca', bandera: '🇦🇩', svg: '<svg viewBox="0 0 27 18" width="26" height="17" style="border-radius:3px;display:block;"><rect width="27" height="18" fill="#FCDD09"/><rect y="2" width="27" height="2" fill="#DA121A"/><rect y="6" width="27" height="2" fill="#DA121A"/><rect y="10" width="27" height="2" fill="#DA121A"/><rect y="14" width="27" height="2" fill="#DA121A"/></svg>', titulo: 'Català',  rtl: false },
   { cod: 'ro', bandera: '🇷🇴', titulo: 'Română',  rtl: false },
   { cod: 'ar', bandera: '🇲🇦', titulo: 'عربي',    rtl: true  },
   { cod: 'ur', bandera: '🇵🇰', titulo: 'اردو',    rtl: true  },
@@ -1884,7 +1932,7 @@ function pintarBotonesIdioma() {
     b.id = 'lang-' + i.cod;
     b.title = i.titulo;
     b.setAttribute('aria-label', i.titulo);
-    b.textContent = i.bandera;
+    if (i.svg) { b.innerHTML = i.svg; } else { b.textContent = i.bandera; }
     b.addEventListener('click', () => aplicarIdioma(i.cod, 'manual'));
     caja.appendChild(b);
   });
@@ -2632,13 +2680,9 @@ function mostrarConfirmacionFinal(r) {
     el.finalOlvido.classList.add('oculto');
   }
 
-  // 84ª — Tambor de horas recientes (solo tras entrada exitosa).
+  // 84ª — Tambor de horas recientes tras fichar (85ª: también en la salida).
   // Accesorio: si falla, el fichaje ya está hecho.
-  if (r.tipo === 'entrada') {
-    cargarTamborHoras(estado.dni, estado.obraId);
-  } else {
-    document.getElementById('tambor-horas-wrap').classList.add('oculto');
-  }
+  cargarTamborHoras(estado.dni, estado.obraId);
 
   // El fichaje ha salido bien: el idioma que hay en pantalla es el de esta
   // persona. Es el único momento en que idioma y DNI van juntos con certeza.
@@ -2649,11 +2693,12 @@ function mostrarConfirmacionFinal(r) {
 
   irA(el.pasoFinal);
 }
-// 84ª — TAMBOR DE HORAS RECIENTES
-// Llama a la RPC pública horas_jornada_recientes y pinta un widget
-// tipo molinete con los últimos días. Accesorio: si falla, no pasa nada.
+// 84ª — TAMBOR DE HORAS RECIENTES (85ª: scroll real + molinete + visible)
+// Llama a la RPC pública horas_jornada_recientes y pinta una ruleta
+// desplazable con los últimos días. Accesorio: si falla, no pasa nada.
 async function cargarTamborHoras(dni, obraId) {
   const wrap = document.getElementById('tambor-horas-wrap');
+  const scroll = document.getElementById('tambor-scroll');
   const inner = document.getElementById('tambor-inner');
   const titulo = document.getElementById('tambor-titulo');
   wrap.classList.add('oculto');
@@ -2667,21 +2712,43 @@ async function cargarTamborHoras(dni, obraId) {
     titulo.textContent = T('tambor_titulo');
     const diasSemana = T('dias_semana') || ['dom','lun','mar','mié','jue','vie','sáb'];
 
-    data.forEach((d, i) => {
+    data.forEach(d => {
       const fecha = new Date(d.fecha + 'T12:00:00'); // mediodía para evitar DST
       const diaSem = diasSemana[fecha.getDay()];
       const diaMes = fecha.getDate();
       const h = Math.floor(d.horas_netas);
       const m = Math.round((d.horas_netas - h) * 60);
       const fila = document.createElement('div');
-      fila.className = 'tambor-fila' + (i === 0 ? ' central' : '');
+      fila.className = 'tambor-fila';
       fila.innerHTML =
         '<span class="dia">' + escapar(diaSem) + ' ' + diaMes + '</span>' +
         '<span class="horas">' + h + 'h ' + String(m).padStart(2, '0') + 'min</span>';
       inner.appendChild(fila);
     });
 
+    // Efecto molinete: la fila más cercana al centro del marco se agranda.
+    const actualizarCentral = () => {
+      const centro = scroll.getBoundingClientRect().top + scroll.clientHeight / 2;
+      let mejor = null, mejorDist = Infinity;
+      inner.querySelectorAll('.tambor-fila').forEach(f => {
+        const r = f.getBoundingClientRect();
+        const dist = Math.abs((r.top + r.height / 2) - centro);
+        if (dist < mejorDist) { mejorDist = dist; mejor = f; }
+        f.classList.remove('central');
+      });
+      if (mejor) mejor.classList.add('central');
+    };
+    scroll.addEventListener('scroll', actualizarCentral, { passive: true });
+
     wrap.classList.remove('oculto');
+    // Arranca centrado en el día más reciente (el primero) y marca el central
+    scroll.scrollTop = 0;
+    actualizarCentral();
+
+    // Que se vea sin que nadie tenga que buscarlo: baja hasta el tambor.
+    setTimeout(() => {
+      wrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 350);
   } catch (e) {
     console.warn('[tambor] Error (no bloquea):', e);
   }
