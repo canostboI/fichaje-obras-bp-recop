@@ -171,6 +171,7 @@
     <div id="resumen"></div>
     <div id="zona-urgente"></div>
     <div id="zona-obras"><div class="cargando">Cargando el estado de las obras…</div></div>
+    <div id="zona-meses"></div>
     <div id="zona-riesgos"></div>
     <div id="zona-salud"></div>
 
@@ -283,6 +284,7 @@ async function leerTodo() {
     ajustes: () => sb.from('ajustes_horas_dia')
       .select('trabajador_id, obra_id, fecha')
       .gte('fecha', desdeAutocierre.slice(0, 10)),
+    cierres: () => sb.rpc('resumen_cierres_meses', {}),
     crons: () => sb.rpc('salud_crons'),
     vigilante: () => sb.from('auditoria_permisos_log')
       .select('ejecutada_en, hay_desviacion, cuantas, aviso_enviado, aviso_error')
@@ -329,7 +331,8 @@ function construirModelo(d) {
     urgentes: [],
     mirar: [],
     riesgos: [],
-    salud: {}
+    salud: {},
+    meses: (d.cierres || null)
   };
 
   const todasObras = d.obras || [];
@@ -608,6 +611,7 @@ function pintar(m) {
   pintarResumen(m);
   pintarUrgente(m);
   pintarObras(m);
+  pintarMeses(m);
   pintarRiesgos(m);
   pintarSalud(m);
 }
@@ -753,6 +757,70 @@ function pintarObras(m) {
         '<span><a href="fichajes.html">Fichajes</a> · <a href="trabajadores.html">Trabajadores</a> · <a href="informe-rojos.html">Informe</a></span></div>' +
     '</div>';
   }).join('') + '</div>';
+}
+
+// Meses facturables sin firmar. La RPC devuelve TODOS los meses con fichajes;
+// aquí se separa lo que hay que cerrar de lo que cae en la criba (anterior a
+// julio 2026) y del mes en curso, al que todavía no le toca.
+function pintarMeses(m) {
+  const el = document.getElementById('zona-meses');
+  const cab = '<div class="bloque-cab"><h2>\u{1F512} Meses sin firmar</h2>' +
+    '<span class="sub">Un mes cerrado guarda la foto de las horas que se facturaron</span></div>';
+
+  if (!m.meses) {
+    el.innerHTML = '<div class="bloque">' + cab +
+      '<div class="vacio">No se ha podido leer el estado de los cierres. ' +
+      'Esta pantalla no puede decir si falta algún mes por firmar.</div></div>';
+    return;
+  }
+
+  const filas = m.meses.filter(f => !f.en_criba && !f.es_mes_en_curso && !f.cerrado);
+  const enCriba = m.meses.filter(f => f.en_criba && !f.cerrado).length;
+  const pie = enCriba
+    ? '<div class="obra-pie"><span>' + enCriba + ' ' +
+      plural(enCriba, 'mes anterior', 'meses anteriores') +
+      ' a julio de 2026 tampoco ' + plural(enCriba, 'está cerrado', 'están cerrados') +
+      ' (criba: no se arreglan).</span></div>'
+    : '';
+
+  if (!filas.length) {
+    el.innerHTML = '<div class="bloque">' + cab +
+      '<div class="vacio">Todos los meses facturables est\u00e1n firmados.</div>' + pie + '</div>';
+    return;
+  }
+
+  const cuerpo = filas.map(f => {
+    const bloquea = Number(f.autocierres_sin_atender) || 0;
+    const marca = bloquea ? '\u26A0\uFE0F' : '\u{1F512}';
+    const quien = f.jefes ? esc(f.jefes) : '<i>sin jefe de obra asignado</i>';
+    const nota = bloquea
+      ? bloquea + ' ' + plural(bloquea, 'autocierre sin atender', 'autocierres sin atender') +
+        ' \u00b7 hay que resolverlos antes de cerrar'
+      : 'Nada lo bloquea: listo para cerrar';
+    return '<div class="linea"><div class="marca">' + marca + '</div><div class="cuerpo">' +
+      '<div class="qu\u00e9">' + esc(nombreMes(f.mes)) + ' ' +
+      '<span class="pill azul" style="margin-left:6px">' + esc(f.obra || '') + '</span></div>' +
+      '<div class="qui\u00e9n">' + esc(f.fichajes) + ' fichajes \u00b7 ' + esc(f.personas) + ' personas \u00b7 ' +
+      nota + '<br>Lo cierra: <b>' + quien + '</b></div>' +
+      '</div></div>';
+  }).join('');
+
+  el.innerHTML = '<div class="bloque urgente">' + cab +
+    '<div class="bloque-cuerpo">' + cuerpo + '</div>' +
+    '<div class="obra-pie"><span>El jefe de obra cierra desde su resumen mensual (paso 6).</span>' +
+    '<span><a href="cierre-mes.html">Cierre de mes \u2192</a></span></div>' +
+    (pie ? pie : '') + '</div>';
+}
+
+// "2026-08-01" -> "agosto 2026". Se compone a mano: no se usa Date para no
+// arrastrar el desfase de zona horaria con una fecha suelta.
+function nombreMes(iso) {
+  const MESES = ['enero','febrero','marzo','abril','mayo','junio',
+                 'julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const p = String(iso || '').split('-');
+  if (p.length < 2) return String(iso || '');
+  const i = parseInt(p[1], 10) - 1;
+  return (MESES[i] || p[1]) + ' ' + p[0];
 }
 
 function pintarRiesgos(m) {
