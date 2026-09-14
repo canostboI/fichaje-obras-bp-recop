@@ -16,6 +16,7 @@
   <script src="../js/foto-identidad.js"></script>
   <script src="../js/verificacion-identidad.js"></script>
 <script src="../js/impresion.js"></script>
+<script src="../js/declaracion-sabado.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -1013,6 +1014,11 @@
     intervalRelativo = setInterval(actualizarTextosRelativos, 60 * 1000);
 
     iniciarRefrescoPresencia();
+
+    // P13: sábados con autocierre sin declarar → modal bloqueante.
+    // Sin await: si la lectura falla, el módulo avisa por su cuenta y
+    // el panel sigue en pie (regla 62ª).
+    DeclSabado.comprobar(sb, obraId);
   }
 
   function iniciarRefrescoPresencia() {
