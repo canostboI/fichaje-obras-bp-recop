@@ -203,6 +203,12 @@
   .sol-btn.regla { background: rgba(76,175,80,0.15); border: 1px solid rgba(76,175,80,0.5); color: var(--verde); }
   .sol-btn.riesgo { background: rgba(255,152,0,0.15); border: 1px solid rgba(255,152,0,0.5); color: var(--naranja); }
   .sol-btn.no { background: transparent; border: 1px solid var(--borde); color: var(--texto2); }
+  .sol-form-lbl { font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--texto2); margin-top: 12px; }
+  .sol-nota-inp { width: 100%; margin-top: 6px; background: var(--bg3); border: 1px solid var(--borde); color: var(--texto); border-radius: 8px; padding: 9px 10px; font-size: 13px; font-family: inherit; }
+  .sol-empresa-nueva { display: none; }
+  .sol-empresa-nueva.visible { display: block; }
+  .sol-sugerencia { font-size: 12px; color: var(--naranja); margin-top: 6px; line-height: 1.5; }
+  .sol-foto-btn { margin-top: 10px; background: transparent; border: 1px solid var(--borde); color: var(--texto2); border-radius: 8px; padding: 8px 12px; font-size: 12.5px; font-family: inherit; cursor: pointer; }
   .sol-estado { font-size: 12px; margin-top: 9px; }
   .sol-estado.ok { color: var(--verde); }
   .sol-estado.mal { color: var(--rojo); }
@@ -385,7 +391,7 @@
     </div>
     <div class="panel-sol oculto" id="panel-sol">
       <h3>🔴 <span>Piden autorización en la puerta</span></h3>
-      <div class="panel-sol-sub">El encargado tiene a estas personas paradas en la valla. Solo tú puedes darles paso, y solo por hoy.</div>
+      <div class="panel-sol-sub">El encargado tiene a estas personas paradas en la valla. Solo tú puedes darles paso. Si es alguien nuevo, aquí mismo eliges su empresa y dejas escrito qué has comprobado: no hay que resolverlo en ningún otro sitio.</div>
       <div id="sol-lista"></div>
     </div>
     <div class="banner-sin-rp oculto" id="banner-sin-rp">
@@ -913,9 +919,10 @@ async function cargarEmpresasPropias() {
   document.getElementById('btn-foto').style.display = 'flex';
 
   await cargarPresencia();
-  await cargarIdentidadesPendientes();
   await cargarBloqueos();
+  // Solicitudes primero: el banner de identidades filtra con su resultado.
   await cargarSolicitudes();
+  await cargarIdentidadesPendientes();
   await cargarAvisosAutocierre();
   await cargarRondaEncargado();
   await comprobarRP();
@@ -938,9 +945,10 @@ async function cargarEmpresasPropias() {
     aplicarFotoFondo(fotoUrlActual);
     document.getElementById('btn-foto').style.display = obraActual ? 'flex' : 'none';
     await cargarPresencia();
-    await cargarIdentidadesPendientes();
     await cargarBloqueos();
+    // Solicitudes primero: el banner de identidades filtra con su resultado.
     await cargarSolicitudes();
+    await cargarIdentidadesPendientes();
     await cargarAvisosAutocierre();
     await cargarRondaEncargado();
     await comprobarRP();
@@ -1118,7 +1126,11 @@ async function cargarIdentidadesPendientes() {
   const { data, error } = await sb.rpc('listar_identidades_pendientes', { p_obra_id: obraActual });
   if (error || !data || data.ok !== true) { panel.classList.add('oculto'); return; }
 
-  const personas = data.personas || [];
+  // Quien tiene tarjeta de solicitud pendiente HOY se resuelve alli (la
+  // tarjeta ya pide la nota de identidad): ensenarlo tambien aqui era
+  // preguntar dos veces por la misma persona, y en el orden equivocado.
+  const personas = (data.personas || [])
+    .filter(p => !solTrabRefsPendientes.has(p.trabajador_id));
   if (!personas.length) { panel.classList.add('oculto'); lista.innerHTML = ''; return; }
 
   document.getElementById('ident-cuenta').textContent = personas.length;
@@ -1228,6 +1240,65 @@ async function cerrarIdent(trabajadorId, btn) {
   await cargarIdentidadesPendientes();
 }
 
+// Empresas para el desplegable de alta (viajan en listar_solicitudes_hoy solo
+// cuando hay un desconocido pendiente) y fichas que ya tienen tarjeta de
+// solicitud hoy: el banner de identidades las calla para no preguntar dos
+// veces por la misma persona en la misma pantalla.
+let empresasAlta = [];
+let solTrabRefsPendientes = new Set();
+
+function normEmp(s) {
+  return String(s || '').toUpperCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+}
+
+function levEmp(a, b) {
+  const m = a.length, n = b.length;
+  if (!m) return n; if (!n) return m;
+  let fila = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    let prev = fila[0]; fila[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const tmp = fila[j];
+      fila[j] = Math.min(fila[j] + 1, fila[j - 1] + 1,
+                         prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = tmp;
+    }
+  }
+  return fila[n];
+}
+
+// El encargado teclea el nombre a las 07:00 con la persona delante: "Omac"
+// por OMAX. Buscar por nombre exacto crearia una empresa duplicada, que es
+// el fallo silencioso que luego parte el proforma en dos. Aqui se sugiere la
+// existente mas parecida y el jefe decide; el texto tecleado nunca se pierde.
+function sugerirEmpresa(texto) {
+  const t = normEmp(texto);
+  if (!t) return null;
+  let mejor = null, mejorD = Infinity;
+  for (const e of empresasAlta) {
+    const n = normEmp(e.nombre);
+    if (n === t) return { emp: e, dist: 0 };
+    let d = levEmp(t, n);
+    const p1 = n.split(' ')[0];
+    if (p1) d = Math.min(d, levEmp(t, p1));
+    if (n.includes(t) && t.length >= 4) d = Math.min(d, 1);
+    if (d < mejorD) { mejorD = d; mejor = e; }
+  }
+  return (mejor && mejorD <= 2) ? { emp: mejor, dist: mejorD } : null;
+}
+
+function solEmpresaCambia(sel) {
+  const inp = sel.closest('.sol-item').querySelector('.sol-empresa-nueva');
+  if (inp) inp.classList.toggle('visible', sel.value === '__nueva__');
+}
+
+function solFoto(trabajadorId) {
+  if (!obraActual) return;
+  FI.abrirAnadir(trabajadorId, obraActual, function () {}, { tema: 'oscuro' });
+}
+
 async function cargarSolicitudes() {
   const panel = document.getElementById('panel-sol');
   const lista = document.getElementById('sol-lista');
@@ -1243,6 +1314,9 @@ async function cargarSolicitudes() {
   const vivas = (data.solicitudes || []).filter(
     x => x.estado === 'pendiente' && x.sigue_pendiente_de_verdad === true
   );
+
+  empresasAlta = data.empresas || [];
+  solTrabRefsPendientes = new Set(vivas.map(x => x.trabajador_ref).filter(Boolean));
 
   if (!vivas.length) { panel.classList.add('oculto'); lista.innerHTML = ''; return; }
 
@@ -1265,6 +1339,40 @@ async function cargarSolicitudes() {
               (motivos.length ? motivos.map(esc).join(' · ') : 'sin motivo registrado') + '</div>';
     }
 
+    // Todo lo que la resolucion va a exigir se pide AQUI, en la tarjeta:
+    // antes, la RPC rechazaba por falta de nota de identidad y el panel no
+    // tenia donde escribirla — un callejon sin salida con aspecto de roto.
+    let form = '';
+    if (nueva) {
+      const sug = sugerirEmpresa(x.empresa_declarada || x.empresa);
+      const opciones = empresasAlta.map(e =>
+        '<option value="' + esc(e.id) + '"' +
+        (sug && sug.emp.id === e.id ? ' selected' : '') + '>' +
+        esc(e.nombre) + (e.propia ? ' (propia)' : '') + '</option>').join('');
+      form += '<div class="sol-form-lbl">Empresa</div>' +
+        '<select class="sol-empresa-sel" onchange="solEmpresaCambia(this)">' +
+          '<option value="">— Elige la empresa —</option>' + opciones +
+          '<option value="__nueva__">➕ No está en la lista: darla de alta…</option>' +
+        '</select>' +
+        '<input type="text" class="sol-nota-inp sol-empresa-nueva" autocomplete="off"' +
+          ' value="' + esc(x.empresa_declarada || '') + '"' +
+          ' placeholder="Nombre exacto de la empresa nueva">';
+      if (sug && sug.dist > 0) {
+        form += '<div class="sol-sugerencia">El encargado escribió «' +
+          esc(x.empresa_declarada || '') + '». Parece ' + esc(sug.emp.nombre) +
+          ': compruébalo antes de autorizar.</div>';
+      }
+    }
+    if (x.identidad_pendiente) {
+      form += '<div class="sol-form-lbl">Identidad</div>' +
+        '<input type="text" class="sol-nota-inp sol-nota" autocomplete="off"' +
+          ' placeholder="Qué has averiguado sobre esta persona (obligatorio)">';
+      if (x.trabajador_ref) {
+        form += '<br><button class="sol-foto-btn" onclick="solFoto(\'' +
+          esc(x.trabajador_ref) + '\')">📷 Añadir la foto</button>';
+      }
+    }
+
     return '<div class="sol-item" id="sol-' + esc(x.id) + '"' +
       ' data-nueva="' + (nueva ? '1' : '0') + '"' +
       ' data-empresa="' + esc(x.empresa || '') + '">' +
@@ -1273,6 +1381,7 @@ async function cargarSolicitudes() {
       '<div class="sol-datos">' + esc(x.dni || '—') + ' · ' + esc(x.empresa || 'sin empresa') +
         ' · ' + hora + ' · lo pide ' + esc(x.pedida_por || '—') + '</div>' +
       causa +
+      form +
       '<div class="sol-acciones">' +
         '<button class="sol-btn regla" onclick="resolverSol(\'' + esc(x.id) + '\',\'autorizar\',\'regla\')">✓ Ya está en regla</button>' +
         '<button class="sol-btn riesgo" onclick="resolverSol(\'' + esc(x.id) + '\',\'autorizar\',\'riesgo\')">⚠ Asumo el riesgo</button>' +
@@ -1301,6 +1410,39 @@ async function resolverSol(id, accion, clave) {
   // acepta la responsabilidad: tiene que costar leerlo, no pulsarlo.
   const quien = ((item.querySelector('.sol-quien') || {}).textContent || 'esta persona')
     .replace('No está en la app', '').trim();
+
+  // Lo que la RPC va a exigir se comprueba ANTES del confirm: pulsar,
+  // confirmar y fallar es lo que hacia parecer roto el boton.
+  let empresaId = null, empresaTexto = null, notaIdent = null;
+  const selEmp = item.querySelector('.sol-empresa-sel');
+  const inpNota = item.querySelector('.sol-nota');
+  if (accion === 'autorizar') {
+    if (selEmp) {
+      if (selEmp.value === '__nueva__') {
+        empresaTexto = ((item.querySelector('.sol-empresa-nueva') || {}).value || '').trim();
+        if (empresaTexto.length < 3) {
+          msg.className = 'sol-estado mal';
+          msg.textContent = 'Escribe el nombre de la empresa nueva.';
+          return;
+        }
+      } else if (selEmp.value) {
+        empresaId = selEmp.value;
+      } else {
+        msg.className = 'sol-estado mal';
+        msg.textContent = 'Elige la empresa antes de autorizar. Sin empresa la ficha no se puede facturar ni cruzar con e-Coordina.';
+        return;
+      }
+    }
+    if (inpNota) {
+      notaIdent = (inpNota.value || '').trim();
+      if (notaIdent.length < 3) {
+        msg.className = 'sol-estado mal';
+        msg.textContent = 'Escribe qué has averiguado sobre esta persona. Sin eso, mañana nadie sabrá por qué entró.';
+        return;
+      }
+    }
+  }
+
   if (accion === 'autorizar') {
     const esRegla = (clave === 'regla');
     const extra = (item.dataset.nueva === '1' && !esRegla)
@@ -1332,9 +1474,14 @@ async function resolverSol(id, accion, clave) {
   // permiso por la misma persona indefinidamente.
   const regularizar = (accion === 'autorizar' && clave === 'regla');
 
+  // El motivo de cierre de identidad sigue al boton: "en regla" = papeles
+  // comprobados (regularizada); "asumo el riesgo" = paso excepcional.
   const { data, error } = await sb.rpc('resolver_solicitud_acceso', {
     p_solicitud_id: id, p_accion: accion, p_motivo: MOTIVOS_SOL[clave],
-    p_regularizar: regularizar
+    p_regularizar: regularizar,
+    p_empresa_id: empresaId, p_empresa_texto: empresaTexto,
+    p_nota_identidad: notaIdent,
+    p_motivo_identidad: (clave === 'regla' ? 'regularizada' : 'excepcional')
   });
 
   if (error || !data || data.ok !== true) {
@@ -1366,6 +1513,7 @@ async function resolverSol(id, accion, clave) {
   msg.textContent = txt;
 
   await cargarBloqueos();
+  await cargarIdentidadesPendientes();
   setTimeout(cargarSolicitudes, 4000);
 }
 
@@ -1380,6 +1528,7 @@ function iniciarRefrescoPresencia() {
     // enseñando en rojo a gente que ya está dentro trabajando.
     await cargarBloqueos();
     await cargarSolicitudes();
+    await cargarIdentidadesPendientes();
     cargarRondaEncargado();
   }, 60 * 1000);
 }
@@ -1389,6 +1538,7 @@ document.addEventListener('visibilitychange', async () => {
     await cargarPresencia();
     await cargarBloqueos();
     await cargarSolicitudes();
+    await cargarIdentidadesPendientes();
     cargarRondaEncargado();
   }
 });
