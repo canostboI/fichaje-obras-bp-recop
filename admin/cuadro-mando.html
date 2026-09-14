@@ -101,6 +101,15 @@
   .pulso .etiqueta { font-size: 11px; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 4px; }
   .pulso .detalle { font-size: 12px; color: var(--texto2); margin-top: 4px; line-height: 1.45; }
 
+  .pulso.seis { grid-template-columns: repeat(3, 1fr); }
+  .pulso .valor.rojo { color: var(--rojo); }
+  .pulso .valor.naranja { color: var(--naranja); }
+  .marca-obra a.tel { color: var(--azul); text-decoration: none; white-space: nowrap; }
+  .marca-obra a.tel:hover { text-decoration: underline; }
+  .semaforo-mini { display: inline-flex; gap: 8px; font-size: 15px; font-weight: 800; }
+  .semaforo-mini .v { color: var(--verde); }
+  .semaforo-mini .n { color: var(--naranja); }
+  .semaforo-mini .r { color: var(--rojo); }
   .obra-lista { padding: 4px 18px 12px; }
   .obra-lista .item { font-size: 13px; line-height: 1.55; padding: 7px 0; border-bottom: 1px solid var(--borde); }
   .obra-lista .item:last-child { border-bottom: none; }
@@ -123,6 +132,7 @@
 
   @media (max-width: 900px) {
     .obras { grid-template-columns: 1fr; }
+    .pulso.seis { grid-template-columns: repeat(2, 1fr); }
     .sidebar { display: none; }
     .main { margin-left: 0; }
   }
@@ -168,12 +178,12 @@
     </div>
 
     <div id="banner-fallos"></div>
+    <div id="zona-salud"></div>
     <div id="resumen"></div>
     <div id="zona-urgente"></div>
     <div id="zona-obras"><div class="cargando">Cargando el estado de las obras…</div></div>
     <div id="zona-meses"></div>
     <div id="zona-riesgos"></div>
-    <div id="zona-salud"></div>
 
     <div class="nota-pie">
       <b>Qué es esta pantalla.</b> Es la vista del día de todas las obras activas, para saber qué pasa
@@ -208,7 +218,6 @@ if (!window.Fechas || !window.AccesosResueltos || !window.SbPaginado || !window.
 }
 
 const HORA_CORTE = 10;
-const DIAS_AUTOCIERRE = 7;
 const MIN_SOLICITUD_ROJA = 30;
 const REFRESCO_MS = 5 * 60 * 1000;
 
@@ -241,7 +250,6 @@ function plural(n, sing, pl) { return n === 1 ? sing : pl; }
 async function leerTodo() {
   const hoy = Fechas.hoyMadrid();
   const rango = Fechas.rangoDiaMadrid(hoy);
-  const desdeAutocierre = new Date(Date.now() - DIAS_AUTOCIERRE * 86400000).toISOString();
 
   const rObras = await sb.from('obras')
     .select('id, nombre, estado, empresa_marca, ultima_sync_ecoordina')
@@ -272,18 +280,7 @@ async function leerTodo() {
       .order('created_at', { ascending: false }),
     solicitudes: () => sb.rpc('listar_solicitudes_hoy', { p_obra_id: null }),
     excepcionesHoy: () => sb.rpc('informe_excepciones', { p_obra_id: null, p_desde: hoy, p_hasta: hoy }),
-    rojosVivos: () => sb.from('validaciones_obra')
-      .select('obra_id, trabajador:trabajador_id!inner(activo)')
-      .eq('estado', 'rojo').eq('trabajador.activo', true).limit(1000),
-    autocierres: () => sb.from('fichajes')
-      .select('id, obra_id, trabajador_id, hora, trabajador:trabajador_id(nombre, apellidos)')
-      .eq('cierre_automatico', true)
-      .is('corregido_por', null).is('confirmado_por', null)
-      .gte('hora', desdeAutocierre)
-      .order('hora', { ascending: false }).limit(500),
-    ajustes: () => sb.from('ajustes_horas_dia')
-      .select('trabajador_id, obra_id, fecha')
-      .gte('fecha', desdeAutocierre.slice(0, 10)),
+    tarjetas: () => sb.rpc('resumen_tarjetas_obras'),
     cierres: () => sb.rpc('resumen_cierres_meses', {}),
     crons: () => sb.rpc('salud_crons'),
     vigilante: () => sb.from('auditoria_permisos_log')
@@ -343,16 +340,16 @@ function construirModelo(d) {
   (d.equipo || []).forEach(u => {
     if (!u.usuario || u.usuario.activo === false) return;
     if (!equipoPorObra[u.obra_id]) equipoPorObra[u.obra_id] = { jefes: [], encargados: [] };
-    const ficha = { nombre: u.usuario.nombre || '(sin nombre)', tel: !!u.usuario.telefono };
+    const ficha = { nombre: u.usuario.nombre || '(sin nombre)', tel: !!u.usuario.telefono, telefono: u.usuario.telefono || '' };
     if (u.rol_en_obra === 'jefe_obra') equipoPorObra[u.obra_id].jefes.push(ficha);
     else equipoPorObra[u.obra_id].encargados.push(ficha);
   });
 
-  const ajustesSet = new Set((d.ajustes || []).map(a => a.trabajador_id + '|' + a.obra_id + '|' + a.fecha));
-  const autocierresPend = (d.autocierres || []).filter(f => {
-    const dia = Fechas.fechaMadrid(new Date(f.hora));
-    return !ajustesSet.has(f.trabajador_id + '|' + f.obra_id + '|' + dia);
-  });
+  // Agregados por obra desde Postgres (RPC resumen_tarjetas_obras, 92ª):
+  // autocierres desde julio SIN los meses ya firmados, cierres pendientes,
+  // atajos del mes y semáforo. Contar aquí obligaría a traer miles de filas.
+  const rpcPorObra = {};
+  if (Array.isArray(d.tarjetas)) d.tarjetas.forEach(t => { rpcPorObra[t.obra_id] = t; });
 
   const solRes = d.solicitudes;
   const solOk = !!(solRes && solRes.ok);
@@ -361,9 +358,6 @@ function construirModelo(d) {
 
   const exc = d.excepcionesHoy || null;
   modelo.riesgos = (exc && Array.isArray(exc.detalle)) ? exc.detalle : [];
-
-  const rojosPorObra = {};
-  if (d.rojosVivos) d.rojosVivos.forEach(v => { rojosPorObra[v.obra_id] = (rojosPorObra[v.obra_id] || 0) + 1; });
 
   const laborable = esLaborableHoy();
   const pasadaHoraCorte = horaMadrid() >= HORA_CORTE;
@@ -429,11 +423,21 @@ function construirModelo(d) {
     t.solicitudes = solOk ? solicitudes.filter(s => s.obra_id === o.id) : null;
     if (!solOk) t.datosIncompletos = true;
 
-    t.autocierres = (d.autocierres === null || d.ajustes === null)
-      ? null : autocierresPend.filter(f => f.obra_id === o.id);
-    if (t.autocierres === null) t.datosIncompletos = true;
-
-    t.rojosVivos = (d.rojosVivos === null) ? null : (rojosPorObra[o.id] || 0);
+    const rpc = (d.tarjetas === null) ? null : (rpcPorObra[o.id] || null);
+    if (!rpc) t.datosIncompletos = true;
+    t.autocierres = rpc ? Number(rpc.autocierres.sin_atender) : null;
+    t.autocierresUltimo = rpc ? rpc.autocierres.ultimo : null;
+    t.semaforo = rpc ? rpc.semaforo : null;
+    t.manualesMes = rpc ? Number(rpc.manuales_mes) : null;
+    t.excepcionesMes = rpc ? Number(rpc.excepciones_mes) : null;
+    t.cierre = rpc ? rpc.cierres : null;
+    t.diasRetrasoCierre = null;
+    if (t.cierre && Number(t.cierre.sin_cerrar) > 0 && t.cierre.mas_antiguo) {
+      // días desde el 1 del mes siguiente al mes sin firmar más antiguo
+      const p = String(t.cierre.mas_antiguo).split('-').map(Number);
+      const limite = new Date(p[0], p[1], 1, 12, 0, 0); // mes siguiente (p[1] es 1-based)
+      t.diasRetrasoCierre = Math.max(0, Math.floor((ahoraMadrid() - limite) / 86400000));
+    }
 
     const u = (d.ultimos || []).find(x => x.obra_id === o.id);
     t.ultimoFichaje = u ? u.hora : null;
@@ -512,12 +516,25 @@ function construirModelo(d) {
       });
     }
 
-    if (t.autocierres && t.autocierres.length) {
-      const n = t.autocierres.length;
+    if (t.autocierres) {
+      const n = t.autocierres;
       t.naranja.push({
         nivel: 'naranja', obra: o.nombre, marca: '🕛',
         qué: n + ' ' + plural(n, 'jornada cerrada por el automático', 'jornadas cerradas por el automático') + ' sin corregir ni confirmar',
-        quién: 'Son horas que se van a facturar sin que nadie las haya mirado. Última: ' + fechaCorta(t.autocierres[0].hora) + '.',
+        quién: 'Son horas que se van a facturar sin que nadie las haya mirado. Última: ' + fechaCorta(t.autocierresUltimo) + '. Solo cuentan meses aún sin firmar.',
+        reloj: '', enlaces: [['Cierre de mes', 'cierre-mes.html']]
+      });
+    }
+
+    // Mes sin firmar: reclamable desde el día 5 del mes siguiente (un mes no
+    // está listo el día 1 — 90ª). No es rojo: nadie está parado en la puerta.
+    if (t.cierre && Number(t.cierre.sin_cerrar) > 0 && ahoraMadrid().getDate() >= 5) {
+      const nm = Number(t.cierre.sin_cerrar);
+      t.naranja.push({
+        nivel: 'naranja', obra: o.nombre, marca: '🔒',
+        qué: nm + ' ' + plural(nm, 'mes facturable sin firmar', 'meses facturables sin firmar') +
+             ' · el más antiguo lleva ' + t.diasRetrasoCierre + ' días de retraso',
+        quién: 'Lo cierra el jefe de obra desde su resumen mensual (paso 6).',
         reloj: '', enlaces: [['Cierre de mes', 'cierre-mes.html']]
       });
     }
@@ -707,15 +724,58 @@ function pintarObras(m) {
         '<svg class="kpi-spk" id="spk-personas-' + oid + '" width="90" height="24" viewBox="0 0 90 24">' +
         '<path id="ln-personas-' + oid + '" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-    const celdaRojos = (o.rojosVivos == null)
-      ? '<div class="kpi-val apagado">no se sabe</div>'
-      : '<div class="kpi-val" id="kpi-rojos-' + oid + '">0</div>';
+    // ── Los SEIS indicadores fijos (siempre visibles; 1-5 alimentan los avisos
+    // que deciden el color de cabecera, el 6º es informativo) ──
+    const noSeSabe = '<div class="kpi-val apagado">no se sabe</div>';
+    const tieneRpc = (o.cierre != null);
 
-    const ronda = (o.ronda === undefined)
-      ? '<div class="kpi-val apagado">no se sabe</div>'
+    // 1 · Cierre de mes
+    const c1 = !tieneRpc ? noSeSabe
+      : (Number(o.cierre.sin_cerrar) === 0
+          ? '<div class="kpi-val" style="color:var(--verde)">al día</div>'
+          : '<div class="kpi-val naranja">' + Number(o.cierre.sin_cerrar) + ' sin firmar</div>');
+    const c1d = !tieneRpc ? '—'
+      : (Number(o.cierre.sin_cerrar) === 0 ? 'Todo lo facturable firmado'
+         : 'El más antiguo: ' + o.diasRetrasoCierre + ' días de retraso');
+
+    // 2 · Pendientes de hoy (denegados sin resolver + solicitudes de puerta)
+    const pendDeneg = (o.accesos == null) ? null : o.accesos.totales.personasPendientes;
+    const pendSol = (o.solicitudes == null) ? null
+      : o.solicitudes.filter(x => x.estado === 'pendiente' && x.sigue_pendiente_de_verdad !== false).length;
+    const pendTotal = (pendDeneg == null || pendSol == null) ? null : (pendDeneg + pendSol);
+    const c2 = (pendTotal == null) ? noSeSabe
+      : '<div class="kpi-val' + (pendTotal > 0 ? ' rojo' : '') + '" id="kpi-pend-' + oid + '">0</div>';
+    const c2d = (pendTotal == null) ? '—'
+      : (pendTotal === 0 ? 'Nadie espera en la puerta'
+         : pendDeneg + ' ' + plural(pendDeneg, 'denegado', 'denegados') + ' · ' + pendSol + ' ' + plural(pendSol, 'solicitud', 'solicitudes'));
+
+    // 3 · Autocierres sin atender (desde julio, sin meses firmados)
+    const c3 = (o.autocierres == null) ? noSeSabe
+      : '<div class="kpi-val' + (o.autocierres > 0 ? ' naranja' : '') + '" id="kpi-auto-' + oid + '">0</div>';
+    const c3d = (o.autocierres == null) ? '—'
+      : (o.autocierres === 0 ? 'Todos corregidos o confirmados' : 'Último: ' + fechaCorta(o.autocierresUltimo));
+
+    // 4 · Ronda del encargado
+    const c4 = (o.ronda === undefined) ? noSeSabe
       : (o.ronda
           ? '<div class="kpi-val">' + hhmm(o.ronda.created_at) + '</div>'
           : '<div class="kpi-val apagado">sin hacer</div>');
+    const c4d = o.ronda
+      ? (Number(o.ronda.personas_sin_fichar) || 0) + ' sin fichar · ' + (Number(o.ronda.personas_en_obra) || 0) + ' contadas'
+      : '—';
+
+    // 5 · Atajos del mes (fichaje manual + excepciones rojas): señal, no alarma
+    const c5 = (o.manualesMes == null) ? noSeSabe
+      : '<div class="kpi-val">' + o.manualesMes + ' · ' + o.excepcionesMes + '</div>';
+    const c5d = (o.manualesMes == null) ? '—' : 'manuales · excepciones en rojo';
+
+    // 6 · La gente, como la ve el jefe (informativo: no decide el color)
+    const c6 = (o.semaforo == null) ? noSeSabe
+      : '<div class="semaforo-mini"><span class="v">' + Number(o.semaforo.verde) + '</span>' +
+        '<span class="n">' + Number(o.semaforo.naranja) + '</span>' +
+        '<span class="r">' + Number(o.semaforo.rojo) + '</span></div>';
+    const c6d = (o.semaforo == null) ? '—'
+      : 'verde · naranja · rojo' + (Number(o.semaforo.sin_estado) > 0 ? ' · ' + o.semaforo.sin_estado + ' sin estado' : '');
 
     const listas = o.rojo.concat(o.naranja);
     const listaHTML = listas.length
@@ -734,9 +794,10 @@ function pintarObras(m) {
           '<div class="nota">' + o.riesgosHoy.map(r => esc(r.persona) + ' — firmado por ' + esc(r.jefe)).join('<br>') + '</div></div></div>'
       : '';
 
+    const conTel = p => esc(p.nombre) + (p.telefono ? ' <a class="tel" href="tel:' + esc(p.telefono) + '">' + esc(p.telefono) + '</a>' : '');
     const equipo = [];
-    if (o.equipo.jefes.length) equipo.push('Jefe: ' + o.equipo.jefes.map(j => esc(j.nombre)).join(', '));
-    if (o.equipo.encargados.length) equipo.push('Encargado: ' + o.equipo.encargados.map(e => esc(e.nombre)).join(', '));
+    if (o.equipo.jefes.length) equipo.push('Jefe: ' + o.equipo.jefes.map(conTel).join(', '));
+    if (o.equipo.encargados.length) equipo.push('Encargado: ' + o.equipo.encargados.map(conTel).join(', '));
 
     return '<div class="obra obra-entra ' + o.nivel + '" style="animation-delay:' + (oIdx * 80) + 'ms">' +
       '<div class="obra-cab"><div><h3>' + esc(o.nombre) + '</h3>' +
@@ -747,10 +808,14 @@ function pintarObras(m) {
           '<div class="detalle">' + (o.primera ? 'Primera entrada ' + hhmm(o.primera) : 'Sin entradas hoy') + '</div></div>' +
         '<div class="celda">' + celdaPersonas + '<div class="etiqueta">Personas hoy</div>' +
           '<div class="detalle">' + (o.ultima ? 'Última actividad ' + hhmm(o.ultima) : '—') + '</div></div>' +
-        '<div class="celda">' + ronda + '<div class="etiqueta">Ronda</div>' +
-          '<div class="detalle">' + (o.ronda ? (Number(o.ronda.personas_sin_fichar) || 0) + ' sin fichar · ' + (Number(o.ronda.personas_en_obra) || 0) + ' contadas' : '—') + '</div></div>' +
-        '<div class="celda">' + celdaRojos + '<div class="etiqueta">Rojos vivos</div>' +
-          '<div class="detalle">' + (o.rojosVivos == null ? 'no se sabe' : o.rojosVivos + ' ' + plural(o.rojosVivos, 'persona en rojo activo', 'personas en rojo activo')) + '</div></div>' +
+      '</div>' +
+      '<div class="pulso seis">' +
+        '<div class="celda">' + c1 + '<div class="etiqueta">Cierre de mes</div><div class="detalle">' + c1d + '</div></div>' +
+        '<div class="celda">' + c2 + '<div class="etiqueta">Pendientes hoy</div><div class="detalle">' + c2d + '</div></div>' +
+        '<div class="celda">' + c3 + '<div class="etiqueta">Autocierres</div><div class="detalle">' + c3d + '</div></div>' +
+        '<div class="celda">' + c4 + '<div class="etiqueta">Ronda</div><div class="detalle">' + c4d + '</div></div>' +
+        '<div class="celda">' + c5 + '<div class="etiqueta">Atajos del mes</div><div class="detalle">' + c5d + '</div></div>' +
+        '<div class="celda">' + c6 + '<div class="etiqueta">La gente</div><div class="detalle">' + c6d + '</div></div>' +
       '</div>' +
       listaHTML + riesgosHTML + bienHTML +
       '<div class="obra-pie"><span>' + (listas.length ? listas.length + ' ' + plural(listas.length, 'aviso en esta obra', 'avisos en esta obra') : 'Sin avisos hoy') + '</span>' +
@@ -862,12 +927,20 @@ function pintarSalud(m) {
   const el = document.getElementById('zona-salud');
   const filas = [];
 
+  // ÚNICO vigilante de crons de la app (92ª: absorbe el de admin/index.html).
+  // Dos reglas: los 9 esperados EXISTEN, y cada uno corrió dentro de su umbral
+  // (umbralCron conoce el calendario). Cron nuevo o calendario cambiado = tocar aquí.
+  const CRONS_ESPERADOS = ['autocierre_nocturno', 'aviso_ronda_1', 'aviso_ronda_2', 'aviso_ronda_3',
+    'auditoria_permisos_diaria', 'recordatorio_solicitudes_acceso', 'caducar-fotos-identidad',
+    'vaciar-cola-borrado-fotos', 'caducar_forzados_diario'];
   const c = m.salud.crons;
   if (!c) filas.push(['Automatismos', 'gris', 'No se ha podido comprobar la salud de los crons.']);
   else if (!c.length) filas.push(['Automatismos', 'rojo', 'No hay ningún cron programado en la base de datos.']);
   else {
     const averias = [];
     const sinEstrenar = [];
+    const presentes = new Set(c.map(j => j.jobname));
+    CRONS_ESPERADOS.forEach(nombre => { if (!presentes.has(nombre)) averias.push('«' + nombre + '» NO EXISTE en la base de datos'); });
     c.forEach(j => {
       if (!j.activo) { averias.push('«' + j.jobname + '» está DESACTIVADO'); return; }
       if (!j.ultima_ejecucion) { sinEstrenar.push(j.jobname); return; }
@@ -1042,9 +1115,16 @@ function animarTarjetas(modelo, historico) {
     if (elPersonas && o.personasHoy != null) {
       setTimeout(() => animarContador(elPersonas, o.personasHoy, 800), delay + 60);
     }
-    const elRojos = document.getElementById('kpi-rojos-' + oid);
-    if (elRojos && o.rojosVivos != null) {
-      setTimeout(() => animarContador(elRojos, o.rojosVivos, 700), delay + 120);
+    const elPend = document.getElementById('kpi-pend-' + oid);
+    if (elPend) {
+      const pd = (o.accesos == null) ? 0 : o.accesos.totales.personasPendientes;
+      const ps = (o.solicitudes == null) ? 0
+        : o.solicitudes.filter(x => x.estado === 'pendiente' && x.sigue_pendiente_de_verdad !== false).length;
+      setTimeout(() => animarContador(elPend, pd + ps, 700), delay + 120);
+    }
+    const elAuto = document.getElementById('kpi-auto-' + oid);
+    if (elAuto && o.autocierres != null) {
+      setTimeout(() => animarContador(elAuto, o.autocierres, 700), delay + 160);
     }
     if (historico && historico[oid]) {
       const series = historico[oid];
