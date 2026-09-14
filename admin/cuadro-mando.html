@@ -459,7 +459,9 @@ function construirModelo(d) {
         quién: 'La pidió ' + esc(s.pedida_por || '—') + ' · decide el jefe de obra' +
                (t.equipo.jefes.length ? ': ' + t.equipo.jefes.map(j => esc(j.nombre)).join(', ') : ' (⚠ NINGUNO ASIGNADO)'),
         reloj: textoEspera(min),
-        enlaces: [['Ver informe', 'informe-rojos.html']]
+        // 92ª: sin enlace a propósito — la solicitud la resuelve el jefe de obra
+        // desde su panel; informe_rojos no enseña solicitudes.
+        enlaces: []
       };
       t[linea.nivel].push(linea);
     });
@@ -555,8 +557,11 @@ function construirModelo(d) {
         t.naranja.push({
           nivel: 'naranja', obra: o.nombre, marca: tipo === 'fuera_de_zona' ? '📍' : '⚠️',
           qué: n + ' × ' + esc(IncidenciasFamilias.etiqueta(tipo)),
-          quién: esAlerta ? 'Requiere que alguien lo mire.' : 'Queda registrado; normalmente no hace falta nada.',
-          reloj: '', enlaces: [['Informe', 'informe-rojos.html']]
+          quién: esAlerta ? 'Requiere que alguien lo mire; el detalle lo tiene el jefe o el encargado de la obra.' : 'Queda registrado; normalmente no hace falta nada.',
+          // 92ª: sin enlace a propósito — informe_rojos NO enseña estos tipos y
+          // no existe pantalla admin de incidencias. Un enlace que no lleva al
+          // detalle es peor que ninguno.
+          reloj: '', enlaces: []
         });
       });
     }
@@ -564,12 +569,12 @@ function construirModelo(d) {
     if (t.ultimaSync) {
       const dias = Math.floor((Date.now() - new Date(t.ultimaSync).getTime()) / 86400000);
       if (dias >= 3) {
-        t.naranja.push({ nivel: 'naranja', obra: o.nombre, marca: '📥', qué: 'e-Coordina no actualiza esta obra desde hace ' + dias + ' días', quién: 'El semáforo documental se está calculando con papeles viejos.', reloj: '', enlaces: [['e-Coordina', 'importar-ecoordina.html']] });
+        t.naranja.push({ nivel: 'naranja', obra: o.nombre, marca: '📥', qué: 'e-Coordina no actualiza esta obra desde hace ' + dias + ' días', quién: 'El semáforo documental se está calculando con papeles viejos. Se refresca importando el Excel a mano.', reloj: '', enlaces: [['Abrir el importador', '../jefe/documentos-ecoordina.html']] });
       } else {
         t.bien.push('e-Coordina al día (' + fechaCorta(t.ultimaSync) + ')');
       }
     } else {
-      t.naranja.push({ nivel: 'naranja', obra: o.nombre, marca: '📥', qué: 'Esta obra no se ha sincronizado nunca con e-Coordina', quién: 'Sin sincronizar, el semáforo documental de esta obra no significa nada.', reloj: '', enlaces: [['e-Coordina', 'importar-ecoordina.html']] });
+      t.naranja.push({ nivel: 'naranja', obra: o.nombre, marca: '📥', qué: 'Esta obra no se ha sincronizado nunca con e-Coordina', quién: 'Sin sincronizar, el semáforo documental de esta obra no significa nada.', reloj: '', enlaces: [['Abrir el importador', '../jefe/documentos-ecoordina.html']] });
     }
 
     if (!t.equipo.jefes.length) {
