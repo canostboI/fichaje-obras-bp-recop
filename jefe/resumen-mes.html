@@ -2701,6 +2701,12 @@ const SAB_HORAS_ACUERDO = 8;
 const SAB_MOTIVO = 'Sábado, 8 h por acuerdo';
 
 let sabadoAbierto = null;       // { dia }
+// P13: declaración del encargado sobre los autocierres del sábado.
+// Solo INFORMA: la decisión de las 8 h sigue siendo del jefe (regla 31ª).
+// A propósito NO se enseña en los modales hermanos (autocierres y doble
+// pase): allí la pregunta es si el RELOJ es bueno, no si hizo la mañana.
+let declaracionesSabadoDia = {};   // trabajador_id -> { respuesta, usuarios_app }
+let declSabadoError = false;
 let sabadoHuboCambios = false;
 
 // Lee el reloj de una persona en un día. Devuelve lo que se sabe de
@@ -2739,6 +2745,7 @@ function hhmm(d) {
 function abrirRevisionSabado(dia) {
   sabadoAbierto = { dia };
   sabadoHuboCambios = false;
+  cargarDeclaracionesSabadoDia(mesCargado + '-' + String(dia).padStart(2, '0'));
   const [year, month] = mesCargado.split('-').map(Number);
   const fecha = new Date(year, month - 1, dia);
   document.getElementById('sab-subtitulo').textContent =
@@ -2766,7 +2773,7 @@ function renderRevisionSabado() {
   const filas = delDia.map(p => ({ ...p, reloj: relojDelDia(p.trabajador_id, dia), nombre: nombreDe(p.trabajador_id) }));
   filas.sort((a, b) => (b.reloj.avisar ? 1 : 0) - (a.reloj.avisar ? 1 : 0) || a.nombre.localeCompare(b.nombre, 'es'));
 
-  cont.innerHTML = filas.map(f => {
+  cont.innerHTML = notaDeclSabado() + filas.map(f => {
     const r = f.reloj;
     let reloj = '';
     if (!r.hayDatos) {
@@ -2783,6 +2790,7 @@ function renderRevisionSabado() {
       <div class="sab-datos">
         <div class="sab-nombre">${r.avisar ? '⚠ ' : ''}${escapeHtml(f.nombre)}</div>
         <div class="sab-reloj">${reloj}</div>
+        ${lineaDeclSabado(f.trabajador_id)}
         ${r.avisar ? `<div class="sab-aviso">${escapeHtml(r.motivoAviso)}
           <button class="sab-igual" data-igual="${escapeHtml(f.trabajador_id)}">Firmar 8 h igualmente</button></div>` : ''}
       </div>
@@ -2792,6 +2800,49 @@ function renderRevisionSabado() {
       </div>
     </div>`;
   }).join('');
+}
+
+// P13: lee lo que el encargado declaró desde su modal (declaraciones_sabado).
+// Fallo de lectura: nota en el modal, nunca bloquea la firma (regla 62ª).
+async function cargarDeclaracionesSabadoDia(fechaStr) {
+  declaracionesSabadoDia = {};
+  declSabadoError = false;
+  try {
+    const { data, error } = await sb
+      .from('declaraciones_sabado')
+      .select('trabajador_id, respuesta, usuarios_app(nombre)')
+      .eq('obra_id', obraActual)
+      .eq('fecha', fechaStr);
+    if (error) throw error;
+    (data || []).forEach(d => { declaracionesSabadoDia[d.trabajador_id] = d; });
+  } catch (e) {
+    declSabadoError = true;
+  }
+  // Repintar solo si el modal sigue abierto en ese mismo día
+  if (sabadoAbierto && (mesCargado + '-' + String(sabadoAbierto.dia).padStart(2, '0')) === fechaStr) {
+    renderRevisionSabado();
+  }
+}
+
+function lineaDeclSabado(tid) {
+  const d = declaracionesSabadoDia[tid];
+  if (!d) return '';
+  const quien = (d.usuarios_app && d.usuarios_app.nombre) ? d.usuarios_app.nombre : 'El encargado';
+  const M = {
+    hizo_manana:    { t: '✅ hizo la mañana', c: '#4caf50' },
+    no_hizo_manana: { t: '❌ no la hizo / se fue antes', c: '#ff5252' },
+    no_lo_se:       { t: '🤷 no lo sabe', c: '#aaaaaa' }
+  };
+  const m = M[d.respuesta];
+  if (!m) return '';
+  return '<div class="sab-decl" style="font-size:0.82rem;margin-top:2px;color:' + m.c + '">' +
+    escapeHtml(quien) + ' (encargado): ' + m.t + '</div>';
+}
+
+function notaDeclSabado() {
+  if (!declSabadoError) return '';
+  return '<div style="font-size:0.8rem;color:#ffb74d;margin-bottom:8px">' +
+    '⚠ No se han podido leer las declaraciones del encargado. Cierra y vuelve a abrir para reintentar.</div>';
 }
 
 async function firmarSabado(trabajadorId, boton) {
