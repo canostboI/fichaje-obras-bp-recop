@@ -26,8 +26,9 @@
   // El orden aquí es el orden en pantalla.
   const ITEMS = [
     { tipo: 'seccion', label: 'Principal' },
+    // 92ª: el Dashboard viejo (index.html) murió — absorbido por el cuadro
+    // de mando. index.html queda solo como redirección.
     { tipo: 'enlace', href: 'cuadro-mando.html', ico: '🛰️', label: 'Cuadro de mando' },
-    { tipo: 'enlace', href: 'index.html',         ico: '📊', label: 'Dashboard' },
 
     { tipo: 'seccion', label: 'Gestión' },
     { tipo: 'enlace', href: 'obras.html',                ico: '🏗',  label: 'Obras' },
