@@ -22,6 +22,14 @@
      · sin entrada posterior                                 → 'pendiente'
        (lo ÚNICO que cuenta en el contador rojo)
 
+   EXCEPCIÓN — 'sin_registrar' (90ª): a un "presente sin registrar" le vale
+   CUALQUIER entrada del día, aunque sea anterior al intento. Cuando llamó a
+   la puerta su ficha NO existía: si hoy tiene una entrada es porque le
+   dieron de alta y entró; y si el jefe le corrigió la hora hacia atrás
+   (su hora real de trabajo), esa entrada "anterior" es la prueba, no una
+   coincidencia. Para un trabajador YA dado de alta la regla estricta se
+   mantiene: una entrada anterior al bloqueo no dice nada del bloqueo.
+
    Se mide desde el PRIMER intento a propósito: quien lo intentó a las 06:45,
    a las 07:30 y entró a las 08:15 estuvo hora y media parado, aunque su
    último intento fuera 5 minutos antes de entrar.
@@ -201,6 +209,16 @@ window.AccesosResueltos = (function () {
     return { porId: porId, porDni: porDni };
   }
 
+  function primeraEntradaDelDia(listas) {
+    var mejor = null;
+    (listas || []).forEach(function (lista) {
+      (lista || []).forEach(function (h) {
+        if (mejor === null || new Date(h).getTime() < new Date(mejor).getTime()) mejor = h;
+      });
+    });
+    return mejor;
+  }
+
   function primeraEntradaPosterior(listas, desdeISO) {
     var mejor = null;
     var corte = new Date(desdeISO).getTime();
@@ -221,7 +239,7 @@ window.AccesosResueltos = (function () {
       g.minutosParado = null;
       return;
     }
-    g.minutosParado = minutosEntre(g.primerIntento, g.entrada);
+    g.minutosParado = Math.max(0, minutosEntre(g.primerIntento, g.entrada));
     g.estado = (g.minutosParado <= gracia) ? 'resuelto_rapido' : 'resuelto';
   }
 
@@ -327,7 +345,10 @@ window.AccesosResueltos = (function () {
       if (g.trabajador_id && idx.porId[g.trabajador_id]) listas.push(idx.porId[g.trabajador_id]);
       var dni = normalizarDni(g.dni);
       if (dni && idx.porDni[dni]) listas.push(idx.porDni[dni]);
-      g.entrada = listas.length ? primeraEntradaPosterior(listas, g.ultimoIntento) : null;
+      g.entrada = !listas.length ? null
+        : (g.clase === 'sin_registrar')
+          ? primeraEntradaDelDia(listas)
+          : primeraEntradaPosterior(listas, g.ultimoIntento);
       decidirEstado(g, gracia, entradasConocidas);
     });
 
