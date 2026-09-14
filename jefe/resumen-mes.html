@@ -13,6 +13,7 @@
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="../js/excel-proforma.js"></script>
 <script src="../js/jornadas.js"></script>
+<script src="../js/modal-jornada.js"></script>
 <script>
 // Cómo se escribe una categoría en pantalla. Con "otra" manda el texto libre.
 // El motor del proforma tiene la suya; esta es solo para la lista de esta página.
@@ -757,6 +758,52 @@ async function cargarJornadas() {
     return ['no se han podido leer los tipos de jornada; se calcula con el horario general de la obra'];
   }
   return [];
+}
+
+// 92ª · Cambiar el tipo de jornada desde el resumen. La etiqueta junto al
+// DNI es un botón: abre el modal compartido (js/modal-jornada.js), que
+// escribe SIEMPRE por la RPC asignar_tipo_jornada. Al guardar se recarga
+// el resumen ENTERO: un cambio de tipo cambia horas, así que repintar
+// solo la etiqueta mentiría.
+function abrirCambioJornada(trabajadorId) {
+  if (!window.ModalJornada) { alert('No se ha cargado js/modal-jornada.js. Recarga la página.'); return; }
+  if (!obraActual) return;
+  if (!ctxJornadas || !ctxJornadas.tipos) {
+    alert('No se han podido leer los tipos de jornada de la obra. Recarga la página.');
+    return;
+  }
+  const t = resumenTrabajadores[trabajadorId];
+  const etiqueta = t ? (String(t.nombre || '') + (t.dni ? ' · ' + t.dni : '')) : '';
+
+  // Catálogo leído por js/jornadas.js (mapa id → tipo). El modal ya
+  // filtra los inactivos; aquí solo se ordena por nombre, como en
+  // jefe/trabajadores.html.
+  const tipos = Object.values(ctxJornadas.tipos)
+    .sort((a, b) => String(a.nombre).localeCompare(String(b.nombre)));
+
+  // La casilla ☀ abre con el valor REAL de la persona HOY (mismo criterio
+  // que jefe/trabajadores.html): solo desmarcada si su asignación vigente
+  // hoy tiene seguir_intensiva_obra = false. Componer la fecha a mano:
+  // toISOString() de madrugada da el día anterior.
+  const hd = new Date();
+  const hoy = hd.getFullYear() + '-' + String(hd.getMonth() + 1).padStart(2, '0') + '-' + String(hd.getDate()).padStart(2, '0');
+  const asig = (ctxJornadas.asignaciones && ctxJornadas.asignaciones[trabajadorId]) || [];
+  const vigente = asig.find(a => (a.desde || '0000-01-01') <= hoy && (!a.hasta || a.hasta >= hoy));
+  const intensivaMarcada = !(vigente && vigente.seguir_intensiva_obra === false);
+
+  ModalJornada.abrir(sb, {
+    obraId: obraActual,
+    ids: [trabajadorId],
+    etiqueta: etiqueta,
+    tipos: tipos,
+    intensivaMarcada: intensivaMarcada,
+    onGuardado: async () => {
+      await cargarResumen();
+      // El panel de tipos de abajo cuenta personas por tipo con el mismo
+      // ctxJornadas: se repinta para que las cifras no queden viejas.
+      pintarTiposJornada();
+    }
+  });
 }
 let horarioNormal = { entrada: null, salida: null, descanso: null };
 let horarioIntensiva = { entrada: null, salida: null, descanso: null };
@@ -2701,12 +2748,6 @@ const SAB_HORAS_ACUERDO = 8;
 const SAB_MOTIVO = 'Sábado, 8 h por acuerdo';
 
 let sabadoAbierto = null;       // { dia }
-// P13: declaración del encargado sobre los autocierres del sábado.
-// Solo INFORMA: la decisión de las 8 h sigue siendo del jefe (regla 31ª).
-// A propósito NO se enseña en los modales hermanos (autocierres y doble
-// pase): allí la pregunta es si el RELOJ es bueno, no si hizo la mañana.
-let declaracionesSabadoDia = {};   // trabajador_id -> { respuesta, usuarios_app }
-let declSabadoError = false;
 let sabadoHuboCambios = false;
 
 // Lee el reloj de una persona en un día. Devuelve lo que se sabe de
@@ -2745,7 +2786,6 @@ function hhmm(d) {
 function abrirRevisionSabado(dia) {
   sabadoAbierto = { dia };
   sabadoHuboCambios = false;
-  cargarDeclaracionesSabadoDia(mesCargado + '-' + String(dia).padStart(2, '0'));
   const [year, month] = mesCargado.split('-').map(Number);
   const fecha = new Date(year, month - 1, dia);
   document.getElementById('sab-subtitulo').textContent =
@@ -2773,7 +2813,7 @@ function renderRevisionSabado() {
   const filas = delDia.map(p => ({ ...p, reloj: relojDelDia(p.trabajador_id, dia), nombre: nombreDe(p.trabajador_id) }));
   filas.sort((a, b) => (b.reloj.avisar ? 1 : 0) - (a.reloj.avisar ? 1 : 0) || a.nombre.localeCompare(b.nombre, 'es'));
 
-  cont.innerHTML = notaDeclSabado() + filas.map(f => {
+  cont.innerHTML = filas.map(f => {
     const r = f.reloj;
     let reloj = '';
     if (!r.hayDatos) {
@@ -2790,7 +2830,6 @@ function renderRevisionSabado() {
       <div class="sab-datos">
         <div class="sab-nombre">${r.avisar ? '⚠ ' : ''}${escapeHtml(f.nombre)}</div>
         <div class="sab-reloj">${reloj}</div>
-        ${lineaDeclSabado(f.trabajador_id)}
         ${r.avisar ? `<div class="sab-aviso">${escapeHtml(r.motivoAviso)}
           <button class="sab-igual" data-igual="${escapeHtml(f.trabajador_id)}">Firmar 8 h igualmente</button></div>` : ''}
       </div>
@@ -2800,49 +2839,6 @@ function renderRevisionSabado() {
       </div>
     </div>`;
   }).join('');
-}
-
-// P13: lee lo que el encargado declaró desde su modal (declaraciones_sabado).
-// Fallo de lectura: nota en el modal, nunca bloquea la firma (regla 62ª).
-async function cargarDeclaracionesSabadoDia(fechaStr) {
-  declaracionesSabadoDia = {};
-  declSabadoError = false;
-  try {
-    const { data, error } = await sb
-      .from('declaraciones_sabado')
-      .select('trabajador_id, respuesta, usuarios_app(nombre)')
-      .eq('obra_id', obraActual)
-      .eq('fecha', fechaStr);
-    if (error) throw error;
-    (data || []).forEach(d => { declaracionesSabadoDia[d.trabajador_id] = d; });
-  } catch (e) {
-    declSabadoError = true;
-  }
-  // Repintar solo si el modal sigue abierto en ese mismo día
-  if (sabadoAbierto && (mesCargado + '-' + String(sabadoAbierto.dia).padStart(2, '0')) === fechaStr) {
-    renderRevisionSabado();
-  }
-}
-
-function lineaDeclSabado(tid) {
-  const d = declaracionesSabadoDia[tid];
-  if (!d) return '';
-  const quien = (d.usuarios_app && d.usuarios_app.nombre) ? d.usuarios_app.nombre : 'El encargado';
-  const M = {
-    hizo_manana:    { t: '✅ hizo la mañana', c: '#4caf50' },
-    no_hizo_manana: { t: '❌ no la hizo / se fue antes', c: '#ff5252' },
-    no_lo_se:       { t: '🤷 no lo sabe', c: '#aaaaaa' }
-  };
-  const m = M[d.respuesta];
-  if (!m) return '';
-  return '<div class="sab-decl" style="font-size:0.82rem;margin-top:2px;color:' + m.c + '">' +
-    escapeHtml(quien) + ' (encargado): ' + m.t + '</div>';
-}
-
-function notaDeclSabado() {
-  if (!declSabadoError) return '';
-  return '<div style="font-size:0.8rem;color:#ffb74d;margin-bottom:8px">' +
-    '⚠ No se han podido leer las declaraciones del encargado. Cierra y vuelve a abrir para reintentar.</div>';
 }
 
 async function firmarSabado(trabajadorId, boton) {
@@ -3423,7 +3419,7 @@ function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
     filas += `<tr>
       <td class="col-nombre">
         <div class="nombre">${escapeHtml(t.nombre)}</div>
-        <div class="sub">${escapeHtml(t.dni || '')}${etiquetaCat(t) ? ' · ' + escapeHtml(etiquetaCat(t)) : ''}${(() => { const tj = etiquetaTipoJornada(t.id, year, month); return tj ? ' <span style="display:inline-block;padding:1px 6px;border-radius:4px;background:var(--bg3);color:var(--texto2);font-size:10.5px;font-weight:700;letter-spacing:.3px;margin-left:2px" title="Tipo de jornada asignado este mes">' + escapeHtml(tj) + '</span>' : ''; })()}</div>
+        <div class="sub">${escapeHtml(t.dni || '')}${etiquetaCat(t) ? ' · ' + escapeHtml(etiquetaCat(t)) : ''}${(() => { if (!ctxJornadas || !ctxJornadas.asignaciones) return ''; const tj = etiquetaTipoJornada(t.id, year, month); const esGeneral = (tj === null); const texto = esGeneral ? 'General' : tj; return ' <button type="button" onclick="abrirCambioJornada(\'' + t.id + '\')" style="display:inline-block;padding:1px 6px;border-radius:4px;border:1px solid var(--borde);background:var(--bg3);color:var(--texto2);font-size:10.5px;letter-spacing:.3px;margin-left:2px;cursor:pointer;font-weight:' + (esGeneral ? '400;opacity:.75' : '700') + '" title="Tipo de jornada de esta persona este mes. Pulsa para cambiarlo.">' + escapeHtml(texto) + '</button>'; })()}</div>
       </td>
       ${celdas}
       <td class="col-total">${formatHoras(t.horas_mes)}</td>
