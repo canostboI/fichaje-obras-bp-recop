@@ -94,10 +94,9 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 window._sbAdmin = sb;
 AutoLogout.init(sb);
 
-document.getElementById('btn-salir').addEventListener('click', async () => {
-  await sb.auth.signOut();
-  window.location.href = '../index.html';
-});
+// 92ª: el botón «Cerrar sesión» lo inyecta y gestiona menu-admin.js (es su
+// contrato). El listener propio que había aquí corría ANTES de la inyección,
+// reventaba con el botón aún inexistente y dejaba sin ejecutar el guardián.
 
 async function init() {
   try {
