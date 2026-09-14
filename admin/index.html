@@ -301,7 +301,7 @@ async function cargarSaludCrons() {
   if (!data || data.length === 0) { el.style.display = 'block'; el.style.background = 'rgba(255,152,0,0.15)'; el.style.color = '#ff9800'; el.textContent = '⚠️ Vigilante de crons: no se encontró ningún cron programado en la base de datos.'; return; }
   const diaMadrid = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Madrid' })).getDay();
   const esFinDeSemanaOLunes = (diaMadrid === 0 || diaMadrid === 6 || diaMadrid === 1);
-  const CRONS_ESPERADOS = ['autocierre_nocturno', 'aviso_ronda_1', 'aviso_ronda_2', 'aviso_ronda_3', 'auditoria_permisos_diaria'];
+  const CRONS_ESPERADOS = ['autocierre_nocturno', 'aviso_ronda_1', 'aviso_ronda_2', 'aviso_ronda_3', 'auditoria_permisos_diaria', 'recordatorio_solicitudes_acceso', 'caducar-fotos-identidad', 'vaciar-cola-borrado-fotos', 'caducar_forzados_diario']; // 88ª: los 9 crons reales — si falta uno, se grita
   const problemas = [];
   const presentes = new Set(data.map(c => c.jobname));
   CRONS_ESPERADOS.forEach(nombre => { if (!presentes.has(nombre)) problemas.push(`«${nombre}» NO EXISTE en la base de datos`); });
