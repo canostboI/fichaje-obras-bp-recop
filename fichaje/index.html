@@ -218,6 +218,10 @@
   }
 
   button.verde    { background: var(--verde); }
+  /* 86ª (15/9/2026) — El botón de fichar ya no es verde: el verde queda
+     reservado para la pantalla de confirmación, cuando el fichaje ya está
+     hecho. Aquí manda el azul corporativo. */
+  button.azul     { background: var(--color-principal); }
   button.naranja  { background: var(--naranja); }
   button.rojo     { background: var(--rojo); cursor: default; }
   button.secundario {
@@ -263,7 +267,12 @@
   .estado-verde   { background: #e8f5e9; color: var(--verde);   border: 2px solid var(--verde); }
   .estado-naranja { background: #fff4e6; color: var(--naranja); border: 2px solid var(--naranja); }
   .estado-rojo    { background: #fdecea; color: var(--rojo);    border: 2px solid var(--rojo); }
-  /* 85ª — El verde no compite con el botón: discreto. Naranja y rojo
+  /* 86ª (15/9/2026) — Documentación correcta PERO todavía sin fichar.
+     Antes esto salía verde y mucha gente entendía "ya está" y se marchaba
+     sin pulsar el botón; o volvía a escanear por la duda, y ese segundo
+     escaneo se registraba como salida. El verde solo aparece ya fichado. */
+  .estado-neutro  { background: #eef1f5; color: var(--color-principal); border: 2px solid var(--gris-borde); }
+  /* 85ª — El estado no compite con el botón: discreto. Naranja y rojo
      siguen grandes a propósito (esos sí tienen que imponerse). */
   .estado-box.compacta {
     padding: 8px 12px;
@@ -332,15 +341,19 @@
     text-align: center;
     padding: 30px 16px;
   }
+  /* 86ª (15/9/2026) — Aquí SÍ: el fichaje ya está registrado. Es el único
+     verde de todo el recorrido, para que signifique una sola cosa. */
   .confirmacion-final .tick {
     font-size: 60px;
     line-height: 1;
     margin-bottom: 16px;
+    color: var(--verde);
   }
   .confirmacion-final .titulo {
     font-size: 26px;
     font-weight: 700;
     margin-bottom: 8px;
+    color: var(--verde);
   }
   .confirmacion-final .hora {
     font-size: 40px;
@@ -2617,7 +2630,8 @@ function configurarBotonesFichaje(estadoDoc, tipoSugerido) {
   el.botonesFichaje.classList.remove('oculto');
   el.btnEntrada.disabled = false;
   el.btnSalida.disabled  = false;
-  const color = (estadoDoc === 'verde') ? 'verde' : 'naranja';
+  // 86ª (15/9/2026): el botón de acceso correcto es azul, no verde.
+  const color = (estadoDoc === 'verde') ? 'azul' : 'naranja';
   el.btnEntrada.className = '';
   el.btnSalida.className  = '';
 
@@ -2655,7 +2669,8 @@ function mostrarResultadoValidacion(v) {
   switch (estadoEfectivo) {
     case 'verde':
       // 85ª: discreto — que el protagonista sea el botón, no el semáforo
-      el.estadoBox.classList.add('estado-verde', 'compacta');
+      // 86ª: neutro, no verde — todavía no ha fichado nada
+      el.estadoBox.classList.add('estado-neutro', 'compacta');
       el.estadoBox.textContent = T('acceso_ok');
       avisoPulsar.textContent = T('pulsa_fichar');
       avisoPulsar.classList.remove('oculto');
