@@ -9,7 +9,7 @@
   <script src="../js/branding.js"></script>
   <script src="../js/auto-logout.js"></script>
   <script src="../js/fechas.js"></script>
-  <script src="../js/habilitaciones.js"></script>
+  <script src="../js/habilitaciones.js?v=20260915"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -91,7 +91,7 @@
     .hab-pill.proxima        { background: #fff3e0; color: #e65100; border-color: #ffcc80; }
     .hab-pill.caducada       { background: #fce4ec; color: #b71c1c; border-color: #ef9a9a; }
     .hab-pill.falta-fecha    { background: #fff3e0; color: #e65100; border-color: #e65100; border-style: dashed; }
-    .hab-pill .icono         { font-size: 1rem; }
+    .hab-pill .icono         { font-size: 1rem; display: inline-flex; align-items: center; }
     .hab-pill .caducidad     { font-size: 0.78rem; font-weight: 400; opacity: 0.85; }
 
     .resumen-banner {
@@ -341,7 +341,8 @@
       div.className = 'trab-card';
 
       const pillsHtml = t.habs.map(h => {
-        const icono = Hab.icono(h.nombre);
+        // Icono SVG con respaldo al emoji si hay un habilitaciones.js viejo en caché.
+        const icono = (typeof Hab.iconoSvg === 'function') ? Hab.iconoSvg(h.nombre, 20) : Hab.icono(h.nombre);
         const clase = Hab.clase(h.estado);
         const caducTexto = Hab.textoCaducidad(h);
         return `<span class="hab-pill ${clase}">
