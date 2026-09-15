@@ -380,6 +380,10 @@
     margin: 14px 0;
     text-align: center;
     font-weight: 500;
+    /* GPS-IMPRECISO (96a): el aviso de ubicacion imprecisa lleva el
+       camino de ajustes en una segunda linea. Sin pre-line, el \n
+       del texto se colapsa y sale todo pegado. */
+    white-space: pre-line;
   }
 
   .aviso-gps {
@@ -841,6 +845,9 @@ const TEXTOS = {
     err_obra_inactiva:         'Esta obra no está activa. Avise al encargado.',
     err_sin_ubicacion:         'Ubicación no disponible. Active el GPS y permita el acceso a la ubicación.',
     err_fuera_de_zona:         'Fuera de la zona de la obra (a {m} m). Avise al encargado.',
+    err_fuera_de_zona_impreciso: 'Tu móvil no está dando la posición exacta. Estás en la obra, pero el teléfono no lo sabe.',
+    gps_exacta_android:        'Ajustes → Aplicaciones → Chrome → Permisos → Ubicación → activa «Usar ubicación exacta». Después vuelve a pulsar el botón.',
+    gps_exacta_otros:          'Activa la ubicación exacta del navegador en los ajustes del móvil y vuelve a intentarlo.',
     err_acceso_denegado:       'Acceso denegado.',
     err_tipo_no_valido:        'No se pudo registrar el fichaje. Vuelva a intentarlo.',
     err_sin_entrada_abierta:   'No tienes ninguna entrada abierta hoy en esta obra. No se puede fichar salida.',
@@ -948,6 +955,9 @@ const TEXTOS = {
     err_obra_inactiva:         "Aquesta obra no està activa. Aviseu l'encarregat.",
     err_sin_ubicacion:         "Ubicació no disponible. Activeu el GPS i permeteu l'accés a la ubicació.",
     err_fuera_de_zona:         "Fora de la zona de l'obra (a {m} m). Aviseu l'encarregat.",
+    err_fuera_de_zona_impreciso: "El teu mòbil no està donant la posició exacta. Ets a l'obra, però el telèfon no ho sap.",
+    gps_exacta_android:        'Configuració → Aplicacions → Chrome → Permisos → Ubicació → activa «Utilitza la ubicació exacta». Després torna a prémer el botó.',
+    gps_exacta_otros:          'Activa la ubicació exacta del navegador a la configuració del mòbil i torna-ho a provar.',
     err_acceso_denegado:       'Accés denegat.',
     err_tipo_no_valido:        "No s'ha pogut registrar el fitxatge. Torneu-ho a provar.",
     err_sin_entrada_abierta:   'No tens cap entrada oberta avui en aquesta obra. No es pot fitxar la sortida.',
@@ -1054,6 +1064,9 @@ const TEXTOS = {
     err_obra_inactiva:         'هذه الورشة غير نشطة. أبلغ المسؤول.',
     err_sin_ubicacion:         'الموقع غير متاح. فعّل GPS واسمح بالوصول إلى الموقع.',
     err_fuera_de_zona:         'أنت خارج نطاق الورشة (على بعد {m} م). أبلغ المسؤول.',
+    err_fuera_de_zona_impreciso: 'هاتفك لا يحدد موقعك بدقة. أنت في الورشة، لكن الهاتف لا يعرف ذلك.',
+    gps_exacta_android:        'الإعدادات ← التطبيقات ← Chrome ← الأذونات ← الموقع ← فعّل «استخدام الموقع الدقيق». ثم اضغط الزر مرة أخرى.',
+    gps_exacta_otros:          'فعّل الموقع الدقيق للمتصفح من إعدادات الهاتف ثم حاول مرة أخرى.',
     err_acceso_denegado:       'الدخول ممنوع.',
     err_tipo_no_valido:        'تعذّر تسجيل الحضور. حاول مرة أخرى.',
     err_sin_entrada_abierta:   'ليس لديك دخول مفتوح اليوم في هذه الورشة. لا يمكن تسجيل الخروج.',
@@ -1160,6 +1173,9 @@ const TEXTOS = {
     err_obra_inactiva:         'Acest șantier nu este activ. Anunță responsabilul.',
     err_sin_ubicacion:         'Locație indisponibilă. Activați GPS-ul și permiteți accesul la locație.',
     err_fuera_de_zona:         'În afara zonei șantierului (la {m} m). Anunță responsabilul.',
+    err_fuera_de_zona_impreciso: 'Telefonul tău nu transmite poziția exactă. Ești pe șantier, dar telefonul nu știe asta.',
+    gps_exacta_android:        'Setări → Aplicații → Chrome → Permisiuni → Locație → activează «Folosește locația exactă». Apoi apasă din nou butonul.',
+    gps_exacta_otros:          'Activează locația exactă a browserului din setările telefonului și încearcă din nou.',
     err_acceso_denegado:       'Acces refuzat.',
     err_tipo_no_valido:        'Pontajul nu a putut fi înregistrat. Încercați din nou.',
     err_sin_entrada_abierta:   'Nu ai nicio intrare deschisă azi pe acest șantier. Nu se poate ponta ieșirea.',
@@ -1273,6 +1289,9 @@ const TEXTOS = {
     err_obra_inactiva:         'یہ سائٹ فعال نہیں ہے۔ اپنے انچارج کو بتائیں۔',
     err_sin_ubicacion:         'مقام دستیاب نہیں۔ GPS آن کریں اور مقام کی اجازت دیں۔',
     err_fuera_de_zona:         'آپ سائٹ کے علاقے سے باہر ہیں ({m} میٹر دور)۔ اپنے انچارج کو بتائیں۔',
+    err_fuera_de_zona_impreciso: 'آپ کا موبائل درست مقام نہیں بتا رہا۔ آپ سائٹ پر ہیں، مگر فون کو معلوم نہیں۔',
+    gps_exacta_android:        'سیٹنگز ← ایپس ← Chrome ← اجازتیں ← مقام ← «درست مقام استعمال کریں» آن کریں۔ پھر دوبارہ بٹن دبائیں۔',
+    gps_exacta_otros:          'موبائل کی سیٹنگز میں براؤزر کا درست مقام آن کریں اور دوبارہ کوشش کریں۔',
     err_acceso_denegado:       'داخلہ ممنوع ہے۔',
     err_tipo_no_valido:        'حاضری درج نہیں ہو سکی۔ دوبارہ کوشش کریں۔',
     err_sin_entrada_abierta:   'آج اس سائٹ پر آپ کا کوئی داخلہ درج نہیں ہے۔ اخراج درج نہیں ہو سکتا۔',
@@ -1385,6 +1404,9 @@ const TEXTOS = {
     err_obra_inactiva:         'ਇਹ ਸਾਈਟ ਚਾਲੂ ਨਹੀਂ ਹੈ। ਆਪਣੇ ਇੰਚਾਰਜ ਨੂੰ ਦੱਸੋ।',
     err_sin_ubicacion:         'ਟਿਕਾਣਾ ਉਪਲਬਧ ਨਹੀਂ। GPS ਚਾਲੂ ਕਰੋ ਅਤੇ ਟਿਕਾਣੇ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ।',
     err_fuera_de_zona:         'ਤੁਸੀਂ ਸਾਈਟ ਦੇ ਇਲਾਕੇ ਤੋਂ ਬਾਹਰ ਹੋ ({m} ਮੀਟਰ ਦੂਰ)। ਆਪਣੇ ਇੰਚਾਰਜ ਨੂੰ ਦੱਸੋ।',
+    err_fuera_de_zona_impreciso: 'ਤੁਹਾਡਾ ਮੋਬਾਈਲ ਸਹੀ ਥਾਂ ਨਹੀਂ ਦੱਸ ਰਿਹਾ। ਤੁਸੀਂ ਸਾਈਟ ਉੱਤੇ ਹੋ, ਪਰ ਫ਼ੋਨ ਨੂੰ ਪਤਾ ਨਹੀਂ।',
+    gps_exacta_android:        'ਸੈਟਿੰਗਾਂ → ਐਪਾਂ → Chrome → ਇਜਾਜ਼ਤਾਂ → ਟਿਕਾਣਾ → «ਸਹੀ ਟਿਕਾਣਾ ਵਰਤੋ» ਚਾਲੂ ਕਰੋ। ਫਿਰ ਦੁਬਾਰਾ ਬਟਨ ਦਬਾਓ।',
+    gps_exacta_otros:          'ਮੋਬਾਈਲ ਦੀਆਂ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਬ੍ਰਾਊਜ਼ਰ ਦਾ ਸਹੀ ਟਿਕਾਣਾ ਚਾਲੂ ਕਰੋ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
     err_acceso_denegado:       'ਦਾਖ਼ਲਾ ਮਨ੍ਹਾ ਹੈ।',
     err_tipo_no_valido:        'ਹਾਜ਼ਰੀ ਦਰਜ ਨਹੀਂ ਹੋ ਸਕੀ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
     err_sin_entrada_abierta:   'ਅੱਜ ਇਸ ਸਾਈਟ ਤੇ ਤੁਹਾਡਾ ਅੰਦਰ ਆਉਣਾ ਦਰਜ ਨਹੀਂ ਹੈ। ਬਾਹਰ ਜਾਣਾ ਦਰਜ ਨਹੀਂ ਹੋ ਸਕਦਾ।',
@@ -1492,6 +1514,9 @@ const TEXTOS = {
     err_obra_inactiva:         'This site is not active. Speak to your supervisor.',
     err_sin_ubicacion:         'Location not available. Turn on GPS and allow access to your location.',
     err_fuera_de_zona:         'Outside the site area ({m} m away). Speak to your supervisor.',
+    err_fuera_de_zona_impreciso: 'Your phone is not giving its exact position. You are on site, but the phone does not know it.',
+    gps_exacta_android:        'Settings → Apps → Chrome → Permissions → Location → turn on «Use precise location». Then press the button again.',
+    gps_exacta_otros:          'Turn on precise location for the browser in your phone settings and try again.',
     err_acceso_denegado:       'Access denied.',
     err_tipo_no_valido:        'The clock-in could not be recorded. Please try again.',
     err_sin_entrada_abierta:   'You have no open clock-in today at this site, so you cannot clock out.',
@@ -2298,8 +2323,28 @@ function interpretarError(err) {
 // dentro. Si el número no llegara, se quita el paréntesis entero: más
 // vale una frase corta que una con un {m} a la intemperie.
 // =====================================================================
+// GPS-IMPRECISO (96a, 15/9/2026)
+// La lectura que acaba de mandar esta valla sigue en 'estado.ubicacion'.
+// Si el rechazo es por zona Y esa lectura era de antena (>500 m de error),
+// la frase de los metros es falsa: el trabajador esta en la puerta. Se le
+// dice lo que de verdad pasa y como arreglarlo en su propio movil.
+// Con lectura buena NO cambia nada: los metros son ciertos y mandan.
+function esLecturaDeAntena() {
+  const p = estado && estado.ubicacion ? estado.ubicacion.precision : null;
+  // Infinity = movil que no informa de precision. Tampoco es de satelite.
+  if (typeof p !== 'number') return false;
+  return !isFinite(p) || p > GPS_LECTURA_DUDOSA_M;
+}
+
 function textoErrorRpc(data) {
   if (!data) return T('fichaje_rechazado');
+
+  if (data.codigo === 'FUERA_DE_ZONA' && esLecturaDeAntena()) {
+    const camino = /Android/i.test(navigator.userAgent || '')
+      ? T('gps_exacta_android')
+      : T('gps_exacta_otros');
+    return T('err_fuera_de_zona_impreciso') + '\n\n' + camino;
+  }
 
   let texto = null;
   if (data.codigo) {
@@ -2352,6 +2397,18 @@ const GPS_OBJETIVO_M    = 100;    // por debajo de esto, lectura aceptada ya
 const GPS_ACEPTABLE_M   = 300;    // ...o esto, si ya se ha esperado bastante
 const GPS_ESPERA_MIN_MS = 7000;   // cuánto es «bastante»
 const GPS_PRESUPUESTO_MS = 20000; // tope duro; luego se usa la mejor que haya
+
+// GPS-IMPRECISO (96a, 15/9/2026) — umbral MEDIDO, no elegido.
+// Reparto de precision_gps en los fichajes reales desde julio 2026:
+//   <=50 m ....... 534      (GPS de satelite)
+//   50-200 m ......  68
+//   200-500 m .....   3     <-- el hueco
+//   >500 m ........  48     (todos ~2000 m: antena o wifi)
+// Hay dos mundos y casi nada en medio. El corte se pone en el hueco.
+// Por encima de esto la posicion no es del satelite: decirle al
+// trabajador "estas a 1.550 m" es mentira — el esta en la puerta, y el
+// que se ha perdido es su movil. Cambiar este numero = volver a medir.
+const GPS_LECTURA_DUDOSA_M = 500;
 
 function obtenerUbicacion(alProgresar) {
   return new Promise((resolve, reject) => {
