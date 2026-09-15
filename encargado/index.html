@@ -593,7 +593,6 @@
     <h1>Panel Encargado</h1>
   </div>
   <div class="header-right">
-    <button class="btn-qr-header" id="btn-cambiar-obra" style="display:none">🔁 Cambiar obra</button>
     <button class="btn-qr-header" id="btn-resumen-mes" onclick="window.location.href='resumen-mes.html'">📊 Resumen · Proforma</button>
     <button class="btn-qr-header" id="btn-hab" onclick="window.location.href='habilitaciones.html'">🏗️ Habilitaciones</button>
     <button class="btn-qr-header" id="btn-ver-qr">📱 Ver QR</button>
@@ -1041,8 +1040,6 @@
         opt.dataset.fotoUrl = a.obras.foto_url || '';
         select.appendChild(opt);
       });
-      document.getElementById('btn-cambiar-obra').style.display = 'inline-block';
-
       // Obra recordada: si el encargado ya eligió una (aquí, en Habilitaciones
       // o en Resumen) y sigue asignada, se entra directamente. Solo se vuelve
       // a preguntar si no hay ninguna guardada o ya no es suya.
@@ -1068,14 +1065,8 @@
     try { localStorage.setItem(CLAVE_OBRA_ENC, obraId); } catch (_) {}
   }
 
-  // Cambio de obra expreso: vuelve a enseñar el selector con la obra actual
-  // marcada. Hasta que no pulse "Ver presencia", sigue en la que estaba.
-  document.getElementById('btn-cambiar-obra').addEventListener('click', () => {
-    const card = document.getElementById('card-selector');
-    if (obraActualId) document.getElementById('select-obra').value = obraActualId;
-    card.style.display = 'block';
-    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
+  // Sin botón de cambiar obra (decisión de Dani, sept 2026): cambiar de
+  // obra es raro y se hace cerrando sesión y volviendo a entrar.
 
   document.getElementById('btn-elegir-obra').addEventListener('click', () => {
     const select = document.getElementById('select-obra');
