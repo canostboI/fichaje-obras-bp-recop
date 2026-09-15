@@ -63,6 +63,9 @@
   td { padding: 11px 20px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: var(--bg3); }
+  /* Franja de empresa: agrupa las filas de la tabla y no reacciona al hover */
+  tr.fila-empresa td { background: var(--bg3); padding: 8px 20px; font-size: 12px; font-weight: 700; color: var(--texto); text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--borde); }
+  tr.fila-empresa td .num { color: var(--texto2); font-weight: 400; text-transform: none; letter-spacing: 0; margin-left: 6px; }
   .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
   .pill.verde   { background: rgba(76,175,80,0.15);  color: var(--verde); }
   .pill.azul    { background: rgba(33,150,243,0.15); color: var(--azul); }
@@ -316,7 +319,7 @@ async function buscar() {
 
   let query = sb
     .from('fichajes')
-    .select('id, tipo, hora, es_manual, cierre_automatico, corregido_por, corregido_en, motivo_correccion, origen, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni)')
+    .select('id, tipo, hora, es_manual, cierre_automatico, corregido_por, corregido_en, motivo_correccion, origen, trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, dni, empresa_id, empresa:empresa_id(nombre))')
     .eq('obra_id', obraActual)
     .order('hora', { ascending: !!fecha })
     .limit(TOPE_FICHAJES);
@@ -359,13 +362,15 @@ async function buscar() {
   const jornadas = agruparEnJornadas(cronologico);
   jornadasActuales = jornadas;
 
-  // Ordenar: por fecha desc, luego por apellidos asc
+  // Ordenar: por fecha desc, luego por EMPRESA, luego por nombre completo.
+  // Antes se ordenaba por apellidos, pero en la BD casi todo el nombre vive
+  // en trabajadores.nombre con apellidos vacío → el orden era aleatorio.
   jornadas.sort((a, b) => {
     const fechaDiff = b.fechaKey.localeCompare(a.fechaKey);
     if (fechaDiff !== 0) return fechaDiff;
-    const apA = (a.apellidos || '').toLowerCase();
-    const apB = (b.apellidos || '').toLowerCase();
-    return apA.localeCompare(apB, 'es');
+    const empDiff = compararEmpresas(a.empresa, b.empresa);
+    if (empDiff !== 0) return empDiff;
+    return claveNombre(a).localeCompare(claveNombre(b), 'es');
   });
 
   document.getElementById('badge-total').textContent = jornadas.length + (jornadas.length === 1 ? ' jornada' : ' jornadas');
@@ -385,7 +390,7 @@ async function buscar() {
         <th>Acciones</th>
       </tr></thead>
       <tbody>
-        ${jornadas.map((j, i) => pintarJornada(j, mostrarFecha, i)).join('')}
+        ${pintarConFranjas(jornadas, mostrarFecha)}
       </tbody>
     </table>` + (topado
       ? '<div class="vacio" style="color:var(--naranja)">Se muestran los ' + TOPE_FICHAJES +
@@ -442,6 +447,7 @@ function agruparEnJornadas(fichajes) {
         nombre: t.nombre || '',
         apellidos: t.apellidos || '',
         dni: t.dni || '',
+        empresa: nombreEmpresa(t),
         fechaKey: isoAFechaLocal(f.hora), // YYYY-MM-DD local
         entradaId: f.id,
         entradaHora: f.hora,
@@ -473,6 +479,7 @@ function agruparEnJornadas(fichajes) {
           nombre: t.nombre || '',
           apellidos: t.apellidos || '',
           dni: t.dni || '',
+          empresa: nombreEmpresa(t),
           fechaKey: isoAFechaLocal(f.hora),
           entradaId: null,
           entradaHora: null,
@@ -494,6 +501,52 @@ function agruparEnJornadas(fichajes) {
   Object.values(abiertas).forEach(j => jornadas.push(j));
 
   return jornadas;
+}
+
+// ── Agrupado por empresa ──
+const SIN_EMPRESA = 'Sin empresa';
+const EMPRESA_NO_VISIBLE = 'Empresa no visible desde esta obra';
+
+// Tres casos distintos, y no se mezclan: tiene empresa · tiene empresa_id
+// pero la policy no deja leerla (p. ej. ya no está en la obra) · no tiene.
+function nombreEmpresa(t) {
+  if (t && t.empresa && t.empresa.nombre) return t.empresa.nombre.trim();
+  if (t && t.empresa_id) return EMPRESA_NO_VISIBLE;
+  return SIN_EMPRESA;
+}
+
+// Empresas en orden alfabético; "no visible" y "sin empresa" siempre al final.
+function compararEmpresas(a, b) {
+  const rango = e => e === SIN_EMPRESA ? 2 : (e === EMPRESA_NO_VISIBLE ? 1 : 0);
+  const r = rango(a) - rango(b);
+  if (r !== 0) return r;
+  return (a || '').localeCompare(b || '', 'es', { sensitivity: 'base' });
+}
+
+// El nombre completo (nombre + apellidos), que es donde de verdad está.
+function claveNombre(p) {
+  return [p.nombre, p.apellidos].filter(Boolean).join(' ').toLowerCase();
+}
+
+// Mete una franja con la empresa cada vez que cambia (o cambia el día).
+// El índice que recibe pintarJornada es el de jornadasActuales: el historial
+// (abrirHistorial) depende de ello, así que las franjas NO cuentan.
+function pintarConFranjas(jornadas, mostrarFecha) {
+  const columnas = mostrarFecha ? 8 : 7;
+  let html = '';
+  let grupoActual = null;
+  jornadas.forEach((j, i) => {
+    const grupo = j.fechaKey + '|' + j.empresa;
+    if (grupo !== grupoActual) {
+      grupoActual = grupo;
+      const personas = new Set(
+        jornadas.filter(x => x.fechaKey === j.fechaKey && x.empresa === j.empresa).map(x => x.trabajadorId)
+      ).size;
+      html += `<tr class="fila-empresa"><td colspan="${columnas}">${esc(j.empresa)}<span class="num">${personas} ${personas === 1 ? 'persona' : 'personas'}</span></td></tr>`;
+    }
+    html += pintarJornada(j, mostrarFecha, i);
+  });
+  return html;
 }
 
 function isoAFechaLocal(iso) {
@@ -588,7 +641,7 @@ function pintarJornada(j, mostrarFecha, idxJornada) {
 async function cargarTrabajadoresObra() {
   const { data, error } = await sb
     .from('validaciones_obra')
-    .select('estado, trabajador:trabajador_id(id, nombre, apellidos, dni, activo)')
+    .select('estado, trabajador:trabajador_id(id, nombre, apellidos, dni, activo, empresa_id, empresa:empresa_id(nombre))')
     .eq('obra_id', obraActual);
   if (error || !data) { trabajadoresObra = []; return; }
 
@@ -596,10 +649,10 @@ async function cargarTrabajadoresObra() {
   data.forEach(v => {
     const t = v.trabajador;
     if (!t || !t.id || t.activo === false) return;
-    if (!mapa.has(t.id)) mapa.set(t.id, { id: t.id, nombre: t.nombre || '', apellidos: t.apellidos || '', dni: t.dni || '', estado: v.estado || 'verde' });
+    if (!mapa.has(t.id)) mapa.set(t.id, { id: t.id, nombre: t.nombre || '', apellidos: t.apellidos || '', dni: t.dni || '', empresa: nombreEmpresa(t), estado: v.estado || 'verde' });
   });
   trabajadoresObra = [...mapa.values()].sort((a, b) =>
-    (`${a.apellidos} ${a.nombre}`).localeCompare(`${b.apellidos} ${b.nombre}`, 'es')
+    compararEmpresas(a.empresa, b.empresa) || claveNombre(a).localeCompare(claveNombre(b), 'es')
   );
 }
 
@@ -622,11 +675,18 @@ document.getElementById('btn-manual').addEventListener('click', async () => {
 function rellenarSelectTrabajadoresManual() {
   const select = document.getElementById('manual-trabajador');
   select.innerHTML = '<option value="">Selecciona trabajador…</option>';
+  // Agrupado por empresa: la lista ya viene ordenada por empresa y nombre.
+  let grupo = null;
   trabajadoresObra.forEach(t => {
+    if (!grupo || grupo.label !== t.empresa) {
+      grupo = document.createElement('optgroup');
+      grupo.label = t.empresa;
+      select.appendChild(grupo);
+    }
     const opt = document.createElement('option');
     opt.value = t.id;
-    opt.textContent = `${t.apellidos ? t.apellidos + ', ' : ''}${t.nombre} — ${t.dni} (${t.estado})`;
-    select.appendChild(opt);
+    opt.textContent = `${[t.nombre, t.apellidos].filter(Boolean).join(' ') || '(sin nombre)'} — ${t.dni} (${t.estado})`;
+    grupo.appendChild(opt);
   });
   if (trabajadoresObra.length === 0) select.innerHTML = '<option value="">No hay trabajadores asociados a esta obra</option>';
 }
