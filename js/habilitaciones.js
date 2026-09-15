@@ -30,7 +30,8 @@
                                 'caducada' | 'proxima' | 'vigente'
      Hab.etiqueta(estado)     → texto para el badge
      Hab.clase(estado)        → clase CSS del badge
-     Hab.icono(tipoNombre)    → emoji
+     Hab.icono(tipoNombre)    → emoji (solo texto plano: <option>, title="")
+     Hab.iconoSvg(tipoNombre, px) → <svg> en línea (para HTML normal)
      Hab.diasRestantes(fecha) → nº de días hasta caducar (negativo si pasó)
      Hab.textoCaducidad(hab)  → línea de texto bajo el nombre
 
@@ -72,6 +73,37 @@
   ];
 
   const ICONO_GENERICO = '🔧';
+
+  // ── Iconos SVG (septiembre 2026) ───────────────────────────────
+  // Motivo: Unicode no tiene excavadora, toro, dumper, plataforma
+  // articulada ni andamio. Los emojis de arriba eran aproximaciones
+  // (ascensor, tuk-tuk, escalera de mano…) que no se entendían, cada
+  // sistema los dibuja distinto y salían del tamaño de la letra.
+  //
+  // Siluetas de línea en un lienzo de 48×48. Usan currentColor, así
+  // que heredan el color del texto donde se pinten (naranja en un
+  // aviso, rojo en caducada…).
+  //
+  // Mismas claves y mismo orden que ICONOS: el primero que casa gana.
+  // Si se añade una clave allí, hay que añadirla aquí.
+  //
+  // NO sustituye a Hab.icono(): un <svg> no se puede meter dentro de
+  // un <option> ni de un atributo title="". Esas pantallas siguen con
+  // el emoji hasta que se migren una a una.
+  const SVG_TRAZOS = {
+    'movimiento de tierras': '<rect x="4" y="35" width="28" height="8" rx="4"/><rect x="7" y="25" width="22" height="10" rx="1"/><path d="M9 25V15h10v10"/><path d="M27 27L35 8l7 14"/><path d="M40 20l7 6-6 7z"/>',
+    'dumper':                '<circle cx="13" cy="38" r="6"/><circle cx="36" cy="38" r="6"/><path d="M6 30v-4h20v4M20 30h9"/><path d="M24 26l2-12h20l-4 12z"/><path d="M8 26L9 7h12l-1 19"/><path d="M14 20l4-4"/>',
+    'grua torre':            '<path d="M15 44V12M21 44V12M15 44l6-8-6-8 6-8-6-8"/><path d="M4 12h41M4 16h17"/><path d="M18 12V4l22 8M18 4L6 12"/><path d="M36 12v14"/><path d="M33 26h6l-3 5"/><path d="M8 40h20"/>',
+    'plataforma elevadora':  '<circle cx="13" cy="40" r="4"/><circle cx="35" cy="40" r="4"/><rect x="6" y="30" width="36" height="6" rx="1"/><rect x="18" y="24" width="12" height="6" rx="1"/><path d="M24 24L12 14l18-5"/><path d="M30 12h14V4M30 12V6h14"/>',
+    'carretilla elevadora':  '<circle cx="12" cy="39" r="4"/><circle cx="28" cy="39" r="4"/><path d="M4 35V24h28v11z"/><path d="M11 24V10h17v14"/><path d="M35 4v36"/><path d="M35 40h11M35 30h5v10"/>',
+    'andamio':               '<path d="M11 4v36M37 4v36"/><path d="M11 12h26M11 36h26"/><rect x="9" y="21" width="30" height="4" rx="1"/><path d="M11 36l26-11"/><path d="M11 8h3M11 16h3M11 30h3M34 8h3M34 16h3M34 30h3"/><circle cx="11" cy="43" r="2.5"/><circle cx="37" cy="43" r="2.5"/>',
+    'altura con arnes':      '<circle cx="20" cy="12" r="4"/><path d="M20 17v15l-6 12M20 32l6 12M12 22l16 4"/><path d="M15 18l10 12M25 18L15 30"/><path d="M24 19q10-7 16-15"/><path d="M36 4h8"/>',
+    'electric':              '<path d="M27 4L10 27h12l-3 17 19-25H26z"/>'
+  };
+  SVG_TRAZOS['toro'] = SVG_TRAZOS['carretilla elevadora'];
+  SVG_TRAZOS['arnes'] = SVG_TRAZOS['altura con arnes'];
+
+  const SVG_GENERICO = '<path d="M30 6a10 10 0 0 0-9 14L7 34a4 4 0 0 0 6 6l14-14a10 10 0 0 0 14-9l-6 6-6-2-2-6z"/>';
 
   const ETIQUETAS = {
     vigente:     'Vigente',
@@ -160,6 +192,19 @@
     return m ? m.icono : ICONO_GENERICO;
   }
 
+  // Devuelve un <svg> listo para meter con innerHTML. 'px' es el lado
+  // (por defecto 24). Lleva vertical-align para ir en línea con texto.
+  function iconoSvg(tipoNombre, px) {
+    const n = normalizar(tipoNombre);
+    const m = ICONOS.find(r => n.includes(r.clave));
+    const trazos = (m && SVG_TRAZOS[m.clave]) || SVG_GENERICO;
+    const lado = Number(px) > 0 ? Number(px) : 24;
+    return '<svg class="hab-svg" width="' + lado + '" height="' + lado + '" viewBox="0 0 48 48" ' +
+      'fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" ' +
+      'style="vertical-align:middle;flex:none" aria-hidden="true" focusable="false">' +
+      trazos + '</svg>';
+  }
+
   function formatearFecha(fechaISO) {
     const [y, m, d] = String(fechaISO).slice(0, 10).split('-');
     return `${d}/${m}/${y}`;
@@ -189,6 +234,7 @@
     etiqueta,
     clase,
     icono,
+    iconoSvg,
     diasRestantes,
     textoCaducidad
   };
