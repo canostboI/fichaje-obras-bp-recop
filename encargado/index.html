@@ -264,6 +264,31 @@
     .tarjeta-hora-grande { font-size: 1.05rem; font-weight: 700; color: #2e7d32; line-height: 1.1; }
     .tarjeta-hora-rel { font-size: 0.78rem; color: #888; margin-top: 2px; }
 
+    /* 86ª (15/9/2026) — Cabecera de grupo por empresa. Con mucha gente en
+       obra, los de una misma empresa quedaban repartidos por toda la lista
+       (el orden era solo por hora) y localizar a alguien costaba. */
+    .grupo-empresa {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px;
+      margin: 14px 0 6px;
+      padding: 6px 10px;
+      background: #eceff4;
+      border-left: 4px solid var(--color-principal);
+      border-radius: 4px;
+    }
+    .grupo-empresa:first-child { margin-top: 0; }
+    .grupo-empresa-nombre {
+      font-weight: 800; font-size: 0.85rem; color: var(--color-principal);
+      text-transform: uppercase; letter-spacing: 0.3px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .grupo-empresa-num {
+      font-size: 0.8rem; font-weight: 700; color: #555; flex-shrink: 0;
+    }
+    /* Las externas se distinguen de un vistazo, igual que en el contador. */
+    .grupo-empresa.externa { background: #fdf1e4; border-left-color: #e67e22; }
+    .grupo-empresa.externa .grupo-empresa-nombre { color: #a8560f; }
+
     .lista-vacia { text-align: center; padding: 1.5rem; color: #888; font-style: italic; }
 
     .badge { font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 12px; font-weight: bold; }
@@ -2360,6 +2385,47 @@
       return;
     }
     lista.innerHTML = bloqueAviso;
+
+    // 86ª — Agrupar por empresa SOLO al pintar. El array `presentes` se deja
+    // intacto, ordenado por hora: pintarContador y actualizarTextosRelativos
+    // usan presentes[0] como "última entrada", y reordenarlo haría que esa
+    // línea señalara a quien no toca.
+    // Dentro de cada grupo se respeta el orden por hora que ya traía.
+    const grupos = new Map();
+    presentes.forEach(t => {
+      const clave = t.empresaId || ('__sin__' + (t.empresa || ''));
+      if (!grupos.has(clave)) {
+        grupos.set(clave, {
+          nombre: t.empresa || 'Sin empresa',
+          propia: empresasPropias.has(t.empresaId),
+          trabajadores: []
+        });
+      }
+      grupos.get(clave).trabajadores.push(t);
+    });
+
+    // Propias primero, luego externas; dentro de cada bloque, alfabético.
+    const gruposOrdenados = Array.from(grupos.values()).sort((a, b) => {
+      if (a.propia !== b.propia) return a.propia ? -1 : 1;
+      return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+    });
+
+    gruposOrdenados.forEach(g => {
+      const cab = document.createElement('div');
+      cab.className = 'grupo-empresa' + (g.propia ? '' : ' externa');
+      const n = g.trabajadores.length;
+      cab.innerHTML =
+        '<span class="grupo-empresa-nombre">' + esc(g.nombre) + '</span>' +
+        '<span class="grupo-empresa-num">' + n + (n === 1 ? ' persona' : ' personas') + '</span>';
+      lista.appendChild(cab);
+      pintarGrupo(g.trabajadores, esHoyFlag);
+    });
+  }
+
+  // 86ª — El cuerpo del bucle de tarjetas, tal cual estaba, movido aquí para
+  // que pintarTarjetas pueda llamarlo una vez por empresa.
+  function pintarGrupo(presentes, esHoyFlag) {
+    const lista = document.getElementById('lista-presencia');
     presentes.forEach(t => {
       const esRP = idsRPCache.has(t.id);
       const iconosHab = (habIconosPorTrabajadorCache[t.id] || []).join(' ');
