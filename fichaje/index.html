@@ -385,6 +385,13 @@
   }
   @keyframes girar { to { transform: rotate(360deg); } }
 
+  /* 86ª (15/9/2026) — No todo rechazo es un error. Un doble escaneo es,
+     para el trabajador, una buena noticia: ya había fichado. En rojo parece
+     que ha hecho algo mal, y eso es justo lo que le empuja a insistir. */
+  .error-banner.aviso {
+    background: #fff4e6 !important;
+    color: var(--naranja) !important;
+  }
   .error-banner {
     background: #fdecea;
     color: var(--rojo);
@@ -2277,11 +2284,17 @@ function ocultarAvisoGps() {
   ultimoCodigoGps = null;
 }
 
-function mostrarErrorResultado(texto) {
+function mostrarErrorResultado(texto, esAviso) {
   el.errorResultado.textContent = texto;
+  // 86ª: esAviso solo lo pasa quien sabe que el rechazo no es culpa de nadie.
+  // Quien llame con un argumento (todos los demás) sigue viendo el rojo.
+  el.errorResultado.classList.toggle('aviso', esAviso === true);
   el.errorResultado.classList.remove('oculto');
 }
-function ocultarErrorResultado() { el.errorResultado.classList.add('oculto'); }
+function ocultarErrorResultado() {
+  el.errorResultado.classList.add('oculto');
+  el.errorResultado.classList.remove('aviso');
+}
 
 function irA(paso) {
   [el.pasoDni, el.pasoCargando, el.pasoResultado, el.pasoFinal, el.pasoSinRegistrar]
@@ -2767,7 +2780,8 @@ async function ejecutarFichaje(tipo) {
     if (!data || !data.success) {
       irA(el.pasoResultado);
       el.btnEntrada.disabled = false; el.btnSalida.disabled = false;
-      mostrarErrorResultado(textoErrorRpc(data));
+      mostrarErrorResultado(textoErrorRpc(data),
+                            data.codigo === 'SALIDA_DEMASIADO_PRONTO');
       if (data && Array.isArray(data.motivos) && data.motivos.length)
         pintarMotivos(el.motivosBox, data.motivos, true);
       console.warn('[fichaje] registrar_fichaje rechazado:', data); return;
