@@ -583,6 +583,75 @@
     margin-top: auto;
     padding-top: 30px;
   }
+
+  /* 98ª (16/9/2026) — Deber de información del RGPD. Va en el pie y no en
+     el recorrido de fichar: la pantalla sigue teniendo UNA tarea (65ª).
+     Colores fijos, sin var(--x): si algún día este bloque se copia a otra
+     página sin las variables, se seguiría viendo (86ª). */
+  .rgpd-enlace {
+    display: block;
+    margin: 6px auto 0;
+    padding: 8px 10px;
+    background: none;
+    border: none;
+    color: #888;
+    font-family: inherit;
+    font-size: 12px;
+    text-decoration: underline;
+    cursor: pointer;
+    width: auto;
+  }
+  .rgpd-fondo {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 1000;
+  }
+  .rgpd-panel {
+    background: #fff;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    /* start, no left: en árabe y urdu la página va de derecha a izquierda */
+    text-align: start;
+  }
+  .rgpd-panel-cab {
+    padding: 16px;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #333;
+  }
+  .rgpd-cuerpo {
+    padding: 16px;
+    overflow-y: auto;
+  }
+  .rgpd-h {
+    font-weight: 700;
+    font-size: 14px;
+    color: #333;
+    margin-top: 16px;
+  }
+  .rgpd-cuerpo .rgpd-h:first-child { margin-top: 0; }
+  .rgpd-p {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #444;
+    margin: 4px 0 0;
+    /* Un correo largo no puede desbordar el panel en un móvil estrecho */
+    overflow-wrap: break-word;
+  }
+  .rgpd-pie {
+    padding: 12px 16px;
+    border-top: 1px solid #e0e0e0;
+  }
 </style>
 </head>
 <body>
@@ -686,6 +755,20 @@
   </div>
 
   <div class="pie" id="pie-marca">Control de acceso</div>
+  <button type="button" class="rgpd-enlace" id="rgpd-enlace">Protección de datos</button>
+</div>
+
+<!-- 98ª — Panel de protección de datos. Fuera de `.contenedor` y fuera de la
+     máquina de pasos (irA): no participa del recorrido de fichar, solo se
+     superpone. El cuerpo lo rellena pintarRgpd() en el idioma activo. -->
+<div class="rgpd-fondo oculto" id="rgpd-fondo">
+  <div class="rgpd-panel" role="dialog" aria-modal="true" aria-labelledby="rgpd-titulo">
+    <div class="rgpd-panel-cab" id="rgpd-titulo">Protección de datos</div>
+    <div class="rgpd-cuerpo" id="rgpd-cuerpo"></div>
+    <div class="rgpd-pie">
+      <button type="button" class="secundario" id="btn-rgpd-cerrar">Cerrar</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -827,6 +910,29 @@ const TEXTOS = {
     olvido_l4a:          'Consulta con tu encargado',
     olvido_l4b:          'y ficha siempre la salida antes de irte.',
     pie:                 'Control de acceso',
+    // 98ª — Deber de información del RGPD. Mismo número de
+    // secciones en los SIETE idiomas: si falta una, se ve contando.
+    rgpd: {
+      enlace: "Protección de datos",
+      titulo: "Protección de datos",
+      cerrar: "Cerrar",
+      secciones: [
+        { t: "¿Quién trata tus datos?",
+          p: "La empresa constructora de esta obra (verás su nombre y su logo arriba). Contacto para protección de datos: rgpdportium@gmail.com" },
+        { t: "¿Qué datos se recogen al fichar?",
+          p: "Tu DNI o NIE, la fecha y la hora, y la posición GPS de tu móvil en ese momento. En algunas obras, también una foto para verificar tu identidad." },
+        { t: "¿Para qué?",
+          p: "Para controlar el acceso a la obra (seguridad y coordinación de empresas) y para el registro de tu jornada de trabajo, que la ley obliga a llevar." },
+        { t: "¿Con qué base legal?",
+          p: "El registro de jornada y la coordinación de seguridad en obra son obligaciones legales de la empresa." },
+        { t: "¿Cuánto tiempo se guardan?",
+          p: "El registro de jornada, el tiempo que exige la normativa laboral. Las fotos de identidad se eliminan periódicamente de forma automática." },
+        { t: "¿Se comparten con alguien?",
+          p: "Solo con quien la ley obliga (por ejemplo, la Inspección de Trabajo si los pide) y con las empresas que coordinan la seguridad de la obra." },
+        { t: "Tus derechos",
+          p: "Puedes pedir acceso, corrección o supresión de tus datos, y oponerte o limitar su uso, escribiendo a rgpdportium@gmail.com con tu nombre y una copia de tu documento de identidad." },
+      ]
+    },
     tambor_titulo:       'Tus últimas jornadas',
     dias_semana:         ['dom','lun','mar','mié','jue','vie','sáb'],
     dni_invalido:        'Introduzca un DNI o NIE válido.',
@@ -948,6 +1054,29 @@ const TEXTOS = {
     olvido_l4a:          'Consulteu amb el vostre encarregat',
     olvido_l4b:          'i fitxeu sempre la sortida abans d\'anar-vos-en.',
     pie:                 "Control d'accés",
+    // 98ª — Deber de información del RGPD. Mismo número de
+    // secciones en los SIETE idiomas: si falta una, se ve contando.
+    rgpd: {
+      enlace: "Protecció de dades",
+      titulo: "Protecció de dades",
+      cerrar: "Tancar",
+      secciones: [
+        { t: "Qui tracta les teves dades?",
+          p: "L'empresa constructora d'aquesta obra (en veuràs el nom i el logo a dalt). Contacte per a protecció de dades: rgpdportium@gmail.com" },
+        { t: "Quines dades es recullen en fitxar?",
+          p: "El teu DNI o NIE, la data i l'hora, i la posició GPS del teu mòbil en aquell moment. En algunes obres, també una foto per verificar la teva identitat." },
+        { t: "Per a què?",
+          p: "Per controlar l'accés a l'obra (seguretat i coordinació d'empreses) i per al registre de la teva jornada de treball, que la llei obliga a portar." },
+        { t: "Amb quina base legal?",
+          p: "El registre de jornada i la coordinació de seguretat a l'obra són obligacions legals de l'empresa." },
+        { t: "Quant de temps es guarden?",
+          p: "El registre de jornada, el temps que exigeix la normativa laboral. Les fotos d'identitat s'eliminen periòdicament de manera automàtica." },
+        { t: "Es comparteixen amb algú?",
+          p: "Només amb qui la llei obliga (per exemple, la Inspecció de Treball si les demana) i amb les empreses que coordinen la seguretat de l'obra." },
+        { t: "Els teus drets",
+          p: "Pots demanar accés, correcció o supressió de les teves dades, i oposar-te o limitar-ne l'ús, escrivint a rgpdportium@gmail.com amb el teu nom i una còpia del teu document d'identitat." },
+      ]
+    },
     tambor_titulo:       'Les teves últimes jornades',
     dias_semana:         ['dg','dl','dt','dc','dj','dv','ds'],
     dni_invalido:        'Introduïu un DNI o NIE vàlid.',
@@ -1058,6 +1187,29 @@ const TEXTOS = {
     olvido_l4a:          'راجع المسؤول عنك',
     olvido_l4b:          'وسجّل الخروج دائماً قبل مغادرة الموقع.',
     pie:                 'مراقبة الدخول',
+    // 98ª — Deber de información del RGPD. Mismo número de
+    // secciones en los SIETE idiomas: si falta una, se ve contando.
+    rgpd: {
+      enlace: "حماية البيانات",
+      titulo: "حماية البيانات",
+      cerrar: "إغلاق",
+      secciones: [
+        { t: "من الذي يعالج بياناتك؟",
+          p: "شركة البناء المسؤولة عن هذه الورشة (تجد اسمها وشعارها في الأعلى). للتواصل بشأن حماية البيانات: rgpdportium@gmail.com" },
+        { t: "ما البيانات التي تُجمع عند التسجيل؟",
+          p: "رقم وثيقة هويتك، والتاريخ والوقت، وموقع هاتفك عبر GPS في تلك اللحظة. وفي بعض الورشات، صورة أيضاً للتحقق من هويتك." },
+        { t: "لأي غرض؟",
+          p: "لمراقبة الدخول إلى الورشة (السلامة والتنسيق بين الشركات) ولتسجيل ساعات عملك، وهو سجل يفرضه القانون." },
+        { t: "ما الأساس القانوني؟",
+          p: "تسجيل ساعات العمل وتنسيق السلامة في الورشة التزامان قانونيان على الشركة." },
+        { t: "كم تُحفظ هذه البيانات؟",
+          p: "سجل ساعات العمل يُحفظ المدة التي يفرضها قانون العمل. أما صور الهوية فتُحذف تلقائياً بشكل دوري." },
+        { t: "هل تُشارَك مع أحد؟",
+          p: "فقط مع من يُلزم القانون بمشاركتها معه (مثل مفتشية العمل إذا طلبتها) ومع الشركات التي تنسّق السلامة في الورشة." },
+        { t: "حقوقك",
+          p: "يمكنك طلب الاطلاع على بياناتك أو تصحيحها أو حذفها، والاعتراض على استعمالها أو تقييده، بمراسلة rgpdportium@gmail.com مع ذكر اسمك وإرفاق نسخة من وثيقة هويتك." },
+      ]
+    },
     tambor_titulo:       'آخر أيام عملك',
     dias_semana:         ['أحد','إثن','ثلا','أرب','خمي','جمع','سبت'],
     dni_invalido:        'يرجى إدخال رقم هوية صحيح.',
@@ -1168,6 +1320,29 @@ const TEXTOS = {
     olvido_l4a:          'Vorbește cu responsabilul tău',
     olvido_l4b:          'și înregistrează întotdeauna ieșirea înainte de a pleca.',
     pie:                 'Control acces',
+    // 98ª — Deber de información del RGPD. Mismo número de
+    // secciones en los SIETE idiomas: si falta una, se ve contando.
+    rgpd: {
+      enlace: "Protecția datelor",
+      titulo: "Protecția datelor",
+      cerrar: "Închide",
+      secciones: [
+        { t: "Cine îți prelucrează datele?",
+          p: "Firma de construcții a acestui șantier (îi vezi numele și sigla mai sus). Contact pentru protecția datelor: rgpdportium@gmail.com" },
+        { t: "Ce date se colectează la pontaj?",
+          p: "Documentul tău de identitate, data și ora, și poziția GPS a telefonului tău în acel moment. Pe unele șantiere, și o fotografie pentru verificarea identității." },
+        { t: "În ce scop?",
+          p: "Pentru controlul accesului pe șantier (siguranță și coordonarea firmelor) și pentru evidența timpului tău de lucru, pe care legea obligă să o țină." },
+        { t: "Pe ce temei legal?",
+          p: "Evidența timpului de lucru și coordonarea securității pe șantier sunt obligații legale ale firmei." },
+        { t: "Cât timp se păstrează?",
+          p: "Evidența timpului de lucru, atât cât cere legislația muncii. Fotografiile de identitate se șterg periodic, în mod automat." },
+        { t: "Se transmit cuiva?",
+          p: "Doar cui obligă legea (de exemplu, Inspecția Muncii, dacă le cere) și firmelor care coordonează securitatea șantierului." },
+        { t: "Drepturile tale",
+          p: "Poți cere acces, corectarea sau ștergerea datelor tale, și te poți opune sau poți limita folosirea lor, scriind la rgpdportium@gmail.com cu numele tău și o copie a actului de identitate." },
+      ]
+    },
     tambor_titulo:       'Ultimele tale zile de lucru',
     dias_semana:         ['dum','lun','mar','mie','joi','vin','sâm'],
     dni_invalido:        'Introduceți un DNI sau NIE valid.',
@@ -1285,6 +1460,29 @@ const TEXTOS = {
     olvido_l4a:          'اپنے انچارج سے رابطہ کریں',
     olvido_l4b:          'اور جانے سے پہلے ہمیشہ اخراج درج کریں۔',
     pie:                 'داخلہ کنٹرول',
+    // 98ª — Deber de información del RGPD. Mismo número de
+    // secciones en los SIETE idiomas: si falta una, se ve contando.
+    rgpd: {
+      enlace: "ڈیٹا کا تحفظ",
+      titulo: "ڈیٹا کا تحفظ",
+      cerrar: "بند کریں",
+      secciones: [
+        { t: "آپ کا ڈیٹا کون استعمال کرتا ہے؟",
+          p: "اس سائٹ کی تعمیراتی کمپنی (اس کا نام اور نشان اوپر نظر آتا ہے)۔ ڈیٹا کے تحفظ کے لیے رابطہ: rgpdportium@gmail.com" },
+        { t: "حاضری درج کرتے وقت کون سا ڈیٹا لیا جاتا ہے؟",
+          p: "آپ کا شناختی دستاویز نمبر، تاریخ اور وقت، اور اُس لمحے آپ کے موبائل کی GPS پوزیشن۔ بعض سائٹس پر شناخت کی تصدیق کے لیے ایک تصویر بھی۔" },
+        { t: "کس مقصد کے لیے؟",
+          p: "سائٹ میں داخلے کے کنٹرول کے لیے (حفاظت اور کمپنیوں کے درمیان رابطہ) اور آپ کے کام کے اوقات کے اندراج کے لیے، جو قانوناً لازمی ہے۔" },
+        { t: "قانونی بنیاد کیا ہے؟",
+          p: "کام کے اوقات کا اندراج اور سائٹ پر حفاظتی رابطہ کمپنی کی قانونی ذمہ داریاں ہیں۔" },
+        { t: "یہ کتنی مدت تک محفوظ رہتا ہے؟",
+          p: "کام کے اوقات کا ریکارڈ اُتنی مدت تک جتنی لیبر قانون میں لازم ہے۔ شناختی تصاویر وقتاً فوقتاً خودکار طور پر حذف کر دی جاتی ہیں۔" },
+        { t: "کیا یہ کسی کو دیا جاتا ہے؟",
+          p: "صرف اُن کو جنہیں قانون لازم کرتا ہے (مثلاً محکمۂ محنت اگر طلب کرے) اور اُن کمپنیوں کو جو سائٹ کی حفاظت کا رابطہ سنبھالتی ہیں۔" },
+        { t: "آپ کے حقوق",
+          p: "آپ اپنے ڈیٹا تک رسائی، درستگی یا حذف کرنے کا مطالبہ کر سکتے ہیں، اور اس کے استعمال پر اعتراض یا پابندی لگا سکتے ہیں۔ اس کے لیے rgpdportium@gmail.com پر اپنا نام اور شناختی دستاویز کی نقل کے ساتھ لکھیں۔" },
+      ]
+    },
     tambor_titulo:       'آپ کے آخری کام کے دن',
     dias_semana:         ['اتو','سوم','منگ','بدھ','جمر','جمع','ہفت'],
     dni_invalido:        'درست DNI یا NIE درج کریں۔',
@@ -1401,6 +1599,29 @@ const TEXTOS = {
     olvido_l4a:          'ਆਪਣੇ ਇੰਚਾਰਜ ਨਾਲ ਗੱਲ ਕਰੋ',
     olvido_l4b:          'ਅਤੇ ਜਾਣ ਤੋਂ ਪਹਿਲਾਂ ਹਮੇਸ਼ਾ ਬਾਹਰ ਜਾਣ ਦੀ ਹਾਜ਼ਰੀ ਦਰਜ ਕਰੋ।',
     pie:                 'ਦਾਖ਼ਲਾ ਕੰਟਰੋਲ',
+    // 98ª — Deber de información del RGPD. Mismo número de
+    // secciones en los SIETE idiomas: si falta una, se ve contando.
+    rgpd: {
+      enlace: "ਡੇਟਾ ਸੁਰੱਖਿਆ",
+      titulo: "ਡੇਟਾ ਸੁਰੱਖਿਆ",
+      cerrar: "ਬੰਦ ਕਰੋ",
+      secciones: [
+        { t: "ਤੁਹਾਡਾ ਡੇਟਾ ਕੌਣ ਵਰਤਦਾ ਹੈ?",
+          p: "ਇਸ ਸਾਈਟ ਦੀ ਉਸਾਰੀ ਕੰਪਨੀ (ਇਸ ਦਾ ਨਾਂ ਅਤੇ ਨਿਸ਼ਾਨ ਉੱਪਰ ਦਿਸਦਾ ਹੈ)। ਡੇਟਾ ਸੁਰੱਖਿਆ ਲਈ ਸੰਪਰਕ: rgpdportium@gmail.com" },
+        { t: "ਹਾਜ਼ਰੀ ਲਗਾਉਣ ਵੇਲੇ ਕਿਹੜਾ ਡੇਟਾ ਲਿਆ ਜਾਂਦਾ ਹੈ?",
+          p: "ਤੁਹਾਡੇ ਪਛਾਣ ਪੱਤਰ ਦਾ ਨੰਬਰ, ਮਿਤੀ ਅਤੇ ਸਮਾਂ, ਅਤੇ ਉਸ ਵੇਲੇ ਤੁਹਾਡੇ ਮੋਬਾਈਲ ਦੀ GPS ਸਥਿਤੀ। ਕੁਝ ਸਾਈਟਾਂ ਉੱਤੇ ਪਛਾਣ ਦੀ ਪੁਸ਼ਟੀ ਲਈ ਇੱਕ ਫੋਟੋ ਵੀ।" },
+        { t: "ਕਿਸ ਮਕਸਦ ਲਈ?",
+          p: "ਸਾਈਟ ਵਿੱਚ ਦਾਖ਼ਲੇ ਦੇ ਕੰਟਰੋਲ ਲਈ (ਸੁਰੱਖਿਆ ਅਤੇ ਕੰਪਨੀਆਂ ਵਿਚਕਾਰ ਤਾਲਮੇਲ) ਅਤੇ ਤੁਹਾਡੇ ਕੰਮ ਦੇ ਸਮੇਂ ਦੇ ਰਿਕਾਰਡ ਲਈ, ਜੋ ਕਾਨੂੰਨ ਮੁਤਾਬਕ ਲਾਜ਼ਮੀ ਹੈ।" },
+        { t: "ਕਾਨੂੰਨੀ ਆਧਾਰ ਕੀ ਹੈ?",
+          p: "ਕੰਮ ਦੇ ਸਮੇਂ ਦਾ ਰਿਕਾਰਡ ਅਤੇ ਸਾਈਟ ਉੱਤੇ ਸੁਰੱਖਿਆ ਦਾ ਤਾਲਮੇਲ ਕੰਪਨੀ ਦੀਆਂ ਕਾਨੂੰਨੀ ਜ਼ਿੰਮੇਵਾਰੀਆਂ ਹਨ।" },
+        { t: "ਇਹ ਕਿੰਨਾ ਸਮਾਂ ਰੱਖਿਆ ਜਾਂਦਾ ਹੈ?",
+          p: "ਕੰਮ ਦੇ ਸਮੇਂ ਦਾ ਰਿਕਾਰਡ ਉਨਾ ਸਮਾਂ ਜਿੰਨਾ ਕਿਰਤ ਕਾਨੂੰਨ ਮੰਗਦਾ ਹੈ। ਪਛਾਣ ਵਾਲੀਆਂ ਫੋਟੋਆਂ ਸਮੇਂ-ਸਮੇਂ ਤੇ ਆਪਣੇ ਆਪ ਮਿਟਾ ਦਿੱਤੀਆਂ ਜਾਂਦੀਆਂ ਹਨ।" },
+        { t: "ਕੀ ਇਹ ਕਿਸੇ ਨਾਲ ਸਾਂਝਾ ਕੀਤਾ ਜਾਂਦਾ ਹੈ?",
+          p: "ਸਿਰਫ਼ ਉਨ੍ਹਾਂ ਨਾਲ ਜਿਨ੍ਹਾਂ ਲਈ ਕਾਨੂੰਨ ਲਾਜ਼ਮੀ ਕਰਦਾ ਹੈ (ਜਿਵੇਂ ਕਿਰਤ ਵਿਭਾਗ ਜੇ ਮੰਗੇ) ਅਤੇ ਉਨ੍ਹਾਂ ਕੰਪਨੀਆਂ ਨਾਲ ਜੋ ਸਾਈਟ ਦੀ ਸੁਰੱਖਿਆ ਦਾ ਤਾਲਮੇਲ ਕਰਦੀਆਂ ਹਨ।" },
+        { t: "ਤੁਹਾਡੇ ਹੱਕ",
+          p: "ਤੁਸੀਂ ਆਪਣੇ ਡੇਟਾ ਤੱਕ ਪਹੁੰਚ, ਸੁਧਾਰ ਜਾਂ ਮਿਟਾਉਣ ਦੀ ਮੰਗ ਕਰ ਸਕਦੇ ਹੋ, ਅਤੇ ਇਸ ਦੀ ਵਰਤੋਂ ਦਾ ਵਿਰੋਧ ਜਾਂ ਹੱਦਬੰਦੀ ਕਰ ਸਕਦੇ ਹੋ। ਇਸ ਲਈ rgpdportium@gmail.com ਉੱਤੇ ਆਪਣਾ ਨਾਂ ਅਤੇ ਪਛਾਣ ਪੱਤਰ ਦੀ ਕਾਪੀ ਨਾਲ ਲਿਖੋ।" },
+      ]
+    },
     tambor_titulo:       'ਤੁਹਾਡੇ ਪਿਛਲੇ ਕੰਮ ਦੇ ਦਿਨ',
     dias_semana:         ['ਐਤ','ਸੋਮ','ਮੰਗ','ਬੁੱਧ','ਵੀਰ','ਸ਼ੁੱਕ','ਸ਼ਨੀ'],
     dni_invalido:        'ਸਹੀ DNI ਜਾਂ NIE ਭਰੋ।',
@@ -1512,6 +1733,29 @@ const TEXTOS = {
     olvido_l4a:          'Speak to your supervisor',
     olvido_l4b:          'and always clock out before you leave.',
     pie:                 'Access control',
+    // 98ª — Deber de información del RGPD. Mismo número de
+    // secciones en los SIETE idiomas: si falta una, se ve contando.
+    rgpd: {
+      enlace: "Data protection",
+      titulo: "Data protection",
+      cerrar: "Close",
+      secciones: [
+        { t: "Who handles your data?",
+          p: "The construction company running this site (its name and logo are shown above). Data protection contact: rgpdportium@gmail.com" },
+        { t: "What is collected when you clock in?",
+          p: "Your ID document number, the date and time, and your phone’s GPS position at that moment. On some sites, also a photo to verify your identity." },
+        { t: "What for?",
+          p: "To control access to the site (safety and coordination between companies) and to keep the record of your working hours, which the law requires." },
+        { t: "On what legal basis?",
+          p: "Keeping a working-time record and coordinating safety on site are legal obligations of the company." },
+        { t: "How long is it kept?",
+          p: "The working-time record, for as long as employment law requires. Identity photos are deleted automatically on a regular basis." },
+        { t: "Is it shared with anyone?",
+          p: "Only with those the law requires (for example, the Labour Inspectorate if they ask for it) and with the companies coordinating safety on the site." },
+        { t: "Your rights",
+          p: "You can ask for access to your data, or for it to be corrected or deleted, and you can object to or restrict its use, by writing to rgpdportium@gmail.com with your name and a copy of your identity document." },
+      ]
+    },
     tambor_titulo:       'Your recent work days',
     dias_semana:         ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
     dni_invalido:        'Please enter a valid ID number (DNI or NIE).',
@@ -1961,6 +2205,8 @@ function aplicarIdioma(lang, origen) {
     el.pieMarca.textContent = t.pie;
   }
 
+  pintarRgpd(t);
+
   IDIOMAS.forEach(i => {
     const b = document.getElementById('lang-' + i.cod);
     if (b) b.classList.toggle('activo', i.cod === lang);
@@ -1987,6 +2233,53 @@ function aplicarIdioma(lang, origen) {
     }
   }
 }
+
+// =====================================================================
+// PANEL DE PROTECCIÓN DE DATOS (98ª)
+// Se repinta en cada cambio de idioma. Todo con textContent: el texto
+// legal viaja como TEXTO, nunca como HTML.
+// =====================================================================
+function pintarRgpd(t) {
+  const r = (t && t.rgpd) || TEXTOS.es.rgpd;
+  const enlace = document.getElementById('rgpd-enlace');
+  const cuerpo = document.getElementById('rgpd-cuerpo');
+  if (!enlace || !cuerpo) return;
+
+  enlace.textContent = '🛡 ' + r.enlace;
+  document.getElementById('rgpd-titulo').textContent    = r.titulo;
+  document.getElementById('btn-rgpd-cerrar').textContent = r.cerrar;
+
+  cuerpo.textContent = '';
+  (r.secciones || []).forEach(s => {
+    const h = document.createElement('div');
+    h.className = 'rgpd-h';
+    h.textContent = s.t;
+    const p = document.createElement('p');
+    p.className = 'rgpd-p';
+    p.textContent = s.p;
+    cuerpo.appendChild(h);
+    cuerpo.appendChild(p);
+  });
+}
+
+function abrirRgpd() {
+  document.getElementById('rgpd-fondo').classList.remove('oculto');
+  document.getElementById('rgpd-cuerpo').scrollTop = 0;
+}
+function cerrarRgpd() {
+  document.getElementById('rgpd-fondo').classList.add('oculto');
+}
+
+document.getElementById('rgpd-enlace').addEventListener('click', abrirRgpd);
+document.getElementById('btn-rgpd-cerrar').addEventListener('click', cerrarRgpd);
+// Tocar fuera del panel cierra; tocar DENTRO no (si no, se cierra al
+// intentar seleccionar el correo para copiarlo).
+document.getElementById('rgpd-fondo').addEventListener('click', ev => {
+  if (ev.target === ev.currentTarget) cerrarRgpd();
+});
+document.addEventListener('keydown', ev => {
+  if (ev.key === 'Escape') cerrarRgpd();
+});
 
 function T(clave) {
   return (TEXTOS[idiomaActual] && TEXTOS[idiomaActual][clave]) || TEXTOS.es[clave] || clave;
