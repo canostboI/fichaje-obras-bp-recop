@@ -235,6 +235,17 @@
         if (!opt.value) return;
         await cargarObra(opt.value, opt.text, opt.dataset.marca, opt.dataset.fotoUrl);
       });
+
+      // Obra recordada (misma clave que el panel principal y Resumen): si
+      // sigue asignada, se carga directamente. El selector se queda arriba
+      // para cambiar de obra expresamente.
+      let guardada = '';
+      try { guardada = localStorage.getItem('encargado_obra_activa_id') || ''; } catch (_) {}
+      const optGuardada = guardada ? [...select.options].find(o => o.value === guardada) : null;
+      if (optGuardada) {
+        select.value = guardada;
+        await cargarObra(optGuardada.value, optGuardada.text, optGuardada.dataset.marca, optGuardada.dataset.fotoUrl);
+      }
     }
   }
 
@@ -242,7 +253,7 @@
     obraActualId = obraId;
 
     // Guardar en localStorage para consistencia con otras páginas del encargado
-    localStorage.setItem('encargado_obra_activa_id', obraId);
+    try { localStorage.setItem('encargado_obra_activa_id', obraId); } catch (_) {}
 
     const marca = empresaMarca || 'bosch_pascual';
     const branding = aplicarBranding(marca);
