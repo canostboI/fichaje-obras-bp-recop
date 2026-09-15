@@ -622,12 +622,32 @@
     /* start, no left: en árabe y urdu la página va de derecha a izquierda */
     text-align: start;
   }
+  /* La cabecera lleva título y ✕. Con flex, en árabe y urdu se colocan
+     solos al revés: el sentido lo manda el `dir` de la página. */
   .rgpd-panel-cab {
     padding: 16px;
     border-bottom: 1px solid #e0e0e0;
     font-size: 18px;
     font-weight: 700;
     color: #333;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .rgpd-panel-cab span { flex: 1; }
+  /* Área de toque grande (44 px): se pulsa con guantes y a contraluz. */
+  .rgpd-x {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    margin: -10px -6px -10px 0;
+    background: none;
+    border: none;
+    color: #888;
+    font-family: inherit;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
   }
   .rgpd-cuerpo {
     padding: 16px;
@@ -763,7 +783,10 @@
      superpone. El cuerpo lo rellena pintarRgpd() en el idioma activo. -->
 <div class="rgpd-fondo oculto" id="rgpd-fondo">
   <div class="rgpd-panel" role="dialog" aria-modal="true" aria-labelledby="rgpd-titulo">
-    <div class="rgpd-panel-cab" id="rgpd-titulo">Protección de datos</div>
+    <div class="rgpd-panel-cab">
+      <span id="rgpd-titulo">Protección de datos</span>
+      <button type="button" class="rgpd-x" id="btn-rgpd-x">✕</button>
+    </div>
     <div class="rgpd-cuerpo" id="rgpd-cuerpo"></div>
     <div class="rgpd-pie">
       <button type="button" class="secundario" id="btn-rgpd-cerrar">Cerrar</button>
@@ -2248,6 +2271,9 @@ function pintarRgpd(t) {
   enlace.textContent = '🛡 ' + r.enlace;
   document.getElementById('rgpd-titulo').textContent    = r.titulo;
   document.getElementById('btn-rgpd-cerrar').textContent = r.cerrar;
+  const equis = document.getElementById('btn-rgpd-x');
+  equis.setAttribute('aria-label', r.cerrar);
+  equis.setAttribute('title', r.cerrar);
 
   cuerpo.textContent = '';
   (r.secciones || []).forEach(s => {
@@ -2272,6 +2298,7 @@ function cerrarRgpd() {
 
 document.getElementById('rgpd-enlace').addEventListener('click', abrirRgpd);
 document.getElementById('btn-rgpd-cerrar').addEventListener('click', cerrarRgpd);
+document.getElementById('btn-rgpd-x').addEventListener('click', cerrarRgpd);
 // Tocar fuera del panel cierra; tocar DENTRO no (si no, se cierra al
 // intentar seleccionar el correo para copiarlo).
 document.getElementById('rgpd-fondo').addEventListener('click', ev => {
