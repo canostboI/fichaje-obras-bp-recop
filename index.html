@@ -345,6 +345,13 @@ btnLogin.addEventListener('click', async () => {
     return;
   }
 
+  // Login explícito = empezar de cero con la obra. Las pantallas del
+  // encargado recuerdan la obra activa (encargado_obra_activa_id); para
+  // cambiar de obra se cierra sesión y se vuelve a entrar, así que aquí se
+  // olvida y el panel vuelve a preguntar. Solo tras escribir usuario y
+  // contraseña, no al reabrir la app con la sesión ya iniciada.
+  try { localStorage.removeItem('encargado_obra_activa_id'); } catch (_) {}
+
   await redirigirSegunRol();
 });
 
