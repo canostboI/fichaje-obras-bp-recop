@@ -11,6 +11,7 @@
   <script src="../js/fechas.js"></script>
   <script src="../js/sb-paginado.js"></script>
   <script src="../js/jornadas.js"></script>
+  <script src="../js/modal-jornada.js"></script>
   <script src="../js/habilitaciones.js"></script>
   <script src="../js/foto-identidad.js"></script>
   <script src="../js/verificacion-identidad.js"></script>
@@ -1375,116 +1376,28 @@ function renderTabla(lista) {
 
 
 /* ============================================================
-   76ª · MODAL DE ASIGNACIÓN DE TIPO DE JORNADA
-   Se construye por JS para no tocar el cuerpo del HTML.
-   Escribe SIEMPRE por la RPC asignar_tipo_jornada, nunca con un
-   INSERT directo: la RPC es la que cierra la asignación anterior,
-   comprueba permisos y se niega a tocar un mes ya cerrado.
+   76ª · ASIGNACIÓN DE TIPO DE JORNADA
+   92ª: el modal vive en js/modal-jornada.js — ÚNICA casa,
+   compartida con jefe/resumen-mes.html. Esta función solo junta
+   los datos de ESTA página (obra, tipos ya cargados, valor real
+   de la casilla ☀) y delega. Escribe SIEMPRE por la RPC
+   asignar_tipo_jornada (lo hace el módulo).
    ============================================================ */
-let jornadaCtx = null;
-
 function abrirModalJornada(ids, etiqueta) {
   if (!obraFiltroTrabajadores) return;
-  if (!tiposJornadaObra.length) {
-    alert('Esta obra todavía no tiene ningún tipo de jornada definido.');
-    return;
-  }
-  jornadaCtx = { ids: ids, etiqueta: etiqueta };
-
-  let cap = document.getElementById('modal-jornada');
-  if (!cap) {
-    cap = document.createElement('div');
-    cap.id = 'modal-jornada';
-    cap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px';
-    cap.addEventListener('click', ev => { if (ev.target === cap) cerrarModalJornada(); });
-    document.body.appendChild(cap);
-  }
-
-  const hoy = new Date();
-  // La casilla abre con el valor REAL de la persona, no siempre marcada.
-  // Si abriera siempre marcada, editar a alguien que está en 🚫☀ por
-  // cualquier otro motivo le devolvería la intensiva en silencio.
-  // Con varias personas (botón de empresa) se marca salvo que TODAS
-  // estén en la excepción, que es el criterio prudente.
+  if (!window.ModalJornada) { alert('No se ha cargado js/modal-jornada.js. Recarga la página.'); return; }
+  // La casilla ☀ abre con el valor REAL, no siempre marcada. Con varias
+  // personas (botón de empresa) se marca salvo que TODAS estén en la
+  // excepción, que es el criterio prudente (76ª).
   const intensivaMarcada = !ids.every(id => asigSinIntensivaPorTrab[id] === true);
-  const primeroMes = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-01`;
-  const desc = t => {
-    const p = (t.almuerzo_min || 0) + (t.comida_min || 0);
-    return `${t.nombre} · ${String(t.entrada).slice(0,5)}–${String(t.salida).slice(0,5)}` +
-           (p ? ` · ${p} min de pausa` : ' · sin pausas');
-  };
-
-  cap.innerHTML = `
-    <div style="background:#1e1e1e;border:1px solid #444;border-radius:10px;max-width:520px;width:100%;padding:20px;color:#eee">
-      <h3 style="margin:0 0 4px">Tipo de jornada</h3>
-      <div style="opacity:.75;font-size:.9rem;margin-bottom:14px">${esc(etiqueta)}</div>
-
-      <label style="display:block;font-size:.85rem;opacity:.8;margin-bottom:4px">Tipo</label>
-      <select id="mj-tipo" style="width:100%;padding:8px;margin-bottom:12px;background:#2a2a2a;color:#eee;border:1px solid #555;border-radius:6px">
-        ${tiposJornadaObra.map(t => `<option value="${esc(t.id)}">${esc(desc(t))}</option>`).join('')}
-        <option value="">— Sin tipo propio (horario general de la obra) —</option>
-      </select>
-
-      <label style="display:block;font-size:.85rem;opacity:.8;margin-bottom:4px">Desde el día</label>
-      <input type="date" id="mj-desde" value="${primeroMes}" style="width:100%;padding:8px;margin-bottom:4px;background:#2a2a2a;color:#eee;border:1px solid #555;border-radius:6px">
-      <div style="font-size:.8rem;opacity:.6;margin-bottom:12px">Los días anteriores a esta fecha no cambian. Un mes ya cerrado no se puede tocar.</div>
-
-      <label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:12px;cursor:pointer">
-        <input type="checkbox" id="mj-intensiva"${intensivaMarcada ? ' checked' : ''} style="margin-top:3px;flex:0 0 auto">
-        <span>
-          <span style="font-size:.9rem">En los días marcados ☀ hace el horario de la obra</span>
-          <span style="display:block;font-size:.8rem;opacity:.6;margin-top:2px">Déjala marcada si en verano esta gente hace la jornada intensiva como el resto de la obra. Desmárcala solo si mantiene su horario pactado también esos días.</span>
-        </span>
-      </label>
-
-      <label style="display:block;font-size:.85rem;opacity:.8;margin-bottom:4px">Motivo (opcional)</label>
-      <input type="text" id="mj-motivo" placeholder="p. ej. cambio de turno acordado con el encargado" style="width:100%;padding:8px;margin-bottom:16px;background:#2a2a2a;color:#eee;border:1px solid #555;border-radius:6px">
-
-      <div id="mj-msg" style="font-size:.9rem;margin-bottom:10px"></div>
-      <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button class="btn-accion" onclick="cerrarModalJornada()">Cancelar</button>
-        <button class="btn-accion primario" id="mj-guardar" onclick="guardarJornada()">Guardar</button>
-      </div>
-    </div>`;
-  cap.style.display = 'flex';
-}
-
-function cerrarModalJornada() {
-  const cap = document.getElementById('modal-jornada');
-  if (cap) cap.style.display = 'none';
-  jornadaCtx = null;
-}
-
-async function guardarJornada() {
-  if (!jornadaCtx) return;
-  const btn = document.getElementById('mj-guardar');
-  const msg = document.getElementById('mj-msg');
-  const tipo = document.getElementById('mj-tipo').value || null;
-  const desde = document.getElementById('mj-desde').value;
-  const motivo = document.getElementById('mj-motivo').value;
-  const seguirIntensiva = document.getElementById('mj-intensiva').checked;
-
-  if (!desde) { msg.innerHTML = '<span style="color:#f88">Falta la fecha.</span>'; return; }
-  btn.disabled = true; msg.textContent = 'Guardando…';
-
-  const { data, error } = await sb.rpc('asignar_tipo_jornada', {
-    p_trabajador_ids: jornadaCtx.ids,
-    p_obra_id: obraFiltroTrabajadores,
-    p_tipo_jornada_id: tipo,
-    p_desde: desde,
-    p_motivo: motivo,
-    p_seguir_intensiva_obra: seguirIntensiva
+  ModalJornada.abrir(sb, {
+    obraId: obraFiltroTrabajadores,
+    ids: ids,
+    etiqueta: etiqueta,
+    tipos: tiposJornadaObra,      // cargados con activo = true y en orden
+    intensivaMarcada: intensivaMarcada,
+    onGuardado: recargarJornadasYPintar
   });
-
-  if (error || !data || data.ok !== true) {
-    btn.disabled = false;
-    msg.innerHTML = '<span style="color:#f88">' + esc((data && data.error) || (error && error.message) || 'No se ha podido guardar') + '</span>';
-    return;
-  }
-
-  msg.innerHTML = '<span style="color:#8f8">Guardado: ' + esc(String(data.afectados)) + ' persona(s) → ' + esc(String(data.tipo)) + '</span>';
-  await recargarJornadasYPintar();
-  setTimeout(cerrarModalJornada, 900);
 }
 
 function toggleGrupo(empresa) {
