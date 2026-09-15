@@ -186,6 +186,21 @@
     .contador-ultima strong { font-weight: 700; }
 
     /* ── P-02: barra de fecha + actualizar ── */
+    /* 86ª (15/9/2026) — Cabecera de obra sin tarjeta: solo texto. */
+    .cabecera-obra {
+      margin: 0 0 0.9rem;
+    }
+    .cabecera-obra h2 {
+      margin: 0;
+      font-size: 1.15rem;
+      line-height: 1.2;
+    }
+    .cabecera-obra p {
+      margin: 2px 0 0;
+      color: #666;
+      font-size: 0.85rem;
+    }
+
     .presencia-controles {
       display: flex;
       align-items: center;
@@ -583,9 +598,13 @@
 
   <div id="panel-obra" style="display:none">
 
-    <div class="card">
+    <!-- 86ª (15/9/2026) — Era una tarjeta blanca entera para dos líneas de
+         texto que no se tocan nunca. Fuera la tarjeta: el nombre de la obra
+         y la fecha van sueltos, y lo que de verdad se mira (los contadores
+         y la lista) sube una pantalla. -->
+    <div class="cabecera-obra">
       <h2 id="nombre-obra">Cargando obra...</h2>
-      <p id="fecha-hoy" style="color:#666; font-size:0.9rem"></p>
+      <p id="fecha-hoy"></p>
     </div>
 
     <div class="card card-rojos" id="card-rojos" role="button" tabindex="0" title="Ver detalle de accesos denegados">
@@ -621,12 +640,12 @@
     </div>
 
     <div class="card">
-      <!-- P-02: selector de fecha · P-03: botón imprimir lista -->
-      <div class="presencia-controles">
-        <label for="input-fecha-presencia">📅 Fecha:</label>
-        <input type="date" id="input-fecha-presencia" />
-        <button class="btn-imprimir-lista" id="btn-imprimir-lista">🖨️ Imprimir lista</button>
-      </div>
+      <!-- 86ª (15/9/2026) — El selector de fecha y el botón de imprimir se han
+           bajado al final del panel: son lo que menos se usa y estaban encima
+           de la lista, que es lo que se mira a diario.
+           El banner de histórico SE QUEDA aquí a propósito: avisa de que no
+           estás viendo hoy, y ese aviso tiene que salir junto a la lista, no
+           al fondo de la página donde nadie lo vería. -->
       <div class="banner-historico" id="banner-historico"></div>
       <h2>👷 Trabajadores presentes</h2>
       <div id="lista-presencia" class="lista-tarjetas"><p class="loading">Cargando...</p></div>
@@ -635,9 +654,11 @@
     <div class="card" id="card-fichaje-manual">
       <h2>🕐 Fichaje manual</h2>
       <p style="color:#666; font-size:0.9rem; margin-bottom:0.8rem;">
-        Para registrar entrada o salida cuando un trabajador no pueda fichar desde su móvil.
+        Para registrar entrada o salida cuando un trabajador <strong>dado de alta</strong>
+        no puede fichar desde su móvil. Si la persona no está registrada en la obra,
+        usa «Pedir permiso».
       </p>
-      <button class="btn btn-manual" id="btn-abrir-manual">Fichar por trabajador</button>
+      <button class="btn btn-manual" id="btn-abrir-manual">Fichar por alguien sin móvil</button>
     </div>
 
     <div class="card-ronda" id="card-confirmacion">
@@ -656,6 +677,20 @@
       <div id="msg-ronda"></div>
       <div class="ronda-ultima" id="ronda-ultima"></div>
       <button class="btn-sin-actividad" id="btn-sin-actividad">🌧 Hoy no se trabaja en esta obra</button>
+    </div>
+
+    <!-- 86ª — P-02: selector de fecha · P-03: botón imprimir lista.
+         Bajados aquí desde encima de la lista de presencia. -->
+    <div class="card" id="card-fecha-imprimir">
+      <h2>📅 Consultar otro día</h2>
+      <p style="color:#666; font-size:0.9rem; margin-bottom:0.8rem;">
+        Cambia la fecha para ver quién estuvo en obra otro día, o imprime la lista.
+      </p>
+      <div class="presencia-controles">
+        <label for="input-fecha-presencia">📅 Fecha:</label>
+        <input type="date" id="input-fecha-presencia" />
+        <button class="btn-imprimir-lista" id="btn-imprimir-lista">🖨️ Imprimir lista</button>
+      </div>
     </div>
 
   </div>
@@ -709,7 +744,7 @@
 <!-- Modal fichaje manual -->
 <div class="modal-overlay" id="modal-manual">
   <div class="modal-manual">
-    <h3>Fichar por trabajador</h3>
+    <h3>Fichar por alguien sin móvil</h3>
     <div class="sub">Registra una entrada o salida manual en la obra actual.</div>
     <div class="msg-modal err" id="msg-manual-err"></div>
     <div class="msg-modal ok" id="msg-manual-ok"></div>
@@ -1373,7 +1408,10 @@
       });
     }
 
-    html += '<button class="btn-anadir-sf" onclick="abrirFormSinFichar()">+ Alguien que no esta en la lista</button>';
+    // 86ª — La etiqueta dice ahora la SITUACIÓN, no la acción: lo que hace
+    // dudar al encargado no es qué quiere hacer, sino en qué caso está.
+    // Y esto no ficha a nadie: manda la petición al jefe de obra.
+    html += '<button class="btn-anadir-sf" onclick="abrirFormSinFichar()">+ Pedir permiso para alguien no registrado</button>';
     html += '<div id="form-sf-hueco"></div>';
 
     panel.innerHTML = html;
