@@ -888,8 +888,26 @@ function textoCalculoIncompleto(queSale) {
   localStorage.setItem(claveObraActiva, obraActual);
   aplicarBrandingObra(obraInicial.obra.empresa_marca);
 
-  document.getElementById('filtro-mes').value = mesActual();
+  // ── Enlace directo desde el modal de autocierres (jefe/index.html) ──
+  // La URL puede traer ?mes=YYYY-MM&t=<trabajadorId>&dia=<1-31>: se carga ese
+  // mes y se abre directamente el detalle del día. Si el trabajador no está en
+  // la obra activa, no se abre nada y la página queda en el mes pedido
+  // (silencio a propósito: el enlace es un atajo, no un mecanismo crítico).
+  const paramsURL = new URLSearchParams(window.location.search);
+  const mesURL = paramsURL.get('mes');
+  document.getElementById('filtro-mes').value =
+    (mesURL && /^\d{4}-\d{2}$/.test(mesURL)) ? mesURL : mesActual();
   await cargarResumen();
+  const tURL = paramsURL.get('t');
+  const diaURL = Number(paramsURL.get('dia'));
+  if (tURL && diaURL >= 1 && diaURL <= 31 && resumenTrabajadores[tURL]) {
+    abrirDetalleDia(tURL, diaURL);
+  }
+  if (mesURL || tURL) {
+    // Limpiar la URL: recargar la página no debe reabrir el modal ni
+    // re-forzar el mes.
+    try { history.replaceState(null, '', window.location.pathname); } catch (_) {}
+  }
 
   selector.addEventListener('change', async () => {
     obraActual = selector.value;
