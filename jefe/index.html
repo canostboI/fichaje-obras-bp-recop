@@ -323,7 +323,8 @@
   .banner-hab-caducidad.rojo { background: rgba(244,67,54,0.08); border: 1px solid rgba(244,67,54,0.4); color: var(--rojo); }
   .banner-hab-caducidad.oculto { display: none; }
   .banner-hab-caducidad ul { margin: 4px 0 0 18px; font-size: 13px; }
-  .banner-hab-caducidad li { margin-bottom: 2px; }
+  .banner-hab-caducidad ul { list-style: none; margin-left: 0; padding-left: 0; }
+  .banner-hab-caducidad li { margin-bottom: 4px; display: flex; align-items: center; gap: 10px; }
 
   .banner-cierres { border-radius: 10px; padding: 13px 18px; margin-bottom: 20px; font-size: 14px; line-height: 1.5; }
   .banner-cierres a { color: inherit; text-decoration: underline; }
@@ -1116,7 +1117,8 @@ async function comprobarHabilitacionesCaducidad() {
       const t = h.trabajador || {};
       const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || '(sin nombre)';
       const tipo = h.tipo?.nombre || 'Habilitación';
-      const item = { nombre, tipo, icono: Hab.icono(tipo), texto: Hab.textoCaducidad(h) };
+      // Icono SVG (no emoji): aquí va dentro de <li> con innerHTML, sí cabe.
+      const item = { nombre, tipo, icono: Hab.iconoSvg(tipo, 26), texto: Hab.textoCaducidad(h) };
       const est = Hab.estado(h);
       if (est === 'caducada')         caducadas.push(item);
       else if (est === 'proxima')     proximas.push(item);
@@ -1128,21 +1130,21 @@ async function comprobarHabilitacionesCaducidad() {
     if (caducadas.length > 0) {
       banner.classList.add('rojo');
       html += '🚫 Habilitaciones caducadas:<ul>' +
-        caducadas.map(i => `<li>${i.icono} ${esc(i.nombre)} — ${esc(i.tipo)} (${esc(i.texto)})</li>`).join('') + '</ul>';
+        caducadas.map(i => `<li>${i.icono}<span>${esc(i.nombre)} — ${esc(i.tipo)} (${esc(i.texto)})</span></li>`).join('') + '</ul>';
     } else {
       banner.classList.add('amarillo');
     }
     if (proximas.length > 0) {
       html += (html ? '<div style="margin-top:8px"></div>' : '') +
         `⚠ Habilitaciones próximas a caducar (≤${Hab.UMBRAL_DIAS} días):<ul>` +
-        proximas.map(i => `<li>${i.icono} ${esc(i.nombre)} — ${esc(i.tipo)} (${esc(i.texto)})</li>`).join('') + '</ul>';
+        proximas.map(i => `<li>${i.icono}<span>${esc(i.nombre)} — ${esc(i.tipo)} (${esc(i.texto)})</span></li>`).join('') + '</ul>';
     }
     // Sin fecha registrada: no se puede afirmar que valgan ni que no.
     // Antes ni salían: la consulta las descartaba.
     if (sinFecha.length > 0) {
       html += (html ? '<div style="margin-top:8px"></div>' : '') +
         '❓ Habilitaciones sin fecha de caducidad — no se puede saber si siguen en vigor:<ul>' +
-        sinFecha.map(i => `<li>${i.icono} ${esc(i.nombre)} — ${esc(i.tipo)}</li>`).join('') + '</ul>';
+        sinFecha.map(i => `<li>${i.icono}<span>${esc(i.nombre)} — ${esc(i.tipo)}</span></li>`).join('') + '</ul>';
     }
     banner.innerHTML = html;
   } catch (e) {
