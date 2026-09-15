@@ -194,11 +194,25 @@
       margin: 0;
       font-size: 1.15rem;
       line-height: 1.2;
+      color: #222;
     }
     .cabecera-obra p {
       margin: 2px 0 0;
       color: #666;
       font-size: 0.85rem;
+    }
+    /* 86ª (15/9/2026) — Al quitar la tarjeta blanca, la cabecera quedó sobre
+       el fondo de la página. Si la obra tiene foto, ese fondo es la imagen
+       oscurecida y el texto gris no se leía. Con foto va en blanco; sin foto
+       el fondo es gris claro y el blanco sería igual de ilegible, así que el
+       color depende de la clase que pone aplicarFotoFondo. */
+    body.con-foto .cabecera-obra h2 {
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+    }
+    body.con-foto .cabecera-obra p {
+      color: rgba(255,255,255,0.88);
+      text-shadow: 0 1px 3px rgba(0,0,0,0.7);
     }
 
     .presencia-controles {
@@ -969,6 +983,9 @@
     } else {
       document.body.style.backgroundImage = '';
     }
+    // 86ª — El CSS necesita saber si el fondo es oscuro (foto) o claro, para
+    // elegir el color de la cabecera de obra, que ya no va sobre tarjeta.
+    document.body.classList.toggle('con-foto', !!fotoUrl);
   }
 
   async function cargarEmpresasPropias() {
