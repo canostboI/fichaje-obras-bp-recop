@@ -12,7 +12,7 @@
   <script src="../js/sb-paginado.js"></script>
   <script src="../js/jornadas.js"></script>
   <script src="../js/modal-jornada.js"></script>
-  <script src="../js/habilitaciones.js"></script>
+  <script src="../js/habilitaciones.js?v=20260915"></script>
   <script src="../js/foto-identidad.js"></script>
   <script src="../js/verificacion-identidad.js"></script>
 <style>
@@ -128,7 +128,7 @@
   .pill-estado.forzado { border-style: dashed; border-color: currentColor; }
 
   /* Iconos habilitación junto al nombre */
-  .hab-iconos { font-size: 15px; margin-left: 5px; letter-spacing: 1px; }
+  .hab-iconos { display: inline-flex; align-items: center; gap: 3px; margin-left: 5px; vertical-align: middle; color: var(--naranja); }
   /* ── iconos foto/verif (70a) ── */
   .fi-icono { font-size: 15px; cursor: pointer; border: none; background: none; padding: 2px 5px; border-radius: 4px; line-height: 1; transition: transform 0.1s, opacity 0.15s; }
   .fi-icono:hover { transform: scale(1.2); background: var(--bg3); }
@@ -958,11 +958,11 @@ async function cargarHabilitacionesDeTodasMisObras() {
 
   (data || []).forEach(h => {
     const nombre = h.tipo?.nombre || '';
-    const icono = Hab.icono(nombre);
+    const icono = icoHab(nombre, 18);
     if (!habIconosPorTrabajador[h.trabajador_id]) habIconosPorTrabajador[h.trabajador_id] = [];
-    // No duplicar el mismo icono
-    if (!habIconosPorTrabajador[h.trabajador_id].includes(icono)) {
-      habIconosPorTrabajador[h.trabajador_id].push(icono);
+    // No duplicar el mismo icono (toro y carretilla comparten dibujo)
+    if (!habIconosPorTrabajador[h.trabajador_id].some(x => x.icono === icono)) {
+      habIconosPorTrabajador[h.trabajador_id].push({ icono, nombre });
     }
   });
 }
@@ -1353,8 +1353,7 @@ function renderTabla(lista) {
 
     trabajadores.forEach(t => {
       // Iconos de habilitación junto al nombre
-      const iconosHab = (habIconosPorTrabajador[t.id] || []).join(' ');
-      const habSpan = iconosHab ? `<span class="hab-iconos" title="Habilitaciones: ${iconosHab}">${iconosHab}</span>` : '';
+      const habSpan = htmlIconosHab(habIconosPorTrabajador[t.id], 'hab-iconos');
 
       filasBody += `
         <tr class="${filaClase}" data-grupo="${esc(empresa)}">
@@ -2172,6 +2171,19 @@ function formatearPrecio(valor) {
   const n = Number(valor);
   if (isNaN(n)) return '—';
   return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €/h';
+}
+// Icono SVG de habilitación con respaldo al emoji si el navegador tiene en
+// caché un habilitaciones.js sin iconoSvg (migración de iconos, sept 2026).
+function icoHab(tipo, px) {
+  return (typeof Hab.iconoSvg === 'function') ? Hab.iconoSvg(tipo, px) : Hab.icono(tipo);
+}
+// Lista de habilitaciones de un trabajador → iconos en fila + nombres para
+// el title. Los nombres van escapados también para comillas.
+function htmlIconosHab(lista, clase) {
+  if (!lista || !lista.length) return '';
+  const nombres = lista.map(x => x.nombre).join(', ');
+  const tit = String(esc(nombres)).replace(/"/g, '&quot;');
+  return ' <span class="' + clase + '" title="Habilitaciones: ' + tit + '">' + lista.map(x => x.icono).join('') + '</span>';
 }
 function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
 
