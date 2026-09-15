@@ -58,6 +58,7 @@
   .hab-item.sin_caducidad { border-left: 3px solid var(--texto2); }
   .hab-item.falta-fecha   { border-left: 3px solid var(--naranja); }
   .hab-nombre { font-size: 14px; font-weight: 600; flex: 1; }
+  .hab-nombre .hab-svg, .tipo-nombre .hab-svg { margin-right: 6px; vertical-align: -5px; color: var(--naranja); }
   .hab-caducidad { font-size: 12px; color: var(--texto2); }
   .hab-acciones { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
   .badge { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 20px; }
@@ -99,7 +100,7 @@
 </style>
 <script src="../js/auto-logout.js"></script>
 <script src="../js/fechas.js"></script>
-<script src="../js/habilitaciones.js"></script>
+<script src="../js/habilitaciones.js?v=20260915"></script>
 </head>
 <body>
 
@@ -221,7 +222,7 @@ function renderTipos() {
   if (!tiposCache.length) { el.innerHTML = '<div class="vacio">No hay tipos todavía.</div>'; return; }
   el.innerHTML = tiposCache.map(t => `
     <div class="tipo-item ${t.activo ? '' : 'inactivo'}">
-      <span class="tipo-nombre">${t.activo ? Hab.icono(t.nombre) + ' ' : '🚫 '}${esc(t.nombre)}</span>
+      <span class="tipo-nombre">${t.activo ? icoHab(t.nombre, 22) : '🚫 '}${esc(t.nombre)}</span>
       <button class="btn btn-secundario" onclick="toggleTipo('${t.id}', ${t.activo})">${t.activo ? 'Desactivar' : 'Reactivar'}</button>
     </div>`).join('');
 }
@@ -230,7 +231,7 @@ function renderSelectTipos() {
   const sel = document.getElementById('sel-tipo');
   const actual = sel.value;
   sel.innerHTML = '<option value="">Selecciona un tipo…</option>' +
-    tiposCache.filter(t => t.activo).map(t => `<option value="${t.id}">${Hab.icono(t.nombre)} ${esc(t.nombre)}</option>`).join('');
+    tiposCache.filter(t => t.activo).map(t => `<option value="${t.id}">${esc(t.nombre)}</option>`).join('');
   if (actual) sel.value = actual;
 }
 
@@ -311,7 +312,7 @@ function renderHabilitaciones() {
   const el = document.getElementById('lista-habilitaciones');
   if (!habsCache.length) { el.innerHTML = '<div class="vacio" style="padding:10px 0">Sin habilitaciones registradas.</div>'; return; }
   el.innerHTML = habsCache.map(h => {
-    const est = Hab.estado(h), cls = Hab.clase(est), ico = Hab.icono(h.tipo_nombre);
+    const est = Hab.estado(h), cls = Hab.clase(est), ico = icoHab(h.tipo_nombre, 22);
     if (h.tipo_habilitacion_id === editandoTipoId) {
       const fechaVal = h.fecha_caducidad ? String(h.fecha_caducidad).slice(0, 10) : '';
       return `<div class="hab-item ${cls}"><div style="flex:1;min-width:0">
@@ -384,6 +385,19 @@ async function quitarHabilitacion(tipoId, tipoNombre) {
   await cargarHabilitaciones(trabajadorActual.id);
 }
 
+// Icono SVG de habilitación con respaldo al emoji si el navegador tiene en
+// caché un habilitaciones.js sin iconoSvg (migración de iconos, sept 2026).
+function icoHab(tipo, px) {
+  return (typeof Hab.iconoSvg === 'function') ? Hab.iconoSvg(tipo, px) : Hab.icono(tipo);
+}
+// Lista de habilitaciones de un trabajador → iconos en fila + nombres para
+// el title. Los nombres van escapados también para comillas.
+function htmlIconosHab(lista, clase) {
+  if (!lista || !lista.length) return '';
+  const nombres = lista.map(x => x.nombre).join(', ');
+  const tit = String(esc(nombres)).replace(/"/g, '&quot;');
+  return ' <span class="' + clase + '" title="Habilitaciones: ' + tit + '">' + lista.map(x => x.icono).join('') + '</span>';
+}
 function esc(s) { const d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; }
 function escAttr(s) { return String(s || '').replace(/'/g, "\\'"); }
 function msgHab(txt, tipo) { const el = document.getElementById('msg-hab'); el.textContent = txt; el.className = 'mensaje ' + (tipo === 'ok' ? 'ok' : 'err'); el.style.display = 'block'; if (tipo === 'ok') setTimeout(() => { el.style.display = 'none'; }, 4000); }
