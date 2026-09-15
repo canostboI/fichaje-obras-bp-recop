@@ -190,11 +190,14 @@
       return;
     }
 
+    // La foto de fondo sale de obras.foto_url, igual que en el panel
+    // principal. Antes leía imagen_fondo_url, columna antigua que está
+    // vacía, y por eso esta pantalla salía siempre sin foto.
     // H-2: antes este error se ignoraba y salía "No tienes ninguna obra
     // asignada", que es falso: lo que pasa es que no se ha podido mirar.
     const { data: asignaciones, error: errAsig } = await sb
       .from('usuarios_obra')
-      .select('obra_id, obras(id, nombre, estado, empresa_marca, imagen_fondo_url)')
+      .select('obra_id, obras(id, nombre, estado, empresa_marca, foto_url)')
       .eq('usuario_app_id', usuario.id)
       .eq('rol_en_obra', 'encargado');
 
@@ -213,7 +216,7 @@
 
     if (obrasAsignadas.length === 1) {
       const obra = obrasAsignadas[0].obras;
-      await cargarObra(obra.id, obra.nombre, obra.empresa_marca, obra.imagen_fondo_url);
+      await cargarObra(obra.id, obra.nombre, obra.empresa_marca, obra.foto_url);
     } else {
       const select = document.getElementById('select-obra');
       obrasAsignadas.forEach(a => {
@@ -221,7 +224,7 @@
         opt.value = a.obras.id;
         opt.textContent = a.obras.nombre;
         opt.dataset.marca = a.obras.empresa_marca || 'bosch_pascual';
-        opt.dataset.fotoUrl = a.obras.imagen_fondo_url || '';
+        opt.dataset.fotoUrl = a.obras.foto_url || '';
         select.appendChild(opt);
       });
       document.getElementById('card-selector').style.display = 'block';
