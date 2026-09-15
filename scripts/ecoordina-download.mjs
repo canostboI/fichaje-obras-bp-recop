@@ -42,6 +42,20 @@ async function dumpHtml(page, name) {
   catch (e) { log('(no se pudo volcar html)', e.message); }
 }
 
+// e-Coordina (sept 2026) muestra un banner de migración a v5 que se pone
+// encima de la interfaz e intercepta los clics (#twindMigracionBanner).
+// Lo quitamos del DOM antes de cada bloque de clics. Si no está, no pasa nada.
+async function quitarBannerMigracion(page) {
+  try {
+    const quitado = await page.evaluate(() => {
+      const b = document.getElementById('twindMigracionBanner');
+      if (b) { b.remove(); return true; }
+      return false;
+    });
+    if (quitado) log('Banner de migración detectado y quitado');
+  } catch (e) { log('(no se pudo comprobar el banner)', e.message); }
+}
+
 if (!USER || !PASS) {
   console.error('ERROR: faltan los secrets ECOORDINA_USER / ECOORDINA_PASS');
   process.exit(1);
@@ -90,6 +104,7 @@ try {
   }
 
   // ── 3. Ir a "Solicitudes de documentación" ─────────────────────────────────
+  await quitarBannerMigracion(page);
   log('Navegando a Solicitudes de documentación');
   // Primero intentamos abrir el menú "Documentación" del top-bar
   const menuDoc = page.getByText('Documentación', { exact: true }).first();
@@ -99,10 +114,12 @@ try {
   }
   await page.getByText('Solicitudes de documentación', { exact: true }).first().click();
   await page.waitForLoadState('networkidle').catch(() => {});
+  await quitarBannerMigracion(page);
   await page.waitForTimeout(3000);
   await shot(page, '04-solicitudes');
 
   // ── 4. Exportar -> CSV ──────────────────────────────────────────────────────
+  await quitarBannerMigracion(page);
   log('Localizando botón Exportar');
   const exportBtn = page
     .locator('button:has-text("Exportar"), .x-btn:has-text("Exportar"), :text("Exportar")')
