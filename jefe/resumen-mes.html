@@ -187,7 +187,7 @@ function etiquetaCat(t) {  const ETQ = { peon:'Peón', oficial:'Oficial', encarg
 
   /* ── Lista de fichajes del día ── */
   .lista-dia { border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
-  .fila-fichaje { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--borde); }
+  .fila-fichaje { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--borde); }
   .fila-fichaje:last-child { border-bottom: none; }
   .fila-fichaje .izq { display: flex; flex-direction: column; gap: 3px; }
   .fila-fichaje .tipo { font-size: 13px; font-weight: 700; }
@@ -199,6 +199,11 @@ function etiquetaCat(t) {  const ETQ = { peon:'Peón', oficial:'Oficial', encarg
   .marca.manual     { background: rgba(33,150,243,0.15); color: var(--azul); }
   .marca.autocierre { background: rgba(255,152,0,0.18);  color: var(--naranja); }
   .marca.corregido  { background: rgba(139,144,158,0.18); color: var(--texto2); }
+  .marca.confirmado { background: rgba(76,175,80,0.15);  color: var(--verde); }
+  .btn-verde { background: transparent; border: 1px solid var(--verde); color: var(--verde); padding: 5px 10px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
+  .btn-verde:hover { background: var(--verde); color: #111; }
+  .btn-verde:disabled { opacity: 0.6; cursor: default; }
+  .dia-error-conf { flex-basis: 100%; color: var(--rojo); font-size: 12px; margin-top: 2px; }
   .motivo-mini { font-size: 10px; color: var(--texto2); max-width: 240px; white-space: normal; line-height: 1.3; }
   .dia-vacio { padding: 18px 14px; text-align: center; color: var(--texto2); font-size: 13px; }
   .info-ajuste { background: rgba(232,255,0,0.07); border: 1px solid rgba(232,255,0,0.25); color: var(--texto2); padding: 10px 14px; border-radius: 8px; font-size: 12px; margin-bottom: 16px; line-height: 1.4; }
@@ -2701,36 +2706,71 @@ function renderRevisionAutocierres() {
   }).join('');
 }
 
-// ÚNICA VÍA de confirmación de autocierres en esta pantalla. No cambia la
-// hora: solo pone un nombre detrás de la que puso el sistema.
+// ÚNICA VÍA de confirmación de autocierres en esta pantalla: el modal de
+// revisión y el botón del detalle del día pasan LOS DOS por aquí. No cambia
+// la hora: solo pone un nombre detrás de la que puso el sistema.
+async function confirmarAutocierreEnBD(fichajeId) {
+  const { data, error } = await sb.rpc('confirmar_autocierre', {
+    p_fichaje_id: fichajeId,
+    p_confirmar: true
+  });
+  if (error || !data || data.success !== true) {
+    return {
+      ok: false,
+      msg: 'No se ha podido confirmar: ' +
+        (error ? error.message : ((data && data.error) || 'error desconocido'))
+    };
+  }
+  // El caché en memoria se pone al día para que el panel recalcule sin
+  // recargar el mes entero después de cada confirmación.
+  const f = fichajesMesCache.find(x => x.id === fichajeId);
+  if (f) f.confirmado_por = 'confirmado';
+  return { ok: true };
+}
+
+// Botón del modal «Revisar los autocierres»: marca la fila y recarga UNA
+// vez al cerrar el modal, no después de cada clic.
 async function confirmarAutocierreLinea(fichajeId, boton) {
   const fila = boton.closest('.sab-fila');
   boton.disabled = true;
   boton.textContent = 'Confirmando…';
 
-  const { data, error } = await sb.rpc('confirmar_autocierre', {
-    p_fichaje_id: fichajeId,
-    p_confirmar: true
-  });
+  const res = await confirmarAutocierreEnBD(fichajeId);
 
-  if (error || !data || data.success !== true) {
+  if (!res.ok) {
     boton.disabled = false;
     boton.textContent = '✔ Hora buena';
     let err = fila.querySelector('.sab-error');
     if (!err) { err = document.createElement('div'); err.className = 'sab-error'; fila.appendChild(err); }
-    err.textContent = 'No se ha podido confirmar: ' +
-      (error ? error.message : ((data && data.error) || 'error desconocido'));
+    err.textContent = res.msg;
     return;
   }
-
-  // El caché en memoria se pone al día para que el panel recalcule sin
-  // recargar el mes entero después de cada confirmación.
-  const f = fichajesMesCache.find(x => x.id === fichajeId);
-  if (f) f.confirmado_por = 'confirmado';
 
   autocierresHuboCambios = true;
   fila.className = 'sab-fila firmada';
   fila.querySelector('.sab-acc').innerHTML = '<span class="sab-hecho">✔ Confirmada</span>';
+}
+
+// Botón del detalle del día: aquí es un clic suelto, así que se recarga el
+// mes al momento (la celda deja el naranja) y se reabre el día actualizado.
+async function confirmarAutocierreDesdeDia(boton) {
+  if (!diaAbierto) return;
+  boton.disabled = true;
+  boton.textContent = 'Confirmando…';
+
+  const res = await confirmarAutocierreEnBD(boton.dataset.fid);
+
+  if (!res.ok) {
+    boton.disabled = false;
+    boton.textContent = '✔ Hora buena';
+    const fila = boton.closest('.fila-fichaje');
+    let err = fila.querySelector('.dia-error-conf');
+    if (!err) { err = document.createElement('div'); err.className = 'dia-error-conf'; fila.appendChild(err); }
+    err.textContent = res.msg;
+    return;
+  }
+
+  await recargarYReabrirDia();
 }
 
 // Al cerrar se recarga el mes UNA vez, no después de cada confirmación.
@@ -3596,6 +3636,7 @@ function renderListaDia(trabajadorId, dia) {
     if (f.es_manual) marcas.push('<span class="marca manual">manual</span>');
     if (f.cierre_automatico) marcas.push('<span class="marca autocierre">autocierre</span>');
     if (f.corregido_por) marcas.push('<span class="marca corregido">corregido</span>');
+    if (f.confirmado_por) marcas.push('<span class="marca confirmado">✔ confirmada</span>');
     const motivoTxt = f.motivo_correccion
       ? `<span class="motivo-mini">📝 ${escapeHtml(f.motivo_correccion)}</span>` : '';
     return `<div class="fila-fichaje">
@@ -3606,12 +3647,18 @@ function renderListaDia(trabajadorId, dia) {
       </div>
       <span class="hora">${hhmm}</span>
       <button class="btn-naranja btn-corregir" data-fid="${f.id}" data-hora="${escapeHtml(f.hora)}" data-tipo="${f.tipo}">✏ Corregir</button>
+      ${(f.cierre_automatico && !f.confirmado_por && !f.corregido_por) ? `<button class="btn-verde btn-confirmar-auto" data-fid="${f.id}">✔ Hora buena</button>` : ''}
       ${f.es_manual ? `<button class="btn-rojo btn-eliminar" data-fid="${f.id}" data-tipo="${f.tipo}" data-hhmm="${hhmm}" title="Eliminar fichaje manual">🗑</button>` : ''}
     </div>`;
   }).join('');
 }
 
 document.getElementById('dia-lista').addEventListener('click', (ev) => {
+  const btnConf = ev.target.closest('.btn-confirmar-auto');
+  if (btnConf) {
+    confirmarAutocierreDesdeDia(btnConf);
+    return;
+  }
   const btnDel = ev.target.closest('.btn-eliminar');
   if (btnDel) {
     abrirEliminacion(btnDel.dataset.fid, btnDel.dataset.tipo, btnDel.dataset.hhmm);
