@@ -851,6 +851,8 @@ const TEXTOS = {
     // falta una, se ve de un vistazo cuál.
     // {m} en err_fuera_de_zona es el hueco de los metros. Si no llega
     // el número, textoErrorRpc quita el paréntesis entero.
+    // 86ª (15/9/2026): {h} en err_salida_demasiado_pronto es el hueco de la
+    // hora de la entrada, que llega en data.hora_entrada ya en HH:MM de Madrid.
     err_dni_vacio:             'Introduzca su DNI o NIE.',
     err_dni_no_encontrado:     'DNI no encontrado. Revise números y letra.',
     err_trabajador_baja:       'Este DNI está dado de baja. Avise al encargado.',
@@ -866,6 +868,7 @@ const TEXTOS = {
     err_sin_entrada_abierta:   'No tienes ninguna entrada abierta hoy en esta obra. No se puede fichar salida.',
     err_ya_hay_entrada_abierta:'Ya tienes una entrada abierta en esta obra. Ficha la salida primero.',
     err_jornada_abierta_otra_obra: 'Tienes una jornada abierta en otra obra. Debes fichar la salida allí antes de fichar aquí.',
+    err_salida_demasiado_pronto: 'Ya has fichado la entrada a las {h}. Para fichar la salida, pasa el QR al terminar la jornada.',
     reintentar:          'Reintentar',
     gps: {
       denegado_titulo: '⚠ No tenemos acceso a su ubicación',
@@ -976,6 +979,7 @@ const TEXTOS = {
     err_sin_entrada_abierta:   'No tens cap entrada oberta avui en aquesta obra. No es pot fitxar la sortida.',
     err_ya_hay_entrada_abierta:'Ja tens una entrada oberta en aquesta obra. Fitxa primer la sortida.',
     err_jornada_abierta_otra_obra: 'Tens una jornada oberta en una altra obra. Has de fitxar la sortida allà abans de fitxar aquí.',
+    err_salida_demasiado_pronto: "Ja has fitxat l'entrada a les {h}. Per fitxar la sortida, passa el QR en acabar la jornada.",
     reintentar:          'Tornar a provar',
     gps: {
       denegado_titulo:   '⚠ No tenim accés a la vostra ubicació',
@@ -1085,6 +1089,7 @@ const TEXTOS = {
     err_sin_entrada_abierta:   'ليس لديك دخول مفتوح اليوم في هذه الورشة. لا يمكن تسجيل الخروج.',
     err_ya_hay_entrada_abierta:'لديك دخول مفتوح في هذه الورشة. سجّل الخروج أولاً.',
     err_jornada_abierta_otra_obra: 'لديك يوم عمل مفتوح في ورشة أخرى. عليك تسجيل الخروج هناك قبل التسجيل هنا.',
+    err_salida_demasiado_pronto: 'لقد سجّلت دخولك بالفعل الساعة {h}. لتسجيل الخروج، امسح رمز QR عند انتهاء الدوام.',
     reintentar:          'إعادة المحاولة',
     gps: {
       denegado_titulo: '⚠ لا يمكننا الوصول إلى موقعك',
@@ -1194,6 +1199,7 @@ const TEXTOS = {
     err_sin_entrada_abierta:   'Nu ai nicio intrare deschisă azi pe acest șantier. Nu se poate ponta ieșirea.',
     err_ya_hay_entrada_abierta:'Ai deja o intrare deschisă pe acest șantier. Pontează mai întâi ieșirea.',
     err_jornada_abierta_otra_obra: 'Ai o zi de lucru deschisă pe alt șantier. Trebuie să pontezi ieșirea acolo înainte de a ponta aici.',
+    err_salida_demasiado_pronto: 'Ai pontat deja intrarea la ora {h}. Pentru ieșire, scanează codul QR la sfârșitul programului.',
     reintentar:          'Reîncercați',
     gps: {
       denegado_titulo: '⚠ Nu avem acces la locația dvs.',
@@ -1310,6 +1316,7 @@ const TEXTOS = {
     err_sin_entrada_abierta:   'آج اس سائٹ پر آپ کا کوئی داخلہ درج نہیں ہے۔ اخراج درج نہیں ہو سکتا۔',
     err_ya_hay_entrada_abierta:'اس سائٹ پر آپ کا داخلہ پہلے سے درج ہے۔ پہلے اخراج درج کریں۔',
     err_jornada_abierta_otra_obra: 'دوسری سائٹ پر آپ کا دن ابھی کھلا ہے۔ یہاں داخلہ درج کرنے سے پہلے وہاں اخراج درج کریں۔',
+    err_salida_demasiado_pronto: 'آپ نے {h} بجے اپنی حاضری درج کر دی ہے۔ چھٹی درج کرنے کے لیے، کام ختم ہونے پر QR اسکین کریں۔',
     reintentar:          'دوبارہ کوشش',
     gps: {
       denegado_titulo:   '⚠ ہمیں آپ کے مقام تک رسائی نہیں ہے',
@@ -1425,6 +1432,7 @@ const TEXTOS = {
     err_sin_entrada_abierta:   'ਅੱਜ ਇਸ ਸਾਈਟ ਤੇ ਤੁਹਾਡਾ ਅੰਦਰ ਆਉਣਾ ਦਰਜ ਨਹੀਂ ਹੈ। ਬਾਹਰ ਜਾਣਾ ਦਰਜ ਨਹੀਂ ਹੋ ਸਕਦਾ।',
     err_ya_hay_entrada_abierta:'ਇਸ ਸਾਈਟ ਤੇ ਤੁਹਾਡਾ ਅੰਦਰ ਆਉਣਾ ਪਹਿਲਾਂ ਹੀ ਦਰਜ ਹੈ। ਪਹਿਲਾਂ ਬਾਹਰ ਜਾਣਾ ਦਰਜ ਕਰੋ।',
     err_jornada_abierta_otra_obra: 'ਹੋਰ ਸਾਈਟ ਤੇ ਤੁਹਾਡਾ ਦਿਨ ਹਾਲੇ ਖੁੱਲ੍ਹਾ ਹੈ। ਇੱਥੇ ਦਰਜ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ ਉੱਥੇ ਬਾਹਰ ਜਾਣਾ ਦਰਜ ਕਰੋ।',
+    err_salida_demasiado_pronto: 'ਤੁਸੀਂ {h} ਵਜੇ ਆਪਣੀ ਹਾਜ਼ਰੀ ਲਗਾ ਚੁੱਕੇ ਹੋ। ਛੁੱਟੀ ਦਰਜ ਕਰਨ ਲਈ, ਕੰਮ ਖਤਮ ਹੋਣ ਉੱਤੇ QR ਸਕੈਨ ਕਰੋ।',
     reintentar:          'ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼',
     gps: {
       denegado_titulo:   '⚠ ਸਾਨੂੰ ਤੁਹਾਡੇ ਟਿਕਾਣੇ ਤੱਕ ਪਹੁੰਚ ਨਹੀਂ ਹੈ',
@@ -1535,6 +1543,7 @@ const TEXTOS = {
     err_sin_entrada_abierta:   'You have no open clock-in today at this site, so you cannot clock out.',
     err_ya_hay_entrada_abierta:'You already have an open clock-in at this site. Clock out first.',
     err_jornada_abierta_otra_obra: 'You have an open shift at another site. You must clock out there before clocking in here.',
+    err_salida_demasiado_pronto: 'You already clocked in at {h}. To clock out, scan the QR at the end of the day.',
     reintentar:          'Try again',
     gps: {
       denegado_titulo: '⚠ We do not have access to your location',
@@ -2366,6 +2375,20 @@ function textoErrorRpc(data) {
             TEXTOS.es[clave] || null;
   }
   if (!texto) return data.error || T('fichaje_rechazado');
+
+  // 86ª (15/9/2026): SALIDA_DEMASIADO_PRONTO trae `hora_entrada` aparte, ya
+  // formateada en HH:MM de Madrid por la RPC. No se reformatea aquí: el móvil
+  // de la valla puede tener mal el reloj o la zona, y la hora que vale es la
+  // que quedó grabada en el fichaje.
+  if (texto.indexOf('{h}') !== -1) {
+    const h = data.hora_entrada;
+    if (typeof h === 'string' && h) {
+      texto = texto.replace('{h}', h);
+    } else {
+      // Sin hora, la frase seguiría siendo cierta pero coja: mejor la genérica.
+      return data.error || T('fichaje_rechazado');
+    }
+  }
 
   if (texto.indexOf('{m}') !== -1) {
     const m = Number(data.metros);
