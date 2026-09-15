@@ -928,6 +928,22 @@ function umbralCron(schedule) {
   return 24 * 8;
 }
 
+// La sync de e-Coordina corre las noches de domingo a jueves (22:43 UTC) y las
+// madrugadas de lunes a viernes (01:43 UTC), con retraso medido de hasta 4h30:
+// entre semana la pasada del día termina como muy tarde ~08:15. Las noches de
+// viernes y sábado NO corre: el hueco del fin de semana es legal y el umbral
+// lo sabe, para no gritar en falso.
+// Sept 2026: sin este umbral, el check se quedaba en VERDE para siempre si el
+// robot moría antes de escribir en ecoordina_sync (pasó del 12/9 al 15/9:
+// el fallo no deja fila de error, y la última fila "ok" envejece en silencio).
+function umbralSync() {
+  const hoy = diaSemanaMadrid();   // 0=domingo … 6=sábado
+  if (hoy === 1) return 76;        // lunes: cubre el hueco del finde
+  if (hoy === 0) return 68;        // domingo: la última buena es la del viernes
+  if (hoy === 6) return 44;        // sábado: ídem
+  return 28;                       // martes-viernes: la de ayer + margen
+}
+
 function pintarSalud(m) {
   const el = document.getElementById('zona-salud');
   const filas = [];
@@ -973,11 +989,20 @@ function pintarSalud(m) {
 
   const s = m.salud.sync;
   if (s === null || s === undefined) filas.push(['e-Coordina (global)', 'gris', 'Sin ninguna sincronización registrada.']);
-  else if (s.estado === 'error') filas.push(['e-Coordina (global)', 'rojo',
-    Number(s.obras_error) > 0
-      ? 'La última pasada (' + fechaCorta(s.ejecutada_en) + ') falló en ' + s.obras_error + ' obra(s).'
-      : 'La última pasada (' + fechaCorta(s.ejecutada_en) + ') no actualizó ninguna obra. Revisa el CSV o el workflow.']);
-  else filas.push(['e-Coordina (global)', 'verde', 'Última pasada el ' + fechaCorta(s.ejecutada_en) + ' a las ' + hhmm(s.ejecutada_en) + ' · ' + (s.obras_ok || 0) + ' obra(s).']);
+  else {
+    const horasSync = (Date.now() - new Date(s.ejecutada_en).getTime()) / 3600000;
+    if (s.estado === 'error') filas.push(['e-Coordina (global)', 'rojo',
+      Number(s.obras_error) > 0
+        ? 'La última pasada (' + fechaCorta(s.ejecutada_en) + ') falló en ' + s.obras_error + ' obra(s).'
+        : 'La última pasada (' + fechaCorta(s.ejecutada_en) + ') no actualizó ninguna obra. Revisa el CSV o el workflow.']);
+    // El robot puede morir ANTES de llegar a la base de datos: entonces no hay
+    // fila de error, solo una fila "ok" que envejece. La edad también cuenta.
+    else if (horasSync > umbralSync()) filas.push(['e-Coordina (global)', 'rojo',
+      'La última pasada buena fue el ' + fechaCorta(s.ejecutada_en) + ' a las ' + hhmm(s.ejecutada_en) +
+      ' — hace ' + Math.round(horasSync) + ' h. El robot puede haber muerto sin dejar rastro aquí: ' +
+      'mirar el workflow «e-Coordina» en la pestaña Actions del repo. Los semáforos documentales se están calculando con papeles de ese día.']);
+    else filas.push(['e-Coordina (global)', 'verde', 'Última pasada el ' + fechaCorta(s.ejecutada_en) + ' a las ' + hhmm(s.ejecutada_en) + ' · ' + (s.obras_ok || 0) + ' obra(s).']);
+  }
 
   const e = m.salud.envios;
   if (e === null || e === undefined) filas.push(['Avisos enviados', 'gris', 'No se ha podido leer el registro de envíos.']);
