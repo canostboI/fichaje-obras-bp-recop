@@ -81,11 +81,11 @@
   .campo-fila { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .modal-acciones { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
   .error-modal { background: rgba(244,67,54,0.1); color: var(--rojo); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; display: none; }
-  .iconos-hab { display: inline; margin-left: 4px; font-size: 14px; letter-spacing: 1px; }
+  .iconos-hab { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; vertical-align: middle; color: var(--naranja); }
 </style>
   <script src="../js/auto-logout.js"></script>
   <script src="../js/fechas.js"></script>
-  <script src="../js/habilitaciones.js"></script>
+  <script src="../js/habilitaciones.js?v=20260915"></script>
 </head>
 <body>
 
@@ -187,7 +187,7 @@ async function cargarTrabajadores() {
   habIconosPorTrabajador = {};
   if (ids.length > 0) {
     const { data: habs } = await sb.from('habilitaciones_trabajador').select('trabajador_id, tipo:tipo_habilitacion_id(nombre)').in('trabajador_id', ids).eq('activo', true);
-    (habs || []).forEach(h => { const icono = Hab.icono(h.tipo?.nombre || ''); if (!habIconosPorTrabajador[h.trabajador_id]) habIconosPorTrabajador[h.trabajador_id] = []; if (!habIconosPorTrabajador[h.trabajador_id].includes(icono)) habIconosPorTrabajador[h.trabajador_id].push(icono); });
+    (habs || []).forEach(h => { const nombreTipo = h.tipo?.nombre || ''; const icono = icoHab(nombreTipo, 18); if (!habIconosPorTrabajador[h.trabajador_id]) habIconosPorTrabajador[h.trabajador_id] = []; if (!habIconosPorTrabajador[h.trabajador_id].some(x => x.icono === icono)) habIconosPorTrabajador[h.trabajador_id].push({ icono, nombre: nombreTipo }); });
   }
   rellenarFiltros(data);
   aplicarFiltros();
@@ -243,8 +243,7 @@ function renderTabla(data) {
     trabajadores.forEach(t => {
       const estadoGeneral = estadoDocumental(t.validaciones_obra);
       const obras = (t.validaciones_obra || []).map(v => `<span class="pill ${esc(v.estado)}">${esc(v.obra?.nombre)}</span>`).join(' ') || '—';
-      const iconos = (habIconosPorTrabajador[t.id] || []).join(' ');
-      const iconosHtml = iconos ? `<span class="iconos-hab" title="Habilitaciones: ${iconos}">${iconos}</span>` : '';
+      const iconosHtml = htmlIconosHab(habIconosPorTrabajador[t.id], 'iconos-hab');
       filasBody += `<tr class="${filaClase}" data-grupo="${empresaEsc}"><td><strong>${esc(t.nombre)} ${esc(t.apellidos)}</strong>${iconosHtml}</td><td>${esc(t.dni)}</td><td>${esc(t.telefono || '—')}</td><td>${esc(t.categoria === 'otra' ? (t.categoria_otra || 'Otra') : (t.categoria || '—'))}</td><td>${formatearPrecio(t.precio_hora_personalizado)}</td><td><span class="pill ${estadoGeneral}">${estadoGeneral}</span></td><td>${obras}</td><td><span class="pill ${t.activo ? 'verde' : 'gris'}">${t.activo ? 'Sí' : 'No'}</span></td><td><div class="acciones"><button class="btn-secundario" onclick="abrirEditarPorId('${t.id}')">Editar</button>${obraIdFiltro ? `<button class="btn-secundario peligro" onclick="abrirModalQuitar('${t.id}')">Quitar de la obra</button>` : ''}</div></td></tr>`;
     });
   });
@@ -332,6 +331,19 @@ document.getElementById('btn-guardar').onclick = async () => {
 
 function mostrarError(msg) { const el = document.getElementById('error-modal'); el.textContent = msg; el.style.display = 'block'; }
 function ocultarError() { document.getElementById('error-modal').style.display = 'none'; }
+// Icono SVG de habilitación con respaldo al emoji si el navegador tiene en
+// caché un habilitaciones.js sin iconoSvg (migración de iconos, sept 2026).
+function icoHab(tipo, px) {
+  return (typeof Hab.iconoSvg === 'function') ? Hab.iconoSvg(tipo, px) : Hab.icono(tipo);
+}
+// Lista de habilitaciones de un trabajador → iconos en fila + nombres para
+// el title. Los nombres van escapados también para comillas.
+function htmlIconosHab(lista, clase) {
+  if (!lista || !lista.length) return '';
+  const nombres = lista.map(x => x.nombre).join(', ');
+  const tit = String(esc(nombres)).replace(/"/g, '&quot;');
+  return ' <span class="' + clase + '" title="Habilitaciones: ' + tit + '">' + lista.map(x => x.icono).join('') + '</span>';
+}
 function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
 function formatearPrecio(valor) { if (valor === null || valor === undefined || valor === '') return '—'; const n = Number(valor); if (isNaN(n)) return '—'; return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €/h'; }
 
