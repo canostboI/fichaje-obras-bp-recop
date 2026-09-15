@@ -27,7 +27,7 @@
     .header-left { display: flex; align-items: center; gap: 14px; }
     .header-logo { max-height: 32px; max-width: 120px; display: none; }
     header h1 { font-size: 1.1rem; }
-    .header-right { display: flex; align-items: center; gap: 10px; }
+    .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     header button {
       background: transparent; border: 1px solid #fff;
       color: white; padding: 0.3rem 0.8rem;
@@ -39,6 +39,11 @@
       border-radius: 6px; font-size: 0.85rem; text-decoration: none;
     }
     header a.btn-volver:hover { background: rgba(255,255,255,0.1); }
+    /* Pantalla en la que ya estás: marcada y sin enlace. */
+    header span.btn-volver.activo {
+      border: 1px solid #fff; background: rgba(255,255,255,0.18);
+      color: white; padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.85rem;
+    }
 
     main { max-width: 1100px; margin: 1.5rem auto; padding: 0 1rem; }
 
@@ -182,7 +187,11 @@
     <h1>📊 Resumen mes · Proforma</h1>
   </div>
   <div class="header-right">
-    <a href="index.html" class="btn-volver">← Volver</a>
+    <!-- Navegación entre las pantallas del encargado. La obra se mantiene
+         (encargado_obra_activa_id), así que se salta sin volver a elegir. -->
+    <a href="index.html" class="btn-volver">🏠 Panel</a>
+    <span class="btn-volver activo">📊 Resumen · Proforma</span>
+    <a href="habilitaciones.html" class="btn-volver">🏗️ Habilitaciones</a>
     <button id="btn-logout">Cerrar sesión</button>
   </div>
 </header>
