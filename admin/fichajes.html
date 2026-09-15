@@ -55,11 +55,11 @@
   .pill.azul  { background: rgba(33,150,243,0.15); color: var(--azul); }
   .vacio    { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); }
-  .iconos-hab { display: inline; margin-left: 4px; font-size: 14px; letter-spacing: 1px; }
+  .iconos-hab { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; vertical-align: middle; color: var(--naranja); }
 </style>
 <script src="../js/auto-logout.js"></script>
 <script src="../js/fechas.js"></script>
-<script src="../js/habilitaciones.js"></script>
+<script src="../js/habilitaciones.js?v=20260915"></script>
 </head>
 <body>
 
@@ -154,9 +154,10 @@ async function buscar() {
       .select('trabajador_id, tipo:tipo_habilitacion_id(nombre)')
       .in('trabajador_id', ids).eq('activo', true);
     (habs || []).forEach(h => {
-      const icono = Hab.icono(h.tipo?.nombre || '');
+      const nombreTipo = h.tipo?.nombre || '';
+      const icono = icoHab(nombreTipo, 18);
       if (!habIconos[h.trabajador_id]) habIconos[h.trabajador_id] = [];
-      if (!habIconos[h.trabajador_id].includes(icono)) habIconos[h.trabajador_id].push(icono);
+      if (!habIconos[h.trabajador_id].some(x => x.icono === icono)) habIconos[h.trabajador_id].push({ icono, nombre: nombreTipo });
     });
   }
 
@@ -172,8 +173,7 @@ async function buscar() {
       if (f.fuera_de_zona)     avisos.push('📍 Fuera de zona');
       if (f.es_manual)         avisos.push('✍️ Manual');
       if (f.corregido_por)     avisos.push('🛠️ Corregido');
-      const iconos = (habIconos[f.trabajador_id] || []).join(' ');
-      const iconosHtml = iconos ? `<span class="iconos-hab" title="Habilitaciones: ${iconos}">${iconos}</span>` : '';
+      const iconosHtml = htmlIconosHab(habIconos[f.trabajador_id], 'iconos-hab');
       return `<tr>
         <td><strong>${esc(f.trabajador?.nombre)} ${esc(f.trabajador?.apellidos)}</strong>${iconosHtml}</td>
         <td>${esc(f.trabajador?.dni)}</td>
@@ -186,6 +186,19 @@ async function buscar() {
 }
 
 function fechaHoy() { return new Date().toISOString().split('T')[0]; }
+// Icono SVG de habilitación con respaldo al emoji si el navegador tiene en
+// caché un habilitaciones.js sin iconoSvg (migración de iconos, sept 2026).
+function icoHab(tipo, px) {
+  return (typeof Hab.iconoSvg === 'function') ? Hab.iconoSvg(tipo, px) : Hab.icono(tipo);
+}
+// Lista de habilitaciones de un trabajador → iconos en fila + nombres para
+// el title. Los nombres van escapados también para comillas.
+function htmlIconosHab(lista, clase) {
+  if (!lista || !lista.length) return '';
+  const nombres = lista.map(x => x.nombre).join(', ');
+  const tit = String(esc(nombres)).replace(/"/g, '&quot;');
+  return ' <span class="' + clase + '" title="Habilitaciones: ' + tit + '">' + lista.map(x => x.icono).join('') + '</span>';
+}
 function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
 function formatFechaHora(iso) { if (!iso) return '—'; const d = new Date(iso); return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); }
 </script>
