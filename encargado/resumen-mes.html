@@ -451,7 +451,6 @@
         opt.dataset.marca = a.obras.empresa_marca || 'bosch_pascual';
         select.appendChild(opt);
       });
-      document.getElementById('card-selector').style.display = 'block';
 
       select.addEventListener('change', async () => {
         // Sin guarda, un selector sin opción seleccionada revienta con un
@@ -461,11 +460,26 @@
         document.getElementById('card-selector').style.display = 'none';
         await cargarObra(opt.value, opt.text, opt.dataset.marca);
       });
+
+      // Obra recordada (la misma en la que está en el panel principal): si
+      // sigue asignada, se entra en ella SIN enseñar el selector. Solo se
+      // pregunta si no hay ninguna guardada (p. ej. entrando por URL).
+      let guardada = '';
+      try { guardada = localStorage.getItem('encargado_obra_activa_id') || ''; } catch (_) {}
+      const optGuardada = guardada ? [...select.options].find(o => o.value === guardada) : null;
+      if (optGuardada) {
+        select.value = guardada;
+        await cargarObra(optGuardada.value, optGuardada.text, optGuardada.dataset.marca);
+      } else {
+        document.getElementById('card-selector').style.display = 'block';
+      }
     }
   }
 
   async function cargarObra(obraId, obraNombre, empresaMarca) {
     obraActualId = obraId;
+    // Misma obra activa que el panel principal y Habilitaciones.
+    try { localStorage.setItem('encargado_obra_activa_id', obraId); } catch (_) {}
 
     const marca = empresaMarca || 'bosch_pascual';
     const branding = aplicarBranding(marca);
