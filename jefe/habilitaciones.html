@@ -52,7 +52,7 @@
   .tw-nombre { font-size: 14px; font-weight: 600; }
   .tw-sub { font-size: 12px; color: var(--texto2); margin-top: 2px; }
   .tw-habs-badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
-  .tw-hab-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+  .tw-hab-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; }
   .tw-hab-badge.caducada      { background: rgba(244,67,54,0.15);   color: var(--rojo); }
   .tw-hab-badge.proxima       { background: rgba(255,193,7,0.15);   color: var(--amarillo); }
   .tw-hab-badge.vigente       { background: rgba(76,175,80,0.15);   color: var(--verde); }
@@ -102,7 +102,8 @@
 
   .tipo-lista { display: flex; flex-direction: column; gap: 4px; }
   .tipo-item { display: flex; align-items: center; gap: 10px; padding: 9px 13px; border: 1px solid var(--borde); border-radius: 8px; }
-  .tipo-icono { font-size: 18px; width: 24px; text-align: center; }
+  .tipo-icono { font-size: 18px; width: 30px; display: inline-flex; align-items: center; justify-content: center; color: var(--naranja); }
+  .hab-nombre .hab-svg { margin-right: 6px; vertical-align: -6px; }
   .tipo-nombre { font-size: 13px; font-weight: 500; }
 
   .btn { border: none; border-radius: 6px; cursor: pointer; font-family: inherit; font-weight: 600; transition: opacity 0.15s; }
@@ -124,7 +125,7 @@
 </style>
 <script src="../js/auto-logout.js"></script>
 <script src="../js/fechas.js"></script>
-<script src="../js/habilitaciones.js"></script>
+<script src="../js/habilitaciones.js?v=20260915"></script>
 </head>
 <body>
 
@@ -244,6 +245,11 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 AutoLogout.init(sb);
 
 // Iconos, estado y umbral viven en js/habilitaciones.js (window.Hab).
+// Icono SVG con respaldo: si el navegador tiene en caché un
+// habilitaciones.js sin iconoSvg, sale el emoji en vez de romper.
+function icoHab(tipo, px) {
+  return (typeof Hab.iconoSvg === 'function') ? Hab.iconoSvg(tipo, px) : Hab.icono(tipo);
+}
 // Antes el diccionario estaba copiado aquí y en otros siete archivos, y
 // dos copias ya habían divergido.
 if (!window.Fechas || !window.Hab) {
@@ -385,7 +391,7 @@ async function cargarHabilitados() {
     if (!porTrabajador[h.trabajador_id]) porTrabajador[h.trabajador_id] = [];
     const estado = Hab.estado(h);
     const nombre = h.tipo?.nombre || '?';
-    porTrabajador[h.trabajador_id].push({ nombre, estado, icono: Hab.icono(nombre) });
+    porTrabajador[h.trabajador_id].push({ nombre, estado, icono: icoHab(nombre, 16) });
   });
 
   const ids = Object.keys(porTrabajador);
@@ -418,7 +424,7 @@ async function cargarHabilitados() {
   el.innerHTML = (twData || []).map(t => {
     const habs = porTrabajador[t.id] || [];
     const badges = habs.map(h =>
-      `<span class="tw-hab-badge ${Hab.clase(h.estado)}">${h.icono} ${esc(h.nombre)}</span>`
+      `<span class="tw-hab-badge ${Hab.clase(h.estado)}">${h.icono}${esc(h.nombre)}</span>`
     ).join('');
     return `
       <div class="tw-item ${trabajadorActual?.id === t.id ? 'seleccionado' : ''}"
@@ -518,7 +524,7 @@ function renderHabilitaciones() {
   el.innerHTML = habsCache.map(h => {
     const est = Hab.estado(h);
     const cls = Hab.clase(est);
-    const ico = Hab.icono(h.tipo_nombre);
+    const ico = icoHab(h.tipo_nombre, 22);
 
     if (h.tipo_habilitacion_id === editandoTipoId) {
       const fechaVal = h.fecha_caducidad ? String(h.fecha_caducidad).slice(0, 10) : '';
@@ -667,12 +673,12 @@ async function cargarTipos() {
   if (!tiposCache.length) { el.innerHTML = '<div class="vacio">No hay tipos configurados.</div>'; return; }
   el.innerHTML = tiposCache.map(t => `
     <div class="tipo-item">
-      <span class="tipo-icono">${Hab.icono(t.nombre)}</span>
+      <span class="tipo-icono">${icoHab(t.nombre, 26)}</span>
       <span class="tipo-nombre">${esc(t.nombre)}</span>
     </div>
   `).join('');
   selTipo.innerHTML = '<option value="">Selecciona un tipo…</option>' +
-    tiposCache.map(t => `<option value="${t.id}">${Hab.icono(t.nombre)} ${esc(t.nombre)}</option>`).join('');
+    tiposCache.map(t => `<option value="${t.id}">${esc(t.nombre)}</option>`).join('');
 }
 
 // ── UTILIDADES ────────────────────────────────────────────────────
