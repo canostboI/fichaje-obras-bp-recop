@@ -14,7 +14,7 @@
   <script src="../js/branding.js"></script>
   <script src="../js/auto-logout.js"></script>
   <script src="../js/fechas.js"></script>
-  <script src="../js/habilitaciones.js"></script>
+  <script src="../js/habilitaciones.js?v=20260915"></script>
   <script src="../js/motivos.js"></script>
   <script src="../js/accesos-resueltos.js"></script>
   <script src="../js/foto-identidad.js"></script>
@@ -526,6 +526,7 @@
 
     }
   
+  .hab-iconos-enc { display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; margin-left: 2px; }
   /* ── iconos foto/verif encargado (70a) ── */
   .fi-icono-enc { font-size: 14px; cursor: pointer; border: none; background: none; padding: 2px 4px; border-radius: 4px; line-height: 1; transition: transform 0.1s, opacity 0.15s; vertical-align: middle; }
   .fi-icono-enc:hover { transform: scale(1.2); background: rgba(255,255,255,0.08); }
@@ -2360,10 +2361,13 @@
           .in('trabajador_id', ids)
           .eq('activo', true);
         (habs || []).forEach(h => {
-          const icono = Hab.icono(h.tipo?.nombre || '');
-          if (!habIconosPorTrabajadorCache[h.trabajador_id]) habIconosPorTrabajadorCache[h.trabajador_id] = [];
-          if (!habIconosPorTrabajadorCache[h.trabajador_id].includes(icono))
-            habIconosPorTrabajadorCache[h.trabajador_id].push(icono);
+          // Icono SVG con respaldo al emoji si el navegador tiene en caché
+          // un habilitaciones.js sin iconoSvg. Se guarda también el nombre
+          // para el texto que sale al pasar el dedo/ratón.
+          const nombreTipo = h.tipo?.nombre || '';
+          const icono = (typeof Hab.iconoSvg === 'function') ? Hab.iconoSvg(nombreTipo, 18) : Hab.icono(nombreTipo);
+          const lista = habIconosPorTrabajadorCache[h.trabajador_id] || (habIconosPorTrabajadorCache[h.trabajador_id] = []);
+          if (!lista.some(x => x.icono === icono)) lista.push({ icono, nombre: nombreTipo });
         });
       } catch (_) {}
     }
@@ -2483,14 +2487,16 @@
     const lista = document.getElementById('lista-presencia');
     presentes.forEach(t => {
       const esRP = idsRPCache.has(t.id);
-      const iconosHab = (habIconosPorTrabajadorCache[t.id] || []).join(' ');
+      const habsT = habIconosPorTrabajadorCache[t.id] || [];
+      const iconosHab = habsT.map(x => x.icono).join('');
+      const titHab = habsT.map(x => x.nombre).join(', ');
       const card = document.createElement('div');
       card.className = 'tarjeta-trab';
       card.dataset.horaIso = t.horaISO;
       card.innerHTML = `
         <div class="tarjeta-iniciales">${esc(iniciales(t.nombre))}</div>
         <div class="tarjeta-info">
-          <div class="tarjeta-nombre">${esc(t.nombre)}${esRP ? ' <span title="Recurso Preventivo designado">🛡️</span>' : ''}${iconosHab ? ' <span title="Habilitaciones">' + iconosHab + '</span>' : ''}</div>
+          <div class="tarjeta-nombre">${esc(t.nombre)}${esRP ? ' <span title="Recurso Preventivo designado">🛡️</span>' : ''}${iconosHab ? ' <span class="hab-iconos-enc" title="Habilitaciones: ' + esc(titHab).replace(/"/g, '&quot;') + '">' + iconosHab + '</span>' : ''}</div>
           <div class="tarjeta-empresa">${esc(t.empresa || '—')}</div>
           <div style="margin-top:4px">${conFotoCache.has(t.id) ? '<button class="fi-icono-enc" title="Ver foto" onclick="clicFotoEnc(\'' + t.id + '\', this)">📷</button>' : '<button class="fi-icono-enc sin-dato-clicable" title="Sin foto — clic para hacerla" onclick="clicFotoEnc(\'' + t.id + '\', this)">📷</button>'}${conVerifCache.has(t.id) ? '<button class="fi-icono-enc" title="Ver/editar verificación" onclick="clicVerifEnc(\'' + t.id + '\', this)">🪪</button>' : '<button class="fi-icono-enc sin-dato-clicable" title="Sin verificación — clic para registrar" onclick="clicVerifEnc(\'' + t.id + '\', this)">🪪</button>'}</div>
         </div>
