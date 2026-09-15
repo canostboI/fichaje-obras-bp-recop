@@ -17,7 +17,7 @@
 <script src="../js/accesos-resueltos.js"></script>
 <script src="../js/sb-paginado.js"></script>
 <script src="../js/fechas.js"></script>
-<script src="../js/habilitaciones.js"></script>
+<script src="../js/habilitaciones.js?v=20260915"></script>
 <script src="../js/foto-identidad.js"></script>
 <script src="../js/impresion.js"></script>
 <script src="../js/instalar-app.js"></script>
@@ -1118,7 +1118,9 @@ async function comprobarHabilitacionesCaducidad() {
       const nombre = [t.nombre, t.apellidos].filter(Boolean).join(' ') || '(sin nombre)';
       const tipo = h.tipo?.nombre || 'Habilitación';
       // Icono SVG (no emoji): aquí va dentro de <li> con innerHTML, sí cabe.
-      const item = { nombre, tipo, icono: Hab.iconoSvg(tipo, 26), texto: Hab.textoCaducidad(h) };
+      // Si el navegador aún tiene en caché un habilitaciones.js sin
+      // iconoSvg, se cae al emoji en vez de romper el vigilante entero.
+      const item = { nombre, tipo, icono: (typeof Hab.iconoSvg === 'function' ? Hab.iconoSvg(tipo, 26) : Hab.icono(tipo)), texto: Hab.textoCaducidad(h) };
       const est = Hab.estado(h);
       if (est === 'caducada')         caducadas.push(item);
       else if (est === 'proxima')     proximas.push(item);
