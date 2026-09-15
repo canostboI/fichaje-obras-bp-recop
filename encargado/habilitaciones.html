@@ -227,8 +227,6 @@
         opt.dataset.fotoUrl = a.obras.foto_url || '';
         select.appendChild(opt);
       });
-      document.getElementById('card-selector').style.display = 'block';
-
       select.addEventListener('change', async () => {
         const opt = select.options[select.selectedIndex];
         if (!opt) return;
@@ -236,15 +234,18 @@
         await cargarObra(opt.value, opt.text, opt.dataset.marca, opt.dataset.fotoUrl);
       });
 
-      // Obra recordada (misma clave que el panel principal y Resumen): si
-      // sigue asignada, se carga directamente. El selector se queda arriba
-      // para cambiar de obra expresamente.
+      // Obra recordada (la misma en la que está en el panel principal): si
+      // sigue asignada, se entra en ella SIN enseñar el selector. Viene del
+      // botón Habilitaciones del panel, así que la obra ya está elegida.
+      // Solo si no hay ninguna guardada (p. ej. entrando por URL) se pregunta.
       let guardada = '';
       try { guardada = localStorage.getItem('encargado_obra_activa_id') || ''; } catch (_) {}
       const optGuardada = guardada ? [...select.options].find(o => o.value === guardada) : null;
       if (optGuardada) {
         select.value = guardada;
         await cargarObra(optGuardada.value, optGuardada.text, optGuardada.dataset.marca, optGuardada.dataset.fotoUrl);
+      } else {
+        document.getElementById('card-selector').style.display = 'block';
       }
     }
   }
