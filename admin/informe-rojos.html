@@ -173,7 +173,9 @@ async function cargarObras() {
 function marcarRango(btn) { document.querySelectorAll('.btn-rango').forEach(b => b.classList.remove('activo')); if (btn) btn.classList.add('activo'); }
 
 function aplicarRango(rango) {
-  const iso = f => f.toISOString().slice(0, 10);
+  // 103ª: fecha LOCAL (Madrid). toISOString() pasaba a UTC y «Este mes»
+  // empezaba el último día del mes anterior (regla de js/fechas.js).
+  const iso = f => f.getFullYear() + '-' + String(f.getMonth() + 1).padStart(2, '0') + '-' + String(f.getDate()).padStart(2, '0');
   const hoy = new Date();
   const desde = document.getElementById('inp-desde');
   const hasta = document.getElementById('inp-hasta');
