@@ -55,10 +55,17 @@
 
   // ── HTML del menú ─────────────────────────────────────────────────────────
   function renderMenu() {
+    // 16/9: Portium (nombre de la app) arriba del todo; los logos de las
+    // empresas debajo, algo más pequeños. Estilos en línea a propósito: el CSS
+    // del menú vive copiado en cada página y así no hay que tocar ninguna.
     const brand = `
-      <div class="sidebar-brand">
-        <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
-        <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
+      <div class="sidebar-portium" style="display:flex;align-items:center;gap:10px;padding:16px 16px 12px;border-bottom:1px solid var(--borde, #2e3340);">
+        <img src="../assets/icons/portium-192.png" alt="" style="width:34px;height:34px;border-radius:8px;flex:0 0 auto;">
+        <span style="font-size:18px;font-weight:700;letter-spacing:0.3px;color:var(--texto, #e8eaf0);">Portium</span>
+      </div>
+      <div class="sidebar-brand" style="padding:10px 16px;">
+        <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual" style="height:17px;">
+        <img src="../assets/logos/recop_logo_white.svg" alt="Rècop" style="height:17px;">
       </div>`;
 
     const items = ITEMS.map(item => {
@@ -87,6 +94,9 @@
 
     // Añadir clase sidebar si no la tiene ya el propio div
     contenedor.classList.add('sidebar');
+    // 16/9: con la cabecera de Portium el menú es más alto; en pantallas bajas
+    // se desplaza en vez de esconder «Cerrar sesión» por debajo.
+    contenedor.style.overflowY = 'auto';
     contenedor.innerHTML = renderMenu();
 
     // Cerrar sesión: busca el cliente Supabase ya inicializado en la página.
