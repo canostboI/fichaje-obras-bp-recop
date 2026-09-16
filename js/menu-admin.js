@@ -32,6 +32,9 @@
 
     { tipo: 'seccion', label: 'Gestión' },
     { tipo: 'enlace', href: 'obras.html',                ico: '🏗',  label: 'Obras' },
+    // 100ª: el Directorio vivía escondido en una pestaña de Obras. Entrada
+    // propia; obras.html lee ?vista=directorio y arranca en esa pestaña.
+    { tipo: 'enlace', href: 'obras.html?vista=directorio', ico: '👥', label: 'Directorio de usuarios' },
     { tipo: 'enlace', href: 'trabajadores.html',         ico: '👷',  label: 'Trabajadores' },
     { tipo: 'enlace', href: 'habilitaciones.html',       ico: '🏗️', label: 'Habilitaciones' },
     { tipo: 'enlace', href: 'fichajes.html',             ico: '📋',  label: 'Fichajes' },
@@ -60,7 +63,10 @@
       if (item.tipo === 'seccion') {
         return `<div class="sidebar-section">${item.label}</div>`;
       }
-      const activo = item.href === paginaActual ? ' class="activo"' : '';
+      // Un href puede llevar ?query (100ª): activo solo si coinciden archivo Y query.
+      const hrefArchivo = item.href.split('?')[0];
+      const hrefQuery = item.href.includes('?') ? item.href.slice(item.href.indexOf('?')) : '';
+      const activo = (hrefArchivo === paginaActual && hrefQuery === window.location.search) ? ' class="activo"' : '';
       return `<a href="${item.href}"${activo}><span class="ico">${item.ico}</span> ${item.label}</a>`;
     }).join('\n');
 
