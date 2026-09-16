@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Valoraciones — Encargado</title>
+<link rel="icon" type="image/png" href="../assets/icons/portium-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/guardian.js"></script>
+<script src="../js/auto-logout.js"></script>
+<script src="../js/branding.js"></script>
+<script src="../js/foto-identidad.js"></script>
+<script src="../js/valoraciones.js"></script>
+<!--
+  Valoraciones de operarios (101ª, 16/9/2026). Pantalla FINA: toda la
+  lógica y el HTML de dentro los pone js/valoraciones.js. Aquí solo el
+  aspecto de este panel y el arranque.
+-->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: sans-serif; background: #f4f4f4; color: #222; }
+  :root { --color-principal: #1a1a2e; }
+  header {
+    background: var(--color-principal); color: white;
+    padding: 1rem 1.5rem;
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .header-logo { max-height: 32px; max-width: 120px; display: none; }
+  header h1 { font-size: 1.1rem; }
+  .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  header button {
+    background: transparent; border: 1px solid #fff;
+    color: white; padding: 0.3rem 0.8rem;
+    border-radius: 6px; cursor: pointer; font-size: 0.85rem;
+  }
+  header a.btn-volver {
+    background: transparent; border: 1px solid rgba(255,255,255,0.5);
+    color: white; padding: 0.3rem 0.8rem;
+    border-radius: 6px; font-size: 0.85rem; text-decoration: none;
+  }
+  header a.btn-volver:hover { background: rgba(255,255,255,0.1); }
+  header span.btn-volver.activo {
+    border: 1px solid #fff; background: rgba(255,255,255,0.18);
+    color: white; padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.85rem;
+  }
+  main { max-width: 700px; margin: 1.5rem auto; padding: 0 1rem; }
+  /* Colores del módulo js/valoraciones.js en tema claro */
+  :root { --val-tab-on: #1a1a2e; --val-tab-on-texto: #fff; }
+  @media (max-width: 600px) {
+    header { flex-direction: column; align-items: flex-start; }
+    .header-right { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <img id="header-logo" class="header-logo" alt="">
+    <h1>⭐ Valoraciones</h1>
+  </div>
+  <div class="header-right">
+    <a href="index.html" class="btn-volver">🏠 Panel</a>
+    <a href="resumen-mes.html" class="btn-volver">📊 Resumen · Proforma</a>
+    <a href="habilitaciones.html" class="btn-volver">🏗️ Habilitaciones</a>
+    <span class="btn-volver activo">⭐ Valoraciones</span>
+    <button id="btn-logout">Cerrar sesión</button>
+  </div>
+</header>
+
+<main id="valoraciones"></main>
+
+<script>
+const sb = supabase.createClient('https://istrnsicleopzbsrapsw.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY');
+AutoLogout.init(sb);
+document.getElementById('btn-logout').addEventListener('click', async () => {
+  try { await sb.auth.signOut(); } catch (_) {}
+  window.location.href = '../';
+});
+(async function () {
+  const g = await Guardian.entrar(sb, { rol: 'encargado', campos: 'id, nombre', volver: '../' });
+  if (!g) return;
+  Valoraciones.iniciar(sb, g.usuario, {
+    hueco: document.getElementById('valoraciones'),
+    claveObra: 'encargado_obra_activa_id',
+    ranking: false,
+    // Mismo gesto que el resto de pantallas del encargado: color y logo de la obra.
+    alCambiarObra: function (obra) {
+      if (typeof aplicarBranding !== 'function') return;
+      const b = aplicarBranding((obra && obra.empresa_marca) || 'bosch_pascual');
+      document.documentElement.style.setProperty('--val-tab-on', b.color_principal);
+      const logo = document.getElementById('header-logo');
+      logo.src = '../' + b.logo_blanco; logo.style.display = 'block';
+    }
+  });
+})();
+</script>
+</body>
+</html>
