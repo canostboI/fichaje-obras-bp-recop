@@ -19,7 +19,7 @@
     s.textContent = `
       .con-grafico { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
       .con-grafico > #zona-informe { flex: 1 1 600px; max-width: 820px; min-width: 0; }
-      .evo-panel { flex: 1 1 340px; max-width: 520px; min-width: 300px; position: sticky; top: 20px; background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 18px 20px; }
+      .evo-panel { flex: 1 1 340px; min-width: 300px; position: sticky; top: 20px; background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 18px 20px; }
       .evo-panel:empty { display: none; }
       .evo-titulo { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--texto); }
       .evo-sub { font-size: 12px; color: var(--texto2); margin-top: 4px; line-height: 1.45; }
