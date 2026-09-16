@@ -176,7 +176,9 @@ const gruposAbiertos = {};
   await cargarTrabajadores();
 })();
 
-document.getElementById('btn-salir').onclick = async () => { await sb.auth.signOut(); window.location.href = '../'; };
+// «Cerrar sesión» lo inyecta y gestiona js/menu-admin.js (92ª). El listener
+// que había aquí corría ANTES de la inyección: getElementById devolvía null y el
+// TypeError mataba todo lo que venía después en este script (100ª).
 
 async function cargarTrabajadores() {
   document.getElementById('tabla-trabajadores').innerHTML = '<div class="cargando">Cargando…</div>';
