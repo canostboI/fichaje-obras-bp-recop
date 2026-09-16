@@ -4,6 +4,7 @@
 // personas frenadas cada mes. Datos: RPC `informe_rojos_evolucion`, que usa
 // el mismo criterio que `informe_rojos` para que las cifras cuadren.
 // Solo pantalla: no sale al imprimir (clase no-print en el contenedor).
+// También aplica el tema oscuro del informe en pantalla (el PDF sigue en blanco).
 (function () {
   const COLORES = ['#f44336', '#2196f3', '#ff9800', '#4caf50', '#ab47bc'];
   const COLOR_OTROS = '#8b909e';
@@ -35,6 +36,36 @@
       .evo-nota { font-size: 11.5px; color: var(--texto2); margin-top: 12px; line-height: 1.45; }
       .evo-vacio { font-size: 13px; color: var(--texto2); margin-top: 12px; line-height: 1.5; }
       @media print { .evo-panel { display: none !important; } }
+
+      /* Tema oscuro del informe EN PANTALLA, a juego con el resto de la web.
+         Al imprimir / PDF se mantiene la hoja blanca original (solo @media screen). */
+      @media screen {
+        .informe { background: var(--bg2); color: var(--texto); border: 1px solid var(--borde); }
+        .inf-cabecera { border-bottom-color: var(--borde); }
+        .inf-titulo, .inf-meta { color: var(--texto2); }
+        .inf-obra { color: var(--texto); }
+        .inf-titular { background: var(--bg3); }
+        .inf-titular .frase, .inf-titular .dos .rot { color: var(--texto); }
+        .inf-titular .dos .nota { color: var(--texto2); }
+        .inf-aviso-rojo { background: rgba(244,67,54,0.12); color: #f3b3ad; }
+        .inf-aviso-rojo strong { color: #ffd0cb; }
+        .des-limite { background: var(--bg3); color: var(--texto2); }
+        .des-limite strong { color: var(--texto); }
+        .des-fila { border-bottom-color: var(--borde); }
+        .des-num, .des-tit { color: var(--texto); }
+        .des-exp, .des-causas { color: var(--texto2); }
+        .des-causas .doc, .des-causas .n { color: var(--texto); }
+        .cat-corte td { background: var(--bg3); color: var(--texto2); }
+        .inf-seccion h2 { color: var(--texto); border-bottom-color: var(--borde); }
+        .inf-seccion .subtitulo { color: var(--texto2); }
+        table.inf-tabla th { color: var(--texto2); border-bottom-color: var(--borde); }
+        table.inf-tabla td { color: var(--texto); border-bottom-color: var(--borde); }
+        table.inf-tabla tr.fila-suave td { color: var(--texto2); }
+        .inf-genericos { background: var(--bg3); border-color: var(--borde); color: var(--texto2); }
+        .inf-genericos strong { color: var(--texto); }
+        .inf-pie { border-top-color: var(--borde); color: var(--texto2); }
+        .inf-vacio { color: var(--texto2); }
+      }
     `;
     document.head.appendChild(s);
   }
@@ -152,6 +183,9 @@
       ${leyendaHTML(series, idxRef)}
       <div class="evo-nota">${notas.map(esc).join('<br>')}</div>`;
   }
+
+  // Estilos desde la carga, para que el informe no parpadee en blanco antes de pintarse.
+  inyectarEstilos();
 
   window.EvolucionIncidencias = { pintar };
 })();
