@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Acceso — Fichaje Obras</title>
+<title>Acceso — Portium</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="assets/icons/portium-180.png">
 <link rel="icon" type="image/png" href="assets/icons/portium-192.png">
@@ -57,11 +57,33 @@
     text-align: center;
     margin-bottom: 32px;
   }
+  /* 16/9: marca Portium con el estilo del menú admin (serif, «ium» arena,
+     línea terracota). Sobre blanco el arena #d6b67c apenas se lee, así que
+     aquí va un arena más oscuro de la misma familia. */
+  .logo-portium {
+    width: 72px;
+    height: 72px;
+    border-radius: 16px;
+    display: block;
+    margin: 0 auto 12px;
+  }
   .logo h1 {
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--azul);
-    margin: 0 0 4px;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 34px;
+    font-weight: 400;
+    line-height: 1;
+    color: #1a1a1a;
+    margin: 0 0 10px;
+  }
+  .logo h1 .ium {
+    color: #a07c3c;
+    font-style: italic;
+  }
+  .logo .linea-portium {
+    width: 56px;
+    height: 2px;
+    background: #69300d;
+    margin: 0 auto 10px;
   }
   .logo p {
     font-size: 13px;
@@ -173,8 +195,10 @@
   </div>
 
   <div class="logo">
-    <h1>Fichaje Obras</h1>
-    <p>Panel de gestión — V2</p>
+    <img class="logo-portium" src="assets/icons/portium-192.png" alt="">
+    <h1>Port<span class="ium">ium</span></h1>
+    <div class="linea-portium"></div>
+    <p>Control de acceso a obra</p>
   </div>
 
   <!-- ============ VISTA LOGIN ============ -->
