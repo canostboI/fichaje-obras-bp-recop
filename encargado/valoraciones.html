@@ -18,7 +18,10 @@
 -->
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: sans-serif; background: #f4f4f4; color: #222; }
+  body {
+    font-family: sans-serif; background: #f4f4f4; color: #222;
+    background-size: cover; background-position: center; background-attachment: fixed;
+  }
   :root { --color-principal: #1a1a2e; }
   header {
     background: var(--color-principal); color: white;
@@ -45,6 +48,9 @@
     color: white; padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.85rem;
   }
   main { max-width: 700px; margin: 1.5rem auto; padding: 0 1rem; }
+  /* 103ª: la lista va en un recuadro blanco, como en Habilitaciones, para
+     que los textos grises del módulo se lean sobre la foto oscurecida. */
+  #valoraciones { background: #fff; border-radius: 10px; padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
   /* Colores del módulo js/valoraciones.js en tema claro */
   :root { --val-tab-on: #1a1a2e; --val-tab-on-texto: #fff; }
   @media (max-width: 600px) {
@@ -92,6 +98,12 @@ document.getElementById('btn-logout').addEventListener('click', async () => {
       document.documentElement.style.setProperty('--val-tab-on', b.color_principal);
       const logo = document.getElementById('header-logo');
       logo.src = '../' + b.logo_blanco; logo.style.display = 'block';
+      // 103ª: foto de la obra de fondo, oscurecida, igual que Habilitaciones.
+      // Siempre de obras.foto_url. Sin foto (o módulo viejo en caché): fondo gris.
+      const foto = obra && obra.foto_url;
+      document.body.style.backgroundImage = foto
+        ? 'linear-gradient(rgba(0,0,0,0.72), rgba(0,0,0,0.72)), url(\'' + String(foto).replace(/'/g, '%27') + '\')'
+        : '';
     }
   });
 })();
