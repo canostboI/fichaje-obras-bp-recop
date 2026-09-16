@@ -37,6 +37,8 @@
     { tipo: 'enlace', href: 'obras.html?vista=directorio', ico: '👥', label: 'Directorio de usuarios' },
     { tipo: 'enlace', href: 'trabajadores.html',         ico: '👷',  label: 'Trabajadores' },
     { tipo: 'enlace', href: 'habilitaciones.html',       ico: '🏗️', label: 'Habilitaciones' },
+    // 101ª: pantalla compartida en la raíz (valorar + ranking por empresa).
+    { tipo: 'enlace', href: '../valoraciones.html',      ico: '⭐',  label: 'Valoraciones' },
     { tipo: 'enlace', href: 'fichajes.html',             ico: '📋',  label: 'Fichajes' },
     { tipo: 'enlace', href: 'cierre-mes.html',           ico: '🔒',  label: 'Cierre de mes' },
     { tipo: 'enlace', href: 'foto-mes.html',             ico: '📷',  label: 'Foto del mes' },
