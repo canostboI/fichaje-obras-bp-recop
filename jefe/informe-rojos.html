@@ -152,14 +152,18 @@
       <button class="btn-rango" data-rango="7dias">Últimos 7 días</button>
     </div>
 
-    <div id="zona-informe">
-      <div class="cargando">Preparando el informe…</div>
+    <div class="con-grafico">
+      <div id="zona-informe">
+        <div class="cargando">Preparando el informe…</div>
+      </div>
+      <aside id="zona-evolucion" class="evo-panel no-print"></aside>
     </div>
 
   </div>
 </div>
 
 <script src="../js/auto-logout.js"></script>
+<script src="../js/evolucion-incidencias.js"></script>
 <script>
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
@@ -212,9 +216,11 @@ async function generar() {
   btnImp.disabled = true;
   if (desde && hasta && desde > hasta) { zona.innerHTML = '<div class="aviso-error">La fecha «Desde» es posterior a «Hasta». Revísalas.</div>'; return; }
   zona.innerHTML = '<div class="cargando">Generando informe…</div>';
+  document.getElementById('zona-evolucion').innerHTML = '';
   const { data, error } = await sb.rpc('informe_rojos', { p_obra_id: obraId || null, p_desde: desde, p_hasta: hasta });
   if (error) { zona.innerHTML = `<div class="aviso-error">No se pudo generar el informe: ${esc(error.message)}</div>`; return; }
   pintarInforme(data, { desde, hasta });
+  if (window.EvolucionIncidencias) EvolucionIncidencias.pintar(sb, document.getElementById('zona-evolucion'), { obraId, desde, hasta });
   btnImp.disabled = false;
 }
 
