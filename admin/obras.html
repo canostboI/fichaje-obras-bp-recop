@@ -63,10 +63,11 @@
   .modal-acciones { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
   .error-modal { background: rgba(244,67,54,0.1); color: var(--rojo); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; display: none; }
   .ok-modal { background: rgba(76,175,80,0.1); color: var(--verde); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; display: none; }
-  .tabs { display: flex; gap: 8px; margin-bottom: 18px; border-bottom: 1px solid var(--borde); }
-  .tab { background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--texto2); padding: 10px 6px; margin-bottom: -1px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
-  .tab:hover { color: var(--texto); }
-  .tab.activo { color: var(--texto); border-bottom-color: var(--azul); }
+  /* 100ª: pestañas como botones — antes eran texto gris y nadie veía el Directorio */
+  .tabs { display: flex; gap: 10px; margin-bottom: 18px; }
+  .tab { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto2); padding: 10px 18px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .tab:hover { color: var(--texto); border-color: var(--texto2); }
+  .tab.activo { background: var(--azul); border-color: var(--azul); color: #fff; }
   .dir-ayuda { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 12px 16px; font-size: 13px; color: var(--texto2); line-height: 1.5; margin-bottom: 14px; }
   .dir-ayuda strong { color: var(--texto); font-weight: 600; }
   .dir-obras { display: flex; flex-direction: column; gap: 4px; }
@@ -266,6 +267,8 @@ let todosUsuarios = [], todasObras = [], qrActual = null, vistaActual = 'obras',
   miUsuarioAppId = g.usuario.id;
   await cargarObras();
   await cargarUsuarios();
+  // 100ª: el menú lateral enlaza obras.html?vista=directorio
+  if (new URLSearchParams(window.location.search).get('vista') === 'directorio') await cambiarVista('directorio');
 })();
 
 // «Cerrar sesión» lo inyecta y gestiona js/menu-admin.js (92ª). El listener
