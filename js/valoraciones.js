@@ -23,6 +23,9 @@
 
    Depende de: js/foto-identidad.js (FI). Opcional: js/branding.js.
 
+   103ª: las obras traen también foto_url, para que la pantalla que
+   quiera (encargado) ponga la foto de fondo en alCambiarObra.
+
    Uso:
      Valoraciones.iniciar(sb, usuario, {
        hueco: document.getElementById('valoraciones'),
@@ -164,11 +167,11 @@
 
     var res;
     if (usuario.rol === 'admin') {
-      res = await sb.from('obras').select('id, nombre, estado, empresa_marca').in('estado', ['activa', 'pausada']).order('nombre');
+      res = await sb.from('obras').select('id, nombre, estado, empresa_marca, foto_url').in('estado', ['activa', 'pausada']).order('nombre');
       if (res.error) return fallo('val-lista', 'No se han podido cargar las obras. Recarga la página.');
       obras = res.data || [];
     } else {
-      res = await sb.from('usuarios_obra').select('obras(id, nombre, estado, empresa_marca)').eq('usuario_app_id', usuario.id);
+      res = await sb.from('usuarios_obra').select('obras(id, nombre, estado, empresa_marca, foto_url)').eq('usuario_app_id', usuario.id);
       if (res.error) return fallo('val-lista', 'No se han podido cargar tus obras. Recarga la página.');
       var vistas = new Set();
       obras = (res.data || []).map(function (x) { return x.obras; })
