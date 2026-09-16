@@ -8,8 +8,10 @@
    (valoraciones.html de la raíz solo desvía según el rol).
 
    · «Valorar»: gente de la obra, AGRUPADA POR EMPRESA (Dani, 16/9);
-     subcontratas por orden alfabético, «Sin empresa» y el personal
-     propio al final. Dentro, primero quien ha fichado hace poco.
+     empresas por orden alfabético y «Sin empresa» al final. Dentro,
+     primero quien ha fichado hace poco.
+   · El PERSONAL PROPIO NO SE VALORA (Dani, 16/9): la BD no lo manda
+     en las listas y rechaza la nota (PERSONAL_PROPIO).
    · «Ranking por empresa»: solo jefe de obra y admin. La BD lo
      vuelve a comprobar (ranking_valoraciones).
    Reglas en la BD, no aquí: 1-2 estrellas exigen motivo; quién ve
@@ -127,7 +129,6 @@
         (opts.ranking ? '<div class="val-tabs"><button class="val-tab on" data-t="valorar">Valorar</button><button class="val-tab" data-t="ranking">Ranking por empresa</button></div>' : '')
       + '<section id="val-v-valorar">'
       +   '<div class="val-barra"><select id="val-sel-obra" style="display:none"></select><input id="val-buscar" type="search" placeholder="Buscar por nombre o empresa"></div>'
-      +   '<div class="val-barra"><label class="val-chk"><input type="checkbox" id="val-propios"> Ver también personal propio</label></div>'
       +   '<p class="val-info">Pulsa en una persona para ver su foto y ponerle nota. Cada uno pone su propia nota; si vuelves a votar, se corrige. Con 1 o 2 estrellas hay que decir el motivo.</p>'
       +   '<div id="val-lista"><p class="val-vacio">Cargando…</p></div>'
       + '</section>'
@@ -138,7 +139,6 @@
       + '</section>' : '');
 
     $('val-buscar').addEventListener('input', pintarValorar);
-    $('val-propios').addEventListener('change', pintarValorar);
     $('val-lista').addEventListener('click', function (e) {
       var f = e.target.closest('.val-fila'); if (!f) return;
       var t = listaValorar.find(function (x) { return x.trabajador_id === f.dataset.tid; });
@@ -198,15 +198,14 @@
     pintarValorar();
   }
 
-  // Orden de grupos: subcontratas A-Z, «Sin empresa», personal propio.
-  function claveGrupo(t) { return (t.es_propia ? '2' : (t.empresa ? '0' : '1')) + (t.empresa || '').toLocaleLowerCase('es'); }
+  // Orden de grupos: empresas A-Z y «Sin empresa» al final.
+  function claveGrupo(t) { return (t.empresa ? '0' : '1') + (t.empresa || '').toLocaleLowerCase('es'); }
 
   function pintarValorar() {
     var q = $('val-buscar').value.trim().toLowerCase();
-    var propios = $('val-propios').checked;
     var cont = $('val-lista');
     var filas = listaValorar.filter(function (t) {
-      return (propios || !t.es_propia) && (!q || (t.nombre || '').toLowerCase().indexOf(q) >= 0 || (t.empresa || '').toLowerCase().indexOf(q) >= 0);
+      return !t.es_propia && (!q || (t.nombre || '').toLowerCase().indexOf(q) >= 0 || (t.empresa || '').toLowerCase().indexOf(q) >= 0);
     }).sort(function (a, b) {
       var g = claveGrupo(a).localeCompare(claveGrupo(b), 'es');
       return g || String(b.ultimo_fichaje || '').localeCompare(String(a.ultimo_fichaje || ''));
@@ -219,7 +218,7 @@
       var k = claveGrupo(t);
       if (k !== grupo) {
         grupo = k;
-        html += '<div class="val-grupo"><span>' + esc(t.empresa || 'Sin empresa') + (t.es_propia ? ' · propia' : '') + '</span><span>' + cuenta[k] + '</span></div>';
+        html += '<div class="val-grupo"><span>' + esc(t.empresa || 'Sin empresa') + '</span><span>' + cuenta[k] + '</span></div>';
       }
       html += '<div class="val-fila" data-tid="' + t.trabajador_id + '">' + htmlCara(t)
         + '<div class="val-datos"><div class="val-nombre">' + esc(t.nombre) + '</div>'
