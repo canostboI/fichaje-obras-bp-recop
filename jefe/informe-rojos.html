@@ -98,6 +98,7 @@
     @page { margin: 1.4cm; }
   }
 </style>
+<script src="../js/marca-portium.js?v=20260916"></script>
 </head>
 <body>
 
@@ -114,6 +115,7 @@
   <a href="resumen-mes.html"><span class="ico">📊</span> Resumen · Proforma</a>
   <a href="documentos-ecoordina.html"><span class="ico">📂</span> e-Coordina</a>
   <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
+  <a href="valoraciones.html"><span class="ico">⭐</span> Valoraciones</a>
   <a href="informe-rojos.html" class="activo"><span class="ico">🔴</span> Informe incidencias</a>
   <div class="sidebar-bottom">
     <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
@@ -177,11 +179,13 @@ function fmtFecha(iso) { if (!iso) return null; const d = new Date(iso + 'T00:00
 function fmtHoy() { return new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }); }
 function fmtFechaCorta(iso) { if (!iso) return ''; const d = new Date(iso + 'T00:00:00'); return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
 
-async function cargarObras() {
+// 103ª (P28): usuarios_obra NO tiene user_id — se enlaza por usuario_app_id
+// (el id de usuarios_app que da el guardián). Antes el error se tragaba y el
+// selector salía siempre «No hay obras».
+async function cargarObras(usuarioAppId) {
   const sel = document.getElementById('sel-obra');
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) { sel.innerHTML = '<option value="">Error de sesión</option>'; return; }
-  const { data: misObras, error: eUo } = await sb.from('usuarios_obra').select('obra_id').eq('user_id', user.id);
+  if (!usuarioAppId) { sel.innerHTML = '<option value="">Error de sesión</option>'; return; }
+  const { data: misObras, error: eUo } = await sb.from('usuarios_obra').select('obra_id').eq('usuario_app_id', usuarioAppId);
   if (eUo || !misObras || !misObras.length) { sel.innerHTML = '<option value="">No hay obras</option>'; return; }
   const ids = misObras.map(r => r.obra_id);
   const { data, error } = await sb.from('obras').select('id, nombre, estado').in('id', ids).neq('estado', 'oculta').order('nombre');
@@ -197,7 +201,9 @@ async function cargarObras() {
 function marcarRango(btn) { document.querySelectorAll('.btn-rango').forEach(b => b.classList.remove('activo')); if (btn) btn.classList.add('activo'); }
 
 function aplicarRango(rango) {
-  const iso = f => f.toISOString().slice(0, 10);
+  // 103ª: fecha LOCAL (Madrid). toISOString() pasaba a UTC y «Este mes»
+  // empezaba el último día del mes anterior (regla de js/fechas.js).
+  const iso = f => f.getFullYear() + '-' + String(f.getMonth() + 1).padStart(2, '0') + '-' + String(f.getDate()).padStart(2, '0');
   const hoy = new Date();
   const desde = document.getElementById('inp-desde');
   const hasta = document.getElementById('inp-hasta');
@@ -282,11 +288,11 @@ function pintarInforme(d, rango) {
 }
 
 (async function init() {
-  const g = await Guardian.entrar(sb, { rol: 'jefe_obra', campos: 'nombre', volver: '../' });
+  const g = await Guardian.entrar(sb, { rol: 'jefe_obra', campos: 'id, nombre', volver: '../' });
   if (!g) return;
   document.getElementById('usuario-email').textContent = g.usuario.nombre || g.session.user.email;
   if (window.AutoLogout) AutoLogout.init(sb);
-  await cargarObras();
+  await cargarObras(g.usuario.id);
   document.getElementById('btn-generar').addEventListener('click', () => { marcarRango(null); generar(); });
   document.querySelectorAll('.btn-rango').forEach(b => { b.addEventListener('click', () => { aplicarRango(b.dataset.rango); marcarRango(b); generar(); }); });
   marcarRango(document.querySelector('.btn-rango[data-rango="todo"]'));
