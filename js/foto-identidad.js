@@ -50,7 +50,10 @@
      FI.enlace(ruta)                         → Promise<url|null>
      FI.ver(trabajadorId)                    → Promise<{hay_foto, url}>
      FI.visor(url)                           → abre la foto a pantalla
-     FI.montarCaptura(hueco, opts)           → botón + vista previa
+     FI.montarCaptura(hueco, opts)           → 2 botones + vista previa
+                                               («Hacer foto» con la cámara
+                                               TRASERA y «Subir foto» desde
+                                               la galería, 16/9/2026)
      FI.abrirAnadir(trabajadorId, obraId, cb, opts)
                                              → añadir/rehacer más tarde
                                                opts.tema: 'oscuro' para
@@ -190,10 +193,10 @@
     estilosPuestos = true;
     var s = document.createElement('style');
     s.textContent =
-      '.fi-fila{display:flex;align-items:center;gap:10px;margin-bottom:.5rem}'
+      '.fi-fila{display:flex;align-items:center;gap:8px;margin-bottom:.5rem;flex-wrap:wrap}'
     + '.fi-btn{flex:1;padding:.55rem;border:1px solid #ddd;border-radius:6px;'
     +   'background:#fafafa;color:#444;font-size:.92rem;font-family:inherit;'
-    +   'cursor:pointer;text-align:left}'
+    +   'cursor:pointer;text-align:center;min-width:120px}'
     + '.fi-prev{width:46px;height:46px;border-radius:6px;object-fit:cover;'
     +   'border:1px solid #ddd;display:none;flex:0 0 auto}'
     + '.fi-visor{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;'
@@ -238,41 +241,62 @@
   function montarCaptura(hueco, opts) {
     estilos();
     opts = opts || {};
-    var texto  = opts.texto  || '\uD83D\uDCF7 Foto de la cara';
+    // DOS BOTONES (16/9/2026, Dani):
+    //  · «Hacer foto»: abre la cámara TRASERA (capture="environment").
+    //    Antes era capture="user" (la de selfies), y la foto se la hace
+    //    el encargado o el jefe A OTRA PERSONA: había que girar la
+    //    cámara cada vez.
+    //  · «Subir foto»: sin `capture`, el móvil ofrece la galería. Para
+    //    fotos hechas antes. Misma reducción, misma RPC, misma
+    //    verificación de DNI: la BD no distingue una de otra.
+    var texto  = opts.texto  || '\uD83D\uDCF7 Hacer foto';
+    var textoG = '\uD83D\uDDBC\uFE0F Subir foto';
     var idBase = 'fi-' + Math.random().toString(36).slice(2, 8);
 
     hueco.innerHTML =
         '<div class="fi-fila">'
       + '<button type="button" class="fi-btn" id="' + idBase + '-btn"></button>'
+      + '<button type="button" class="fi-btn" id="' + idBase + '-gal"></button>'
       + '<img class="fi-prev" id="' + idBase + '-prev" alt="">'
-      + '<input type="file" accept="image/*" capture="user" id="' + idBase + '-file" style="display:none">'
+      + '<input type="file" accept="image/*" capture="environment" id="' + idBase + '-file" style="display:none">'
+      + '<input type="file" accept="image/*" id="' + idBase + '-galfile" style="display:none">'
       + '</div>';
 
-    var btn  = document.getElementById(idBase + '-btn');
-    var prev = document.getElementById(idBase + '-prev');
-    var file = document.getElementById(idBase + '-file');
-    btn.textContent = texto;
+    var btn     = document.getElementById(idBase + '-btn');
+    var btnG    = document.getElementById(idBase + '-gal');
+    var prev    = document.getElementById(idBase + '-prev');
+    var file    = document.getElementById(idBase + '-file');
+    var fileG   = document.getElementById(idBase + '-galfile');
+    btn.textContent  = texto;
+    btnG.textContent = textoG;
 
     var mando = { blob: null, limpiar: function () { mando.blob = null; } };
 
-    btn.addEventListener('click', function () { file.click(); });
+    btn.addEventListener('click',  function () { file.click(); });
+    btnG.addEventListener('click', function () { fileG.click(); });
 
-    file.addEventListener('change', async function () {
-      var f = this.files && this.files[0];
+    // Una sola vía para las dos entradas: lo que venga, se reduce igual.
+    async function alElegir(input, boton, textoBoton) {
+      var f = input.files && input.files[0];
       if (!f) return;
-      btn.textContent = 'Preparando la foto\u2026';
+      boton.textContent = 'Preparando la foto\u2026';
       try {
         mando.blob = await reducir(f);
         prev.src = URL.createObjectURL(mando.blob);
         prev.style.display = 'block';
-        btn.textContent = '\uD83D\uDCF7 Cambiar la foto';
       } catch (e) {
         mando.blob = null;
         prev.style.display = 'none';
-        btn.textContent = texto;
       }
+      boton.textContent = textoBoton;
+      // Vaciar el input: elegir la MISMA foto dos veces no dispara
+      // 'change' si no se vacía.
+      input.value = '';
       if (typeof opts.alCambiar === 'function') opts.alCambiar(mando.blob);
-    });
+    }
+
+    file.addEventListener('change',  function () { alElegir(file,  btn,  texto);  });
+    fileG.addEventListener('change', function () { alElegir(fileG, btnG, textoG); });
 
     return mando;
   }
@@ -322,7 +346,7 @@
     bGuardar.addEventListener('click', async function () {
       if (!mando.blob) {
         msg.style.color = '#c62828';
-        msg.textContent = 'Primero haz la foto.';
+        msg.textContent = 'Primero haz o sube la foto.';
         return;
       }
       bGuardar.disabled = true;
