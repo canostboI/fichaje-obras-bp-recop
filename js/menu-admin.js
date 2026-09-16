@@ -58,10 +58,12 @@
     // 16/9: Portium (nombre de la app) arriba del todo; los logos de las
     // empresas debajo, algo más pequeños. Estilos en línea a propósito: el CSS
     // del menú vive copiado en cada página y así no hay que tocar ninguna.
+    // Estilo «B» elegido por Dani (16/9): serif, «ium» en arena #d6b67c y
+    // línea terracota #69300d debajo (los dos colores del icono).
     const brand = `
-      <div class="sidebar-portium" style="display:flex;align-items:center;gap:10px;padding:16px 16px 12px;border-bottom:1px solid var(--borde, #2e3340);">
+      <div class="sidebar-portium" style="display:flex;align-items:center;gap:10px;padding:16px 16px 12px;border-bottom:2px solid #69300d;">
         <img src="../assets/icons/portium-192.png" alt="" style="width:34px;height:34px;border-radius:8px;flex:0 0 auto;">
-        <span style="font-size:18px;font-weight:700;letter-spacing:0.3px;color:var(--texto, #e8eaf0);">Portium</span>
+        <span style="font-family:Georgia, 'Times New Roman', serif;font-size:21px;line-height:1;color:var(--texto, #e8eaf0);">Port<span style="color:#d6b67c;font-style:italic;">ium</span></span>
       </div>
       <div class="sidebar-brand" style="padding:10px 16px;">
         <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual" style="height:17px;">
