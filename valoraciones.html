@@ -73,6 +73,7 @@
   .hist { border-top: 1px solid #eee; padding: .5rem 0; font-size: .86rem; }
   .hist .quien { color: #777; font-size: .78rem; }
   .ok { color: #2e7d32; } .ko { color: #b71c1c; }
+  .toast { position: fixed; left: 50%; bottom: 1.2rem; transform: translateX(-50%); background: #2e7d32; color: #fff; padding: .7rem 1rem; border-radius: 10px; font-size: .95rem; box-shadow: 0 4px 14px rgba(0,0,0,.25); z-index: 950; max-width: 92vw; text-align: center; }
 </style>
 </head>
 <body>
@@ -130,6 +131,15 @@ function estrellas(n) {
 }
 function fecha(f) { return f ? new Date(f).toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid' }) : ''; }
 function fallo(id, texto) { document.getElementById(id).innerHTML = '<p class="msg-err">' + esc(texto) + '</p>'; }
+// Aviso breve abajo. Tras guardar, la ficha se cierra (16/9, Dani: «no se
+// cierra la ventana») y esto confirma que la nota ha quedado grabada.
+function avisoBreve(texto) {
+  const v = document.querySelector('.toast'); if (v) v.remove();
+  const d = document.createElement('div');
+  d.className = 'toast'; d.textContent = texto;
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 3000);
+}
 function puedeRanking() { return usuario.rol === 'admin' || usuario.rol === 'jefe_obra'; }
 
 // ── Fotos: solo cuando la fila se ve (cada una deja rastro en la BD) ──
@@ -333,9 +343,10 @@ async function abrirFicha(t, conVoto) {
       const { data, error } = await sb.rpc('valorar_trabajador', { p_trabajador_id: t.trabajador_id, p_obra_id: obraId, p_puntuacion: nota, p_motivo: motivo || null });
       bG.disabled = false;
       if (error || !data || !data.ok) { msg.className = 'aviso ko'; msg.textContent = (data && data.error) || 'No se ha podido guardar. Inténtalo de nuevo.'; return; }
-      msg.className = 'aviso ok'; msg.textContent = data.nueva ? 'Nota guardada.' : 'Nota corregida.';
+      // Error → la ficha sigue abierta (arriba). Bien → se cierra y avisa.
+      cerrar();
+      avisoBreve('⭐ ' + (data.nueva ? 'Nota guardada' : 'Nota corregida') + ' · ' + t.nombre);
       rankingCargado = false;
-      await cargarHistorial();
       await cargarObra(obraId);
     });
   }
