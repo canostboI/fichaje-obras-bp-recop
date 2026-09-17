@@ -192,9 +192,9 @@ async function generar() {
   const zona = document.getElementById('zona-informe');
   const btnImp = document.getElementById('btn-imprimir');
   btnImp.disabled = true;
+  document.getElementById('zona-evolucion').innerHTML = '';
   if (desde && hasta && desde > hasta) { zona.innerHTML = '<div class="aviso-error">La fecha «Desde» es posterior a «Hasta». Revísalas.</div>'; return; }
   zona.innerHTML = '<div class="cargando">Generando informe…</div>';
-  document.getElementById('zona-evolucion').innerHTML = '';
   const { data, error } = await sb.rpc('informe_rojos', { p_obra_id: obraId || null, p_desde: desde, p_hasta: hasta });
   if (error) { zona.innerHTML = `<div class="aviso-error">No se pudo generar el informe: ${esc(error.message)}</div>`; return; }
   pintarInforme(data, { desde, hasta });
