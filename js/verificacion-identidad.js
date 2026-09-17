@@ -486,8 +486,10 @@
       }
     });
 
-    pintar(false);
+    // Primero a la página y DESPUÉS pintar: FI.montarCaptura busca sus
+    // botones con getElementById, y fuera del documento devuelve null.
     document.body.appendChild(fondo);
+    pintar(false);
   }
 
   window.VerifIdentidad = {
