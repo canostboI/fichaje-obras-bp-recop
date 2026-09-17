@@ -610,8 +610,6 @@
     <select id="select-obra">
       <option value="">-- Elige obra --</option>
     </select>
-    <br/>
-    <button class="btn btn-primary" style="margin-top:1rem" id="btn-elegir-obra">Ver presencia</button>
   </div>
 
   <div id="panel-obra" style="display:none">
@@ -1071,11 +1069,13 @@
   // Sin botón de cambiar obra (decisión de Dani, sept 2026): cambiar de
   // obra es raro y se hace cerrando sesión y volviendo a entrar.
 
-  document.getElementById('btn-elegir-obra').addEventListener('click', () => {
+  // Al elegir una obra se entra directamente, sin botón (sept 2026, Dani):
+  // igual que en Habilitaciones y Resumen. La opción vacía no hace nada.
+  document.getElementById('select-obra').addEventListener('change', () => {
     const select = document.getElementById('select-obra');
     const opt = select.options[select.selectedIndex];
-    // Sin guarda, pulsar el boton con el selector vacio revienta con un
-    // TypeError y el encargado se queda sin poder entrar en ninguna obra.
+    // Sin guarda, un selector vacío revienta con un TypeError y el
+    // encargado se queda sin poder entrar en ninguna obra.
     if (!opt) return;
     const obraId = opt.value;
     const nombre = opt.text;
