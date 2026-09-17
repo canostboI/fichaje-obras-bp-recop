@@ -244,6 +244,11 @@ function etiquetaCat(t) {  const ETQ = { peon:'Peón', oficial:'Oficial', encarg
   .pc-num { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--bg3); color: var(--texto2); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
   .pc-paso.alerta .pc-num { background: rgba(255,152,0,0.18); color: var(--naranja); }
   .pc-paso.hecho  .pc-num { background: rgba(76,175,80,0.18); color: var(--verde); }
+  /* Paso informativo (paso 2): no es una tarea. Azul = el de la esquina de
+     horas fijadas. Verde = hecho, naranja = te toca, azul = para que lo sepas. */
+  .pc-paso.info { border-left-color: var(--azul); }
+  .pc-paso.info .pc-num { background: rgba(33,150,243,0.18); color: var(--azul); font-family: Georgia, serif; font-style: italic; }
+  .pc-etiqueta-info { font-size: 11px; font-weight: 500; font-style: italic; color: var(--azul); margin-left: 6px; }
   .pc-tit { font-size: 14px; font-weight: 600; }
   .pc-desc { font-size: 12px; color: var(--texto2); margin-top: 2px; }
   .pc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0 32px; }
@@ -457,7 +462,7 @@ function etiquetaCat(t) {  const ETQ = { peon:'Peón', oficial:'Oficial', encarg
         <div class="pc-paso" id="pc-paso-2">
           <div class="pc-cab"><span class="pc-num" id="pc-icono-2">2</span>
             <div>
-              <div class="pc-tit">Revisar los días tocados a mano</div>
+              <div class="pc-tit">Días tocados a mano <span class="pc-etiqueta-info" id="pc-etiqueta-2"></span></div>
               <div class="pc-desc" id="pc-desc-2">—</div>
             </div>
           </div>
@@ -487,7 +492,7 @@ function etiquetaCat(t) {  const ETQ = { peon:'Peón', oficial:'Oficial', encarg
           <div class="pc-cab"><span class="pc-num">5</span>
             <div>
               <div class="pc-tit">Exportar el Excel proforma</div>
-              <div class="pc-desc">Es el entregable del mes. Descárgalo cuando los pasos 1, 2, 3 y 4 estén revisados.</div>
+              <div class="pc-desc">Es el entregable del mes. Descárgalo cuando los pasos 1, 3 y 4 estén resueltos.</div>
             </div>
           </div>
           <button class="btn-primario" id="pc-btn-exportar">📥 Excel proforma</button>
@@ -3258,16 +3263,20 @@ function actualizarPanelCierre() {
   if (total2 === 0) {
     paso2.className = 'pc-paso hecho';
     document.getElementById('pc-icono-2').textContent = '✓';
+    document.getElementById('pc-etiqueta-2').textContent = '';
     document.getElementById('pc-desc-2').textContent =
       'Ningún día lleva fichajes manuales, correcciones ni horas fijadas.';
   } else {
-    paso2.className = 'pc-paso';
-    document.getElementById('pc-icono-2').textContent = '2';
+    // Informativo a propósito (100ª: sin botón ni listado). Este número SUBE al
+    // resolver los pasos 1, 3 y 4, así que no puede pintarse como tarea.
+    paso2.className = 'pc-paso info';
+    document.getElementById('pc-icono-2').textContent = 'i';
+    document.getElementById('pc-etiqueta-2').textContent = '· solo para tu información';
     const partes = [];
     if (diasTocados > 0) partes.push(diasTocados + (diasTocados === 1 ? ' día con fichaje manual o corregido (esquina amarilla)' : ' días con fichajes manuales o corregidos (esquina amarilla)'));
     if (diasFijados > 0) partes.push(diasFijados + (diasFijados === 1 ? ' día con horas fijadas a mano (esquina azul)' : ' días con horas fijadas a mano (esquina azul)'));
     document.getElementById('pc-desc-2').textContent =
-      partes.join(' · ') + '. Repásalos: son horas que no salen del fichaje real.';
+      partes.join(' · ') + '. Son horas que no salen del fichaje real. Este número sube al resolver los pasos 1, 3 y 4. No hace falta hacer nada; si quieres, échales un vistazo en el calendario.';
   }
 
   // --- Paso 3: dobles pases del QR, en los DOS sentidos ---
