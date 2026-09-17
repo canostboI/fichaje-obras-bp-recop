@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Importar e-Coordina</title>
+  <title>e-Coordina</title>
   <link rel="icon" type="image/png" href="../assets/icons/portium-192.png">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/guardian.js"></script>
@@ -135,6 +135,24 @@
     @keyframes girar { to { transform: rotate(360deg); } }
 
     .oculto { display: none; }
+
+    /* ── Dos opciones para lo mismo (17/9/2026) ─────────────────────────────
+       Opción 1 = lanzar el robot de GitHub (pedir_sync_ecoordina).
+       Opción 2 = el importador a mano de siempre, intacto debajo. */
+    .opcion-etiqueta { font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); margin-bottom: 8px; }
+    .opcion-etiqueta .rec { color: var(--verde); }
+    .card-auto { border: 2px solid rgba(76,175,80,0.55); }
+    .sync-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px; }
+    .sync-info { flex: 1; min-width: 240px; font-size: 14px; line-height: 1.6; }
+    .sync-info .dato { color: var(--texto); font-weight: 600; }
+    .btn-sync { background: var(--verde); color: #fff; font-size: 16px; padding: 14px 22px; border-radius: 10px; }
+    .btn-sync:hover:not(:disabled) { opacity: 0.9; }
+    .btn-sync:disabled { background: var(--bg3); color: var(--texto2); opacity: 1; border: 1px solid var(--borde); }
+    #syncMensaje { margin-top: 14px; }
+    #syncMensaje:empty { display: none; }
+    .separador-opciones { text-align: center; font-size: 13px; color: var(--texto2); padding: 2px 0; }
+    .separador-opciones strong { color: var(--texto); }
+    .opcion-manual-intro { font-size: 13px; color: var(--texto2); line-height: 1.5; }
   </style>
 <script src="../js/marca-portium.js?v=20260916"></script>
 </head>
@@ -148,7 +166,6 @@
   <a href="index.html">👥 Presencia</a>
   <a href="fichajes.html">🕐 Fichajes</a>
   <a href="resumen-mes.html">📊 Resumen · Proforma</a>
-    <a href="documentos-ecoordina.html" class="active">📂 e-Coordina</a>
   <a href="habilitaciones.html">🏗️ Habilitaciones</a>
   <a href="valoraciones.html">⭐ Valoraciones</a>
   <a href="informe-rojos.html">🔴 Informe incidencias</a>
@@ -158,11 +175,36 @@
 
 <div class="main">
   <div class="topbar">
-    <h1>Importar e-Coordina</h1>
+    <h1>e-Coordina</h1>
     <a href="index.html" class="volver">← Panel Jefe</a>
   </div>
 
   <div class="contenido">
+
+    <!-- OPCIÓN 1: sincronización automática bajo demanda (17/9/2026) -->
+    <div class="card card-auto" id="opcion-auto">
+      <div class="opcion-etiqueta">Opción 1 · Automática <span class="rec">(recomendada)</span></div>
+      <h2>🔄 Actualizar e-Coordina ahora</h2>
+      <p class="ayuda">
+        e-Coordina se actualiza sola cada madrugada. Si una empresa ha subido un documento y ya lo han
+        <strong>validado en e-Coordina</strong>, pulsa aquí para no esperar a mañana. Actualiza el semáforo
+        de <strong>todas las obras</strong> y tarda unos 2 minutos. Máximo 2 veces al día.
+      </p>
+      <div class="sync-fila">
+        <div class="sync-info" id="syncInfo">Cargando…</div>
+        <button class="btn btn-sync" id="btnSync" disabled onclick="pedirSyncAhora()">🔄 Actualizar ahora</button>
+      </div>
+      <div id="syncMensaje"></div>
+    </div>
+
+    <div class="separador-opciones">
+      Las dos opciones hacen <strong>lo mismo</strong>: actualizan el semáforo documental. Usa una u otra.
+    </div>
+
+    <div>
+      <div class="opcion-etiqueta">Opción 2 · A mano con Excel</div>
+      <p class="opcion-manual-intro">Solo si la automática falla. Los pasos de siempre:</p>
+    </div>
 
     <!-- PASO 1: Subir archivo -->
     <div class="card" id="paso-upload">
@@ -351,6 +393,10 @@ async function init() {
     if (!['admin', 'jefe_obra', 'jefe'].includes(ua.rol)) {
       alert('Tu usuario no tiene permiso para entrar en e-Coordina. Rol detectado: ' + ua.rol); return;
     }
+
+    // Opción 1 (automática). Sin await y con su propio capturador: si falla,
+    // el importador a mano de debajo sigue funcionando.
+    iniciarSyncAhora();
 
     await cargarObras();
 
@@ -1021,6 +1067,146 @@ async function confirmarImportacion() {
   }
 
   resumenCont.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ── OPCIÓN 1: actualizar e-Coordina ahora (17/9/2026) ─────────────────────
+// Lanza el robot de GitHub (ecoordina.yml) a través de la RPC
+// pedir_sync_ecoordina(). Los topes (2 al día de Madrid, 30 min entre
+// peticiones) viven en la BD, NO aquí: la pantalla solo enseña lo que dice
+// estado_sync_ecoordina(). "Terminada" = hay una sincronización escrita en
+// ecoordina_sync DESPUÉS de pedirla (GitHub no avisa al acabar).
+let syncTemporizador = null;
+
+function syncHoraMadrid(iso) {
+  return new Date(iso).toLocaleTimeString('es-ES', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit' });
+}
+function syncDiaMadrid(d) {
+  return d.toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' });
+}
+function syncCuando(iso) {
+  const d = new Date(iso);
+  const hoy = new Date();
+  const ayer = new Date(hoy.getTime() - 86400000);
+  let dia;
+  if (syncDiaMadrid(d) === syncDiaMadrid(hoy)) dia = 'hoy';
+  else if (syncDiaMadrid(d) === syncDiaMadrid(ayer)) dia = 'ayer';
+  else dia = d.toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid', day: '2-digit', month: '2-digit' });
+  return dia + ' a las ' + syncHoraMadrid(iso);
+}
+
+async function iniciarSyncAhora() {
+  try {
+    await pintarSyncAhora();
+  } catch (err) {
+    console.error('Opción automática de e-Coordina:', err);
+    const info = document.getElementById('syncInfo');
+    if (info) info.innerHTML = '<span style="color:#ef9a9a;">No se ha podido comprobar el estado. Recarga la página.</span>';
+  }
+}
+
+async function pintarSyncAhora() {
+  const info = document.getElementById('syncInfo');
+  const btn = document.getElementById('btnSync');
+  const card = document.getElementById('opcion-auto');
+  if (!info || !btn || !card) return;
+
+  const { data: e, error } = await sb.rpc('estado_sync_ecoordina');
+  if (error) throw error;
+  if (!e || !e.ok) {
+    // Sin permiso (no debería pasar: la página ya filtra el rol) → se oculta.
+    card.style.display = 'none';
+    return;
+  }
+
+  // Última sincronización real
+  let html = '';
+  if (e.ultima_sync) {
+    const u = e.ultima_sync;
+    const bien = u.estado === 'ok' && !u.obras_error;
+    html += 'Última actualización: <span class="dato">' + escHtml(syncCuando(u.en)) + '</span> '
+      + (bien ? '<span style="color:var(--verde);">✓</span>'
+              : '<span style="color:#ffb74d;">⚠️ con errores (' + escHtml(u.obras_error) + ' obra/s)</span>');
+  } else {
+    html += 'Última actualización: <span class="dato">—</span>';
+  }
+
+  // Última petición del botón
+  let enMarcha = false;
+  const p = e.ultima_peticion;
+  if (p && p.minutos < 24 * 60) {
+    const quien = escHtml(p.quien || 'alguien');
+    const hora = escHtml(syncHoraMadrid(p.en));
+    if (p.estado === 'error') {
+      html += '<br><span style="color:#ef9a9a;">❌ El último intento (' + quien + ', ' + hora
+        + ') no llegó a GitHub. Si se repite, avisa al administrador.</span>';
+    } else if (p.terminada) {
+      html += '<br>Pedida por <span class="dato">' + quien + '</span> a las ' + hora + ' · '
+        + (p.sync_estado === 'ok' ? '<span style="color:var(--verde);">terminada ✓</span>'
+                                  : '<span style="color:#ffb74d;">terminada con errores</span>');
+    } else if (p.minutos < 10) {
+      enMarcha = true;
+      html += '<br><span style="color:#90caf9;"><span class="spinner"></span> En marcha · pedida por '
+        + quien + ' a las ' + hora + '. Tarda unos 2 minutos; esta página se actualiza sola.</span>';
+    } else {
+      html += '<br><span style="color:#ffb74d;">⚠️ Pedida por ' + quien + ' a las ' + hora
+        + ' y aún no ha terminado. Puede haber fallado: avisa al administrador.</span>';
+    }
+  }
+  info.innerHTML = html;
+
+  // Botón
+  if (e.puede_pedir) {
+    btn.disabled = false;
+    btn.textContent = '🔄 Actualizar ahora · queda' + (e.quedan_hoy === 1 ? '' : 'n') + ' ' + e.quedan_hoy + ' hoy';
+  } else if (e.bloqueo === 'TOPE_DIA') {
+    btn.disabled = true;
+    btn.textContent = 'Ya se ha actualizado ' + e.tope_dia + ' veces hoy · la próxima, esta noche';
+  } else if (e.bloqueo === 'ESPERA' && e.disponible_desde) {
+    btn.disabled = true;
+    btn.textContent = 'Disponible a las ' + syncHoraMadrid(e.disponible_desde);
+  } else {
+    btn.disabled = true;
+    btn.textContent = 'No disponible ahora';
+  }
+
+  // Refresco: cada 20 s mientras está en marcha; cada 60 s si hay una espera
+  // de 30 min (para que el botón se encienda solo); si no, nada.
+  clearTimeout(syncTemporizador);
+  const espera = enMarcha ? 20000 : (e.bloqueo === 'ESPERA' ? 60000 : 0);
+  if (espera) syncTemporizador = setTimeout(iniciarSyncAhora, espera);
+}
+
+async function pedirSyncAhora() {
+  const btn = document.getElementById('btnSync');
+  const msg = document.getElementById('syncMensaje');
+  if (!confirm('Actualizar e-Coordina ahora para TODAS las obras.\n\nTarda unos 2 minutos. Solo se puede hacer 2 veces al día.\n\n¿Continuar?')) return;
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Pidiendo…';
+  msg.innerHTML = '';
+  try {
+    const { data: r, error } = await sb.rpc('pedir_sync_ecoordina');
+    if (error) throw error;
+    if (r && r.ok) {
+      msg.innerHTML = '<div class="alert alert-success">✅ Pedido. En unos 2 minutos el semáforo estará al día. '
+        + 'Si alguien esperaba en la valla, que vuelva a escanear el QR cuando aquí ponga «terminada».</div>';
+    } else {
+      const textos = {
+        TOPE_DIA: 'Ya se ha actualizado 2 veces hoy. La próxima, esta noche.',
+        ESPERA: 'Hace menos de 30 minutos que se pidió. Espera a que termine.',
+        LLAVE_NO_VALE: 'GitHub no ha aceptado la llave (puede haber caducado). Avisa al administrador.',
+        SIN_LLAVE: 'Falta configurar la llave de GitHub. Avisa al administrador.',
+        SIN_CONEXION: 'No se ha podido contactar con GitHub. Prueba en unos minutos.',
+        GITHUB_ERROR: 'GitHub ha rechazado la petición (código ' + (r && r.http_status) + '). Avisa al administrador.',
+        SIN_PERMISO: 'Tu usuario no puede pedir esta actualización.'
+      };
+      msg.innerHTML = '<div class="alert alert-warning">' + escHtml(textos[r && r.error] || ('No se ha podido pedir: ' + (r && r.error))) + '</div>';
+    }
+  } catch (err) {
+    console.error('pedir_sync_ecoordina:', err);
+    msg.innerHTML = '<div class="alert alert-error">No se ha podido pedir la actualización: ' + escHtml(err.message || err) + '</div>';
+  }
+  await iniciarSyncAhora();
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────────
