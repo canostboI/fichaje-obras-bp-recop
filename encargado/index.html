@@ -19,7 +19,7 @@
   <script src="../js/motivos.js"></script>
   <script src="../js/accesos-resueltos.js"></script>
   <script src="../js/foto-identidad.js"></script>
-  <script src="../js/verificacion-identidad.js"></script>
+  <script src="../js/verificacion-identidad.js?v=20260917"></script>
 <script src="../js/impresion.js"></script>
 <script src="../js/declaracion-sabado.js"></script>
 <script src="../js/instalar-app.js"></script>
@@ -32,14 +32,6 @@
 
     :root {
       --color-principal: #1a1a2e;
-      /* Tema claro para los modales de foto (.fic-*) y verificación (.vfm-*),
-         cuyo CSS vino del jefe (tema oscuro) y usaba estas variables sin
-         definir: la caja salía transparente (86ª). */
-      --bg2: #ffffff;
-      --bg3: #f4f4f4;
-      --borde: #ccc;
-      --texto: #222;
-      --texto2: #666;
     }
 
     header {
@@ -535,51 +527,6 @@
   .fi-icono-enc.sin-dato:hover { transform: none; background: none; }
   .fi-icono-enc.sin-dato-clicable { opacity: 0.38; filter: grayscale(1); }
   .fi-icono-enc.sin-dato-clicable:hover { transform: scale(1.15); background: rgba(255,255,255,0.08); opacity: 0.7; }
-  .fic-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 4000; display: flex; align-items: center; justify-content: center; }
-  .fic-overlay.oculto { display: none; }
-  .fic-caja { background: var(--bg2); border: 1px solid var(--borde); border-radius: 14px; padding: 20px; max-width: 380px; width: 94%; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
-  .fic-caja h3 { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
-  .fic-msg { font-size: 13px; min-height: 18px; margin-top: 8px; }
-  .fic-msg.mal { color: var(--rojo, #f44336); } .fic-msg.ok { color: var(--verde, #4caf50); }
-  .fic-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
-  .fic-btn { border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--borde); background: var(--bg3); color: var(--texto); }
-  .fic-btn.primario { background: var(--color-acento, #fb8c00); color: #fff; border-color: var(--color-acento, #fb8c00); }
-  .fic-btn:hover { opacity: 0.85; } .fic-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-  .fiv-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 4000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
-  .fiv-overlay.oculto { display: none; }
-  .fiv-img { max-width: 88vw; max-height: 70vh; border-radius: 10px; box-shadow: 0 8px 40px rgba(0,0,0,0.7); }
-  .fiv-btns { display: flex; gap: 12px; }
-  .fiv-btn { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 9px 18px; font-size: 14px; cursor: pointer; }
-  .fiv-btn:hover { background: rgba(255,255,255,0.22); }
-  .fiv-btn.peligro { border-color: rgba(251,140,0,0.6); color: #fb8c00; }
-  .fiv-btn.peligro:hover { background: rgba(251,140,0,0.15); }
-  .vfm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 5000; display: flex; align-items: center; justify-content: center; }
-  .vfm-overlay.oculto { display: none; }
-  .vfm-caja { background: var(--bg2); border: 1px solid var(--borde); border-radius: 14px; padding: 22px 22px 18px; max-width: 480px; width: 94%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
-  .vfm-cab { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-  .vfm-cab h3 { font-size: 16px; font-weight: 700; } .vfm-cerrar { background: none; border: none; color: var(--texto2); font-size: 22px; cursor: pointer; padding: 0 4px; }
-  .vfm-cerrar:hover { color: var(--texto); }
-  .vfm-label { font-size: 13px; font-weight: 600; color: var(--texto2); margin-bottom: 8px; display: block; }
-  .vfm-opciones { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
-  .vfm-opcion { display: flex; align-items: center; gap: 10px; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 10px 12px; cursor: pointer; }
-  .vfm-opcion input[type=radio] { accent-color: var(--color-acento, #fb8c00); width: 16px; height: 16px; flex: 0 0 auto; }
-  .vfm-opcion span { font-size: 13px; }
-  .vfm-check-fila { display: flex; align-items: flex-start; gap: 10px; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
-  .vfm-check-fila input[type=checkbox] { accent-color: var(--color-acento, #fb8c00); width: 16px; height: 16px; flex: 0 0 auto; margin-top: 2px; }
-  .vfm-check-txt { font-size: 13px; line-height: 1.5; }
-  .vfm-idiomas { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .vfm-idioma { background: var(--bg3); border: 1px solid var(--borde); color: var(--texto2); border-radius: 20px; padding: 4px 12px; font-size: 12px; cursor: pointer; }
-  .vfm-idioma.sel { background: var(--color-acento, #fb8c00); border-color: var(--color-acento, #fb8c00); color: #fff; font-weight: 700; }
-  .vfm-hoja-btn { background: none; border: 1px dashed var(--borde); color: var(--texto2); border-radius: 8px; padding: 8px 14px; font-size: 12px; cursor: pointer; margin-top: 8px; width: 100%; }
-  .vfm-hoja-btn:hover { border-color: var(--color-acento, #fb8c00); color: var(--color-acento, #fb8c00); }
-  .vfm-h-item { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; font-size: 12px; color: var(--texto2); line-height: 1.7; }
-  .vfm-h-item strong { color: var(--texto); }
-  .vfm-sep { border: none; border-top: 1px solid var(--borde); margin: 14px 0; }
-  .vfm-msg { font-size: 13px; min-height: 20px; margin-top: 8px; }
-  .vfm-msg.ok { color: var(--verde, #4caf50); } .vfm-msg.mal { color: var(--rojo, #f44336); }
-  .vfm-btns { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
-  .vfm-guardar { background: var(--color-acento, #fb8c00); color: #fff; border: none; border-radius: 8px; padding: 9px 20px; font-size: 14px; font-weight: 700; cursor: pointer; }
-  .vfm-guardar:hover { opacity: 0.88; } .vfm-guardar:disabled { opacity: 0.45; cursor: not-allowed; }
 </style>
 <script src="../js/marca-portium.js?v=20260916"></script>
 </head>
@@ -2528,7 +2475,7 @@
         <div class="tarjeta-info">
           <div class="tarjeta-nombre">${esc(t.nombre)}${esRP ? ' <span title="Recurso Preventivo designado">🛡️</span>' : ''}${iconosHab ? ' <span class="hab-iconos-enc" title="Habilitaciones: ' + esc(titHab).replace(/"/g, '&quot;') + '">' + iconosHab + '</span>' : ''}</div>
           <div class="tarjeta-empresa">${esc(t.empresa || '—')}</div>
-          <div style="margin-top:4px">${conFotoCache.has(t.id) ? '<button class="fi-icono-enc" title="Ver foto" onclick="clicFotoEnc(\'' + t.id + '\', this)">📷</button>' : '<button class="fi-icono-enc sin-dato-clicable" title="Sin foto — clic para hacerla" onclick="clicFotoEnc(\'' + t.id + '\', this)">📷</button>'}${conVerifCache.has(t.id) ? '<button class="fi-icono-enc" title="Ver/editar verificación" onclick="clicVerifEnc(\'' + t.id + '\', this)">🪪</button>' : '<button class="fi-icono-enc sin-dato-clicable" title="Sin verificación — clic para registrar" onclick="clicVerifEnc(\'' + t.id + '\', this)">🪪</button>'}</div>
+          <div style="margin-top:4px">${iconoIdentEnc(t)}</div>
         </div>
         <div class="tarjeta-hora">
           ${esHoyFlag
@@ -2853,81 +2800,47 @@
 
   init();
 
-// ── FOTO E IDENTIDAD — ENCARGADO (70a) ──────────────────────────────
-var _fivEncTrabId = null;
-var _ficEncTrabId = null;
-var _ficEncMando  = null;
-function escEnc(t) {
-  const d = document.createElement('div'); d.textContent = String(t == null ? '' : t); return d.innerHTML;
+// ── IDENTIFICAR PERSONA — ENCARGADO (17/9/2026) ─────────────────────
+// Un solo icono 🪪 por persona abre la ventana única de
+// js/verificacion-identidad.js (VerifIdentidad.identificar): foto +
+// «documento con foto» + «informado del QR». Sustituye a los dos botones
+// 📷/🪪 y a sus tres modales (70ª). Nombre y empresa para la cabecera de la
+// ventana se guardan al pintar cada tarjeta (sin meterlos en el onclick).
+var _identEncDatos = {};
+
+function iconoIdentEnc(t) {
+  _identEncDatos[t.id] = { nombre: t.nombre || '', empresa: t.empresa || '' };
+  var verif = conVerifCache.has(t.id);
+  var foto  = conFotoCache.has(t.id);
+  var clase = (verif && foto) ? 'fi-icono-enc' : 'fi-icono-enc sin-dato-clicable';
+  var titulo = (verif && foto) ? 'Identificado — ver'
+             : verif ? 'Identificado, falta la foto — clic para hacerla'
+             : 'Sin identificar — clic para identificar';
+  return '<button class="' + clase + '" title="' + titulo + '" onclick="clicIdentEnc(\'' + t.id + '\', this)">🪪</button>';
 }
 
-async function clicFotoEnc(trabajadorId, btn) {
+async function clicIdentEnc(trabajadorId, btn) {
+  if (!window.VerifIdentidad || typeof VerifIdentidad.identificar !== 'function') {
+    alert('La página tiene una versión antigua guardada. Recarga la página.');
+    return;
+  }
+  var d = _identEncDatos[trabajadorId] || {};
   btn.disabled = true;
   try {
-    const { data, error } = await sb.rpc('ver_foto_identidad', { p_trabajador_id: trabajadorId });
-    if (error || !data || !data.ok) throw new Error((data && data.error) || 'Error');
-    if (data.hay_foto) {
-      const url = await FI.enlace(data.path);
-      _fivEncTrabId = trabajadorId;
-      document.getElementById('fiv-img').src = url;
-      document.getElementById('fiv-overlay').classList.remove('oculto');
-    } else { abrirFicEnc(trabajadorId); }
-  } catch(e) { alert('No se pudo cargar la foto. ' + e.message); }
-  finally { btn.disabled = false; }
-}
-
-function abrirFicEnc(trabajadorId) {
-  _ficEncTrabId = trabajadorId;
-  const hueco = document.getElementById('fic-hueco');
-  hueco.innerHTML = '';
-  document.getElementById('fic-msg').textContent = '';
-  document.getElementById('fic-msg').className = 'fic-msg';
-  document.getElementById('fic-btn-guardar').disabled = false;
-  _ficEncMando = FI.montarCaptura(hueco, {});
-  document.getElementById('fic-overlay').classList.remove('oculto');
-}
-
-async function guardarFicEnc() {
-  const msg = document.getElementById('fic-msg');
-  const btn = document.getElementById('fic-btn-guardar');
-  if (!_ficEncMando || !_ficEncMando.blob) { msg.className='fic-msg mal'; msg.textContent='Primero haz o elige una foto.'; return; }
-  if (!obraActualId) { msg.className='fic-msg mal'; msg.textContent='No hay obra seleccionada.'; return; }
-  btn.disabled = true; msg.className='fic-msg'; msg.textContent='Guardando…';
-  const r = await FI.guardar(_ficEncTrabId, obraActualId, _ficEncMando.blob);
-  if (!r.ok) { btn.disabled=false; msg.className='fic-msg mal'; msg.textContent=r.error||'No se ha podido guardar.'; return; }
-  msg.className='fic-msg ok'; msg.textContent='✓ Foto guardada.';
-  conFotoCache.add(_ficEncTrabId);
-  document.querySelectorAll('.fi-icono-enc.sin-dato-clicable').forEach(b => {
-    if (b.getAttribute('onclick')?.includes(_ficEncTrabId) && b.textContent.trim()==='📷') {
-      b.classList.remove('sin-dato-clicable'); b.title='Ver foto';
-    }
-  });
-  setTimeout(cerrarFicEnc, 900);
-}
-
-function cerrarFicEnc() { document.getElementById('fic-overlay').classList.add('oculto'); _ficEncTrabId=null; _ficEncMando=null; }
-function rehacerFotoEnc() { document.getElementById('fiv-overlay').classList.add('oculto'); if (_fivEncTrabId) abrirFicEnc(_fivEncTrabId); }
-document.addEventListener('DOMContentLoaded', function () {
-  // Los modales se declaran despues de este <script>: sin esperar al DOM,
-  // getElementById devuelve null y el script entero se detiene aqui (71a).
-  document.getElementById('fiv-overlay').addEventListener('click', function(e) { if (e.target===this) this.classList.add('oculto'); });
-  document.getElementById('fic-overlay').addEventListener('click', function(e) { if (e.target===this) cerrarFicEnc(); });
-  document.getElementById('vfm-overlay').addEventListener('click', function(e) { if (e.target===this) cerrarVfmEnc(); });
-});
-
-// 🪪 Verificación de identidad — la lógica vive en js/verificacion-identidad.js (82ª, integrado 86ª).
-// Aquí solo quedan envoltorios para que el HTML (onclick) y el listener del overlay no cambien.
-async function clicVerifEnc(trabajadorId, btn) {
-  btn.disabled = true;
-  try {
-    await VerifIdentidad.abrir(sb, trabajadorId, obraActualId, {
-      esc: escEnc,
-      onGuardado: function(tid) {
-        conVerifCache.add(tid);
-        document.querySelectorAll('.fi-icono-enc.sin-dato-clicable').forEach(b => {
-          if (b.getAttribute('onclick')?.includes(tid) && b.textContent.trim()==='🪪') {
-            b.classList.remove('sin-dato-clicable'); b.title='Ver/editar verificación';
-          }
+    await VerifIdentidad.identificar(sb, trabajadorId, obraActualId, {
+      tema: 'claro',
+      nombre: d.nombre,
+      empresa: d.empresa,
+      onGuardado: function (tid, r) {
+        if (r && r.verificado) conVerifCache.add(tid);
+        if (r && r.foto) conFotoCache.add(tid);
+        var ok = conVerifCache.has(tid) && conFotoCache.has(tid);
+        document.querySelectorAll('.fi-icono-enc').forEach(function (b) {
+          if (!(b.getAttribute('onclick') || '').includes(tid)) return;
+          b.classList.toggle('sin-dato-clicable', !ok);
+          b.title = ok ? 'Identificado — ver'
+                  : conVerifCache.has(tid) ? 'Identificado, falta la foto — clic para hacerla'
+                  : 'Sin identificar — clic para identificar';
         });
       }
     });
@@ -2935,44 +2848,7 @@ async function clicVerifEnc(trabajadorId, btn) {
     btn.disabled = false;
   }
 }
-function guardarVerifEnc() { return VerifIdentidad.guardar(sb); }
-function cerrarVfmEnc()    { VerifIdentidad.cerrar(); }
 // ─────────────────────────────────────────────────────────────────────
 </script>
-
-<!-- captura inline foto encargado (70a) -->
-<div class="fic-overlay oculto" id="fic-overlay">
-  <div class="fic-caja">
-    <h3>📷 Foto de identidad</h3>
-    <div id="fic-hueco"></div>
-    <div class="fic-msg" id="fic-msg"></div>
-    <div class="fic-btns">
-      <button class="fic-btn" onclick="cerrarFicEnc()">Cancelar</button>
-      <button class="fic-btn primario" id="fic-btn-guardar" onclick="guardarFicEnc()">Guardar</button>
-    </div>
-  </div>
-</div>
-<!-- visor foto encargado (70a) -->
-<div class="fiv-overlay oculto" id="fiv-overlay">
-  <img class="fiv-img" id="fiv-img" src="" alt="Foto de identidad" />
-  <div class="fiv-btns">
-    <button class="fiv-btn peligro" onclick="rehacerFotoEnc()">📷 Rehacer la foto</button>
-    <button class="fiv-btn" onclick="document.getElementById('fiv-overlay').classList.add('oculto')">Cerrar</button>
-  </div>
-</div>
-<!-- modal verificación encargado (70a) -->
-<div class="vfm-overlay oculto" id="vfm-overlay">
-  <div class="vfm-caja">
-    <div class="vfm-cab">
-      <h3 id="vfm-titulo">Verificación de identidad</h3>
-      <button class="vfm-cerrar" onclick="cerrarVfmEnc()">✕</button>
-    </div>
-    <div id="vfm-cuerpo"></div>
-    <div class="vfm-msg" id="vfm-msg"></div>
-    <div class="vfm-btns" id="vfm-btns-guardar" style="display:none">
-      <button class="vfm-guardar" id="vfm-btn-guardar" onclick="guardarVerifEnc()">Guardar verificación</button>
-    </div>
-  </div>
-</div>
 </body>
 </html>
