@@ -62,6 +62,8 @@
   .hab-nombre .hab-svg, .tipo-nombre .hab-svg { margin-right: 6px; vertical-align: -5px; color: var(--naranja); }
   .hab-caducidad { font-size: 12px; color: var(--texto2); }
   .hab-acciones { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .hab-titulo { font-size: 12px; margin-top: 3px; color: var(--texto2); }
+  .hab-titulo.con { color: var(--azul, #2196f3); }
   .badge { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 20px; }
   .badge.vigente        { background: rgba(76,175,80,0.15);   color: var(--verde); }
   .badge.proxima        { background: rgba(255,193,7,0.15);   color: var(--amarillo); }
@@ -102,6 +104,7 @@
 <script src="../js/auto-logout.js"></script>
 <script src="../js/fechas.js"></script>
 <script src="../js/habilitaciones.js?v=20260915"></script>
+<script src="../js/titulo-habilitacion.js?v=20260917"></script>
 </head>
 <body>
 
@@ -327,9 +330,11 @@ function renderHabilitaciones() {
       </div></div>`;
     }
     return `<div class="hab-item ${cls}">
-      <div style="flex:1"><div class="hab-nombre">${ico} ${esc(h.tipo_nombre)}</div><div class="hab-caducidad">${esc(Hab.textoCaducidad(h))}</div></div>
+      <div style="flex:1"><div class="hab-nombre">${ico} ${esc(h.tipo_nombre)}</div><div class="hab-caducidad">${esc(Hab.textoCaducidad(h))}</div>${htmlTitulo(h)}</div>
       <div class="hab-acciones">
         <span class="badge ${cls}">${esc(Hab.etiqueta(est))}</span>
+        ${h.titulo_path ? `<button class="btn btn-secundario" onclick="verTitulo('${h.id}')">📄 Ver título</button>` : ''}
+        <button class="btn btn-secundario" onclick="subirTitulo('${h.id}')">📎 ${h.titulo_path ? 'Cambiar título' : 'Subir título'}</button>
         <button class="btn btn-secundario" onclick="abrirEdicion('${h.tipo_habilitacion_id}')">✏️ Fecha</button>
         <button class="btn btn-peligro" onclick="quitarHabilitacion('${h.tipo_habilitacion_id}','${escAttr(h.tipo_nombre)}')">Quitar</button>
       </div>
@@ -337,6 +342,42 @@ function renderHabilitaciones() {
   }).join('');
   const chk = document.getElementById('edit-nocaduca');
   if (chk) chk.addEventListener('change', () => { const inp = document.getElementById('edit-fecha'); inp.disabled = chk.checked; if (chk.checked) inp.value = ''; });
+}
+
+// ── TÍTULO DE LA HABILITACIÓN (17/9) ─────────────────────────────
+// Gemela de jefe/habilitaciones.html. Lógica en js/titulo-habilitacion.js.
+function htmlTitulo(h) {
+  if (!h.titulo_path) return '<div class="hab-titulo">Sin título guardado</div>';
+  const f = (typeof TituloHab !== 'undefined') ? TituloHab.fecha(h.titulo_subido_en) : '';
+  return `<div class="hab-titulo con">📄 Título guardado${f ? ' el ' + esc(f) : ''}</div>`;
+}
+function moduloTituloListo() {
+  if (typeof TituloHab === 'undefined') {
+    msgHab('Falta cargar una parte nueva de la página. Recarga la página y vuelve a intentarlo.', 'err');
+    return false;
+  }
+  return true;
+}
+function subirTitulo(habId) {
+  if (!trabajadorActual || !moduloTituloListo()) return;
+  const h = habsCache.find(x => x.id === habId);
+  if (!h) return;
+  if (h.titulo_path && !confirm('Ya hay un título guardado para «' + h.tipo_nombre +
+      '». ¿Sustituirlo por uno nuevo? El anterior queda archivado.')) return;
+  // Sin await antes de subir(): el selector de archivos necesita el clic.
+  const trabajadorId = trabajadorActual.id;
+  TituloHab.subir(sb, { habilitacionId: habId, trabajadorId }).then(async res => {
+    if (res.cancelado) return;
+    if (res.error) { msgHab(res.error, 'err'); return; }
+    msgHab('Título guardado.', 'ok');
+    if (trabajadorActual && trabajadorActual.id === trabajadorId) await cargarHabilitaciones(trabajadorId);
+  });
+}
+function verTitulo(habId) {
+  if (!moduloTituloListo()) return;
+  const h = habsCache.find(x => x.id === habId);
+  if (!h) return;
+  TituloHab.ver(sb, h.titulo_path).then(res => { if (res.error) msgHab(res.error, 'err'); });
 }
 
 function abrirEdicion(tipoId) { editandoTipoId = tipoId; renderHabilitaciones(); }
