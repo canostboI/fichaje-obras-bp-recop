@@ -15,7 +15,7 @@
   <script src="../js/modal-jornada.js"></script>
   <script src="../js/habilitaciones.js?v=20260915"></script>
   <script src="../js/foto-identidad.js"></script>
-  <script src="../js/verificacion-identidad.js"></script>
+  <script src="../js/verificacion-identidad.js?v=20260917"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -137,59 +137,6 @@
   .fi-icono.sin-dato:hover { transform: none; background: none; }
   .fi-icono.sin-dato-clicable { opacity: 0.38; filter: grayscale(1); }
   .fi-icono.sin-dato-clicable:hover { transform: scale(1.15); background: var(--bg3); opacity: 0.7; }
-  /* captura inline de foto */
-  .fic-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 4000; display: flex; align-items: center; justify-content: center; }
-  .fic-overlay.oculto { display: none; }
-  .fic-caja { background: var(--bg2); border: 1px solid var(--borde); border-radius: 14px; padding: 20px; max-width: 380px; width: 94%; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
-  .fic-caja h3 { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
-  .fic-msg { font-size: 13px; min-height: 18px; margin-top: 8px; }
-  .fic-msg.mal { color: var(--rojo); }
-  .fic-msg.ok { color: var(--verde); }
-  .fic-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
-  .fic-btn { border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--borde); background: var(--bg3); color: var(--texto); }
-  .fic-btn.primario { background: var(--color-acento); color: #fff; border-color: var(--color-acento); }
-  .fic-btn:hover { opacity: 0.85; }
-  .fic-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-  /* visor foto */
-  .fiv-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 4000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
-  .fiv-overlay.oculto { display: none; }
-  .fiv-img { max-width: 88vw; max-height: 70vh; border-radius: 10px; box-shadow: 0 8px 40px rgba(0,0,0,0.7); }
-  .fiv-btns { display: flex; gap: 12px; }
-  .fiv-btn { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 9px 18px; font-size: 14px; cursor: pointer; }
-  .fiv-btn:hover { background: rgba(255,255,255,0.22); }
-  .fiv-btn.peligro { border-color: rgba(251,140,0,0.6); color: #fb8c00; }
-  .fiv-btn.peligro:hover { background: rgba(251,140,0,0.15); }
-  /* modal verificación */
-  .vfm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 5000; display: flex; align-items: center; justify-content: center; }
-  .vfm-overlay.oculto { display: none; }
-  .vfm-caja { background: var(--bg2); border: 1px solid var(--borde); border-radius: 14px; padding: 22px 22px 18px; max-width: 480px; width: 94%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
-  .vfm-cab { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-  .vfm-cab h3 { font-size: 16px; font-weight: 700; }
-  .vfm-cerrar { background: none; border: none; color: var(--texto2); font-size: 22px; cursor: pointer; padding: 0 4px; }
-  .vfm-cerrar:hover { color: var(--texto); }
-  .vfm-label { font-size: 13px; font-weight: 600; color: var(--texto2); margin-bottom: 8px; display: block; }
-  .vfm-opciones { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
-  .vfm-opcion { display: flex; align-items: center; gap: 10px; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 10px 12px; cursor: pointer; }
-  .vfm-opcion input[type=radio] { accent-color: var(--color-acento); width: 16px; height: 16px; flex: 0 0 auto; }
-  .vfm-opcion span { font-size: 13px; }
-  .vfm-check-fila { display: flex; align-items: flex-start; gap: 10px; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
-  .vfm-check-fila input[type=checkbox] { accent-color: var(--color-acento); width: 16px; height: 16px; flex: 0 0 auto; margin-top: 2px; }
-  .vfm-check-txt { font-size: 13px; line-height: 1.5; }
-  .vfm-idiomas { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .vfm-idioma { background: var(--bg3); border: 1px solid var(--borde); color: var(--texto2); border-radius: 20px; padding: 4px 12px; font-size: 12px; cursor: pointer; }
-  .vfm-idioma.sel { background: var(--color-acento); border-color: var(--color-acento); color: #fff; font-weight: 700; }
-  .vfm-hoja-btn { background: none; border: 1px dashed var(--borde); color: var(--texto2); border-radius: 8px; padding: 8px 14px; font-size: 12px; cursor: pointer; margin-top: 8px; width: 100%; }
-  .vfm-hoja-btn:hover { border-color: var(--color-acento); color: var(--color-acento); }
-  .vfm-h-item { background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; font-size: 12px; color: var(--texto2); line-height: 1.7; }
-  .vfm-h-item strong { color: var(--texto); }
-  .vfm-sep { border: none; border-top: 1px solid var(--borde); margin: 14px 0; }
-  .vfm-msg { font-size: 13px; min-height: 20px; margin-top: 8px; }
-  .vfm-msg.ok { color: var(--verde); }
-  .vfm-msg.mal { color: var(--rojo); }
-  .vfm-btns { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
-  .vfm-guardar { background: var(--color-acento); color: #fff; border: none; border-radius: 8px; padding: 9px 20px; font-size: 14px; font-weight: 700; cursor: pointer; }
-  .vfm-guardar:hover { opacity: 0.88; }
-  .vfm-guardar:disabled { opacity: 0.45; cursor: not-allowed; }
 
   .vacio { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
@@ -1368,7 +1315,7 @@ function renderTabla(lista) {
                 ? `<button class="btn-accion" style="font-size:.8rem;padding:3px 8px" title="${esc(tituloJornada(t.id))}" onclick="abrirModalJornada(['${esc(t.id)}'], '${esc(nombreCompleto(t)).replace(/'/g, "\\'")}')">${esc(nombreTipoJornada(t.id))}</button>`
                 : '<span style="opacity:.5">elige una obra</span>'}</td>
           <td>${t.obras.map(o => pillObra(t, o)).join('')}</td>
-          <td><div class="acciones">${t.hay_foto ? '<button class="fi-icono" title="Ver foto" onclick="clicFoto(\'' + t.id + '\', this)">📷</button>' : '<button class="fi-icono sin-dato-clicable" title="Sin foto — clic para hacerla" onclick="clicFoto(\'' + t.id + '\', this)">📷</button>'}${t.hay_verif ? '<button class="fi-icono" title="Ver/editar verificación" onclick="clicVerif(\'' + t.id + '\', this)">🪪</button>' : '<button class="fi-icono sin-dato-clicable" title="Sin verificación — clic para registrar" onclick="clicVerif(\'' + t.id + '\', this)">🪪</button>'}<button class="btn-accion primario" onclick="abrirEdicion('${t.id}')">Editar</button>${obraFiltroTrabajadores ? `<button class="btn-accion peligro" onclick="abrirModalQuitar('${t.id}')">Quitar de la obra</button>` : ''}</div></td>
+          <td><div class="acciones">${iconoIdent(t)}<button class="btn-accion primario" onclick="abrirEdicion('${t.id}')">Editar</button>${obraFiltroTrabajadores ? `<button class="btn-accion peligro" onclick="abrirModalQuitar('${t.id}')">Quitar de la obra</button>` : ''}</div></td>
         </tr>`;
     });
   });
@@ -1448,10 +1395,6 @@ function pillObra(trabajador, obra) {
 // ── FOTO E IDENTIDAD (70a) ──────────────────────────────────────────
 FI.init(sb);
 
-// Variables en var para evitar problemas de inicialización temporal
-var _fivTrabajadorId = null;
-var _ficTrabajadorId = null;
-var _ficMando        = null;
 // Devuelve la obra a usar: filtro activo o primera obra del trabajador
 function obraParaTrabajador(trabajadorId) {
   if (obraFiltroTrabajadores) return obraFiltroTrabajadores;
@@ -1460,114 +1403,48 @@ function obraParaTrabajador(trabajadorId) {
   return null;
 }
 
-// 📷 Clic en icono foto
-async function clicFoto(trabajadorId, btn) {
-  btn.disabled = true;
+// 🪪 IDENTIFICAR PERSONA (17/9/2026). Un solo icono por persona abre la
+// ventana única de js/verificacion-identidad.js (VerifIdentidad.identificar):
+// foto + «documento con foto» + «informado del QR». Sustituye a los dos
+// iconos 📷/🪪 y a sus tres modales (70ª). También lo usa la ventana de
+// forzar estado para ampliar o hacer la foto.
+function iconoIdent(t) {
+  var ok = t.hay_verif && t.hay_foto;
+  var titulo = ok ? 'Identificado — ver'
+             : t.hay_verif ? 'Identificado, falta la foto — clic para hacerla'
+             : 'Sin identificar — clic para identificar';
+  return '<button class="fi-icono' + (ok ? '' : ' sin-dato-clicable') + '" title="' + titulo
+       + '" onclick="clicIdent(\'' + t.id + '\', this)">🪪</button>';
+}
+
+async function clicIdent(trabajadorId, btn) {
+  if (!window.VerifIdentidad || typeof VerifIdentidad.identificar !== 'function') {
+    alert('La página tiene una versión antigua guardada. Recarga la página.');
+    return;
+  }
+  var t = todosTrabajadores.find(function (x) { return x.id === trabajadorId; }) || {};
+  if (btn) btn.disabled = true;
   try {
-    var res = await sb.rpc('ver_foto_identidad', { p_trabajador_id: trabajadorId });
-    var data = res.data; var error = res.error;
-    if (error || !data || !data.ok) throw new Error((data && data.error) || 'Error');
-    if (data.hay_foto) {
-      // Tiene foto: mostrar en visor
-      var url = await FI.enlace(data.path);
-      _fivTrabajadorId = trabajadorId;
-      document.getElementById('fiv-img').src = url;
-      document.getElementById('fiv-overlay').classList.remove('oculto');
-    } else {
-      // Sin foto: abrir captura inline directamente
-      abrirFic(trabajadorId);
-    }
-  } catch(e) { alert('No se pudo cargar la foto. ' + e.message); }
-  finally { btn.disabled = false; }
-}
-
-// Abrir captura inline (sin modal intermedio de FI)
-function abrirFic(trabajadorId) {
-  _ficTrabajadorId = trabajadorId;
-  var hueco = document.getElementById('fic-hueco');
-  hueco.innerHTML = '';
-  document.getElementById('fic-msg').textContent = '';
-  document.getElementById('fic-msg').className = 'fic-msg';
-  document.getElementById('fic-btn-guardar').disabled = false;
-  _ficMando = FI.montarCaptura(hueco, {});
-  document.getElementById('fic-overlay').classList.remove('oculto');
-}
-
-async function guardarFic() {
-  var msg = document.getElementById('fic-msg');
-  var btn = document.getElementById('fic-btn-guardar');
-  if (!_ficMando || !_ficMando.blob) {
-    msg.className = 'fic-msg mal';
-    msg.textContent = 'Primero haz o elige una foto.';
-    return;
-  }
-  var obraId = obraParaTrabajador(_ficTrabajadorId);
-  if (!obraId) {
-    msg.className = 'fic-msg mal';
-    msg.textContent = 'No se puede determinar la obra. Selecciona una en el filtro superior.';
-    return;
-  }
-  btn.disabled = true;
-  msg.className = 'fic-msg';
-  msg.textContent = 'Guardando…';
-  var r = await FI.guardar(_ficTrabajadorId, obraId, _ficMando.blob);
-  if (!r.ok) {
-    btn.disabled = false;
-    msg.className = 'fic-msg mal';
-    msg.textContent = r.error || 'No se ha podido guardar.';
-    return;
-  }
-  msg.className = 'fic-msg ok';
-  msg.textContent = '✓ Foto guardada.';
-  // Actualizar icono en la tabla
-  var ic = document.querySelector('button.fi-icono.sin-dato-clicable[onclick*="clicFoto(\'' + _ficTrabajadorId + '\'"]');
-  if (ic) { ic.classList.remove('sin-dato-clicable'); ic.title = 'Ver foto de identidad'; }
-  setTimeout(cerrarFic, 900);
-}
-
-function cerrarFic() {
-  document.getElementById('fic-overlay').classList.add('oculto');
-  _ficTrabajadorId = null; _ficMando = null;
-}
-
-// Rehacer foto desde el visor
-function rehacerFoto() {
-  document.getElementById('fiv-overlay').classList.add('oculto');
-  if (_fivTrabajadorId) abrirFic(_fivTrabajadorId);
-}
-
-document.addEventListener('DOMContentLoaded', function () {
-  // Los modales se declaran despues de este <script>: sin esperar al DOM,
-  // getElementById devuelve null y el script entero se detiene aqui (71a).
-  document.getElementById('fiv-overlay').addEventListener('click', function(e) {
-    if (e.target === this) this.classList.add('oculto');
-  });
-  document.getElementById('fic-overlay').addEventListener('click', function(e) {
-    if (e.target === this) cerrarFic();
-  });
-  document.getElementById('vfm-overlay').addEventListener('click', function(e) {
-    if (e.target === this) cerrarVfm();
-  });
-});
-
-// 🪪 Verificación de identidad — la lógica vive en js/verificacion-identidad.js (82ª, integrado 86ª).
-// Aquí solo quedan envoltorios para que el HTML (onclick) y el listener del overlay no cambien.
-async function clicVerif(trabajadorId, btn) {
-  btn.disabled = true;
-  try {
-    await VerifIdentidad.abrir(sb, trabajadorId, obraParaTrabajador(trabajadorId), {
-      esc: esc,
-      onGuardado: function(tid) {
-        var ic = document.querySelector('button.fi-icono.sin-dato-clicable[onclick*="clicVerif(\'' + tid + '\'"]');
-        if (ic) { ic.classList.remove('sin-dato-clicable'); ic.title = 'Ver/editar verificación'; }
+    await VerifIdentidad.identificar(sb, trabajadorId, obraParaTrabajador(trabajadorId), {
+      tema: 'oscuro',
+      nombre: t.id ? nombreCompleto(t) : '',
+      empresa: (t.empresa && t.empresa.nombre) || '',
+      onGuardado: function (tid, r) {
+        var x = todosTrabajadores.find(function (y) { return y.id === tid; });
+        if (x) {
+          if (r && r.verificado) x.hay_verif = true;
+          if (r && r.foto) x.hay_foto = true;
+        }
+        document.querySelectorAll('button.fi-icono[onclick*="clicIdent(\'' + tid + '\'"]').forEach(function (b) {
+          if (x) { b.outerHTML = iconoIdent(x); }
+        });
       }
     });
   } finally {
-    btn.disabled = false;
+    if (btn) btn.disabled = false;
   }
 }
-function guardarVerif() { return VerifIdentidad.guardar(sb); }
-function cerrarVfm()    { VerifIdentidad.cerrar(); }
+
 // ─────────────────────────────────────────────────────────────────────
 
 document.getElementById('buscador').addEventListener('input', () => aplicarFiltrosTabla());
@@ -1861,10 +1738,10 @@ function abrirModalForzar(trabajadorId, obraId) {
   info.innerHTML = html;
 
   // Foto y verificación de identidad (75ª) — mismo dato que ya pintan los
-  // iconos 📷/🪪 de la tabla (`t.hay_foto`, `t.hay_verif`), mostrado aquí
+  // icono 🪪 de la tabla (`t.hay_foto`, `t.hay_verif`), mostrado aquí
   // para no tener que salir del panel a buscarlo. Reutiliza las mismas
-  // funciones/RPC que esos iconos: `ver_foto_identidad` + `FI.enlace` para
-  // la foto, `clicFoto` para ampliarla o hacerla si no existe.
+  // funciones/RPC que ese icono: `ver_foto_identidad` + `FI.enlace` para
+  // la foto, `clicIdent` (ventana única) para verla o hacerla.
   const fotoHueco = document.getElementById('forzar-foto-hueco');
   const verifBadge = document.getElementById('forzar-verif-badge');
   verifBadge.className = t.hay_verif ? 'badge-verif ok' : 'badge-verif falta';
@@ -1878,10 +1755,10 @@ function abrirModalForzar(trabajadorId, obraId) {
         return;
       }
       const url = await FI.enlace(data.path);
-      fotoHueco.innerHTML = `<img class="forzar-foto-img" src="${url}" alt="Foto de ${esc(forzarCtx.trabajador_nombre)}" title="Clic para ampliar" onclick="clicFoto('${trabajadorId}', this)">`;
+      fotoHueco.innerHTML = `<img class="forzar-foto-img" src="${url}" alt="Foto de ${esc(forzarCtx.trabajador_nombre)}" title="Clic para ampliar" onclick="clicIdent('${trabajadorId}', this)">`;
     });
   } else {
-    fotoHueco.innerHTML = `<span class="forzar-foto-vacio" title="Sin foto — clic para hacerla" onclick="clicFoto('${trabajadorId}', this)">📷 Sin foto</span>`;
+    fotoHueco.innerHTML = `<span class="forzar-foto-vacio" title="Sin foto — clic para hacerla" onclick="clicIdent('${trabajadorId}', this)">📷 Sin foto</span>`;
   }
 
   estadoSeleccionado = null;
@@ -2432,39 +2309,5 @@ document.getElementById('btn-confirmar-quitar').addEventListener('click', async 
 });
 </script>
 
-<!-- captura inline foto (70a) -->
-<div class="fic-overlay oculto" id="fic-overlay">
-  <div class="fic-caja">
-    <h3>📷 Foto de identidad</h3>
-    <div id="fic-hueco"></div>
-    <div class="fic-msg" id="fic-msg"></div>
-    <div class="fic-btns">
-      <button class="fic-btn" onclick="cerrarFic()">Cancelar</button>
-      <button class="fic-btn primario" id="fic-btn-guardar" onclick="guardarFic()">Guardar</button>
-    </div>
-  </div>
-</div>
-<!-- visor foto (70a) -->
-<div class="fiv-overlay oculto" id="fiv-overlay">
-  <img class="fiv-img" id="fiv-img" src="" alt="Foto de identidad" />
-  <div class="fiv-btns">
-    <button class="fiv-btn peligro" onclick="rehacerFoto()">📷 Rehacer la foto</button>
-    <button class="fiv-btn" onclick="document.getElementById('fiv-overlay').classList.add('oculto')">Cerrar</button>
-  </div>
-</div>
-<!-- modal verificación (70a) -->
-<div class="vfm-overlay oculto" id="vfm-overlay">
-  <div class="vfm-caja">
-    <div class="vfm-cab">
-      <h3 id="vfm-titulo">Verificación de identidad</h3>
-      <button class="vfm-cerrar" onclick="cerrarVfm()">✕</button>
-    </div>
-    <div id="vfm-cuerpo"></div>
-    <div class="vfm-msg" id="vfm-msg"></div>
-    <div class="vfm-btns" id="vfm-btns-guardar" style="display:none">
-      <button class="vfm-guardar" id="vfm-btn-guardar" onclick="guardarVerif()">Guardar verificación</button>
-    </div>
-  </div>
-</div>
 </body>
 </html>
