@@ -161,6 +161,21 @@
     font-weight: 700;
     padding: 0;
   }
+  /* 105ª (17/9/2026) — El DNI guardado es UN toque: se pulsa y ficha.
+     Antes solo rellenaba la casilla y había que pulsar Continuar. */
+  .ultimo-dni #btn-ultimo-dni {
+    display: block;
+    width: 100%;
+    margin: 6px 0 4px;
+    padding: 14px;
+    background: #eef1f5;
+    border: 2px solid var(--color-principal);
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 20px;
+    letter-spacing: 1px;
+    font-family: inherit;
+  }
   .ultimo-dni .btn-borrar-dni {
     margin-left: 8px;
     color: var(--rojo);
@@ -579,6 +594,39 @@
     transition: border-color 0.15s;
   }
   .selector-idioma button.activo { border-color: var(--color-principal); }
+
+  /* 105ª (17/9/2026) — Mientras se busca el GPS tras el DNI, las banderas
+     «laten» una tras otra y una mano toca una. SIN texto: quien más lo
+     necesita no lee el idioma de la pantalla. Sale SIEMPRE (decisión de
+     Dani: así todo el mundo aprende que ahí están los idiomas) y se corta en
+     cuanto cambia la pantalla; nunca retrasa el fichaje. */
+  .selector-idioma { position: relative; }
+  .selector-idioma.llamar button { animation: bandera-latido 1.8s ease-in-out infinite; }
+  @keyframes bandera-latido {
+    0%, 45%, 100% { transform: scale(1); }
+    18%           { transform: scale(1.28); }
+  }
+  .mano-idioma {
+    position: absolute;
+    top: calc(100% - 4px);
+    left: 12%;
+    font-size: 30px;
+    line-height: 1;
+    pointer-events: none;
+    z-index: 4;
+    animation: mano-toca 2.6s ease-in-out infinite;
+  }
+  @keyframes mano-toca {
+    0%   { left: 12%; transform: translateY(6px); }
+    40%  { left: 58%; transform: translateY(6px); }
+    52%  { left: 58%; transform: translateY(-6px) scale(0.9); }
+    64%  { left: 58%; transform: translateY(6px); }
+    100% { left: 12%; transform: translateY(6px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .selector-idioma.llamar button { animation: none; border-color: var(--naranja); }
+    .mano-idioma { animation: none; left: 45%; }
+  }
   .selector-idioma button:hover  { border-color: var(--gris-borde); }
 
   html[dir="rtl"] .motivos ul,
@@ -2255,8 +2303,18 @@ function leerIdiomasPorDni() {
 
 // El idioma del móvil: lo que se ve al llegar y al empezar de cero.
 function idiomaDelMovil() {
-  const l = localStorage.getItem('idioma_fichaje') || 'es';
-  return TEXTOS[l] ? l : 'es';
+  const l = localStorage.getItem('idioma_fichaje');
+  if (l && TEXTOS[l]) return l;
+  // 105ª (17/9/2026): sin bandera elegida en este móvil, se usa el idioma
+  // del propio teléfono si es uno de los siete. Un marroquí con el móvil en
+  // árabe ya no ve la valla en español. No se guarda: solo es el arranque.
+  const lista = (navigator.languages && navigator.languages.length)
+    ? navigator.languages : [navigator.language || ''];
+  for (const x of lista) {
+    const cod = String(x || '').toLowerCase().split('-')[0];
+    if (TEXTOS[cod]) return cod;
+  }
+  return 'es';
 }
 
 // Devuelve el idioma aprendido para ese DNI, o null si no hay ninguno.
@@ -2436,7 +2494,7 @@ function pintarBotonesIdioma() {
     b.title = i.titulo;
     b.setAttribute('aria-label', i.titulo);
     if (i.svg) { b.innerHTML = i.svg; } else { b.textContent = i.bandera; }
-    b.addEventListener('click', () => aplicarIdioma(i.cod, 'manual'));
+    b.addEventListener('click', () => { pararAvisoIdioma(); aplicarIdioma(i.cod, 'manual'); });
     caja.appendChild(b);
   });
 }
@@ -2721,7 +2779,30 @@ function ocultarErrorResultado() {
   el.errorResultado.classList.remove('aviso');
 }
 
+// 105ª (17/9/2026) — Animación de las banderas (ver CSS .llamar).
+function empezarAvisoIdioma() {
+  const caja = document.getElementById('selector-idioma');
+  if (!caja || caja.classList.contains('llamar')) return;
+  caja.querySelectorAll('button').forEach((b, i) => { b.style.animationDelay = (i * 0.14) + 's'; });
+  const mano = document.createElement('span');
+  mano.className = 'mano-idioma';
+  mano.id = 'mano-idioma';
+  mano.setAttribute('aria-hidden', 'true');
+  mano.textContent = '👆';
+  caja.appendChild(mano);
+  caja.classList.add('llamar');
+}
+function pararAvisoIdioma() {
+  const caja = document.getElementById('selector-idioma');
+  if (!caja) return;
+  caja.classList.remove('llamar');
+  caja.querySelectorAll('button').forEach(b => { b.style.animationDelay = ''; });
+  const mano = document.getElementById('mano-idioma');
+  if (mano) mano.remove();
+}
+
 function irA(paso) {
+  pararAvisoIdioma();   // 105ª: cualquier cambio de pantalla la corta
   [el.pasoDni, el.pasoCargando, el.pasoResultado, el.pasoFinal, el.pasoSinRegistrar]
     .forEach(p => p.classList.add('oculto'));
   paso.classList.remove('oculto');
@@ -2973,6 +3054,9 @@ function obtenerUbicacion(alProgresar) {
 el.btnUltimoDni.addEventListener('click', () => {
   el.inputDni.value = el.btnUltimoDni.dataset.dni;
   el.ultimoDniBox.classList.add('oculto');
+  // 105ª (17/9/2026): elegir tu DNI ya es la acción — sigue sin pasar por
+  // «Continuar». Mismas comprobaciones que si lo hubiera tecleado.
+  continuarDesdeDni();
 });
 el.btnBorrarDni.addEventListener('click', () => {
   localStorage.removeItem('ultimo_dni');
@@ -3038,6 +3122,7 @@ async function continuarDesdeDni() {
   estado.dni = dni;
   el.cargandoTexto.textContent = T('obteniendo_ubic');
   irA(el.pasoCargando);
+  empezarAvisoIdioma();   // 105ª: solo en la espera tras el DNI
 
   try {
     estado.ubicacion = await obtenerUbicacion(p => {
