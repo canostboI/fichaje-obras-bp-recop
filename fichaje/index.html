@@ -388,6 +388,30 @@
   /* 86ª (15/9/2026) — No todo rechazo es un error. Un doble escaneo es,
      para el trabajador, una buena noticia: ya había fichado. En rojo parece
      que ha hecho algo mal, y eso es justo lo que le empuja a insistir. */
+  /* 105ª (17/9/2026) — Salida escondida tras un doble escaneo: existe para
+     quien de verdad se ha equivocado, pero NO debe parecer una tarea. */
+  .enlace-discreto {
+    display: block;
+    margin: 18px auto 0;
+    padding: 6px 10px;
+    background: none;
+    border: none;
+    color: #8a8f96;
+    font-size: 13px;
+    text-decoration: underline;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .confirmar-salida {
+    margin-top: 16px;
+    padding: 14px;
+    border: 1px solid var(--gris-borde);
+    border-radius: 10px;
+    text-align: center;
+  }
+  .confirmar-salida p { margin: 0; font-weight: 600; }
+  .confirmar-salida button.principal { margin-top: 12px; }
+
   .error-banner.aviso {
     background: #fff4e6 !important;
     color: var(--naranja) !important;
@@ -725,6 +749,13 @@
       <button type="button" id="btn-entrada"></button>
       <button type="button" id="btn-salida"></button>
     </div>
+    <!-- 105ª (17/9/2026): salida escondida tras un doble escaneo -->
+    <button type="button" class="enlace-discreto oculto" id="btn-salida-error"></button>
+    <div class="confirmar-salida oculto" id="confirmar-salida">
+      <p id="confirmar-salida-texto"></p>
+      <button type="button" class="principal azul" id="btn-confirmar-si"></button>
+      <button type="button" class="principal secundario" id="btn-confirmar-no"></button>
+    </div>
     <button type="button" class="secundario" id="btn-volver" style="margin-top:10px;">Volver</button>
   </div>
 
@@ -833,6 +864,11 @@ const el = {
   botonesFichaje:     document.getElementById('botones-fichaje'),
   btnEntrada:         document.getElementById('btn-entrada'),
   btnSalida:          document.getElementById('btn-salida'),
+  btnSalidaError:     document.getElementById('btn-salida-error'),
+  confirmarSalida:    document.getElementById('confirmar-salida'),
+  confirmarTexto:     document.getElementById('confirmar-salida-texto'),
+  btnConfirmarSi:     document.getElementById('btn-confirmar-si'),
+  btnConfirmarNo:     document.getElementById('btn-confirmar-no'),
   btnVolver:          document.getElementById('btn-volver'),
   finalTick:          document.getElementById('final-tick'),
   finalTitulo:        document.getElementById('final-titulo'),
@@ -918,6 +954,10 @@ const TEXTOS = {
     dentro_sin_hora:     'Ya tienes la entrada fichada. Al terminar la jornada, pulsa:',
     ya_fichado_titulo:   '✓ Ya estás fichado',
     ya_fichado_texto:    'Entraste a las {h}. No tienes que hacer nada.',
+    salida_error_enlace: 'Me he equivocado, quiero salir ya',
+    confirmar_salida_texto: '¿Seguro que sales ya? Entraste a las {h}.',
+    confirmar_si:        'Sí, salgo',
+    confirmar_no:        'No, me quedo',
     acceso_aviso:        '⚠ Acceso con aviso',
     acceso_excepcion:    'Acceso autorizado excepcionalmente hoy',
     acceso_denegado:     '✗ Acceso denegado',
@@ -1067,6 +1107,10 @@ const TEXTOS = {
     dentro_sin_hora:     "Ja tens l'entrada fitxada. En acabar la jornada, prem:",
     ya_fichado_titulo:   '✓ Ja has fitxat',
     ya_fichado_texto:    'Has entrat a les {h}. No has de fer res.',
+    salida_error_enlace: "M'he equivocat, vull sortir ja",
+    confirmar_salida_texto: 'Segur que surts ja? Has entrat a les {h}.',
+    confirmar_si:        'Sí, surto',
+    confirmar_no:        'No, em quedo',
     acceso_aviso:        '⚠ Accés amb avís',
     acceso_excepcion:    'Accés autoritzat excepcionalment avui',
     acceso_denegado:     '✗ Accés denegat',
@@ -1205,6 +1249,10 @@ const TEXTOS = {
     dentro_sin_hora:     'لقد سجّلت دخولك بالفعل. عند انتهاء الدوام، اضغط:',
     ya_fichado_titulo:   '✓ لقد سجّلت دخولك',
     ya_fichado_texto:    'دخلت الساعة {h}. لا داعي لفعل أي شيء.',
+    salida_error_enlace: 'أخطأت، أريد الخروج الآن',
+    confirmar_salida_texto: 'هل أنت متأكد أنك تخرج الآن؟ دخلت الساعة {h}.',
+    confirmar_si:        'نعم، أخرج',
+    confirmar_no:        'لا، سأبقى',
     acceso_aviso:        '⚠ دخول مع تحذير',
     acceso_excepcion:    'مسموح بالدخول استثنائياً لهذا اليوم',
     acceso_denegado:     '✗ الدخول ممنوع',
@@ -1343,6 +1391,10 @@ const TEXTOS = {
     dentro_sin_hora:     'Ai pontat deja intrarea. La sfârșitul programului, apasă:',
     ya_fichado_titulo:   '✓ Ai pontat deja',
     ya_fichado_texto:    'Ai intrat la ora {h}. Nu trebuie să faci nimic.',
+    salida_error_enlace: 'Am greșit, vreau să ies acum',
+    confirmar_salida_texto: 'Sigur ieși acum? Ai intrat la ora {h}.',
+    confirmar_si:        'Da, ies',
+    confirmar_no:        'Nu, rămân',
     acceso_aviso:        '⚠ Acces cu avertisment',
     acceso_excepcion:    'Acces autorizat excepțional astăzi',
     acceso_denegado:     '✗ Acces refuzat',
@@ -1488,6 +1540,10 @@ const TEXTOS = {
     dentro_sin_hora:     'آپ کی حاضری درج ہو چکی ہے۔ کام ختم ہونے پر بٹن دبائیں:',
     ya_fichado_titulo:   '✓ آپ کی حاضری درج ہو چکی ہے',
     ya_fichado_texto:    'آپ {h} بجے اندر آئے۔ آپ کو کچھ کرنے کی ضرورت نہیں۔',
+    salida_error_enlace: 'غلطی ہو گئی، میں ابھی چھٹی درج کرنا چاہتا ہوں',
+    confirmar_salida_texto: 'کیا آپ واقعی ابھی جا رہے ہیں؟ آپ {h} بجے اندر آئے تھے۔',
+    confirmar_si:        'ہاں، چھٹی درج کریں',
+    confirmar_no:        'نہیں، میں رک رہا ہوں',
     acceso_aviso:        '⚠ انتباہ کے ساتھ داخلہ',
     acceso_excepcion:    'آج استثنائی طور پر داخلے کی اجازت ہے',
     acceso_denegado:     '✗ داخلہ ممنوع',
@@ -1632,6 +1688,10 @@ const TEXTOS = {
     dentro_sin_hora:     'ਤੁਹਾਡੀ ਹਾਜ਼ਰੀ ਲੱਗ ਚੁੱਕੀ ਹੈ। ਕੰਮ ਖਤਮ ਹੋਣ ਉੱਤੇ ਬਟਨ ਦਬਾਓ:',
     ya_fichado_titulo:   '✓ ਤੁਹਾਡੀ ਹਾਜ਼ਰੀ ਲੱਗ ਚੁੱਕੀ ਹੈ',
     ya_fichado_texto:    'ਤੁਸੀਂ {h} ਵਜੇ ਅੰਦਰ ਆਏ। ਤੁਹਾਨੂੰ ਕੁਝ ਕਰਨ ਦੀ ਲੋੜ ਨਹੀਂ।',
+    salida_error_enlace: 'ਗਲਤੀ ਹੋ ਗਈ, ਮੈਂ ਹੁਣੇ ਛੁੱਟੀ ਦਰਜ ਕਰਨੀ ਹੈ',
+    confirmar_salida_texto: 'ਕੀ ਤੁਸੀਂ ਸੱਚਮੁੱਚ ਹੁਣੇ ਜਾ ਰਹੇ ਹੋ? ਤੁਸੀਂ {h} ਵਜੇ ਅੰਦਰ ਆਏ ਸੀ।',
+    confirmar_si:        'ਹਾਂ, ਛੁੱਟੀ ਦਰਜ ਕਰੋ',
+    confirmar_no:        'ਨਹੀਂ, ਮੈਂ ਰੁਕ ਰਿਹਾ ਹਾਂ',
     acceso_aviso:        '⚠ ਚੇਤਾਵਨੀ ਨਾਲ ਦਾਖ਼ਲਾ',
     acceso_excepcion:    'ਅੱਜ ਖ਼ਾਸ ਛੋਟ ਵਜੋਂ ਦਾਖ਼ਲੇ ਦੀ ਇਜਾਜ਼ਤ ਹੈ',
     acceso_denegado:     '✗ ਦਾਖ਼ਲਾ ਮਨ੍ਹਾ ਹੈ',
@@ -1771,6 +1831,10 @@ const TEXTOS = {
     dentro_sin_hora:     'You are already clocked in. When you finish work, press:',
     ya_fichado_titulo:   '✓ You are already clocked in',
     ya_fichado_texto:    "You came in at {h}. You don't need to do anything.",
+    salida_error_enlace: 'I made a mistake, I want to clock out now',
+    confirmar_salida_texto: 'Are you sure you are leaving now? You came in at {h}.',
+    confirmar_si:        'Yes, clock me out',
+    confirmar_no:        "No, I'm staying",
     acceso_aviso:        '⚠ Access granted with a warning',
     acceso_excepcion:    'Access granted as an exception, today only',
     acceso_denegado:     '✗ Access denied',
@@ -2939,6 +3003,20 @@ el.btnNuevo.addEventListener('click', () => {
 });
 el.btnEntrada.addEventListener('click', () => ejecutarFichaje('entrada'));
 el.btnSalida.addEventListener('click',  () => ejecutarFichaje('salida'));
+// 105ª (17/9/2026): salida escondida — dos toques deliberados
+el.btnSalidaError.addEventListener('click', () => {
+  const v = estado.validacion || {};
+  el.confirmarTexto.textContent = T('confirmar_salida_texto').replace('{h}', v.hora_entrada || '');
+  el.btnConfirmarSi.textContent = T('confirmar_si');
+  el.btnConfirmarNo.textContent = T('confirmar_no');
+  el.btnSalidaError.classList.add('oculto');
+  el.confirmarSalida.classList.remove('oculto');
+});
+el.btnConfirmarNo.addEventListener('click', () => {
+  el.confirmarSalida.classList.add('oculto');
+  el.btnSalidaError.classList.remove('oculto');
+});
+el.btnConfirmarSi.addEventListener('click', () => ejecutarFichaje('salida_confirmada'));
 el.srAutonomo.addEventListener('change', alMarcarAutonomo);
 el.btnSrRegistrar.addEventListener('click', registrarSinRegistrar);
 el.btnSrVolver.addEventListener('click', () => { irA(el.pasoDni); el.inputDni.focus(); });
@@ -3066,8 +3144,9 @@ function fraseSituacion(v, tipoSugerido) {
 // 105ª — Doble escaneo (entró hace menos de 10 min, regla de la BD): no es
 // un error, es que ya había fichado. Recuadro verde, ninguna tarea, ningún
 // botón de salir a la vista. Devuelve true si lo ha pintado.
-// (La salida escondida «me he equivocado» llega con el cambio de
-// registrar_fichaje: hoy la BD la rechazaría y sería otro botón que falla.)
+// 105ª: debajo, un enlace gris «me he equivocado» → confirmación → fichaje
+// con tipo 'salida_confirmada' (registrar_fichaje se salta SOLO la ventana
+// de 10 min; GPS y semáforo, igual).
 function pintarDobleEscaneo(v, avisoPulsar) {
   if (!v || v.doble_escaneo !== true || typeof v.hora_entrada !== 'string' || !v.hora_entrada) return false;
   el.estadoBox.className = 'estado-box estado-verde';
@@ -3077,7 +3156,14 @@ function pintarDobleEscaneo(v, avisoPulsar) {
   el.botonesFichaje.classList.add('oculto');
   el.btnEntrada.disabled = true;
   el.btnSalida.disabled  = true;
+  el.btnSalidaError.textContent = T('salida_error_enlace');
+  el.btnSalidaError.classList.remove('oculto');
   return true;
+}
+
+function ocultarSalidaEscondida() {
+  el.btnSalidaError.classList.add('oculto');
+  el.confirmarSalida.classList.add('oculto');
 }
 
 function mostrarResultadoValidacion(v) {
@@ -3086,6 +3172,7 @@ function mostrarResultadoValidacion(v) {
     return;
   }
   ocultarErrorResultado();
+  ocultarSalidaEscondida();
   el.estadoBox.className = 'estado-box';
   const avisoPulsar = document.getElementById('aviso-pulsar');
   avisoPulsar.classList.add('oculto');
@@ -3136,6 +3223,7 @@ function mostrarResultadoValidacion(v) {
 }
 
 async function ejecutarFichaje(tipo) {
+  ocultarSalidaEscondida();
   el.btnEntrada.disabled = true;
   el.btnSalida.disabled  = true;
   ocultarErrorResultado();
