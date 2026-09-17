@@ -11,6 +11,7 @@
   <script src="../js/auto-logout.js"></script>
   <script src="../js/fechas.js"></script>
   <script src="../js/habilitaciones.js?v=20260915"></script>
+  <script src="../js/titulo-habilitacion.js?v=20260917"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -99,6 +100,8 @@
     .hab-pill.falta-fecha    { background: #fff3e0; color: #e65100; border-color: #e65100; border-style: dashed; }
     .hab-pill .icono         { font-size: 1rem; display: inline-flex; align-items: center; }
     .hab-pill .caducidad     { font-size: 0.78rem; font-weight: 400; opacity: 0.85; }
+    .hab-pill .ver-titulo    { font: inherit; font-size: 0.78rem; font-weight: 600; background: #ffffff; color: #1565c0;
+                               border: 1px solid #90caf9; border-radius: 999px; padding: 1px 8px; cursor: pointer; margin-left: 2px; }
 
     .resumen-banner {
       background: #e3f2fd; border: 1px solid #90caf9;
@@ -322,7 +325,7 @@
     // 2. Obtener habilitaciones activas de esos trabajadores
     const { data: habs, error: errH } = await sb
       .from('habilitaciones_trabajador')
-      .select('trabajador_id, fecha_caducidad, sin_caducidad, tipo:tipo_habilitacion_id(nombre)')
+      .select('trabajador_id, fecha_caducidad, sin_caducidad, titulo_path, tipo:tipo_habilitacion_id(nombre)')
       .in('trabajador_id', twIds)
       .eq('activo', true);
 
@@ -342,6 +345,7 @@
         nombre: h.tipo?.nombre || 'Sin nombre',
         fecha_caducidad: h.fecha_caducidad,
         sin_caducidad: h.sin_caducidad,
+        titulo_path: h.titulo_path || null,
         estado: Hab.estado(h)
       });
     });
@@ -376,6 +380,7 @@
           <span class="icono">${icono}</span>
           <span>${esc(h.nombre)}</span>
           ${caducTexto ? `<span class="caducidad">(${esc(caducTexto)})</span>` : ''}
+          ${h.titulo_path ? `<button type="button" class="ver-titulo" data-ruta="${esc(h.titulo_path).replace(/"/g, '&quot;')}" title="Ver el título (lo guarda el jefe de obra)">📄 título</button>` : ''}
         </span>`;
       }).join('');
 
@@ -391,6 +396,18 @@
       lista.appendChild(div);
     });
   }
+
+  // Título de la habilitación (17/9): el encargado solo lo VE; lo guarda el
+  // jefe de obra. Un único gestor para toda la lista (se repinta a menudo).
+  document.getElementById('lista-habilitaciones').addEventListener('click', ev => {
+    const btn = ev.target.closest('.ver-titulo');
+    if (!btn) return;
+    if (typeof TituloHab === 'undefined') {
+      mostrarError('Falta cargar una parte nueva de la página. Recarga la página.');
+      return;
+    }
+    TituloHab.ver(sb, btn.dataset.ruta).then(res => { if (res.error) mostrarError(res.error); });
+  });
 
   document.getElementById('btn-logout').addEventListener('click', async () => {
     await sb.auth.signOut();
