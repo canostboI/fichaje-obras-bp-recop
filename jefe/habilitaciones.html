@@ -129,7 +129,7 @@
 <script src="../js/auto-logout.js"></script>
 <script src="../js/fechas.js"></script>
 <script src="../js/habilitaciones.js?v=20260915"></script>
-<script src="../js/titulo-habilitacion.js?v=20260917"></script>
+<script src="../js/titulo-habilitacion.js?v=20260917b"></script>
 <script src="../js/marca-portium.js?v=20260916"></script>
 </head>
 <body>
@@ -560,8 +560,8 @@ function renderHabilitaciones() {
         </div>
         <div class="hab-acciones">
           <span class="badge ${cls}">${esc(Hab.etiqueta(est))}</span>
-          ${h.titulo_path ? `<button class="btn btn-secundario" onclick="verTitulo('${h.id}')">📄 Ver título</button>` : ''}
-          <button class="btn btn-secundario" onclick="subirTitulo('${h.id}')">📎 ${h.titulo_path ? 'Cambiar título' : 'Subir título'}</button>
+          ${nArchivos(h) ? `<button class="btn btn-secundario" onclick="verTitulo('${h.id}')">📄 Ver título (${nArchivos(h)})</button>` : ''}
+          <button class="btn btn-secundario" onclick="subirTitulo('${h.id}')">📎 Añadir fotos</button>
           <button class="btn btn-secundario"
             onclick="abrirEdicion('${h.tipo_habilitacion_id}')">
             ✏️ Fecha
@@ -585,43 +585,62 @@ function renderHabilitaciones() {
 }
 
 // ── TÍTULO DE LA HABILITACIÓN (17/9) ─────────────────────────────
-// Lo sube SOLO el jefe de obra: es quien verifica que es real y su
-// caducidad. La lógica vive en js/titulo-habilitacion.js.
+// Lo añade y quita SOLO el jefe de obra: es quien verifica que es real y su
+// caducidad. Puede ser VARIOS archivos. La lógica vive en js/titulo-habilitacion.js.
 function htmlTitulo(h) {
-  if (!h.titulo_path) return '<div class="hab-titulo">Sin título guardado</div>';
-  const f = (typeof TituloHab !== 'undefined') ? TituloHab.fecha(h.titulo_subido_en) : '';
-  return `<div class="hab-titulo con">📄 Título guardado${f ? ' el ' + esc(f) : ''}</div>`;
+  const n = Array.isArray(h.titulo_archivos) ? h.titulo_archivos.length : 0;
+  if (!n) return '<div class="hab-titulo">Sin título guardado</div>';
+  return `<div class="hab-titulo con">📄 Título guardado · ${n} ${n === 1 ? 'archivo' : 'archivos'}</div>`;
 }
-
+// Aviso de progreso: verde y SIN temporizador (msgHab 'ok' se oculta a los
+// 4 s y podría esconder el resultado final).
+function msgProgresoTitulo(txt) {
+  const el = document.getElementById('msg-hab');
+  el.textContent = txt; el.className = 'mensaje ok'; el.style.display = 'block';
+}
+function nArchivos(h) { return Array.isArray(h.titulo_archivos) ? h.titulo_archivos.length : 0; }
 function moduloTituloListo() {
-  if (typeof TituloHab === 'undefined') {
+  // Página nueva con módulo viejo en caché: sin galeria() no se sigue.
+  if (typeof TituloHab === 'undefined' || typeof TituloHab.galeria !== 'function') {
     msgHab('Falta cargar una parte nueva de la página. Recarga la página y vuelve a intentarlo.', 'err');
     return false;
   }
   return true;
 }
-
 function subirTitulo(habId) {
   if (!trabajadorActual || !moduloTituloListo()) return;
   const h = habsCache.find(x => x.id === habId);
   if (!h) return;
-  if (h.titulo_path && !confirm('Ya hay un título guardado para «' + h.tipo_nombre +
-      '». ¿Sustituirlo por uno nuevo? El anterior queda archivado.')) return;
   // Sin await antes de subir(): el selector de archivos necesita el clic.
   const trabajadorId = trabajadorActual.id;
-  TituloHab.subir(sb, { habilitacionId: habId, trabajadorId }).then(async res => {
+  TituloHab.subir(sb, {
+    habilitacionId: habId, trabajadorId,
+    onProgreso: (i, n) => msgProgresoTitulo('Subiendo ' + i + ' de ' + n + '…')
+  }).then(async res => {
     if (res.cancelado) return;
     if (res.error) { msgHab(res.error, 'err'); return; }
-    msgHab('Título guardado.', 'ok');
+    const txtOk = res.subidos === 1 ? 'Guardado 1 archivo.' : ('Guardados ' + res.subidos + ' archivos.');
+    if (res.errores && res.errores.length) {
+      msgHab((res.subidos ? txtOk + ' ' : '') + 'No se ha podido guardar: ' + res.errores.join(' · '), 'err');
+    } else {
+      msgHab(txtOk, 'ok');
+    }
     if (trabajadorActual && trabajadorActual.id === trabajadorId) await cargarHabilitaciones(trabajadorId);
   });
 }
-
 function verTitulo(habId) {
   if (!moduloTituloListo()) return;
   const h = habsCache.find(x => x.id === habId);
   if (!h) return;
-  TituloHab.ver(sb, h.titulo_path).then(res => { if (res.error) msgHab(res.error, 'err'); });
+  const trabajadorId = trabajadorActual && trabajadorActual.id;
+  TituloHab.galeria(sb, {
+    archivos: h.titulo_archivos || [],
+    titulo: h.tipo_nombre + (trabajadorActual ? ' · ' + trabajadorActual.nombre : ''),
+    puedeQuitar: true,
+    onCambio: async () => {
+      if (trabajadorId && trabajadorActual && trabajadorActual.id === trabajadorId) await cargarHabilitaciones(trabajadorId);
+    }
+  });
 }
 
 function abrirEdicion(tipoId)  { editandoTipoId = tipoId; renderHabilitaciones(); }
