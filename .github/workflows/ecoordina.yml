@@ -25,7 +25,9 @@ name: e-Coordina · sincronización diaria
 #
 # ⚠️ Cambio de hora de octubre (CET = UTC+1): pasar a '43 23 * * 0-4' y
 # '43 2 * * 1-5'. Lo recuerda solo recordatorio-crons.yml.
-# También se puede lanzar a mano desde la pestaña Actions (workflow_dispatch).
+# También se puede lanzar a mano desde la pestaña Actions (workflow_dispatch)
+# y desde el botón «Actualizar ahora» de jefe/documentos-ecoordina.html
+# (máx. 2 al día, 30 min entre ellas; los topes viven en la BD).
 #
 # MJ-20 (auditoría): si la sync falla, se abre (o actualiza) una issue
 # automática en el repo con la etiqueta "sync-fallida" y un enlace al run.
@@ -40,6 +42,15 @@ on:
 permissions:
   contents: read
   issues: write
+
+# Nunca dos sincronizaciones a la vez (17/9/2026). Desde el botón
+# «Actualizar e-Coordina ahora» del jefe (RPC pedir_sync_ecoordina) se puede
+# lanzar mientras corre la de madrugada: la segunda ESPERA a que acabe la
+# primera, no la cancela. Así e-Coordina no recibe dos inicios de sesión
+# simultáneos con la misma cuenta.
+concurrency:
+  group: ecoordina-sync
+  cancel-in-progress: false
 
 jobs:
   sincronizar:
