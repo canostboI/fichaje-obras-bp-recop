@@ -11,7 +11,7 @@
   <script src="../js/auto-logout.js"></script>
   <script src="../js/fechas.js"></script>
   <script src="../js/habilitaciones.js?v=20260915"></script>
-  <script src="../js/titulo-habilitacion.js?v=20260917"></script>
+  <script src="../js/titulo-habilitacion.js?v=20260917b"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -168,6 +168,8 @@
   AutoLogout.init(sb);
 
   let obraActualId = null;
+  // Títulos por habilitación, para abrir la galería: id → { archivos, titulo }
+  let titulosPorHab = {};
 
   // ── Diccionario de iconos (idéntico al de jefe/habilitaciones.html) ──
   // Iconos, estado y umbral: js/habilitaciones.js (window.Hab).
@@ -325,13 +327,34 @@
     // 2. Obtener habilitaciones activas de esos trabajadores
     const { data: habs, error: errH } = await sb
       .from('habilitaciones_trabajador')
-      .select('trabajador_id, fecha_caducidad, sin_caducidad, titulo_path, tipo:tipo_habilitacion_id(nombre)')
+      .select('id, trabajador_id, fecha_caducidad, sin_caducidad, tipo:tipo_habilitacion_id(nombre)')
       .in('trabajador_id', twIds)
       .eq('activo', true);
 
     if (errH) {
       lista.innerHTML = `<p class="loading">Error al cargar habilitaciones: ${esc(errH.message)}</p>`;
       return;
+    }
+
+    // Título (17/9): varios archivos por habilitación, en su propia tabla.
+    // Si esta lectura falla, la lista sale igual, sin el botón de título.
+    titulosPorHab = {};
+    const habIds = (habs || []).map(h => h.id);
+    if (habIds.length) {
+      const { data: archs, error: errT } = await sb
+        .from('titulos_habilitacion_archivos')
+        .select('id, habilitacion_id, storage_path, subido_en')
+        .in('habilitacion_id', habIds)
+        .eq('activo', true)
+        .order('subido_en');
+      if (errT) {
+        console.error('titulos_habilitacion_archivos:', errT);
+      } else {
+        (archs || []).forEach(a => {
+          if (!titulosPorHab[a.habilitacion_id]) titulosPorHab[a.habilitacion_id] = { archivos: [], titulo: '' };
+          titulosPorHab[a.habilitacion_id].archivos.push(a);
+        });
+      }
     }
 
     // El estado lo decide Hab.estado(), el mismo que usan el jefe, el
@@ -345,7 +368,7 @@
         nombre: h.tipo?.nombre || 'Sin nombre',
         fecha_caducidad: h.fecha_caducidad,
         sin_caducidad: h.sin_caducidad,
-        titulo_path: h.titulo_path || null,
+        hab_id: h.id,
         estado: Hab.estado(h)
       });
     });
@@ -371,6 +394,7 @@
       const div = document.createElement('div');
       div.className = 'trab-card';
 
+      t.habs.forEach(h => { if (titulosPorHab[h.hab_id]) titulosPorHab[h.hab_id].titulo = h.nombre + ' · ' + t.nombre; });
       const pillsHtml = t.habs.map(h => {
         // Icono SVG con respaldo al emoji si hay un habilitaciones.js viejo en caché.
         const icono = (typeof Hab.iconoSvg === 'function') ? Hab.iconoSvg(h.nombre, 20) : Hab.icono(h.nombre);
@@ -380,7 +404,7 @@
           <span class="icono">${icono}</span>
           <span>${esc(h.nombre)}</span>
           ${caducTexto ? `<span class="caducidad">(${esc(caducTexto)})</span>` : ''}
-          ${h.titulo_path ? `<button type="button" class="ver-titulo" data-ruta="${esc(h.titulo_path).replace(/"/g, '&quot;')}" title="Ver el título (lo guarda el jefe de obra)">📄 título</button>` : ''}
+          ${titulosPorHab[h.hab_id] ? `<button type="button" class="ver-titulo" data-hab="${esc(h.hab_id)}" title="Ver el título (lo guarda el jefe de obra)">📄 título (${titulosPorHab[h.hab_id].archivos.length})</button>` : ''}
         </span>`;
       }).join('');
 
@@ -402,11 +426,14 @@
   document.getElementById('lista-habilitaciones').addEventListener('click', ev => {
     const btn = ev.target.closest('.ver-titulo');
     if (!btn) return;
-    if (typeof TituloHab === 'undefined') {
+    if (typeof TituloHab === 'undefined' || typeof TituloHab.galeria !== 'function') {
       mostrarError('Falta cargar una parte nueva de la página. Recarga la página.');
       return;
     }
-    TituloHab.ver(sb, btn.dataset.ruta).then(res => { if (res.error) mostrarError(res.error); });
+    const t = titulosPorHab[btn.dataset.hab];
+    if (!t) return;
+    // Solo mirar: sin «Quitar» (lo decide el jefe de obra).
+    TituloHab.galeria(sb, { archivos: t.archivos, titulo: t.titulo, puedeQuitar: false });
   });
 
   document.getElementById('btn-logout').addEventListener('click', async () => {
