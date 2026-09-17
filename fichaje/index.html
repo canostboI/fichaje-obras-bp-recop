@@ -601,10 +601,13 @@
      Dani: así todo el mundo aprende que ahí están los idiomas) y se corta en
      cuanto cambia la pantalla; nunca retrasa el fichaje. */
   .selector-idioma { position: relative; }
-  .selector-idioma.llamar button { animation: bandera-latido 1.8s ease-in-out infinite; }
+  /* 105ª bis: más lenta — la primera versión (latido de 0,3 s) casi no se
+     veía. Ahora cada bandera crece y vuelve en ~1 s, en ola de izquierda a
+     derecha, y la ola se repite cada 4,2 s. */
+  .selector-idioma.llamar button { animation: bandera-latido 4.2s ease-in-out infinite; }
   @keyframes bandera-latido {
-    0%, 45%, 100% { transform: scale(1); }
-    18%           { transform: scale(1.28); }
+    0%, 26%, 100% { transform: scale(1); }
+    12%           { transform: scale(1.3); }
   }
   .mano-idioma {
     position: absolute;
@@ -614,7 +617,7 @@
     line-height: 1;
     pointer-events: none;
     z-index: 4;
-    animation: mano-toca 2.6s ease-in-out infinite;
+    animation: mano-toca 5s ease-in-out infinite;
   }
   @keyframes mano-toca {
     0%   { left: 12%; transform: translateY(6px); }
@@ -2547,6 +2550,7 @@ function aplicarFotoFondo(fotoUrl) {
   }
 
   el.inputDni.focus();
+  empezarAvisoIdioma();   // 105ª bis: nada más escanear el QR
 })();
 
 function normalizarDni(dni) {
@@ -2783,7 +2787,7 @@ function ocultarErrorResultado() {
 function empezarAvisoIdioma() {
   const caja = document.getElementById('selector-idioma');
   if (!caja || caja.classList.contains('llamar')) return;
-  caja.querySelectorAll('button').forEach((b, i) => { b.style.animationDelay = (i * 0.14) + 's'; });
+  caja.querySelectorAll('button').forEach((b, i) => { b.style.animationDelay = (i * 0.45) + 's'; });
   const mano = document.createElement('span');
   mano.className = 'mano-idioma';
   mano.id = 'mano-idioma';
@@ -2806,6 +2810,10 @@ function irA(paso) {
   [el.pasoDni, el.pasoCargando, el.pasoResultado, el.pasoFinal, el.pasoSinRegistrar]
     .forEach(p => p.classList.add('oculto'));
   paso.classList.remove('oculto');
+  // 105ª bis (decisión de Dani): también en la pantalla del DNI, donde la
+  // persona está quieta tecleando. Tocar una bandera la corta hasta el
+  // siguiente cambio de pantalla.
+  if (paso === el.pasoDni) empezarAvisoIdioma();
 }
 
 function pintarMotivos(contenedor, motivos, criticos) {
