@@ -538,6 +538,11 @@
     }
   
   .hab-iconos-enc { display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; margin-left: 2px; }
+  /* 108a - El SVG de habilitaciones hereda currentColor. Naranja = caduca
+     pronto o le falta la fecha; rojo = ya caducada. */
+  .hab-ico { display: inline-flex; align-items: center; }
+  .hab-ico-naranja { color: #ef6c00; }
+  .hab-ico-rojo { color: #c62828; }
   /* ── iconos foto/verif encargado (70a) ── */
   .fi-icono-enc { font-size: 14px; cursor: pointer; border: none; background: none; padding: 2px 4px; border-radius: 4px; line-height: 1; transition: transform 0.1s, opacity 0.15s; vertical-align: middle; }
   .fi-icono-enc:hover { transform: scale(1.2); background: rgba(255,255,255,0.08); }
@@ -2223,7 +2228,7 @@
     try {
       let { data, error } = await sb
         .from('fichajes')
-        .select('tipo, hora, trabajador_id, trabajadores(nombre, apellidos, dni, empresa_id, empresas(nombre))')
+        .select('tipo, hora, trabajador_id, trabajadores(nombre, apellidos, dni, categoria, categoria_otra, empresa_id, empresas(nombre))')
         .eq('obra_id', obraId)
         .gte('hora', desdeISO)
         .lte('hora', hastaISO)
@@ -2232,7 +2237,7 @@
       if (error) {
         const fb = await sb
           .from('fichajes')
-          .select('tipo, hora, trabajador_id, trabajadores(nombre, apellidos, dni, empresa_id)')
+          .select('tipo, hora, trabajador_id, trabajadores(nombre, apellidos, dni, categoria, categoria_otra, empresa_id)')
           .eq('obra_id', obraId)
           .gte('hora', desdeISO)
           .lte('hora', hastaISO)
@@ -2263,9 +2268,12 @@
         : '';
       const empresaId = f.trabajadores?.empresa_id || null;
       const dni = (f.trabajadores && f.trabajadores.dni) ? f.trabajadores.dni : '';
+      // 108a: categoria profesional (peon, oficial...). El texto libre solo
+      // manda cuando la categoria es 'otra', igual que en jefe/trabajadores.
+      const categoria = textoCategoria(f.trabajadores || {});
       if (!porTrab[id]) {
         porTrab[id] = {
-          id, nombre: nombreCompleto || 'Desconocido', empresa, empresaId, dni,
+          id, nombre: nombreCompleto || 'Desconocido', empresa, empresaId, dni, categoria,
           tuvoEntrada: false, primeraEntradaISO: null, ultimoTipo: null, ultimoISO: null
         };
       }
@@ -2358,7 +2366,7 @@
       try {
         const { data: habs } = await sb
           .from('habilitaciones_trabajador')
-          .select('trabajador_id, tipo:tipo_habilitacion_id(nombre)')
+          .select('trabajador_id, fecha_caducidad, sin_caducidad, tipo:tipo_habilitacion_id(nombre)')
           .in('trabajador_id', ids)
           .eq('activo', true);
         (habs || []).forEach(h => {
@@ -2367,8 +2375,12 @@
           // para el texto que sale al pasar el dedo/ratón.
           const nombreTipo = h.tipo?.nombre || '';
           const icono = (typeof Hab.iconoSvg === 'function') ? Hab.iconoSvg(nombreTipo, 18) : Hab.icono(nombreTipo);
+          // 108a: el SVG usa currentColor, asi que el color lo pone el span
+          // que lo envuelve. El estado sale de Hab.estado(), la misma regla
+          // que usan la pantalla de Habilitaciones y el correo de avisos.
+          const est = (typeof Hab.estado === 'function') ? Hab.estado(h) : 'vigente';
           const lista = habIconosPorTrabajadorCache[h.trabajador_id] || (habIconosPorTrabajadorCache[h.trabajador_id] = []);
-          if (!lista.some(x => x.icono === icono)) lista.push({ icono, nombre: nombreTipo });
+          if (!lista.some(x => x.icono === icono)) lista.push({ icono, nombre: nombreTipo, estado: est });
         });
       } catch (_) {}
     }
@@ -2512,6 +2524,11 @@
         const img = new Image();
         img.className = 'tarjeta-foto';
         img.alt = '';
+        // 108a: tocarla la abre a pantalla completa con el visor del modulo,
+        // el mismo del icono 🪪.
+        img.title = 'Tocar para ver la foto grande';
+        img.style.cursor = 'pointer';
+        img.addEventListener('click', () => { try { FI.visor(urls[ruta]); } catch (_) {} });
         // Solo se sustituye cuando la imagen ya esta cargada: asi no se ve
         // un hueco vacio si el enlace falla.
         img.onload = () => { if (hueco.parentNode) hueco.replaceWith(img); };
@@ -2527,7 +2544,12 @@
     presentes.forEach(t => {
       const esRP = idsRPCache.has(t.id);
       const habsT = habIconosPorTrabajadorCache[t.id] || [];
-      const iconosHab = habsT.map(x => x.icono).join('');
+      // Cada icono va en su propio span: el color y el texto de ayuda son
+      // de ESA habilitacion, no del conjunto.
+      const iconosHab = habsT.map(x =>
+        '<span class="hab-ico ' + colorHab(x.estado) + '" title="' +
+        esc(x.nombre + ' — ' + textoEstadoHab(x.estado)).replace(/"/g, '&quot;') +
+        '">' + x.icono + '</span>').join('');
       const titHab = habsT.map(x => x.nombre).join(', ');
       const card = document.createElement('div');
       card.className = 'tarjeta-trab';
@@ -2536,7 +2558,7 @@
         <div class="tarjeta-iniciales" data-trab="${esc(t.id)}">${esc(iniciales(t.nombre))}</div>
         <div class="tarjeta-info">
           <div class="tarjeta-nombre">${esc(t.nombre)}${esRP ? ' <span title="Recurso Preventivo designado">🛡️</span>' : ''}${iconosHab ? ' <span class="hab-iconos-enc" title="Habilitaciones: ' + esc(titHab).replace(/"/g, '&quot;') + '">' + iconosHab + '</span>' : ''}</div>
-          <div class="tarjeta-empresa">${esc(t.empresa || '—')}</div>
+          <div class="tarjeta-empresa">${esc(t.empresa || '—')}${t.categoria ? ' · ' + esc(t.categoria) : ''}</div>
           <div style="margin-top:4px">${iconoIdentEnc(t)}</div>
         </div>
         <div class="tarjeta-hora">
@@ -2567,6 +2589,31 @@
       const rel = card.querySelector('.tarjeta-hora-rel');
       if (iso && rel) rel.textContent = textoRelativo(iso);
     });
+  }
+
+  // 108a - Categoria profesional. Mismo catalogo que jefe/trabajadores;
+  // con 'otra' manda el texto libre. Si llega algo que no esta en la lista,
+  // se pinta tal cual con la primera letra en mayuscula.
+  const CATEGORIAS_ENC = {
+    peon: 'Peón', oficial: 'Oficial', encargado: 'Encargado',
+    gruista: 'Gruista', electricista: 'Electricista', restaurador: 'Restaurador'
+  };
+  function textoCategoria(t) {
+    const c = String((t && t.categoria) || '').trim();
+    if (!c) return '';
+    if (c === 'otra') return String((t && t.categoria_otra) || '').trim();
+    return CATEGORIAS_ENC[c] || (c.charAt(0).toUpperCase() + c.slice(1));
+  }
+
+  // 108a - Color del icono de habilitacion segun su estado.
+  function colorHab(est) {
+    if (est === 'caducada') return 'hab-ico-rojo';
+    if (est === 'proxima' || est === 'falta_fecha') return 'hab-ico-naranja';
+    return '';
+  }
+  function textoEstadoHab(est) {
+    if (typeof Hab.etiqueta === 'function') return Hab.etiqueta(est);
+    return est || '';
   }
 
   function iniciales(nombreCompleto) {
