@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prueba de colores — Portium</title>
+<!--
+  prueba-colores.html — PÁGINA DE PRUEBA, NO FORMA PARTE DE LA APP
+  18/9/2026 · pedida por Dani para ver la paleta por marca antes de tocar js/branding.js
+  No lee Supabase, no tiene login, no toca ningún archivo existente.
+  Cuando la paleta esté decidida y aplicada, este archivo se puede borrar.
+-->
+<style>
+  :root{
+    --color-principal:#1D6B79;
+    --color-acento:#1A7A8A;
+    --color-suave:#D6EEF2;
+    --color-texto:#ffffff;
+    --gris-fondo:#f4f5f7;
+    --gris-borde:#dcdfe4;
+    --gris-texto:#333;
+    --verde:#2e7d32;
+    --naranja:#ef6c00;
+    --rojo:#c62828;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+       background:var(--gris-fondo);color:var(--gris-texto)}
+
+  /* ---- mandos de la prueba ---- */
+  .mandos{background:#fff;border-bottom:1px solid var(--gris-borde);padding:12px 16px;
+          display:flex;flex-wrap:wrap;gap:16px;align-items:center;position:sticky;top:0;z-index:5}
+  .mandos strong{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:#666}
+  .grupo{display:flex;gap:6px}
+  .grupo button{border:1px solid var(--gris-borde);background:#fff;padding:8px 14px;
+                border-radius:999px;cursor:pointer;font-size:14px}
+  .grupo button.on{background:var(--color-acento);color:#fff;border-color:var(--color-acento)}
+
+  /* ---- maqueta ---- */
+  .lienzo{display:flex;min-height:520px}
+  .lateral{width:210px;background:var(--color-principal);color:var(--color-texto);
+           padding:18px 0;flex-shrink:0}
+  .marca{padding:0 18px 16px;border-bottom:1px solid rgba(255,255,255,.18);margin-bottom:14px}
+  .marca img{max-width:130px;max-height:46px;display:block;filter:brightness(0) invert(1)}
+  .marca span{display:block;margin-top:10px;font-size:12px;letter-spacing:2px;opacity:.75}
+  .lateral a{display:block;padding:11px 18px;color:var(--color-texto);text-decoration:none;
+             font-size:14px;opacity:.85}
+  .lateral a.activo{background:var(--color-acento);opacity:1;font-weight:600}
+
+  .central{flex:1;padding:22px;min-width:0}
+  .cabecera{background:var(--color-acento);color:var(--color-texto);
+            padding:16px 20px;border-radius:10px;margin-bottom:20px}
+  .cabecera h1{margin:0;font-size:19px}
+  .cabecera p{margin:4px 0 0;font-size:13px;opacity:.9}
+
+  .tarjetas{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+  .tarjeta{background:#fff;border:1px solid var(--gris-borde);border-radius:10px;padding:14px;
+           border-top:3px solid var(--color-acento)}
+  .tarjeta .cifra{font-size:26px;font-weight:700;color:var(--color-principal)}
+  .tarjeta .pie{font-size:12px;color:#777;margin-top:2px}
+
+  .botones{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+  .btn{padding:10px 18px;border-radius:8px;border:none;font-size:14px;cursor:pointer}
+  .btn-principal{background:var(--color-acento);color:#fff}
+  .btn-suave{background:var(--color-suave);color:var(--color-principal);font-weight:600}
+  .btn-linea{background:#fff;color:var(--color-acento);border:1px solid var(--color-acento)}
+
+  table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;
+        border:1px solid var(--gris-borde);font-size:14px}
+  th{background:var(--color-principal);color:var(--color-texto);text-align:left;padding:10px 12px;font-size:13px}
+  td{padding:10px 12px;border-top:1px solid var(--gris-borde)}
+  tr:nth-child(even) td{background:var(--color-suave)}
+  .sem{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+  .v{background:var(--verde)} .n{background:var(--naranja)} .r{background:var(--rojo)}
+
+  .nota{padding:14px 22px;font-size:13px;color:#666;line-height:1.5}
+  @media(max-width:700px){.lateral{display:none}}
+</style>
+</head>
+<body>
+
+<div class="mandos">
+  <strong>Marca</strong>
+  <div class="grupo" id="g-marca">
+    <button data-marca="bosch_pascual" class="on">Bosch Pascual</button>
+    <button data-marca="recop">Rècop</button>
+  </div>
+  <strong>Paleta</strong>
+  <div class="grupo" id="g-paleta">
+    <button data-paleta="nueva" class="on">Nueva</button>
+    <button data-paleta="actual">La de ahora</button>
+  </div>
+  <span id="codigos" style="font-size:12px;color:#888;font-family:monospace"></span>
+</div>
+
+<div class="lienzo">
+  <nav class="lateral">
+    <div class="marca">
+      <img id="logo" src="assets/logos/bosch_pascual_logo.svg" alt="">
+      <span>PORTIUM</span>
+    </div>
+    <a class="activo">Panel</a>
+    <a>Fichajes</a>
+    <a>Trabajadores</a>
+    <a>Documentos</a>
+    <a>Habilitaciones</a>
+    <a>Valoraciones</a>
+  </nav>
+
+  <main class="central">
+    <div class="cabecera">
+      <h1 id="titulo">Muralla de Valls</h1>
+      <p>Jueves 18 de septiembre · 14 personas en obra</p>
+    </div>
+
+    <div class="tarjetas">
+      <div class="tarjeta"><div class="cifra">14</div><div class="pie">Presentes ahora</div></div>
+      <div class="tarjeta"><div class="cifra">3</div><div class="pie">Autocierres</div></div>
+      <div class="tarjeta"><div class="cifra">1</div><div class="pie">Accesos denegados</div></div>
+      <div class="tarjeta"><div class="cifra">2</div><div class="pie">Solicitudes hoy</div></div>
+    </div>
+
+    <div class="botones">
+      <button class="btn btn-principal">Cerrar el mes</button>
+      <button class="btn btn-suave">Descargar proforma</button>
+      <button class="btn btn-linea">Ver ronda</button>
+    </div>
+
+    <table>
+      <tr><th>Trabajador</th><th>Empresa</th><th>Entrada</th><th>Estado</th></tr>
+      <tr><td>Pruebas Dani</td><td>Bosch Pascual</td><td>07:02</td><td><span class="sem v"></span>Verde</td></tr>
+      <tr><td>Lester A.</td><td>Rècop</td><td>07:05</td><td><span class="sem v"></span>Verde</td></tr>
+      <tr><td>Operario 3</td><td>Subcontrata SL</td><td>07:11</td><td><span class="sem n"></span>Naranja</td></tr>
+      <tr><td>Operario 4</td><td>Subcontrata SL</td><td>—</td><td><span class="sem r"></span>Rojo</td></tr>
+    </table>
+  </main>
+</div>
+
+<p class="nota">
+  Página de prueba. No lee la base de datos ni cambia nada de la app.
+  Los colores de semáforo (verde / naranja / rojo) no dependen de la marca y por eso no cambian.
+</p>
+
+<script>
+const PALETAS = {
+  nueva: {
+    bosch_pascual: { principal:'#1D6B79', acento:'#1A7A8A', suave:'#D6EEF2' },
+    recop:         { principal:'#8B3124', acento:'#A0392B', suave:'#F5D5D1' }
+  },
+  actual: {
+    bosch_pascual: { principal:'#1a1a1a', acento:'#c8102e', suave:'#f0f0f0' },
+    recop:         { principal:'#6b3410', acento:'#c9a876', suave:'#f0f0f0' }
+  }
+};
+const LOGOS = {
+  bosch_pascual: 'assets/logos/bosch_pascual_logo.svg',
+  recop:         'assets/logos/recop_logo.svg'
+};
+const OBRAS = { bosch_pascual: 'Muralla de Valls', recop: 'Escola Música Valls' };
+
+let marca = 'bosch_pascual';
+let paleta = 'nueva';
+
+function pintar(){
+  const p = PALETAS[paleta][marca];
+  const r = document.documentElement.style;
+  r.setProperty('--color-principal', p.principal);
+  r.setProperty('--color-acento', p.acento);
+  r.setProperty('--color-suave', p.suave);
+  document.getElementById('logo').src = LOGOS[marca];
+  document.getElementById('titulo').textContent = OBRAS[marca];
+  document.getElementById('codigos').textContent = p.principal + '  ' + p.acento + '  ' + p.suave;
+}
+
+document.getElementById('g-marca').addEventListener('click', e => {
+  if (!e.target.dataset.marca) return;
+  marca = e.target.dataset.marca;
+  [...e.currentTarget.children].forEach(b => b.classList.toggle('on', b === e.target));
+  pintar();
+});
+document.getElementById('g-paleta').addEventListener('click', e => {
+  if (!e.target.dataset.paleta) return;
+  paleta = e.target.dataset.paleta;
+  [...e.currentTarget.children].forEach(b => b.classList.toggle('on', b === e.target));
+  pintar();
+});
+
+pintar();
+</script>
+</body>
+</html>
