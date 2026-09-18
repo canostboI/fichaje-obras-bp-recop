@@ -44,6 +44,7 @@
     { tipo: 'enlace', href: 'foto-mes.html',             ico: '📷',  label: 'Foto del mes' },
     { tipo: 'enlace', href: 'reglas.html',               ico: '📋',  label: 'Reglas documentales' },
     { tipo: 'enlace', href: 'informe-rojos.html',        ico: '📕',  label: 'Informe de incidencias' },
+    { tipo: 'enlace', href: 'libro-incidencias.html',    ico: '📒',  label: 'Libro de incidencias' },
     { tipo: 'enlace', href: 'informe-excepciones.html',  ico: '⚠️',  label: 'Excepciones asumidas' },
     { tipo: 'enlace', href: 'importar-ecoordina.html',   ico: '📥',  label: 'e-Coordina' },
   ];
