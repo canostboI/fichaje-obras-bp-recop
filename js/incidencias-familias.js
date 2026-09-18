@@ -52,6 +52,16 @@
     // porque una persona de baja intentando entrar es algo que el jefe
     // tiene que saber.
     acceso_rechazado:       ALERTA,
+    // ⚑ 108ª. Los escribe SOLO el cron `vigilante_obra_diario` (21:00 Madrid,
+    // función vigilar_obras_diario): la foto de lo que ese día era verdad en
+    // obra, solo para quien fichó ese día. Una fila por hecho y día: mientras
+    // el hecho siga, vuelve a salir mañana. Causa entre corchetes al inicio
+    // del detalle ([caducada] / [sin_fecha], [contrato] / [libro] /
+    // [contrato_y_libro], [sin_rp_presente] / [rp_sin_60h]).
+    habilitacion_caducada:  ALERTA,  // fichó con una habilitación caducada o sin fecha
+    empresa_en_rojo:        ALERTA,  // empresa con actividad reciente y en rojo por contrato/libro (empresa_id, sin persona)
+    rp_incompleto:          ALERTA,  // hubo actividad y ningún RP fichó, o el RP no tiene la 60h
+    contrato_caduca:        ALERTA,  // contrato o libro que caduca en 7 días sin otro vigente detrás
 
     // --- RASTRO: solo registro, sin acción pendiente ---
     // ⚠️ MEDIDO EN LA 54ª (24/8/2026). NO ES UNA BANDEJA ATRASADA.
@@ -82,7 +92,12 @@
     // eliminar_fichaje). `fichaje_manual` SE RETIRÓ del CHECK: nunca tuvo
     // una fila; el registro de un fichaje manual es `fichajes.es_manual`.
     fichaje_corregido:      RASTRO,  // ya se corrigió (hora original en fichajes.hora_original)
-    fuera_de_zona:          RASTRO   // fichó fuera del radio; queda registrado
+    fuera_de_zona:          RASTRO,  // fichó fuera del radio; queda registrado
+    // ⚑ 108ª. La escriben SOLO los triggers `trg_rastro_*` (función
+    // _rastro_retirada) cuando alguien retira algo: [baja] de una persona,
+    // [habilitacion], [rp], borrado de [contrato] o [libro]. Firmada con
+    // created_by_user_id (quien tenía la sesión), venga de pantalla, RPC o SQL.
+    retirada:               RASTRO
   };
 
   /* Nombre legible por tipo.
@@ -97,10 +112,15 @@
     otro:                   'Otro',
     forzado_caducado:       'Forzado caducado',
     acceso_rechazado:       'Acceso rechazado',
+    habilitacion_caducada:  'Habilitación caducada en obra',
+    empresa_en_rojo:        'Empresa en rojo',
+    rp_incompleto:          'Recurso Preventivo incompleto',
+    contrato_caduca:        'Contrato o libro que caduca',
     aviso_naranja:          'Aviso naranja',
     excepcion_autorizada:   'Excepción autorizada',
     fichaje_corregido:      'Fichaje corregido',
-    fuera_de_zona:          'Fuera de zona'
+    fuera_de_zona:          'Fuera de zona',
+    retirada:               'Retirada'
   };
 
   /* Familia de un tipo. Desconocido o vacío → ALERTA. */
