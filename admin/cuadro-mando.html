@@ -953,7 +953,11 @@ function pintarSalud(m) {
   // (umbralCron conoce el calendario). Cron nuevo o calendario cambiado = tocar aquí.
   const CRONS_ESPERADOS = ['autocierre_nocturno', 'aviso_ronda_1', 'aviso_ronda_2', 'aviso_ronda_3',
     'auditoria_permisos_diaria', 'recordatorio_solicitudes_acceso', 'caducar-fotos-identidad',
-    'vaciar-cola-borrado-fotos', 'caducar_forzados_diario'];
+    'vaciar-cola-borrado-fotos', 'caducar_forzados_diario',
+    // 108ª (18/9/2026): vigilante de obra, jobid=12, 0 19 * * 1-6 (21:00 Madrid
+    // en verano). Escribe en `incidencias` la foto del día: habilitaciones
+    // caducadas en obra, empresa activa en rojo, RP ausente, contrato que caduca.
+    'vigilante_obra_diario'];
   const c = m.salud.crons;
   if (!c) filas.push(['Automatismos', 'gris', 'No se ha podido comprobar la salud de los crons.']);
   else if (!c.length) filas.push(['Automatismos', 'rojo', 'No hay ningún cron programado en la base de datos.']);
