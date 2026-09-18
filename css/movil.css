@@ -1,0 +1,79 @@
+/* ═══════════════════════════════════════════════════════════════════
+   movil.css — Portium · ajustes para pantallas estrechas (móvil)
+   112ª (18/9/2026) — pedido por Dani: el encargado usa la app desde el
+   móvil, pero algunos encargados entran desde el ordenador.
+
+   CÓMO FUNCIONA
+   - TODO lo de este archivo vive dentro de @media (max-width: 600px).
+     Por encima de 600 px de ancho el navegador ni lo lee: el escritorio
+     queda exactamente igual que antes (comprobado píxel a píxel).
+   - Se carga con un <link> al final del <head>, DESPUÉS del <style> de
+     cada pantalla. Por eso gana sin necesitar !important.
+   - Solo aspecto. Ni una línea de JavaScript, ni un dato, ni un permiso.
+
+   QUÉ ARREGLA (medido en navegador a 412 px de ancho)
+   Antes: la página medía 520 px en una pantalla de 412 → había que tirar
+   hacia la derecha para ver las horas, y el zoom de dos dedos dejaba la
+   pantalla en tierra de nadie. Ahora: 412 = 412, sin desplazamiento.
+   El culpable era la rejilla de la lista: una columna «1fr» se estira
+   hasta el elemento más ancho que no puede encoger, y ese era el nombre
+   de la empresa en la cabecera de grupo (lleva nowrap).
+
+   DE MOMENTO SOLO LO CARGA encargado/index.html.
+   ═══════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+
+  /* ── 1. La lista de presentes deja de estirar la página ──
+     minmax(0,1fr): la columna puede encogerse hasta caber.
+     min-width:0 en el nombre de empresa: por fin recorta con «…»
+     en vez de empujar. Estas dos reglas son las que cierran el
+     agujero; el resto es comodidad. */
+  .lista-tarjetas { grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }
+  .grupo-empresa-nombre { min-width: 0; }
+
+  /* ── 2. La hora, debajo del nombre y a la vista ──
+     En el móvil no cabe nombre + horas en la misma línea, así que la
+     hora baja a su propio renglón, sangrada bajo el nombre. Se lee sin
+     tirar de la pantalla. */
+  .tarjeta-trab { flex-wrap: wrap; row-gap: 0.5rem; padding: 0.8rem 0.9rem; }
+  .tarjeta-hora {
+    flex-basis: 100%; text-align: left;
+    padding-left: 56px; box-sizing: border-box;
+    display: flex; align-items: baseline; gap: 12px;
+    border-top: 1px solid #eceff1; padding-top: 6px;
+  }
+  .tarjeta-hora-rel { margin-top: 0; }
+
+  /* ── 3. Un poco más de sitio ──
+     El margen blanco de las tarjetas se comía ancho útil. */
+  .card, .card-ronda { padding: 1rem; }
+  main { padding: 0 0.7rem; margin-top: 1.2rem; }
+
+  /* ── 4. Botones para dedo, no para ratón ──
+     Estaban en 27-30 px de alto. 40 px es lo mínimo cómodo con guantes.
+     No se tocan los de la cabecera (ya están en rejilla de 3 desde la
+     108ª y funcionan). */
+  .btn-visto, .btn-visto-rojo, .btn-corregir-aviso, .btn-correctas,
+  .btn-pedir, .btn-sefue, .btn-imprimir-lista,
+  .btn-modal-primary, .btn-modal-secondary,
+  .btn-confirmar-ronda, .btn-cancelar-ronda {
+    min-height: 40px; padding-left: 1rem; padding-right: 1rem;
+  }
+  .presencia-controles input[type="date"],
+  .panel-avisos .caja-correccion input[type=time],
+  .panel-avisos .caja-correccion input[type=text] { min-height: 40px; }
+
+  /* Los iconos pequeños del nombre (escudo de RP, habilitaciones, la
+     tarjeta de identidad) medían 16 px: imposibles de acertar con el
+     dedo. Se agranda la zona que responde al toque, y el renglón se
+     abre un poco para que no se monten unos sobre otros. */
+  .tarjeta-nombre { line-height: 1.5; }
+  .hab-ico, .ico-info, .fi-icono-enc { padding: 5px 7px; }
+
+  /* ── 5. Cinturón de seguridad ──
+     Si algún día un texto largo vuelve a estirar algo, que se recorte
+     en lugar de sacar la página de la pantalla. */
+  .panel-avisos .aviso-info, .panel-bloqueos .bloqueo-info,
+  .tarjeta-info, .solenc-item { min-width: 0; overflow-wrap: anywhere; }
+}
