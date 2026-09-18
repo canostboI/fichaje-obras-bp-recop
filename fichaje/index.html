@@ -37,18 +37,24 @@
     background-attachment: fixed;
   }
 
+  /* 112ª (18/9/2026) — Que la primera pantalla quepa entera sin deslizar:
+     la firma de Portium del pie quedaba fuera en el móvil (lo vio Dani).
+     `100vh` en Chrome de Android no cuenta la barra de direcciones, así que
+     la página siempre medía de más. `100dvh` es la altura REAL visible; se
+     deja `100vh` justo antes como respaldo para navegadores viejos. */
   .contenedor {
     max-width: 480px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 14px 20px;
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
   }
 
   .cabecera {
     text-align: center;
-    padding: 20px 0;
+    padding: 10px 0;   /* 112ª — menos aire: todo tiene que caber sin deslizar */
   }
   .logo-marca {
     max-width: 200px;
@@ -87,7 +93,7 @@
     background: white;
     border-radius: 14px;
     padding: 24px;
-    margin-top: 20px;
+    margin-top: 14px;   /* 112ª — menos aire */
     box-shadow: 0 2px 10px rgba(0,0,0,0.06);
   }
 
@@ -668,7 +674,7 @@
     color: #999;
     font-size: 12px;
     margin-top: auto;
-    padding-top: 30px;
+    padding-top: 16px;   /* 112ª — menos aire */
   }
 
   /* 98ª (16/9/2026) — Deber de información del RGPD. Va en el pie y no en
@@ -683,7 +689,7 @@
     align-items: center;
     justify-content: center;
     gap: 7px;
-    margin: 14px 0 4px;
+    margin: 8px 0 2px;   /* 112ª — menos aire */
     opacity: 0.75;
   }
   .firma-portium img {
@@ -696,6 +702,19 @@
     color: #999;
     font-size: 13px;
     letter-spacing: 1px;
+  }
+
+  /* 112ª (18/9/2026) — Móviles de pantalla baja: se aprieta un punto más para
+     que la pantalla del DNI entre entera (logo, nombre de obra, banderas,
+     tarjeta y pie). En pantallas altas y en escritorio no cambia nada. */
+  @media (max-height: 740px) {
+    .cabecera { padding: 6px 0; }
+    .logo-marca { max-height: 48px; margin-bottom: 10px; }
+    .cabecera .obra-nombre { font-size: 22px; }
+    .selector-idioma { margin-top: 10px; gap: 6px 8px; }
+    .selector-idioma button { font-size: 22px; padding: 4px 6px; }
+    .tarjeta { padding: 18px; margin-top: 10px; }
+    .pie { padding-top: 10px; }
   }
 
   .rgpd-enlace {
