@@ -1,0 +1,66 @@
+/* ═══════════════════════════════════════════════════════════════════
+   escritorio.css — Portium · la pantalla del encargado en el ordenador
+   114ª (18/9/2026) — pedido por Dani: «en el móvil se entiende bien,
+   pero en el ordenador no se ve de qué empresa es cada uno, y parece
+   que estás mirando un móvil estirado».
+
+   HERMANO DE movil.css, MISMA RECETA
+   - Se carga con un <link> al final del <head>, DESPUÉS del <style> de
+     la pantalla y DESPUÉS de movil.css. Por eso gana sin !important.
+   - Solo aspecto. Ni una línea de JavaScript, ni un dato, ni un permiso.
+
+   DOS BLOQUES, Y LA DIFERENCIA IMPORTA
+   1. El primero NO lleva media query: arregla la agrupación por empresa
+      en CUALQUIER ancho. Era un fallo de verdad, no una preferencia.
+   2. El segundo va dentro de @media (min-width: 900px): es el ensanche.
+      Por debajo de 900 px el navegador ni lo lee, así que el móvil
+      (que se mide a 412 px y está comprobado) queda intacto.
+
+   QUIÉN LO CARGA
+   - encargado/index.html
+   ═══════════════════════════════════════════════════════════════════ */
+
+
+/* ═══ 1. LA CABECERA DE EMPRESA ES UNA BANDA, NO UNA TARJETA ═══════
+   QUÉ ARREGLA
+   #lista-presencia es una rejilla (.lista-tarjetas). La cabecera de
+   grupo es hija suya, así que ocupaba UNA CELDA como si fuera un
+   trabajador más: en el ordenador, con dos columnas, «BOSCH PASCUAL»
+   se quedaba a la izquierda y Mario Martínez a su derecha, en la misma
+   fila. A ojo, ese nombre no pertenecía a esa empresa.
+
+   grid-column: 1 / -1 hace que la cabecera ocupe la fila entera, de la
+   primera columna a la última. Resultado: banda de la empresa → sus
+   trabajadores debajo → siguiente empresa. Igual que en el móvil.
+
+   El mismo trato para el aviso de «documentación no fiable», que
+   también se cuelga de la rejilla y tiene que leerse entero.
+   ═════════════════════════════════════════════════════════════════ */
+
+.lista-tarjetas > .grupo-empresa { grid-column: 1 / -1; }
+.lista-tarjetas > p              { grid-column: 1 / -1; }
+
+
+/* ═══ 2. EL ANCHO EN EL ORDENADOR ═════════════════════════════════
+   Hasta hoy `main` medía 700 px como máximo, viniera de donde viniera.
+   En un portátil de 1.366 px eso deja media pantalla de foto de obra y
+   obliga a las tarjetas a apretarse en dos columnas estrechas.
+
+   1.180 px es el ancho del contenido: caben 3-4 tarjetas por fila con
+   el nombre entero y la hora sin apreturas, y sigue siendo una columna
+   de lectura, no una pared de lado a lado de un monitor grande.
+   ═════════════════════════════════════════════════════════════════ */
+
+@media (min-width: 900px) {
+
+  main { max-width: 1180px; }
+
+  /* Con sitio de sobra, tarjetas algo más anchas: el nombre largo y el
+     nombre de empresa dejan de recortarse con «…». */
+  .lista-tarjetas { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+
+  /* La banda de empresa, un poco más presente: es lo que ordena la
+     lista y ahora se lee de un vistazo, no como un renglón más. */
+  .grupo-empresa { padding: 8px 12px; margin: 18px 0 8px; }
+  .grupo-empresa-nombre { font-size: 0.92rem; }
+}
