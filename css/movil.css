@@ -6,7 +6,8 @@
    CÓMO FUNCIONA
    - TODO lo de este archivo vive dentro de @media (max-width: 600px).
      Por encima de 600 px de ancho el navegador ni lo lee: el escritorio
-     queda exactamente igual que antes (comprobado píxel a píxel).
+     queda exactamente igual que antes (comprobado píxel a píxel, con y
+     sin este archivo, en las cuatro pantallas).
    - Se carga con un <link> al final del <head>, DESPUÉS del <style> de
      cada pantalla. Por eso gana sin necesitar !important.
    - Solo aspecto. Ni una línea de JavaScript, ni un dato, ni un permiso.
@@ -14,6 +15,8 @@
    QUIÉN LO CARGA
    - encargado/index.html
    - encargado/resumen-mes.html
+   - encargado/habilitaciones.html
+   - encargado/valoraciones.html
    ═══════════════════════════════════════════════════════════════════ */
 
 
@@ -116,4 +119,35 @@
      de su casilla. Ahora encabeza su propia línea. */
   .sep-controles { display: none; }
   .lbl-dia { flex-basis: 100%; margin-top: 2px; }
+}
+
+
+/* ═══ HABILITACIONES (encargado/habilitaciones.html) ═══════════════
+   Tampoco desbordaba (412 = 412). El problema era de lectura: la
+   pastilla metía icono + nombre + fecha + botón en una línea, así que
+   el nombre de la habilitación se partía en dos y el botón «Ver
+   título» quedaba en 18 px de alto. Ahora la pastilla se abre en
+   renglones y el botón se deja tocar.
+   ═════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+  .hab-pill { padding: 0.5rem 0.8rem; row-gap: 4px; flex-wrap: wrap; }
+  .hab-pill .ver-titulo { min-height: 30px; padding: 4px 12px; }
+  .trab-card { padding: 0.9rem; }
+  .card { padding: 1.1rem; }
+}
+
+
+/* ═══ VALORACIONES (encargado/valoraciones.html) ═══════════════════
+   La que mejor estaba: el módulo js/valoraciones.js ya esconde el
+   panel del ranking por debajo de 980 px y tiene sus propios recortes.
+   Solo comodidad: la casilla de «solo sin valorar» medía 16 px y las
+   filas y pestañas iban justas de alto para el dedo.
+   ═════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+  .val-chk input { width: 20px; height: 20px; }
+  .val-fila { padding: 10px 12px; }
+  .val-tab { padding: 12px 10px; }
+  #valoraciones { padding: 0.8rem; }
 }
