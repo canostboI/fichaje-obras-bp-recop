@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Empresas — Portium</title>
+<link rel="icon" type="image/png" href="../assets/icons/portium-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/guardian.js"></script>
+<script src="../js/auto-logout.js"></script>
+<script src="../js/fechas.js"></script>
+<!--
+  Empresas (113ª, 18/9/2026). Pedido por Dani.
+
+  Lista GLOBAL de empresas y ficha de cada una: un solo sitio al que llega
+  todo lo que se sabe de una empresa, entre por donde entre (alta a mano,
+  solicitud en la valla, e-Coordina).
+
+  La ven el jefe de obra y el admin con el MISMO archivo (Guardian con dos
+  roles). Decisión de Dani: una sola copia, no dos como trabajadores.html.
+
+  Qué hace hoy:
+    · Lista con buscador, y aviso en las empresas SIN CIF («pendiente de
+      identificar»): son las que e-Coordina no podrá emparejar.
+    · «Nueva empresa»: CIF obligatorio. Llama a crear_empresa(), que busca
+      por CIF antes de crear; si ya existía, abre esa ficha en vez de
+      duplicar.
+    · Ficha: contacto del proveedor y, obra a obra (solo las del usuario),
+      si está prevista, si tiene contrato y libro vigentes y cuánta gente
+      tiene dada de alta y en qué estado.
+    · «Marcar prevista en …»: marcar_empresa_prevista().
+
+  Qué NO hace todavía (pasos siguientes, con prompt propio):
+    · editar el contacto de una empresa ya creada (hace falta una RPC:
+      empresas es solo lectura desde el navegador, a propósito);
+    · el texto del aviso de requisitos al proveedor;
+    · los enlaces desde trabajadores.html y desde las solicitudes.
+
+  Regla de la casa: un fallo de consulta NUNCA se pinta como cero. Si algo no
+  se ha podido leer, la ficha lo dice en amarillo.
+-->
+<style>
+  :root {
+    --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
+    --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
+    --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
+  .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+  .sidebar-brand { padding: 18px 16px; border-bottom: 1px solid var(--borde); display: flex; align-items: center; justify-content: center; gap: 14px; }
+  .sidebar-brand img { height: 22px; width: auto; opacity: 0.9; }
+  .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
+  .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; transition: background 0.15s, color 0.15s; }
+  .sidebar a:hover { background: var(--bg3); color: var(--texto); }
+  .sidebar a.activo { background: var(--bg3); color: var(--texto); font-weight: 600; }
+  .sidebar a .ico { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid var(--borde); }
+  .btn-salir { width: 100%; background: transparent; border: 1px solid var(--borde); color: var(--texto2); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; text-align: left; display: flex; align-items: center; gap: 8px; }
+  .btn-salir:hover { background: var(--bg3); color: var(--texto); }
+  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+  .topbar { padding: 20px 28px 0; display: flex; align-items: center; justify-content: space-between; }
+  .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+  .topbar .usuario { font-size: 13px; color: var(--texto2); }
+  .contenido { padding: 24px 28px; max-width: 1180px; display: flex; flex-direction: column; gap: 20px; }
+  .card { background: var(--bg2); border: 1px solid var(--borde); border-radius: 12px; padding: 20px 22px; }
+  .card h2 { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+  .ayuda { font-size: 13px; color: var(--texto2); line-height: 1.55; margin-bottom: 12px; }
+  .fila-herr { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  input[type=text], input[type=email], input[type=tel], input[type=date], select {
+    background: var(--bg); color: var(--texto); border: 1px solid var(--borde); border-radius: 8px; padding: 9px 12px; font-size: 14px; font-family: inherit; }
+  input:focus, select:focus { outline: none; border-color: var(--azul); }
+  #buscar { flex: 1; min-width: 220px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; border: none; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: var(--azul); color: #fff; }
+  .btn-success { background: var(--verde); color: #fff; }
+  .btn-outline { background: transparent; color: var(--texto2); border: 1px solid var(--borde); }
+  .btn-outline:hover:not(:disabled) { background: var(--bg3); color: var(--texto); }
+  .btn-mini { padding: 5px 10px; font-size: 12px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 9px 10px; font-size: 11px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); background: var(--bg3); }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+  tr.emp { cursor: pointer; }
+  tr.emp:hover td { background: var(--bg3); }
+  tr.emp.sel td { background: rgba(33,150,243,0.10); }
+  .cif { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  .badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.3px; white-space: nowrap; }
+  .badge-rojo { background: rgba(244,67,54,0.18); color: #ef9a9a; }
+  .badge-naranja { background: rgba(255,152,0,0.18); color: #ffcc80; }
+  .badge-verde { background: rgba(76,175,80,0.18); color: #a5d6a7; }
+  .badge-gris { background: var(--bg3); color: var(--texto2); }
+  .badge-azul { background: rgba(33,150,243,0.18); color: #90caf9; }
+  .muted { color: var(--texto2); }
+
+  .alert { padding: 11px 14px; border-radius: 8px; font-size: 13px; line-height: 1.5; margin-bottom: 10px; }
+  .alert-warning { background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.3); color: #ffb74d; }
+  .alert-danger { background: rgba(244,67,54,0.10); border: 1px solid rgba(244,67,54,0.45); color: #ef9a9a; }
+  .alert-info { background: rgba(33,150,243,0.08); border: 1px solid rgba(33,150,243,0.3); color: #90caf9; }
+  .alert-success { background: rgba(76,175,80,0.08); border: 1px solid rgba(76,175,80,0.3); color: #a5d6a7; }
+  .oculto { display: none !important; }
+
+  /* Ficha */
+  #ficha .cab { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+  #ficha .cab h2 { margin: 0; font-size: 18px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 22px; margin: 10px 0 16px; font-size: 13px; }
+  .grid2 .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--texto2); }
+  .grid2 .v { margin-top: 2px; }
+  .subt { font-size: 12px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; margin: 14px 0 8px; }
+  .prevista-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--borde); }
+
+  /* Modal nueva empresa */
+  .modal-fondo { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 50; }
+  .modal { background: var(--bg2); border: 1px solid var(--borde); border-radius: 12px; padding: 22px 24px; width: 520px; max-width: 94vw; }
+  .modal h3 { font-size: 16px; margin-bottom: 6px; }
+  .form-group { margin-bottom: 12px; }
+  .form-group label { display: block; font-size: 11px; font-weight: 600; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+  .form-group input { width: 100%; }
+  .modal-botones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+</style>
+<script src="../js/marca-portium.js?v=20260916"></script>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-brand">
+    <img src="../assets/logos/bosch_pascual_logo_white.svg" alt="Bosch Pascual">
+    <img src="../assets/logos/recop_logo_white.svg" alt="Rècop">
+  </div>
+  <div class="sidebar-section">Principal</div>
+  <a href="index.html"><span class="ico">👷</span> Presencia</a>
+  <div class="sidebar-section">Gestión</div>
+  <a href="fichajes.html"><span class="ico">🕐</span> Fichajes</a>
+  <a href="resumen-mes.html"><span class="ico">📊</span> Resumen · Proforma</a>
+  <a href="trabajadores.html"><span class="ico">👥</span> Trabajadores</a>
+  <a href="empresas.html" class="activo"><span class="ico">🏢</span> Empresas</a>
+  <a href="habilitaciones.html"><span class="ico">🏗️</span> Habilitaciones</a>
+  <a href="valoraciones.html"><span class="ico">⭐</span> Valoraciones</a>
+  <a href="informe-rojos.html"><span class="ico">🔴</span> Informe incidencias</a>
+  <a href="documentos-ecoordina.html"><span class="ico">📥</span> e-Coordina</a>
+  <div class="sidebar-bottom">
+    <button class="btn-salir" id="btn-salir">↩ Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>🏢 Empresas</h1>
+    <span class="usuario" id="usuario-nombre"></span>
+  </div>
+  <div class="contenido">
+
+    <div id="avisos"></div>
+
+    <div class="card">
+      <h2>Todas las empresas</h2>
+      <div class="ayuda">
+        Aquí está todo lo que la app sabe de cada empresa, entre por donde entre.
+        Si sabes que una empresa va a venir, dala de alta con su <strong>CIF</strong>:
+        es lo que permite reconocerla cuando llegue por e-Coordina y no crear dos fichas de lo mismo.
+      </div>
+      <div class="fila-herr">
+        <input type="text" id="buscar" placeholder="Buscar por nombre o CIF…" autocomplete="off">
+        <label class="muted" style="font-size:13px; display:flex; gap:6px; align-items:center;">
+          <input type="checkbox" id="solo-pendientes"> Solo las que faltan por identificar
+        </label>
+        <button class="btn btn-primary" id="btn-nueva">＋ Nueva empresa</button>
+      </div>
+      <div id="lista"></div>
+    </div>
+
+    <div class="card oculto" id="ficha"></div>
+
+  </div>
+</div>
+
+<div class="modal-fondo oculto" id="modal-nueva">
+  <div class="modal">
+    <h3>Nueva empresa</h3>
+    <div class="ayuda">El CIF es obligatorio. Si ya existe una empresa con ese CIF, no se crea otra: se abre la que hay.</div>
+    <div id="modal-aviso"></div>
+    <div class="form-group"><label>Nombre</label><input type="text" id="n-nombre" placeholder="Pinturas García, S.L." autocomplete="off"></div>
+    <div class="form-group"><label>CIF / NIF</label><input type="text" id="n-cif" placeholder="B12345678" autocomplete="off"></div>
+    <div class="form-group"><label>Persona de contacto</label><input type="text" id="n-cnombre" autocomplete="off"></div>
+    <div class="form-group"><label>Email de contacto</label><input type="email" id="n-cemail" autocomplete="off"></div>
+    <div class="form-group"><label>Teléfono de contacto</label><input type="tel" id="n-ctel" autocomplete="off"></div>
+    <div class="modal-botones">
+      <button class="btn btn-outline" id="n-cancelar">Cancelar</button>
+      <button class="btn btn-success" id="n-guardar">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const sb = supabase.createClient('https://istrnsicleopzbsrapsw.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY');
+AutoLogout.init(sb);
+document.getElementById('btn-salir').addEventListener('click', async () => {
+  try { await sb.auth.signOut(); } catch (_) {}
+  window.location.href = '../';
+});
+
+// ── Estado de la pantalla ────────────────────────────────────────────────
+let usuario = null;
+let esAdmin = false;
+let misObras = [];          // [{id, nombre, estado, administrativo_nombre, administrativo_email}]
+let empresas = [];          // todas las empresas
+let previstas = [];         // empresas_previstas_obra (solo de mis obras, por RLS)
+let contratos = [];         // contratos_empresa (mis obras)
+let libros = [];            // libros_subcontratacion (mis obras)
+let personas = [];          // validaciones_obra + empresa del trabajador (mis obras)
+let fallos = [];            // qué consultas no se han podido leer
+let seleccionada = null;    // id de la empresa abierta en la ficha
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const normCif = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+const fechaES = iso => { if (!iso) return ''; const [y, m, d] = String(iso).slice(0, 10).split('-'); return `${d}/${m}/${y}`; };
+
+function pintarAvisos() {
+  const h = $('avisos');
+  if (!fallos.length) { h.innerHTML = ''; return; }
+  h.innerHTML = '<div class="alert alert-warning">⚠️ No se ha podido leer: <strong>' + esc(fallos.join(', ')) +
+    '</strong>. Lo que dependa de eso sale como «sin datos», no como cero.</div>';
+}
+
+// ── Carga ────────────────────────────────────────────────────────────────
+async function cargarObras() {
+  if (esAdmin) {
+    const { data, error } = await sb.from('obras')
+      .select('id, nombre, estado, administrativo_nombre, administrativo_email')
+      .in('estado', ['activa', 'pausada']).order('nombre');
+    if (error) { fallos.push('obras'); return; }
+    misObras = data || [];
+  } else {
+    const { data, error } = await sb.from('usuarios_obra')
+      .select('obra:obra_id(id, nombre, estado, administrativo_nombre, administrativo_email)')
+      .eq('usuario_app_id', usuario.id).eq('rol_en_obra', 'jefe_obra');
+    if (error) { fallos.push('obras'); return; }
+    misObras = (data || []).map(r => r.obra).filter(o => o && o.estado !== 'terminada' && o.estado !== 'oculta')
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }
+}
+
+async function cargarTodo() {
+  fallos = [];
+  await cargarObras();
+  const ids = misObras.map(o => o.id);
+
+  const rE = await sb.from('empresas')
+    .select('id, nombre, cif, contacto_nombre, contacto_email, contacto_telefono, pendiente_identificar, es_empresa_propia')
+    .order('nombre');
+  if (rE.error) { fallos.push('empresas'); empresas = null; } else empresas = rE.data || [];
+
+  const rP = await sb.from('empresas_previstas_obra').select('id, empresa_id, obra_id, prevista_desde, aviso_enviado_en, nota');
+  if (rP.error) { fallos.push('previstas'); previstas = null; } else previstas = rP.data || [];
+
+  if (ids.length) {
+    const rC = await sb.from('contratos_empresa').select('empresa_id, obra_id, valido_desde, valido_hasta').in('obra_id', ids);
+    if (rC.error) { fallos.push('contratos'); contratos = null; } else contratos = rC.data || [];
+
+    const rL = await sb.from('libros_subcontratacion').select('empresa_id, obra_id, valido_desde, valido_hasta').in('obra_id', ids);
+    if (rL.error) { fallos.push('libros'); libros = null; } else libros = rL.data || [];
+
+    const rV = await sb.from('validaciones_obra')
+      .select('obra_id, estado, trabajador:trabajador_id(empresa_id, activo)').in('obra_id', ids);
+    if (rV.error) { fallos.push('personas'); personas = null; }
+    else personas = (rV.data || []).filter(v => v.trabajador && v.trabajador.empresa_id)
+      .map(v => ({ obra_id: v.obra_id, empresa_id: v.trabajador.empresa_id, estado: v.estado, activo: v.trabajador.activo !== false }));
+  } else { contratos = []; libros = []; personas = []; }
+
+  pintarAvisos();
+  pintarLista();
+  if (seleccionada) pintarFicha(seleccionada);
+}
+
+// ── Cálculos por empresa ─────────────────────────────────────────────────
+const hoy = () => Fechas.hoyMadrid();
+function vigente(f) { return f && (!f.valido_hasta || f.valido_hasta >= hoy()) && (!f.valido_desde || f.valido_desde <= hoy()); }
+
+function resumenEmpresa(e) {
+  const r = { obrasPrevistas: [], nPersonas: null, nRojos: null };
+  if (previstas) r.obrasPrevistas = previstas.filter(p => p.empresa_id === e.id).map(p => p.obra_id);
+  if (personas) {
+    const mias = personas.filter(p => p.empresa_id === e.id && p.activo);
+    r.nPersonas = mias.length;
+    r.nRojos = mias.filter(p => p.estado === 'rojo').length;
+  }
+  return r;
+}
+
+// ── Lista ────────────────────────────────────────────────────────────────
+function pintarLista() {
+  const h = $('lista');
+  if (empresas === null) { h.innerHTML = '<div class="alert alert-danger">No se ha podido cargar la lista de empresas.</div>'; return; }
+  const q = ($('buscar').value || '').trim().toUpperCase();
+  const soloPend = $('solo-pendientes').checked;
+  const nomObra = id => (misObras.find(o => o.id === id) || {}).nombre || '';
+
+  const filas = empresas.filter(e => {
+    if (soloPend && !(e.pendiente_identificar || !normCif(e.cif))) return false;
+    if (!q) return true;
+    return (e.nombre || '').toUpperCase().includes(q) || normCif(e.cif).includes(normCif(q));
+  });
+
+  if (!filas.length) { h.innerHTML = '<div class="muted" style="padding:12px 4px; font-size:13px;">Ninguna empresa coincide.</div>'; return; }
+
+  let html = '<table><thead><tr><th>Empresa</th><th>CIF</th><th>Contacto</th><th>Prevista en</th><th>Gente en mis obras</th></tr></thead><tbody>';
+  for (const e of filas) {
+    const r = resumenEmpresa(e);
+    const sinCif = !normCif(e.cif);
+    const gente = r.nPersonas === null ? '<span class="badge badge-gris">sin datos</span>'
+      : r.nPersonas === 0 ? '<span class="muted">—</span>'
+      : (r.nPersonas + (r.nRojos ? ' <span class="badge badge-rojo">' + r.nRojos + ' en rojo</span>' : ''));
+    const prev = previstas === null ? '<span class="badge badge-gris">sin datos</span>'
+      : r.obrasPrevistas.map(nomObra).filter(Boolean).map(n => '<span class="badge badge-azul">' + esc(n) + '</span>').join(' ') || '<span class="muted">—</span>';
+    html += '<tr class="emp' + (seleccionada === e.id ? ' sel' : '') + '" data-id="' + e.id + '">' +
+      '<td><strong>' + esc(e.nombre) + '</strong>' + (e.es_empresa_propia ? ' <span class="badge badge-verde">propia</span>' : '') +
+      ((sinCif || e.pendiente_identificar) ? ' <span class="badge badge-naranja" title="Sin CIF: e-Coordina no podrá reconocerla">falta identificar</span>' : '') + '</td>' +
+      '<td class="cif">' + (esc(e.cif) || '<span class="muted">—</span>') + '</td>' +
+      '<td>' + (esc(e.contacto_nombre) || '<span class="muted">—</span>') + (e.contacto_email ? '<br><span class="muted" style="font-size:12px">' + esc(e.contacto_email) + '</span>' : '') + '</td>' +
+      '<td>' + prev + '</td><td>' + gente + '</td></tr>';
+  }
+  h.innerHTML = html + '</tbody></table>';
+  h.querySelectorAll('tr.emp').forEach(tr => tr.addEventListener('click', () => abrirFicha(tr.dataset.id)));
+}
+
+// ── Ficha ────────────────────────────────────────────────────────────────
+function abrirFicha(id) {
+  seleccionada = id;
+  pintarLista();
+  pintarFicha(id);
+  $('ficha').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function pintarFicha(id) {
+  const e = (empresas || []).find(x => x.id === id);
+  const h = $('ficha');
+  if (!e) { h.classList.add('oculto'); return; }
+  h.classList.remove('oculto');
+  const sinCif = !normCif(e.cif);
+
+  let html = '<div class="cab"><h2>' + esc(e.nombre) + '</h2>' +
+    (e.cif ? '<span class="cif">' + esc(e.cif) + '</span>' : '') +
+    (e.es_empresa_propia ? '<span class="badge badge-verde">empresa propia</span>' : '') +
+    '<span style="margin-left:auto"><button class="btn btn-outline btn-mini" id="f-cerrar">Cerrar ficha</button></span></div>';
+
+  if (sinCif || e.pendiente_identificar) {
+    html += '<div class="alert alert-warning">⚠️ <strong>Falta identificar esta empresa.</strong> No tiene CIF, así que cuando llegue por e-Coordina el sistema creará otra ficha y no sabrá que es la misma. Completar el CIF llega en el siguiente paso.</div>';
+  }
+
+  html += '<div class="grid2">' +
+    '<div><div class="k">Persona de contacto</div><div class="v">' + (esc(e.contacto_nombre) || '<span class="muted">—</span>') + '</div></div>' +
+    '<div><div class="k">Email</div><div class="v">' + (esc(e.contacto_email) || '<span class="muted">—</span>') + '</div></div>' +
+    '<div><div class="k">Teléfono</div><div class="v">' + (esc(e.contacto_telefono) || '<span class="muted">—</span>') + '</div></div>' +
+    '</div>';
+
+  // Obra a obra
+  html += '<div class="subt">En mis obras</div>';
+  if (!misObras.length) {
+    html += '<div class="muted" style="font-size:13px">' + (fallos.includes('obras') ? 'No se han podido leer tus obras.' : 'No tienes obras asignadas.') + '</div>';
+  } else {
+    html += '<table><thead><tr><th>Obra</th><th>Prevista</th><th>Contrato</th><th>Libro subc.</th><th>Gente</th></tr></thead><tbody>';
+    for (const o of misObras) {
+      const p = previstas ? previstas.find(x => x.empresa_id === e.id && x.obra_id === o.id) : undefined;
+      const c = contratos ? contratos.filter(x => x.empresa_id === e.id && x.obra_id === o.id) : null;
+      const l = libros ? libros.filter(x => x.empresa_id === e.id && x.obra_id === o.id) : null;
+      const g = personas ? personas.filter(x => x.empresa_id === e.id && x.obra_id === o.id && x.activo) : null;
+      const celdaDoc = (arr, txt) => arr === null ? '<span class="badge badge-gris">sin datos</span>'
+        : arr.some(vigente) ? '<span class="badge badge-verde">✓ vigente</span>'
+        : arr.length ? '<span class="badge badge-rojo">caducado</span>'
+        : '<span class="badge badge-naranja">sin ' + txt + '</span>';
+      const celdaPrev = previstas === null ? '<span class="badge badge-gris">sin datos</span>'
+        : p ? '<span class="badge badge-azul">desde ' + fechaES(p.prevista_desde) + '</span>' + (p.nota ? ' <span class="muted" style="font-size:12px">' + esc(p.nota) + '</span>' : '')
+        : '<span class="muted">—</span>';
+      const celdaGente = g === null ? '<span class="badge badge-gris">sin datos</span>'
+        : g.length ? g.length + (g.filter(x => x.estado === 'rojo').length ? ' <span class="badge badge-rojo">' + g.filter(x => x.estado === 'rojo').length + ' en rojo</span>' : '')
+        : '<span class="muted">—</span>';
+      html += '<tr><td><strong>' + esc(o.nombre) + '</strong>' + (o.estado === 'pausada' ? ' <span class="badge badge-gris">pausada</span>' : '') + '</td>' +
+        '<td>' + celdaPrev + '</td><td>' + celdaDoc(c, 'contrato') + '</td><td>' + celdaDoc(l, 'libro') + '</td><td>' + celdaGente + '</td></tr>';
+    }
+    html += '</tbody></table>';
+    html += '<div class="muted" style="font-size:12px; margin-top:6px">Contrato y libro se apuntan desde <a href="trabajadores.html" style="color:inherit">Trabajadores</a>, como hasta ahora.</div>';
+
+    // Marcar prevista
+    html += '<div class="prevista-form">' +
+      '<span style="font-size:13px; font-weight:600">Marcar prevista en</span>' +
+      '<select id="p-obra">' + misObras.map(o => '<option value="' + o.id + '">' + esc(o.nombre) + '</option>').join('') + '</select>' +
+      '<span style="font-size:13px">desde</span><input type="date" id="p-fecha" value="' + hoy() + '">' +
+      '<input type="text" id="p-nota" placeholder="Nota (opcional)" style="min-width:180px" autocomplete="off">' +
+      '<button class="btn btn-primary btn-mini" id="p-guardar">Guardar</button>' +
+      '<span id="p-msg" style="font-size:13px"></span></div>';
+  }
+
+  h.innerHTML = html;
+  $('f-cerrar').addEventListener('click', () => { seleccionada = null; h.classList.add('oculto'); pintarLista(); });
+  const bp = $('p-guardar');
+  if (bp) bp.addEventListener('click', () => marcarPrevista(e.id));
+}
+
+async function marcarPrevista(empresaId) {
+  const btn = $('p-guardar'), msg = $('p-msg');
+  btn.disabled = true; msg.textContent = 'Guardando…'; msg.style.color = '';
+  const { data, error } = await sb.rpc('marcar_empresa_prevista', {
+    p_empresa_id: empresaId, p_obra_id: $('p-obra').value, p_prevista_desde: $('p-fecha').value, p_nota: $('p-nota').value || null
+  });
+  btn.disabled = false;
+  if (error || !data || data.ok !== true) {
+    const cod = (error && error.message) || '';
+    msg.style.color = '#ef9a9a';
+    msg.textContent = cod.includes('SIN_PERMISO') ? 'No tienes permiso en esa obra.' : cod.includes('FECHA') ? 'Falta la fecha.' : 'No se ha podido guardar.';
+    return;
+  }
+  await cargarTodo();
+  const m = $('p-msg'); if (m) { m.style.color = '#a5d6a7'; m.textContent = 'Apuntado.'; }
+}
+
+// ── Nueva empresa ────────────────────────────────────────────────────────
+function abrirModal() {
+  ['n-nombre', 'n-cif', 'n-cnombre', 'n-cemail', 'n-ctel'].forEach(i => $(i).value = '');
+  $('modal-aviso').innerHTML = '';
+  $('modal-nueva').classList.remove('oculto');
+  $('n-nombre').focus();
+}
+function cerrarModal() { $('modal-nueva').classList.add('oculto'); }
+
+// Avisa en vivo si el CIF ya es de alguien: no bloquea, informa.
+function avisarCifExistente() {
+  const c = normCif($('n-cif').value);
+  const h = $('modal-aviso');
+  if (c.length < 8 || !empresas) { h.innerHTML = ''; return; }
+  const ya = empresas.find(e => normCif(e.cif) === c);
+  h.innerHTML = ya ? '<div class="alert alert-info">Ese CIF ya es de <strong>' + esc(ya.nombre) + '</strong>. Al guardar se abrirá su ficha, no se creará otra.</div>' : '';
+}
+
+async function guardarNueva() {
+  const nombre = $('n-nombre').value.trim(), cif = $('n-cif').value.trim();
+  const h = $('modal-aviso');
+  if (nombre.length < 3) { h.innerHTML = '<div class="alert alert-danger">Falta el nombre.</div>'; return; }
+  if (normCif(cif).length < 8) { h.innerHTML = '<div class="alert alert-danger">El CIF es obligatorio (mínimo 8 caracteres). Sin él, e-Coordina no podrá reconocer a esta empresa.</div>'; return; }
+  const btn = $('n-guardar'); btn.disabled = true;
+  const { data, error } = await sb.rpc('crear_empresa', {
+    p_nombre: nombre, p_cif: cif,
+    p_contacto_nombre: $('n-cnombre').value || null, p_contacto_email: $('n-cemail').value || null, p_contacto_telefono: $('n-ctel').value || null
+  });
+  btn.disabled = false;
+  if (error || !data || data.ok !== true) {
+    const cod = (error && error.message) || '';
+    h.innerHTML = '<div class="alert alert-danger">' + (cod.includes('SIN_PERMISO') ? 'No tienes permiso para dar de alta empresas.'
+      : cod.includes('CIF_OBLIGATORIO') ? 'El CIF es obligatorio.' : cod.includes('NOMBRE') ? 'Falta el nombre.' : 'No se ha podido guardar.') + '</div>';
+    return;
+  }
+  cerrarModal();
+  await cargarTodo();
+  abrirFicha(data.id);
+  if (data.accion === 'ya_existia') {
+    const f = $('ficha');
+    f.insertAdjacentHTML('afterbegin', '<div class="alert alert-info">Esa empresa ya existía como <strong>' + esc(data.nombre) + '</strong>. No se ha creado otra.</div>');
+  }
+}
+
+// ── Arranque ─────────────────────────────────────────────────────────────
+(async function () {
+  const g = await Guardian.entrar(sb, { rol: ['jefe_obra', 'admin'], campos: 'id, nombre, rol', volver: '../' });
+  if (!g) return;
+  usuario = g.usuario;
+  esAdmin = usuario.rol === 'admin';
+  $('usuario-nombre').textContent = usuario.nombre || '';
+
+  $('buscar').addEventListener('input', pintarLista);
+  $('solo-pendientes').addEventListener('change', pintarLista);
+  $('btn-nueva').addEventListener('click', abrirModal);
+  $('n-cancelar').addEventListener('click', cerrarModal);
+  $('n-guardar').addEventListener('click', guardarNueva);
+  $('n-cif').addEventListener('input', avisarCifExistente);
+  $('modal-nueva').addEventListener('click', ev => { if (ev.target === $('modal-nueva')) cerrarModal(); });
+
+  $('lista').innerHTML = '<div class="muted" style="font-size:13px">Cargando…</div>';
+  await cargarTodo();
+})();
+</script>
+</body>
+</html>
