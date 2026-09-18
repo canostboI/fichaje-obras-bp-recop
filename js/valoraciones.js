@@ -1,7 +1,7 @@
 /* ============================================================
    js/valoraciones.js — Valoraciones de operarios (1-5 estrellas)
    ------------------------------------------------------------
-   101ª (16/9/2026). La lógica vive AQUÍ; cada panel tiene su
+   104ª (18/9/2026). La lógica vive AQUÍ; cada panel tiene su
    pantalla fina con su propio aspecto:
      jefe/valoraciones.html · admin/valoraciones.html ·
      encargado/valoraciones.html
@@ -17,6 +17,15 @@
    Reglas en la BD, no aquí: 1-2 estrellas exigen motivo; quién ve
    qué lo decide puedo_ver_valoraciones(). No bloquea la valla.
 
+   104ª · PANEL LATERAL (Dani, 18/9): al lado de «Valorar», a la
+   derecha, el ranking HISTÓRICO de las empresas que están en la
+   obra elegida — todas sus obras, no solo esta. Sirve para pedir
+   gente por nombre y apellido. Sale quien tenga al menos una nota;
+   5 por empresa y «ver todos» para el resto. Misma fuente que la
+   pestaña (ranking_valoraciones): no se toca la BD. En pantalla
+   estrecha desaparece y queda la pestaña. Se pide con
+   opts.panelRanking (necesita opts.ranking).
+
    AUTÓNOMO: crea su HTML y su CSS. Los colores salen de variables
    con respaldo (--val-*), que cada pantalla define según su tema.
    Nunca `var(--x)` sin respaldo (trampa 86ª).
@@ -31,6 +40,7 @@
        hueco: document.getElementById('valoraciones'),
        claveObra: 'jefe_obra_activa_id',
        ranking: true,
+       panelRanking: true,
        alCambiarObra: function (obra) { ... }   // opcional
      });
    ============================================================ */
@@ -63,6 +73,26 @@
   + '.val-mia{font-size:11.5px;color:#4caf50}'
   + '.val-vacio{text-align:center;color:var(--val-texto2,#777);padding:2rem 1rem}'
   + '.val-err{background:#fdecea;color:#b71c1c;padding:10px;border-radius:8px}'
+  /* ── Panel lateral (104ª) ── */
+  + '.val-cols{display:flex;gap:24px;align-items:flex-start}'
+  + '.val-col{flex:1;min-width:0}'
+  + '.val-panel{flex:0 0 320px;width:320px;position:sticky;top:16px}'
+  + '.val-panel-tit{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--val-texto2,#555);margin:0 2px 4px}'
+  + '.val-panel-info{font-size:12px;color:var(--val-texto2,#777);margin:0 2px 12px;line-height:1.4}'
+  + '.val-pemp{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--val-texto2,#555);margin:14px 2px 4px}'
+  + '.val-pcaja{background:var(--val-card,#fff);border:1px solid var(--val-borde,#e6e8eb);border-radius:10px;overflow:hidden}'
+  + '.val-pfila{display:flex;align-items:center;gap:8px;padding:8px 11px;font-size:13.5px;cursor:pointer;border-top:1px solid var(--val-borde,#e6e8eb)}'
+  + '.val-pcaja .val-pfila:first-child{border-top:0}'
+  + '.val-pfila:hover{background:var(--val-input,#f4f5f7)}'
+  + '.val-ppos{flex:0 0 18px;text-align:right;color:var(--val-texto2,#888);font-size:12px}'
+  + '.val-pnom{flex:1;min-width:0;color:var(--val-texto,#222);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+  + '.val-pnota{flex:0 0 auto;color:#f5a623;font-weight:600;white-space:nowrap;font-size:13px}'
+  + '.val-pnota b{color:var(--val-texto2,#888);font-weight:400;font-size:12px}'
+  + '.val-pmas{width:100%;border:0;border-top:1px solid var(--val-borde,#e6e8eb);background:none;color:var(--val-texto2,#777);font-size:12.5px;font-family:inherit;padding:8px;cursor:pointer}'
+  + '.val-pmas:hover{color:var(--val-texto,#222)}'
+  + '.val-pvacio{font-size:12.5px;color:var(--val-texto2,#777);padding:10px 11px}'
+  + '@media(max-width:980px){.val-cols{display:block}.val-panel{display:none}}'
+  /* ── Ficha ── */
   + '.val-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;z-index:900;overflow-y:auto;padding:16px 10px}'
   + '.val-ficha{background:var(--val-modal,#fff);color:var(--val-texto,#222);border:1px solid var(--val-borde,#ddd);border-radius:12px;width:100%;max-width:440px;padding:16px}'
   + '.val-foto{width:100%;aspect-ratio:1/1;border-radius:10px;background:var(--val-foto,#e6e8eb);display:flex;align-items:center;justify-content:center;color:var(--val-texto2,#888);overflow:hidden;margin-bottom:10px}'
@@ -83,9 +113,12 @@
   + '.val-ok{color:#4caf50}.val-ko{color:#e57373}'
   + '.val-toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#2e7d32;color:#fff;padding:11px 16px;border-radius:10px;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.3);z-index:950;max-width:92vw;text-align:center}';
 
+  var TOPE_PANEL = 5;   // cuántos se ven de entrada en cada empresa del panel
+
   var sb, usuario, opts, H;
   var obras = [], obraId = null, listaValorar = [], listaRanking = [], rankingCargado = false;
   var cacheFoto = new Map(), observador = null;
+  var panelOn = false, panelAbiertas = {};   // empresa → true si está desplegada
 
   function esc(t) { var d = document.createElement('div'); d.textContent = String(t == null ? '' : t); return d.innerHTML; }
   function iniciales(n) { var p = String(n || '?').trim().split(/\s+/); return ((p[0] || '?')[0] + (p[1] ? p[1][0] : '')).toUpperCase(); }
@@ -118,6 +151,7 @@
   async function iniciar(cliente, u, o) {
     sb = cliente; usuario = u; opts = o || {}; H = opts.hueco;
     if (!H) { console.warn('[valoraciones] falta opts.hueco'); return; }
+    panelOn = !!(opts.ranking && opts.panelRanking);
     if (!document.getElementById('val-css')) {
       var s = document.createElement('style'); s.id = 'val-css'; s.textContent = CSS; document.head.appendChild(s);
     }
@@ -128,12 +162,22 @@
     }
     FI.init(sb);
 
+    var izquierda =
+        '<div class="val-barra"><select id="val-sel-obra" style="display:none"></select><input id="val-buscar" type="search" placeholder="Buscar por nombre o empresa"></div>'
+      + '<p class="val-info">Pulsa en una persona para ver su foto y ponerle nota. Cada uno pone su propia nota; si vuelves a votar, se corrige. Con 1 o 2 estrellas hay que decir el motivo.</p>'
+      + '<div id="val-lista"><p class="val-vacio">Cargando…</p></div>';
+
+    var derecha =
+        '<p class="val-panel-tit">Ranking de las empresas de esta obra</p>'
+      + '<p class="val-panel-info">Todas las notas de cada empresa, de todas las obras. Entre paréntesis, cuántas notas tiene cada uno.</p>'
+      + '<div id="val-panel"><p class="val-pvacio">Cargando…</p></div>';
+
     H.innerHTML =
         (opts.ranking ? '<div class="val-tabs"><button class="val-tab on" data-t="valorar">Valorar</button><button class="val-tab" data-t="ranking">Ranking por empresa</button></div>' : '')
       + '<section id="val-v-valorar">'
-      +   '<div class="val-barra"><select id="val-sel-obra" style="display:none"></select><input id="val-buscar" type="search" placeholder="Buscar por nombre o empresa"></div>'
-      +   '<p class="val-info">Pulsa en una persona para ver su foto y ponerle nota. Cada uno pone su propia nota; si vuelves a votar, se corrige. Con 1 o 2 estrellas hay que decir el motivo.</p>'
-      +   '<div id="val-lista"><p class="val-vacio">Cargando…</p></div>'
+      +   (panelOn
+            ? '<div class="val-cols"><div class="val-col">' + izquierda + '</div><aside class="val-panel">' + derecha + '</aside></div>'
+            : izquierda)
       + '</section>'
       + (opts.ranking ? '<section id="val-v-ranking" style="display:none">'
       +   '<div class="val-barra"><select id="val-sel-empresa"></select><input id="val-buscar-r" type="search" placeholder="Buscar por nombre"></div>'
@@ -147,6 +191,15 @@
       var t = listaValorar.find(function (x) { return x.trabajador_id === f.dataset.tid; });
       if (t) abrirFicha(t, true);
     });
+    if (panelOn) {
+      $('val-panel').addEventListener('click', function (e) {
+        var b = e.target.closest('.val-pmas');
+        if (b) { panelAbiertas[b.dataset.emp] = !panelAbiertas[b.dataset.emp]; pintarPanel(); return; }
+        var f = e.target.closest('.val-pfila'); if (!f) return;
+        var t = listaRanking.find(function (x) { return x.trabajador_id === f.dataset.tid; });
+        if (t) abrirFicha(t, false);
+      });
+    }
     if (opts.ranking) {
       H.querySelector('.val-tabs').addEventListener('click', function (e) {
         var b = e.target.closest('.val-tab'); if (!b) return;
@@ -154,7 +207,7 @@
         var r = b.dataset.t === 'ranking';
         $('val-v-valorar').style.display = r ? 'none' : '';
         $('val-v-ranking').style.display = r ? '' : 'none';
-        if (r && !rankingCargado) cargarRanking();
+        if (r) cargarRanking();
       });
       $('val-sel-empresa').addEventListener('change', pintarRanking);
       $('val-buscar-r').addEventListener('input', pintarRanking);
@@ -195,10 +248,16 @@
     var ob = obras.find(function (x) { return x.id === id; });
     if (typeof opts.alCambiarObra === 'function') { try { opts.alCambiarObra(ob); } catch (_) {} }
     $('val-lista').innerHTML = '<p class="val-vacio">Cargando…</p>';
+    if (panelOn) { panelAbiertas = {}; $('val-panel').innerHTML = '<p class="val-pvacio">Cargando…</p>'; }
     var r = await sb.rpc('trabajadores_para_valorar', { p_obra_id: id });
-    if (r.error || !r.data || !r.data.ok) return fallo('val-lista', (r.data && r.data.error) || 'No se ha podido cargar la lista. Recarga la página.');
+    if (r.error || !r.data || !r.data.ok) {
+      if (panelOn) $('val-panel').innerHTML = '';
+      return fallo('val-lista', (r.data && r.data.error) || 'No se ha podido cargar la lista. Recarga la página.');
+    }
     listaValorar = r.data.lista;
     pintarValorar();
+    // El panel acompaña a la obra elegida: se repinta con el mismo cambio.
+    if (panelOn) cargarRanking();
   }
 
   // Orden de grupos: empresas A-Z y «Sin empresa» al final.
@@ -233,9 +292,15 @@
     vigilarCaras(cont);
   }
 
+  // Una sola descarga para la pestaña y el panel: si ya está, solo repinta.
   async function cargarRanking() {
+    if (rankingCargado) { pintarRanking(); if (panelOn) pintarPanel(); return; }
     var r = await sb.rpc('ranking_valoraciones');
-    if (r.error || !r.data || !r.data.ok) return fallo('val-ranking', (r.data && r.data.error) || 'No se ha podido cargar el ranking. Recarga la página.');
+    if (r.error || !r.data || !r.data.ok) {
+      var texto = (r.data && r.data.error) || 'No se ha podido cargar el ranking. Recarga la página.';
+      if (panelOn) $('val-panel').innerHTML = '<p class="val-pvacio">' + esc(texto) + '</p>';
+      return fallo('val-ranking', texto);
+    }
     rankingCargado = true;
     listaRanking = r.data.lista;
     var previa = $('val-sel-empresa').value;
@@ -243,6 +308,7 @@
     $('val-sel-empresa').innerHTML = '<option value="">Todas las empresas</option>' + empresas.map(function (e) { return '<option>' + esc(e) + '</option>'; }).join('');
     if (empresas.indexOf(previa) >= 0) $('val-sel-empresa').value = previa;
     pintarRanking();
+    if (panelOn) pintarPanel();
   }
 
   function pintarRanking() {
@@ -263,6 +329,49 @@
     });
     cont.innerHTML = html;
     vigilarCaras(cont);
+  }
+
+  // ── Panel lateral: un bloque por cada empresa que está en la obra ──
+  function pintarPanel() {
+    var cont = $('val-panel');
+    if (!cont) return;
+    // Empresas presentes en la obra elegida.
+    var empresas = [];
+    listaValorar.filter(function (t) { return !t.es_propia; }).forEach(function (t) {
+      var e = t.empresa || 'Sin empresa';
+      if (empresas.indexOf(e) < 0) empresas.push(e);
+    });
+    empresas.sort(function (a, b) {
+      var ka = (a === 'Sin empresa' ? '1' : '0') + a.toLocaleLowerCase('es');
+      var kb = (b === 'Sin empresa' ? '1' : '0') + b.toLocaleLowerCase('es');
+      return ka.localeCompare(kb, 'es');
+    });
+    if (!empresas.length) { cont.innerHTML = '<p class="val-pvacio">No hay ninguna empresa en esta obra.</p>'; return; }
+
+    var html = '';
+    empresas.forEach(function (e) {
+      // Todo el histórico de esa empresa, esté o no esa gente en esta obra.
+      var gente = listaRanking.filter(function (t) { return (t.empresa || 'Sin empresa') === e; });
+      html += '<p class="val-pemp">' + esc(e) + '</p><div class="val-pcaja">';
+      if (!gente.length) {
+        html += '<p class="val-pvacio">Todavía sin notas.</p>';
+      } else {
+        var abierta = !!panelAbiertas[e];
+        var visibles = abierta ? gente : gente.slice(0, TOPE_PANEL);
+        visibles.forEach(function (t, i) {
+          html += '<div class="val-pfila" data-tid="' + t.trabajador_id + '">'
+            + '<span class="val-ppos">' + (i + 1) + '</span>'
+            + '<span class="val-pnom">' + esc(t.nombre) + '</span>'
+            + '<span class="val-pnota">★ ' + t.media + ' <b>(' + t.total + ')</b></span></div>';
+        });
+        if (gente.length > TOPE_PANEL) {
+          html += '<button class="val-pmas" data-emp="' + esc(e) + '">'
+            + (abierta ? 'Ver solo los ' + TOPE_PANEL + ' primeros' : 'Ver todos (' + gente.length + ')') + '</button>';
+        }
+      }
+      html += '</div>';
+    });
+    cont.innerHTML = html;
   }
 
   // ── Ficha: foto grande + votar (solo desde «Valorar») + historial ──
