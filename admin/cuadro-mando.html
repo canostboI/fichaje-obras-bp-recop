@@ -219,6 +219,10 @@ if (!window.Fechas || !window.AccesosResueltos || !window.SbPaginado || !window.
 
 const HORA_CORTE = 10;
 const MIN_SOLICITUD_ROJA = 30;
+// 111a (18/9/2026) - Alarma de RP presente (pedida por Dani). Margen desde la
+// primera entrada abierta del dia: por la manana el RP no tiene por que ser el
+// primero en fichar.
+const MIN_MARGEN_RP_PRESENTE = 15;
 const REFRESCO_MS = 5 * 60 * 1000;
 
 let ultimoModelo = null;
@@ -278,6 +282,9 @@ async function leerTodo() {
       .select('obra_id, created_at, personas_en_obra, personas_sin_fichar, sin_actividad, usuario:usuario_app_id(nombre)')
       .gte('created_at', rango.desde).lt('created_at', rango.hasta)
       .order('created_at', { ascending: false }),
+    rps: () => sb.from('recursos_preventivos_obra')
+      .select('obra_id, trabajador_id, trabajador:trabajador_id(activo)')
+      .eq('activo', true),
     solicitudes: () => sb.rpc('listar_solicitudes_hoy', { p_obra_id: null }),
     excepcionesHoy: () => sb.rpc('informe_excepciones', { p_obra_id: null, p_desde: hoy, p_hasta: hoy }),
     tarjetas: () => sb.rpc('resumen_tarjetas_obras'),
@@ -386,6 +393,14 @@ function construirModelo(d) {
       });
       t.personasHoy = porPersona.size;
       t.dentro = [...porPersona.values()].filter(g => g.ultimoTipo === 'entrada').length;
+      // 111a - Quien sigue dentro (por id) y desde cuando, para la alarma de RP.
+      t.dentroIds = [];
+      t.primeraDentro = null;
+      porPersona.forEach((g, k) => {
+        if (g.ultimoTipo !== 'entrada') return;
+        t.dentroIds.push(k);
+        if (g.entrada && (t.primeraDentro === null || g.entrada < t.primeraDentro)) t.primeraDentro = g.entrada;
+      });
       t.primera = suyos.length ? suyos[0].hora : null;
       t.ultima = suyos.length ? suyos[suyos.length - 1].hora : null;
       t.fichajesSuyos = suyos;
@@ -418,6 +433,36 @@ function construirModelo(d) {
         sinRegistrar: sinRegistrar,
         fichajes: d.fichajes === null ? undefined : (t.fichajesSuyos || [])
       });
+    }
+
+    // ── 111ª · Ningún Recurso Preventivo EN OBRA ahora mismo ──────────────
+    // `comprobarRP()` del jefe habla de DESIGNADOS; el cron vigilante lo apunta
+    // a las 19:00, con la obra ya vacía. Esto lo dice mientras aún se puede
+    // llamar a alguien. Un designado de baja en la empresa no cuenta; si no se
+    // puede leer ese dato, cuenta como activo (no se inventa una baja).
+    if (d.rps === null) {
+      t.datosIncompletos = true;
+      t.rpDentro = null;
+    } else if (t.dentroIds && t.dentroIds.length) {
+      const designados = new Set((d.rps || [])
+        .filter(r => r.obra_id === o.id && !(r.trabajador && r.trabajador.activo === false))
+        .map(r => r.trabajador_id));
+      t.rpDentro = t.dentroIds.some(id => designados.has(id));
+      const minDentro = t.primeraDentro ? minutosDesde(t.primeraDentro) : null;
+      if (!t.rpDentro && minDentro != null && minDentro >= MIN_MARGEN_RP_PRESENTE) {
+        t.rojo.push({
+          nivel: 'rojo', obra: o.nombre, marca: '🚨',
+          qué: 'Ningún Recurso Preventivo en obra ahora mismo',
+          quién: 'Hay ' + t.dentro + ' ' + plural(t.dentro, 'persona', 'personas') +
+                 ' dentro desde las ' + hhmm(t.primeraDentro) +
+                 ' y ninguno de los designados ha fichado entrada.' +
+                 (t.equipo.jefes.length ? ' Jefe de obra: ' + t.equipo.jefes.map(j => esc(j.nombre)).join(', ') : ''),
+          reloj: textoEspera(minDentro),
+          enlaces: [['Ver fichajes', 'fichajes.html'], ['Trabajadores', 'trabajadores.html']]
+        });
+      }
+    } else {
+      t.rpDentro = null;   // obra vacía: no se pregunta
     }
 
     t.solicitudes = solOk ? solicitudes.filter(s => s.obra_id === o.id) : null;
