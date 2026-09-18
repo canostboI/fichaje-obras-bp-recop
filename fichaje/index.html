@@ -57,7 +57,19 @@
     display: block;
   }
   .logo-marca.oculto { display: none; }
+  /* 105ª bis (17/9/2026) — El título «Fichaje de obra» ya no se ve: el nombre
+     de la obra dice dónde estás y la frase se comía la línea principal. Se
+     queda en el HTML (traducido) solo para lectores de pantalla y buscadores. */
   .cabecera h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
     font-size: 18px;
     margin: 0 0 6px;
     color: #555;
@@ -663,6 +675,29 @@
      el recorrido de fichar: la pantalla sigue teniendo UNA tarea (65ª).
      Colores fijos, sin var(--x): si algún día este bloque se copia a otra
      página sin las variables, se seguiría viendo (86ª). */
+  /* 105ª bis — Firma de Portium: abajo del todo, pequeña, después del enlace
+     de protección de datos. La marca de la obra manda arriba; esto solo dice
+     con qué está hecho. */
+  .firma-portium {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    margin: 14px 0 4px;
+    opacity: 0.75;
+  }
+  .firma-portium img {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    display: block;
+  }
+  .firma-portium span {
+    color: #999;
+    font-size: 13px;
+    letter-spacing: 1px;
+  }
+
   .rgpd-enlace {
     display: block;
     margin: 6px auto 0;
@@ -858,6 +893,10 @@
 
   <div class="pie" id="pie-marca">Control de acceso</div>
   <button type="button" class="rgpd-enlace" id="rgpd-enlace">Protección de datos</button>
+  <div class="firma-portium">
+    <img src="../assets/icons/portium-192.png" alt="" width="20" height="20">
+    <span>Portium</span>
+  </div>
 </div>
 
 <!-- 98ª — Panel de protección de datos. Fuera de `.contenedor` y fuera de la
