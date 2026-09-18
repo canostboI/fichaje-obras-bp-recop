@@ -525,6 +525,13 @@ async function guardarNueva() {
   }
   cerrarModal();
   await cargarTodo();
+  if (!(empresas || []).some(x => x.id === data.id)) {
+    // Se guardó (la RPC lo confirma) pero la lista no la trae: es un problema
+    // de permisos de lectura, no de la alta. Decirlo, nunca callar.
+    $('avisos').insertAdjacentHTML('afterbegin', '<div class="alert alert-danger">La empresa <strong>' + esc(data.nombre) +
+      '</strong> se ha guardado, pero tu cuenta no tiene permiso para verla en la lista. Avisa al administrador.</div>');
+    return;
+  }
   abrirFicha(data.id);
   if (data.accion === 'ya_existia') {
     const f = $('ficha');
