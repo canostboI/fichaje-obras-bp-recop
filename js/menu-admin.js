@@ -31,10 +31,12 @@
     { tipo: 'enlace', href: 'cuadro-mando.html', ico: '🛰️', label: 'Cuadro de mando' },
 
     { tipo: 'seccion', label: 'Gestión' },
+    // 109ª: el Directorio de usuarios YA NO está aquí. Era el mismo destino
+    // que la pestaña de obras.html (misma página, misma lista); se puso en la
+    // 100ª porque la pestaña era gris e invisible, y desde entonces las
+    // pestañas son botones azules. Se accede: Obras → Directorio de usuarios.
+    // El enlace 'obras.html?vista=directorio' sigue funcionando si alguien lo usa.
     { tipo: 'enlace', href: 'obras.html',                ico: '🏗',  label: 'Obras' },
-    // 100ª: el Directorio vivía escondido en una pestaña de Obras. Entrada
-    // propia; obras.html lee ?vista=directorio y arranca en esa pestaña.
-    { tipo: 'enlace', href: 'obras.html?vista=directorio', ico: '👥', label: 'Directorio de usuarios' },
     { tipo: 'enlace', href: 'trabajadores.html',         ico: '👷',  label: 'Trabajadores' },
     { tipo: 'enlace', href: 'habilitaciones.html',       ico: '🏗️', label: 'Habilitaciones' },
     // 101ª: valorar operarios + ranking por empresa (lógica en js/valoraciones.js).
