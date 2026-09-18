@@ -129,6 +129,15 @@
   .pill-estado.forzado { border-style: dashed; border-color: currentColor; }
 
   /* Iconos habilitación junto al nombre */
+  /* 110ª · Cara junto al nombre. Mismo patrón que la lista de presentes:
+     hueco fijo (los nombres quedan alineados haya foto o no) e iniciales
+     de respaldo si no hay foto o si la imagen no carga. */
+  .celda-nombre { display: flex; align-items: center; gap: 10px; }
+  .cara { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
+          background: var(--bg3); border: 1px solid var(--borde); display: flex;
+          align-items: center; justify-content: center; font-size: 11px; font-weight: 800;
+          color: var(--texto2); letter-spacing: .5px; cursor: pointer; }
+  .cara img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .rp-icono { display: inline-block; margin-left: 5px; font-size: 14px; vertical-align: middle; cursor: default; }
   .hab-iconos { display: inline-flex; align-items: center; gap: 3px; margin-left: 5px; vertical-align: middle; color: var(--naranja); }
   /* ── iconos foto/verif (70a) ── */
@@ -1086,12 +1095,21 @@ async function cargarTrabajadores() {
   var ids = todosTrabajadores.map(function(t) { return t.id; });
   if (ids.length) {
     var pr = await Promise.all([
-      sb.from('fotos_identidad').select('trabajador_id').in('trabajador_id', ids),
+      sb.from('fotos_identidad').select('trabajador_id, storage_path').in('trabajador_id', ids),
       sb.from('verificaciones_identidad').select('trabajador_id').in('trabajador_id', ids)
     ]);
     var conFoto  = new Set((pr[0].data||[]).map(function(r){return r.trabajador_id;}));
     var conVerif = new Set((pr[1].data||[]).map(function(r){return r.trabajador_id;}));
     todosTrabajadores.forEach(function(t){ t.hay_foto=conFoto.has(t.id); t.hay_verif=conVerif.has(t.id); });
+    // 110ª · Las caras de la lista. Se piden TODOS los enlaces firmados en UNA
+    // llamada (FI.enlaces), igual que en la lista de presentes. Si falla, se
+    // quedan las iniciales: la foto nunca puede romper el listado.
+    try {
+      var rutas = {};
+      (pr[0].data||[]).forEach(function(r){ if (r.storage_path) rutas[r.trabajador_id]=r.storage_path; });
+      var urls = await FI.enlaces(Object.values(rutas));
+      todosTrabajadores.forEach(function(t){ t.foto_url = urls[rutas[t.id]] || null; });
+    } catch (e) { console.error('enlaces de fotos:', e); }
   }
   // Los tipos de jornada se leen ANTES de pintar: si no, la columna diría
   // "Por defecto" a todo el mundo durante el primer pintado, que es
@@ -1316,7 +1334,7 @@ function renderTabla(lista) {
 
       filasBody += `
         <tr class="${filaClase}" data-grupo="${esc(empresa)}">
-          <td><strong>${esc(nombreCompleto(t))}</strong>${rpSpan}${habSpan}</td>
+          <td><div class="celda-nombre">${caraHtml(t)}<div><strong>${esc(nombreCompleto(t))}</strong>${rpSpan}${habSpan}</div></div></td>
           <td style="font-family:monospace">${esc(t.dni)}</td>
           <td>${esc(etiquetaCategoria(t) || '—')}</td>
           <td>${formatearPrecio(t.precio_hora_personalizado)}</td>
@@ -1419,6 +1437,21 @@ function obraParaTrabajador(trabajadorId) {
 // foto + «documento con foto» + «informado del QR». Sustituye a los dos
 // iconos 📷/🪪 y a sus tres modales (70ª). También lo usa la ventana de
 // forzar estado para ampliar o hacer la foto.
+// 110ª · Hueco de la cara. Con foto, la imagen; sin foto (o si la imagen no
+// carga), las iniciales. Clic = la misma ventana de identidad que el icono 🪪.
+function iniciales(t) {
+  var n = (t.nombre || '').trim(), a = (t.apellidos || '').trim();
+  var s = (n.charAt(0) || '') + (a.charAt(0) || '');
+  return esc(s.toUpperCase() || '·');
+}
+function caraHtml(t) {
+  var tit = t.foto_url ? 'Foto de identidad — clic para ver' : 'Sin foto — clic para hacerla';
+  var dentro = t.foto_url
+    ? '<img src="' + esc(t.foto_url) + '" alt="" onerror="this.parentNode.textContent=\'' + iniciales(t) + '\'">'
+    : iniciales(t);
+  return '<span class="cara" title="' + tit + '" onclick="clicIdent(\'' + t.id + '\', this)">' + dentro + '</span>';
+}
+
 function iconoIdent(t) {
   var ok = t.hay_verif && t.hay_foto;
   var titulo = ok ? 'Identificado — ver'
