@@ -18,7 +18,7 @@
   <script src="../js/habilitaciones.js?v=20260915"></script>
   <script src="../js/motivos.js"></script>
   <script src="../js/accesos-resueltos.js"></script>
-  <script src="../js/foto-identidad.js"></script>
+  <script src="../js/foto-identidad.js?v=20260918"></script>
   <script src="../js/verificacion-identidad.js?v=20260917"></script>
 <script src="../js/impresion.js"></script>
 <script src="../js/declaracion-sabado.js"></script>
@@ -285,6 +285,14 @@
       background: var(--color-principal); color: white;
       display: flex; align-items: center; justify-content: center;
       font-weight: 700; font-size: 1rem; flex-shrink: 0; letter-spacing: 0.5px;
+    }
+    /* 108a (18/9/2026) - La cara sustituye a las iniciales cuando esa
+       persona tiene foto. Mismo hueco de 46px: si no hay foto o no carga,
+       se quedan las iniciales y la lista no se mueve. */
+    .tarjeta-foto {
+      width: 46px; height: 46px; border-radius: 50%;
+      object-fit: cover; flex-shrink: 0;
+      background: var(--color-principal);
     }
     .tarjeta-info { flex: 1; min-width: 0; }
     .tarjeta-nombre { font-weight: 700; font-size: 0.98rem; color: #222; line-height: 1.15; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
@@ -582,7 +590,7 @@
 
     <div id="contador-presencia" class="contador-presencia estado-vacio" style="display:none">
       <div class="contador-cabecera">
-        <div class="contador-texto" id="contador-texto">personas en obra ahora</div>
+        <div class="contador-texto" id="contador-texto">Personas en obra ahora</div>
         <div class="contador-numero" id="contador-numero">0</div>
       </div>
       <div class="contador-desglose" id="contador-desglose" style="display:none"></div>
@@ -800,6 +808,7 @@
   let idsRPCache = new Set();
   let habIconosPorTrabajadorCache = {};
   let conFotoCache = new Set();
+  let fotoRutaCache = {};   // 108a: trabajador_id -> ruta de su foto
   let conVerifCache = new Set();
   let empresasPropias = new Set();
   let intervalRelativo = null;
@@ -2334,13 +2343,16 @@
 
       // H-6
       habIconosPorTrabajadorCache = {};
-      conFotoCache = new Set(); conVerifCache = new Set();
+      conFotoCache = new Set(); conVerifCache = new Set(); fotoRutaCache = {};
       try {
         const [fotosRes, verifRes] = await Promise.all([
-          sb.from('fotos_identidad').select('trabajador_id').in('trabajador_id', ids),
+          sb.from('fotos_identidad').select('trabajador_id, storage_path').in('trabajador_id', ids),
           sb.from('verificaciones_identidad').select('trabajador_id').in('trabajador_id', ids)
         ]);
         conFotoCache  = new Set((fotosRes.data  || []).map(r => r.trabajador_id));
+        // 108a: la ruta de cada cara, para pintarla en la lista.
+        fotoRutaCache = {};
+        (fotosRes.data || []).forEach(r => { if (r.storage_path) fotoRutaCache[r.trabajador_id] = r.storage_path; });
         conVerifCache = new Set((verifRes.data  || []).map(r => r.trabajador_id));
       } catch (_) {}
       try {
@@ -2396,12 +2408,12 @@
     if (!esHoyFlag) {
       cont.classList.remove('estado-ok');
       cont.classList.add('estado-historico');
-      txtEl.textContent = num === 1 ? 'persona estuvo en obra ese día' : 'personas estuvieron en obra ese día';
+      txtEl.textContent = num === 1 ? 'Persona estuvo en obra ese día' : 'Personas estuvieron en obra ese día';
     } else {
       cont.classList.remove('estado-historico');
       cont.classList.add('estado-ok');
       if (num > 30) { cont.classList.remove('estado-ok'); cont.classList.add('estado-aviso'); }
-      txtEl.textContent = num === 1 ? 'persona en obra ahora' : 'personas en obra ahora';
+      txtEl.textContent = num === 1 ? 'Persona en obra ahora' : 'Personas en obra ahora';
     }
 
     const nPropios = presentes.filter(t => empresasPropias.has(t.empresaId)).length;
@@ -2468,6 +2480,44 @@
       lista.appendChild(cab);
       pintarGrupo(g.trabajadores, esHoyFlag);
     });
+
+    // 108a: las caras van DESPUES de pintar la lista. Si tardan o fallan,
+    // la lista ya esta en pantalla con las iniciales. No se espera.
+    ponerCaras(presentes);
+  }
+
+  // 108a (18/9/2026) - Sustituye las iniciales por la foto de identidad.
+  // Pide TODOS los enlaces en UNA sola llamada (FI.enlaces). No pasa por
+  // ver_foto_identidad: esa es para mirar una cara a proposito.
+  // Regla: la foto nunca puede romper la lista. Cualquier fallo = iniciales.
+  async function ponerCaras(presentes) {
+    if (!window.FI || typeof FI.enlaces !== 'function') return; // version vieja en cache
+    try {
+      const rutas = [];
+      const porRuta = {};
+      (presentes || []).forEach(t => {
+        const ruta = fotoRutaCache[t.id];
+        if (!ruta || porRuta[ruta]) return;
+        porRuta[ruta] = t.id;
+        rutas.push(ruta);
+      });
+      if (!rutas.length) return;
+
+      const urls = await FI.enlaces(rutas);
+      Object.keys(urls).forEach(ruta => {
+        const trabId = porRuta[ruta];
+        if (!trabId) return;
+        const hueco = document.querySelector('.tarjeta-iniciales[data-trab="' + trabId + '"]');
+        if (!hueco) return; // la lista se ha repintado mientras tanto
+        const img = new Image();
+        img.className = 'tarjeta-foto';
+        img.alt = '';
+        // Solo se sustituye cuando la imagen ya esta cargada: asi no se ve
+        // un hueco vacio si el enlace falla.
+        img.onload = () => { if (hueco.parentNode) hueco.replaceWith(img); };
+        img.src = urls[ruta];
+      });
+    } catch (_) { /* se quedan las iniciales */ }
   }
 
   // 86ª — El cuerpo del bucle de tarjetas, tal cual estaba, movido aquí para
@@ -2483,7 +2533,7 @@
       card.className = 'tarjeta-trab';
       card.dataset.horaIso = t.horaISO;
       card.innerHTML = `
-        <div class="tarjeta-iniciales">${esc(iniciales(t.nombre))}</div>
+        <div class="tarjeta-iniciales" data-trab="${esc(t.id)}">${esc(iniciales(t.nombre))}</div>
         <div class="tarjeta-info">
           <div class="tarjeta-nombre">${esc(t.nombre)}${esRP ? ' <span title="Recurso Preventivo designado">🛡️</span>' : ''}${iconosHab ? ' <span class="hab-iconos-enc" title="Habilitaciones: ' + esc(titHab).replace(/"/g, '&quot;') + '">' + iconosHab + '</span>' : ''}</div>
           <div class="tarjeta-empresa">${esc(t.empresa || '—')}</div>
