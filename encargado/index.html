@@ -128,14 +128,20 @@
     }
     .btn-manual:disabled { background: #aaa; cursor: not-allowed; }
 
+    /* 108a (18/9/2026) - El contador ocupaba media pantalla. Ahora tiene la
+       misma forma que las tarjetas de denegados y naranjas: texto a la
+       izquierda, numero a la derecha del mismo tamano (2.6rem). */
     .contador-presencia {
       border-radius: 14px;
-      padding: 1.6rem 1.2rem;
+      padding: 1.1rem 1.2rem;
       margin-bottom: 1.5rem;
       box-shadow: 0 2px 10px rgba(0,0,0,0.10);
       color: white;
-      text-align: center;
+      text-align: left;
       transition: background 0.3s ease;
+    }
+    .contador-cabecera {
+      display: flex; justify-content: space-between; align-items: center; gap: 14px;
     }
     .contador-presencia.estado-ok      { background: linear-gradient(135deg, #2e7d32, #43a047); }
     .contador-presencia.estado-vacio   { background: linear-gradient(135deg, #555, #777); }
@@ -143,19 +149,20 @@
     .contador-presencia.estado-historico { background: linear-gradient(135deg, #37474f, #546e7a); }
 
     .contador-numero {
-      font-size: 5rem;
+      font-size: 2.6rem;
       font-weight: 800;
       line-height: 1;
-      letter-spacing: -2px;
-      margin-bottom: 0.3rem;
+      letter-spacing: -1px;
+      margin-bottom: 0;
     }
     .contador-texto {
-      font-size: 1.05rem;
-      font-weight: 500;
+      font-size: 0.95rem;
+      font-weight: 700;
       opacity: 0.95;
-      margin-bottom: 0.5rem;
+      margin-bottom: 0;
     }
     .contador-desglose {
+      margin-top: 0.6rem;
       font-size: 0.88rem;
       opacity: 0.9;
       background: rgba(255,255,255,0.15);
@@ -507,14 +514,17 @@
     .conexion-banner.online { background: #2e7d32; }
 
     @media (max-width: 600px) {
-      header { align-items: flex-start; flex-direction: column; }
-      .header-right { width: 100%; }
+      header { align-items: flex-start; flex-direction: column; padding: 0.7rem 1rem; gap: 8px; }
+      /* 108a (18/9/2026) - Los 6 botones caian en 4 filas. Rejilla de 3
+         columnas = 2 filas exactas, con las etiquetas enteras. */
+      .header-right { width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-items: stretch; }
+      .header-right button { width: 100%; font-size: 0.78rem; padding: 0.4rem 0.3rem; line-height: 1.2; }
       .campo-fila { grid-template-columns: 1fr; }
       .panel-avisos .aviso-item { flex-direction: column; align-items: flex-start; }
       .panel-avisos .aviso-botones { align-self: flex-end; }
       .panel-bloqueos .bloqueo-item { flex-direction: column; align-items: flex-start; }
       .panel-bloqueos .btn-visto-rojo { align-self: flex-end; }
-      .contador-numero { font-size: 4rem; }
+      .contador-numero { font-size: 2.6rem; }
       .lista-tarjetas { grid-template-columns: 1fr; }
 
     }
@@ -596,8 +606,10 @@
     <div id="panel-avisos" class="panel-avisos" style="display:none"></div>
 
     <div id="contador-presencia" class="contador-presencia estado-vacio" style="display:none">
-      <div class="contador-numero" id="contador-numero">0</div>
-      <div class="contador-texto" id="contador-texto">personas en obra ahora</div>
+      <div class="contador-cabecera">
+        <div class="contador-texto" id="contador-texto">personas en obra ahora</div>
+        <div class="contador-numero" id="contador-numero">0</div>
+      </div>
       <div class="contador-desglose" id="contador-desglose" style="display:none"></div>
       <div class="contador-ultima" id="contador-ultima" style="display:none"></div>
     </div>
