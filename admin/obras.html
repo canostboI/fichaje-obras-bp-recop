@@ -94,6 +94,11 @@
   .bv-tabs button.activo { background: var(--azul); color: #fff; border-color: var(--azul); }
   .bv-texto { width: 100%; min-height: 260px; background: var(--bg3); color: var(--texto); border: 1px solid var(--borde); border-radius: 8px; padding: 12px 14px; font-size: 13px; line-height: 1.5; font-family: inherit; resize: vertical; }
   .bv-ayuda { color: var(--texto2); font-size: 13px; margin-bottom: 14px; }
+  /* 110a: aviso de personas sin cuenta creada */
+  .aviso-pendientes { display: none; width: 100%; text-align: left; background: rgba(255,152,0,0.12); border: 1px solid rgba(255,152,0,0.45); color: var(--texto); padding: 12px 16px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; margin-bottom: 14px; }
+  .aviso-pendientes:hover { background: rgba(255,152,0,0.2); }
+  .aviso-pendientes .sub { display: block; font-weight: 400; font-size: 12px; color: var(--texto2); margin-top: 3px; }
+  .aviso-pendientes.filtrando { background: rgba(255,152,0,0.26); }
   .separador { border: none; border-top: 1px solid var(--borde); margin: 20px 0; }
   .equipo-anadir h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--texto2); margin-bottom: 14px; }
   .btn-peligro { background: transparent; color: var(--rojo); border: 1px solid rgba(244,67,54,0.3); padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; }
@@ -140,6 +145,7 @@
       <div class="error-modal" id="error-directorio" style="margin-bottom:14px;"></div>
       <div class="ok-modal" id="ok-directorio" style="margin-bottom:14px;"></div>
       <div class="dir-ayuda">Todas las personas con cuenta en el sistema. Aquí puedes editar su teléfono, corregir el email de quien aún no ha creado su contraseña, y darlas de baja o reactivarlas. <strong>Asignar a una obra o quitar de una obra se hace desde el 👥 Equipo de cada obra</strong> (en la pestaña Obras).</div>
+      <button class="aviso-pendientes" id="aviso-pendientes"></button>
       <div class="seccion"><div id="tabla-directorio"><div class="cargando">Cargando…</div></div></div>
     </div>
   </div>
@@ -301,6 +307,8 @@ let todosUsuarios = [], todasObras = [], qrActual = null, vistaActual = 'obras',
 // TypeError mataba todo lo que venía después en este script (100ª).
 
 let directorioCargado = false;
+let filtroSinCuenta = false;
+let directorioActual = [];
 document.querySelectorAll('.tab').forEach(t => { t.onclick = () => cambiarVista(t.dataset.vista); });
 async function cambiarVista(vista) {
   vistaActual = vista;
@@ -318,8 +326,13 @@ async function cargarDirectorio() {
   const { data: asigs } = await sb.from('usuarios_obra').select('usuario_app_id, rol_en_obra, obra:obra_id(nombre)');
   const porPersona = {};
   (asigs || []).forEach(a => { (porPersona[a.usuario_app_id] = porPersona[a.usuario_app_id] || []).push({ obra: a.obra?.nombre || '—', rol: a.rol_en_obra }); });
-  if (!personas || personas.length === 0) { cont.innerHTML = '<div class="vacio">No hay usuarios todavía.</div>'; return; }
-  const filas = personas.map(p => {
+  directorioActual = personas || [];
+  if (!personas || personas.length === 0) { cont.innerHTML = '<div class="vacio">No hay usuarios todavía.</div>'; pintarAvisoPendientes(0); return; }
+  const pendientes = personas.filter(p => !p.auth_user_id && p.activo !== false);
+  pintarAvisoPendientes(pendientes.length);
+  const visibles = filtroSinCuenta ? pendientes : personas;
+  if (visibles.length === 0) { cont.innerHTML = '<div class="vacio">No hay nadie pendiente de crear su cuenta.</div>'; return; }
+  const filas = visibles.map(p => {
     const baja = p.activo === false, sinVincular = !p.auth_user_id, esAdmin = p.rol === 'admin';
     let estado = baja ? '<span class="pill gris">De baja</span>' : '<span class="pill verde">Activo</span>';
     if (sinVincular) estado += ' <span class="pill naranja">⚠️ Sin vincular</span>';
@@ -330,10 +343,34 @@ async function cargarDirectorio() {
     const emailTxt = esc(p.email || '—');
     const btnTel = `<button class="btn-mini" onclick="editarTelefono('${p.id}', '${esc(p.telefono || '')}')">Editar tel.</button>`;
     const btnEmail = sinVincular ? `<button class="btn-mini" onclick="editarEmail('${p.id}', '${emailTxt.replace(/'/g, "\\'")}')">Editar email</button>` : '';
+    const btnBv = (sinVincular && !baja && p.email) ? ` <button class="btn-mini" onclick="abrirBienvenidaDir('${p.id}')">📋 Mensaje de bienvenida</button>` : '';
     const btnBaja = (p.id === miUsuarioAppId) ? '<span class="dir-sin-obra">—</span>' : (baja ? `<button class="btn-mini" onclick="reactivarUsuario('${p.id}', '${esc(p.nombre || '')}')">Reactivar</button>` : `<button class="btn-mini peligro" onclick="darDeBaja('${p.id}', '${esc(p.nombre || '')}')">Dar de baja</button>`);
-    return `<tr><td>${esc(p.nombre || '—')} ${rolSistema}</td><td>${estado}</td><td class="dir-contacto"><div><span class="lab">✉️</span> ${emailTxt} ${btnEmail}</div><div><span class="lab">📞</span> ${tel} ${btnTel}</div></td><td>${obrasHtml}</td><td>${btnBaja}</td></tr>`;
+    return `<tr><td>${esc(p.nombre || '—')} ${rolSistema}</td><td>${estado}</td><td class="dir-contacto"><div><span class="lab">✉️</span> ${emailTxt} ${btnEmail}${btnBv}</div><div><span class="lab">📞</span> ${tel} ${btnTel}</div></td><td>${obrasHtml}</td><td>${btnBaja}</td></tr>`;
   }).join('');
   cont.innerHTML = `<table><thead><tr><th>Persona</th><th>Estado</th><th>Contacto</th><th>Obras y rol</th><th></th></tr></thead><tbody>${filas}</tbody></table>`;
+}
+
+// ===== 110a: aviso de personas sin cuenta creada =====
+function pintarAvisoPendientes(n) {
+  const el = document.getElementById('aviso-pendientes');
+  if (!el) return;
+  if (n === 0) { el.style.display = 'none'; filtroSinCuenta = false; return; }
+  el.style.display = 'block';
+  el.classList.toggle('filtrando', filtroSinCuenta);
+  const plural = n === 1 ? 'persona' : 'personas';
+  const sub = filtroSinCuenta ? 'Viendo solo estas. Pulsa para ver el directorio completo.' : 'Pulsa para ver solo estas.';
+  el.innerHTML = `⚠️ ${n} ${plural} sin cuenta creada<span class="sub">${sub}</span>`;
+}
+
+document.getElementById('aviso-pendientes').onclick = async () => {
+  filtroSinCuenta = !filtroSinCuenta;
+  await cargarDirectorio();
+};
+
+function abrirBienvenidaDir(usuarioAppId) {
+  const p = directorioActual.find(x => x.id === usuarioAppId);
+  if (!p || !p.email) { mostrarErrorEquipo('Ese usuario no tiene email guardado.'); return; }
+  abrirBienvenidaCon(p.nombre, p.email);
 }
 
 async function cargarObras() {
