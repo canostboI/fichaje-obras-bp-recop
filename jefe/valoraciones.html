@@ -11,9 +11,13 @@
 <script src="../js/foto-identidad.js"></script>
 <script src="../js/valoraciones.js"></script>
 <!--
-  Valoraciones de operarios (101ª, 16/9/2026). Pantalla FINA: toda la
+  Valoraciones de operarios (104ª, 18/9/2026). Pantalla FINA: toda la
   lógica y el HTML de dentro los pone js/valoraciones.js. Aquí solo el
   aspecto de este panel y el arranque.
+
+  104ª: el contenido se ensancha (820 → 1180) porque «Valorar» lleva a
+  la derecha el panel con el ranking de las empresas de la obra
+  (panelRanking). El propio módulo lo esconde por debajo de 980px.
 -->
 <style>
   :root {
@@ -41,7 +45,7 @@
   .topbar { padding: 20px 28px 0; display: flex; align-items: center; justify-content: space-between; }
   .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
   .topbar .usuario { font-size: 13px; color: var(--texto2); }
-  .contenido { padding: 24px 28px; max-width: 820px; }
+  .contenido { padding: 24px 28px; max-width: 1180px; }
 </style>
 <script src="../js/marca-portium.js?v=20260916"></script>
 </head>
@@ -92,6 +96,7 @@ document.getElementById('btn-salir').addEventListener('click', async () => {
     hueco: document.getElementById('valoraciones'),
     claveObra: 'jefe_obra_activa_id',
     ranking: true,
+    panelRanking: true,
     temaOscuro: true
   });
 })();
