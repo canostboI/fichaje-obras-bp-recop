@@ -12,9 +12,15 @@
 <script src="../js/foto-identidad.js"></script>
 <script src="../js/valoraciones.js"></script>
 <!--
-  Valoraciones de operarios (101ª, 16/9/2026). Pantalla FINA: toda la
+  Valoraciones de operarios (104ª, 18/9/2026). Pantalla FINA: toda la
   lógica y el HTML de dentro los pone js/valoraciones.js. Aquí solo el
   aspecto de este panel y el arranque.
+
+  104ª (Dani, 18/9): el encargado también tiene ranking y panel lateral
+  — es quien pide personal a las subcontratas. Permiso dado en la BD
+  (ranking_valoraciones y puedo_ver_valoraciones), no solo aquí.
+  El ancho sube a 1180 para que quepa el panel; el módulo lo esconde por
+  debajo de 980px, así que en el móvil de obra queda como estaba.
 -->
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -47,7 +53,7 @@
     border: 1px solid #fff; background: rgba(255,255,255,0.18);
     color: white; padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.85rem;
   }
-  main { max-width: 700px; margin: 1.5rem auto; padding: 0 1rem; }
+  main { max-width: 1180px; margin: 1.5rem auto; padding: 0 1rem; }
   /* 103ª: la lista va en un recuadro blanco, como en Habilitaciones, para
      que los textos grises del módulo se lean sobre la foto oscurecida. */
   #valoraciones { background: #fff; border-radius: 10px; padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
@@ -91,7 +97,8 @@ document.getElementById('btn-logout').addEventListener('click', async () => {
   Valoraciones.iniciar(sb, g.usuario, {
     hueco: document.getElementById('valoraciones'),
     claveObra: 'encargado_obra_activa_id',
-    ranking: false,
+    ranking: true,
+    panelRanking: true,
     // Mismo gesto que el resto de pantallas del encargado: color y logo de la obra.
     alCambiarObra: function (obra) {
       if (typeof aplicarBranding !== 'function') return;
