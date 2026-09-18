@@ -11,6 +11,13 @@
      cada pantalla. Por eso gana sin necesitar !important.
    - Solo aspecto. Ni una línea de JavaScript, ni un dato, ni un permiso.
 
+   QUIÉN LO CARGA
+   - encargado/index.html
+   - encargado/resumen-mes.html
+   ═══════════════════════════════════════════════════════════════════ */
+
+
+/* ═══ PANEL DEL ENCARGADO (encargado/index.html) ═══════════════════
    QUÉ ARREGLA (medido en navegador a 412 px de ancho)
    Antes: la página medía 520 px en una pantalla de 412 → había que tirar
    hacia la derecha para ver las horas, y el zoom de dos dedos dejaba la
@@ -18,9 +25,7 @@
    El culpable era la rejilla de la lista: una columna «1fr» se estira
    hasta el elemento más ancho que no puede encoger, y ese era el nombre
    de la empresa en la cabecera de grupo (lleva nowrap).
-
-   DE MOMENTO SOLO LO CARGA encargado/index.html.
-   ═══════════════════════════════════════════════════════════════════ */
+   ═════════════════════════════════════════════════════════════════ */
 
 @media (max-width: 600px) {
 
@@ -76,4 +81,39 @@
      en lugar de sacar la página de la pantalla. */
   .panel-avisos .aviso-info, .panel-bloqueos .bloqueo-info,
   .tarjeta-info, .solenc-item { min-width: 0; overflow-wrap: anywhere; }
+}
+
+
+/* ═══ RESUMEN DE MES (encargado/resumen-mes.html) ══════════════════
+   Esta pantalla ya estaba bien hecha: la tabla se desliza DENTRO de su
+   caja (.tabla-scroll), con el nombre y el total anclados, y la página
+   no se mueve. Medido: 412 = 412, no desborda.
+   Lo único que le faltaba era aprovechar el ancho: con el nombre a
+   120 px y las columnas a 38 px solo se veían 5 días de golpe. Con
+   estos ajustes se ven 7-8, que es la semana entera de un vistazo.
+   ═════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+
+  /* Columnas más ajustadas = más días en pantalla. El nombre sigue
+     legible a dos líneas y el total sigue anclado a la derecha. */
+  table.mes th.col-nombre, table.mes td.col-nombre {
+    width: 104px; min-width: 104px; max-width: 104px;
+    padding-left: 8px; padding-right: 6px;
+  }
+  table.mes th.dia { width: 32px; }
+  table.mes th, table.mes td { padding: 5px 3px; }
+  table.mes th.col-total, table.mes td.col-total {
+    width: 54px; min-width: 54px; max-width: 54px;
+  }
+
+  /* Mismo criterio que arriba: lo que se toca, a 40 px. */
+  .btn-mes { min-height: 40px; }
+  .filtros input[type="month"], .filtros input[type="date"] { min-height: 40px; }
+
+  /* La rayita separadora no pinta nada cuando los controles se apilan,
+     y «Día:» se quedaba colgando al final de la fila de arriba, lejos
+     de su casilla. Ahora encabeza su propia línea. */
+  .sep-controles { display: none; }
+  .lbl-dia { flex-basis: 100%; margin-top: 2px; }
 }
