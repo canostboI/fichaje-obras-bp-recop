@@ -13,7 +13,14 @@
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
     --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
     --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
+    /* 108ª: colores del módulo js/libro-incidencias.js (pestaña Registro) */
+    --li-card: #1a1d24; --li-borde: #2e3340; --li-texto: #e8eaf0; --li-texto2: #8b909e; --li-input: #22262f;
   }
+  /* 108ª: pestañas Informe / Registro */
+  .pestanas { display: flex; gap: 6px; margin-bottom: 18px; border-bottom: 1px solid var(--borde); }
+  .pestanas button { background: transparent; border: none; border-bottom: 3px solid transparent; color: var(--texto2); padding: 10px 16px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .pestanas button.activo { color: var(--texto); border-bottom-color: var(--azul); }
+  .pestanas button:hover { color: var(--texto); }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
   .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
@@ -111,6 +118,15 @@
   </div>
   <div class="contenido">
 
+    <!-- 108ª: dos pestañas en un solo apartado. «Informe» es el de siempre
+         (la puerta, imprimible). «Registro» es la tabla entera: todo lo que
+         la app detecta y apunta (16 tipos), con «Visto», filtros y CSV. -->
+    <div class="pestanas no-print">
+      <button type="button" data-pestana="informe" class="activo">📕 Informe</button>
+      <button type="button" data-pestana="registro">📒 Registro</button>
+    </div>
+
+    <div id="pestana-informe">
     <div class="controles no-print">
       <div class="campo">
         <label for="sel-obra">Obra</label>
@@ -142,12 +158,21 @@
       </div>
       <aside id="zona-evolucion" class="evo-panel no-print"></aside>
     </div>
+    </div>
+
+    <div id="pestana-registro" style="display:none"></div>
 
   </div>
 </div>
 
 <script src="../js/auto-logout.js"></script>
 <script src="../js/evolucion-incidencias.js"></script>
+<!-- 108ª: pestaña «Registro» = Libro de incidencias (módulo único js/libro-incidencias.js).
+     motivos.js e incidencias-familias.js van ANTES que libro-incidencias.js. -->
+<script src="../js/motivos.js"></script>
+<script src="../js/incidencias-familias.js"></script>
+<script src="../js/sb-paginado.js"></script>
+<script src="../js/libro-incidencias.js"></script>
 <script>
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
@@ -270,6 +295,25 @@ function pintarInforme(d, rango) {
   marcarRango(document.querySelector('.btn-rango[data-rango="todo"]'));
   await generar();
   document.getElementById('btn-imprimir').addEventListener('click', () => window.print());
+
+  // 108ª: pestañas. El Registro se inicia UNA vez, al primer clic (o si la
+  // URL trae ?pestana=registro, para enlazar desde otros paneles).
+  let registroIniciado = false;
+  function abrirPestana(nombre) {
+    document.querySelectorAll('.pestanas button').forEach(b => b.classList.toggle('activo', b.dataset.pestana === nombre));
+    document.getElementById('pestana-informe').style.display = nombre === 'informe' ? '' : 'none';
+    document.getElementById('pestana-registro').style.display = nombre === 'registro' ? '' : 'none';
+    if (nombre === 'registro' && !registroIniciado) {
+      registroIniciado = true;
+      if (!window.LibroIncidencias) {
+        document.getElementById('pestana-registro').innerHTML = '<div class="aviso-error">No se ha cargado js/libro-incidencias.js. Recarga la página.</div>';
+        return;
+      }
+      LibroIncidencias.iniciar(sb, g.usuario, { hueco: document.getElementById('pestana-registro'), rol: 'admin', claveObra: 'admin_obra_activa_id' });
+    }
+  }
+  document.querySelectorAll('.pestanas button').forEach(b => b.addEventListener('click', () => abrirPestana(b.dataset.pestana)));
+  if (new URLSearchParams(window.location.search).get('pestana') === 'registro') abrirPestana('registro');
   document.getElementById('btn-salir').addEventListener('click', async () => { await sb.auth.signOut(); window.location.href = '../'; });
 })();
 </script>
