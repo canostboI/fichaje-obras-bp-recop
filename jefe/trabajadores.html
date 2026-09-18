@@ -129,6 +129,7 @@
   .pill-estado.forzado { border-style: dashed; border-color: currentColor; }
 
   /* Iconos habilitación junto al nombre */
+  .rp-icono { display: inline-block; margin-left: 5px; font-size: 14px; vertical-align: middle; cursor: default; }
   .hab-iconos { display: inline-flex; align-items: center; gap: 3px; margin-left: 5px; vertical-align: middle; color: var(--naranja); }
   /* ── iconos foto/verif (70a) ── */
   .fi-icono { font-size: 15px; cursor: pointer; border: none; background: none; padding: 2px 5px; border-radius: 4px; line-height: 1; transition: transform 0.1s, opacity 0.15s; }
@@ -1304,10 +1305,18 @@ function renderTabla(lista) {
     trabajadores.forEach(t => {
       // Iconos de habilitación junto al nombre
       const habSpan = htmlIconosHab(habIconosPorTrabajador[t.id], 'hab-iconos');
+      // 110ª: escudo de Recurso Preventivo junto al nombre. Con una obra
+      // filtrada mira esa obra; sin filtro, basta con serlo en UNA de las
+      // obras que salen, y el title dice en cuáles.
+      const obrasRP = (t.obras || []).filter(o => o.es_rp).map(o => o.nombre || '');
+      const rpSpan = obrasRP.length
+        ? ' <span class="rp-icono" title="Recurso Preventivo en: '
+          + String(esc(obrasRP.join(', '))).replace(/"/g, '&quot;') + '">🛡️</span>'
+        : '';
 
       filasBody += `
         <tr class="${filaClase}" data-grupo="${esc(empresa)}">
-          <td><strong>${esc(nombreCompleto(t))}</strong>${habSpan}</td>
+          <td><strong>${esc(nombreCompleto(t))}</strong>${rpSpan}${habSpan}</td>
           <td style="font-family:monospace">${esc(t.dni)}</td>
           <td>${esc(etiquetaCategoria(t) || '—')}</td>
           <td>${formatearPrecio(t.precio_hora_personalizado)}</td>
@@ -1367,7 +1376,9 @@ function pillObra(trabajador, obra) {
   let marca = '';
   if (obra.estado_forzado) marca += ' ⚑';
   if (obra.excepcion_hoy) marca += ' 🗝️';
-  if (obra.es_rp) marca += ' 🛡️';
+  // 110ª: el 🛡️ de Recurso Preventivo ya NO va aquí. Vive junto al nombre,
+  // al lado de los iconos de habilitación, para no tener que buscar la misma
+  // información en dos sitios de la misma fila.
   const partesTooltip = [];
   if (obra.excepcion_hoy) {
     partesTooltip.push(`Autorizado solo hoy. Motivo: ${obra.excepcion_hoy.motivo_autorizacion || '(sin motivo)'}`);
