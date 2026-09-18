@@ -1,20 +1,28 @@
 // Branding por empresa-marca
 // Uso: BRANDING[obra.empresa_marca]
-// Devuelve: { nombre, color_principal, color_acento, color_texto, logo, logo_blanco }
+// Devuelve: { nombre, color_principal, color_acento, color_acento_rgb, color_texto, logo, logo_blanco }
+//
+// 18/9/2026 — Colores corporativos reales, decididos por Dani mirando prueba-colores.html:
+//   Bosch Pascual -> teal      #1A7A8A
+//   Rècop         -> terracota #A0392B
+// Los mismos que usa el Excel proforma (js/excel-proforma.js).
+// El tema oscuro de los paneles NO depende de la marca: solo cambia el acento.
 
 const BRANDING = {
   bosch_pascual: {
     nombre: 'Bosch Pascual',
-    color_principal: '#1a1a1a',
-    color_acento: '#c8102e',
+    color_principal: '#1A7A8A',
+    color_acento: '#1A7A8A',
+    color_acento_rgb: '26,122,138',
     color_texto: '#ffffff',
     logo: 'assets/logos/bosch_pascual_logo.svg',
     logo_blanco: 'assets/logos/bosch_pascual_logo_white.svg'
   },
   recop: {
     nombre: 'Rècop',
-    color_principal: '#6b3410',
-    color_acento: '#c9a876',
+    color_principal: '#A0392B',
+    color_acento: '#A0392B',
+    color_acento_rgb: '160,57,43',
     color_texto: '#ffffff',
     logo: 'assets/logos/recop_logo.svg',
     logo_blanco: 'assets/logos/recop_logo_white.svg'
@@ -35,6 +43,7 @@ function aplicarBranding(empresa_marca) {
   const root = document.documentElement;
   root.style.setProperty('--color-principal', b.color_principal);
   root.style.setProperty('--color-acento', b.color_acento);
+  root.style.setProperty('--color-acento-rgb', b.color_acento_rgb);
   root.style.setProperty('--color-texto', b.color_texto);
   return b;
 }
