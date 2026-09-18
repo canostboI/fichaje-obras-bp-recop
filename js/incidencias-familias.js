@@ -18,8 +18,10 @@
    Regla de seguridad: un tipo DESCONOCIDO se considera ALERTA.
    Preferimos que algo nuevo salte a la vista antes que se esconda.
 
-   Lo usan: admin/incidencias.html (y, más adelante, el cierre de mes
-   del jefe). NUNCA duplicar este mapa dentro de una página.
+   Lo usan: admin/cuadro-mando.html (y las pantallas que cuentan por
+   familia). ⚠️ 108ª: `admin/incidencias.html` ya NO existe (murió en la
+   92ª); el Libro de incidencias que lo sustituya leerá este mapa.
+   NUNCA duplicar este mapa dentro de una página.
    ===================================================================== */
 
 (function () {
@@ -42,6 +44,14 @@
     // y si se acaba sin que el papel llegue, el jefe de obra tiene que
     // enterarse ANTES de encontrarse a esa persona parada en la valla.
     forzado_caducado:       ALERTA,
+    // ⚑ 108ª (18/9/2026). Rechazos que antes eran MUDOS en la valla. La
+    // causa va al principio del detalle entre corchetes: [baja],
+    // [obra_inactiva], [otra_obra_abierta]. La escribe SOLO la función
+    // interna _registrar_acceso_rechazado (una por persona, obra, causa y
+    // día), llamada desde validar_acceso y registrar_fichaje. Es ALERTA
+    // porque una persona de baja intentando entrar es algo que el jefe
+    // tiene que saber.
+    acceso_rechazado:       ALERTA,
 
     // --- RASTRO: solo registro, sin acción pendiente ---
     // ⚠️ MEDIDO EN LA 54ª (24/8/2026). NO ES UNA BANDEJA ATRASADA.
@@ -68,8 +78,10 @@
     // dejar de escribirlas, y no volver a abrir esto como si fuera P-02.
     aviso_naranja:          RASTRO,  // entró con aviso; ya quedó constancia
     excepcion_autorizada:   RASTRO,  // el jefe ya autorizó
-    fichaje_corregido:      RASTRO,  // ya se corrigió
-    fichaje_manual:         RASTRO,  // ya se fichó a mano
+    // 108ª: `fichaje_corregido` vuelve a escribirse (corregir_fichaje y
+    // eliminar_fichaje). `fichaje_manual` SE RETIRÓ del CHECK: nunca tuvo
+    // una fila; el registro de un fichaje manual es `fichajes.es_manual`.
+    fichaje_corregido:      RASTRO,  // ya se corrigió (hora original en fichajes.hora_original)
     fuera_de_zona:          RASTRO   // fichó fuera del radio; queda registrado
   };
 
@@ -84,10 +96,10 @@
     autocierre:             'Autocierre',
     otro:                   'Otro',
     forzado_caducado:       'Forzado caducado',
+    acceso_rechazado:       'Acceso rechazado',
     aviso_naranja:          'Aviso naranja',
     excepcion_autorizada:   'Excepción autorizada',
     fichaje_corregido:      'Fichaje corregido',
-    fichaje_manual:         'Fichaje manual',
     fuera_de_zona:          'Fuera de zona'
   };
 
