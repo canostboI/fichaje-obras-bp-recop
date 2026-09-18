@@ -48,6 +48,17 @@
      FI.reducir(file)                        → Promise<Blob> ~600 px
      FI.guardar(trabajadorId, obraId, blob)  → Promise<{ok, error}>
      FI.enlace(ruta)                         → Promise<url|null>
+     FI.enlaces(rutas)                       → Promise<{ruta: url}> (108a)
+                                               Varias de golpe, en UNA
+                                               llamada. NO deja rastro en
+                                               accesos_foto_log: es para
+                                               pintar caras en una lista
+                                               (decision de Dani, 18/9/2026:
+                                               un registro con 23 lineas por
+                                               pantalla no sirve de nada).
+                                               Para mirar UNA cara a
+                                               proposito sigue estando
+                                               FI.ver, que si deja rastro.
      FI.ver(trabajadorId)                    → Promise<{hay_foto, url}>
      FI.visor(url)                           → abre la foto a pantalla
      FI.montarCaptura(hueco, opts)           → 2 botones + vista previa
@@ -173,6 +184,25 @@
       if (r.error || !r.data) return null;
       return r.data.signedUrl;
     } catch (e) { return null; }
+  }
+
+  // Varias fotos de golpe, para pintar una lista de caras. Una sola
+  // llamada al almacen (createSignedUrls) en vez de una por persona.
+  // Quien puede verlas lo decide la policy del bucket `identidad`
+  // (`puedo_ver_valoraciones`), igual que con una sola. Devuelve un
+  // objeto {ruta: url}; las que fallen sencillamente no salen.
+  async function enlaces(rutas) {
+    var salida = {};
+    var lista = (rutas || []).filter(function (r) { return !!r; });
+    if (!lista.length) return salida;
+    try {
+      var r = await db().storage.from(BUCKET).createSignedUrls(lista, 3600);
+      if (r.error || !r.data) return salida;
+      r.data.forEach(function (x) {
+        if (x && x.path && x.signedUrl && !x.error) salida[x.path] = x.signedUrl;
+      });
+      return salida;
+    } catch (e) { return salida; }
   }
 
   // Pedir la foto de UNA persona. Va por RPC a proposito: es la que
@@ -373,6 +403,7 @@
     reducir: reducir,
     guardar: guardar,
     enlace: enlace,
+    enlaces: enlaces,
     ver: ver,
     visor: visor,
     montarCaptura: montarCaptura,
