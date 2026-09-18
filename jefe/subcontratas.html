@@ -32,11 +32,16 @@
       si está prevista, si tiene contrato y libro vigentes y cuánta gente
       tiene dada de alta y en qué estado.
     · «Marcar prevista en …»: marcar_empresa_prevista().
+    · «📋 Texto de aviso» en cada obra prevista: correo redactado (Para, CC al
+      administrativo de la obra, asunto y cuerpo) para copiar y enviar desde
+      el correo del jefe. Decisión de Dani: redactado pero MANUAL, sin Brevo,
+      sin registro de envío (si se echa de menos, se añade un «ya enviado»).
+      El texto lo cerró Dani el 18/9/2026. Si la obra no tiene administrativo
+      apuntado, la ventana lo dice en amarillo: no se inventa la copia.
 
   Qué NO hace todavía (pasos siguientes, con prompt propio):
     · editar el contacto de una empresa ya creada (hace falta una RPC:
       empresas es solo lectura desde el navegador, a propósito);
-    · el texto del aviso de requisitos al proveedor;
     · los enlaces desde trabajadores.html y desde las solicitudes.
 
   Regla de la casa: un fallo de consulta NUNCA se pinta como cero. Si algo no
@@ -121,6 +126,10 @@
   .form-group label { display: block; font-size: 11px; font-weight: 600; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
   .form-group input { width: 100%; }
   .modal-botones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+  .modal-ancho { width: 720px; }
+  textarea { width: 100%; background: var(--bg); color: var(--texto); border: 1px solid var(--borde); border-radius: 8px; padding: 10px 12px; font-size: 13px; font-family: inherit; line-height: 1.5; resize: vertical; }
+  .copiar-fila { display: flex; gap: 8px; align-items: center; }
+  .copiar-fila input { flex: 1; }
 </style>
 <script src="../js/marca-portium.js?v=20260916"></script>
 </head>
@@ -194,6 +203,23 @@
     <div class="modal-botones">
       <button class="btn btn-outline" id="n-cancelar">Cancelar</button>
       <button class="btn btn-success" id="n-guardar">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-fondo oculto" id="modal-aviso-txt">
+  <div class="modal modal-ancho">
+    <h3>📋 Texto de aviso — <span id="a-titulo"></span></h3>
+    <div class="ayuda">Copia y pega en tu correo. Se envía desde tu cuenta, no desde la app.</div>
+    <div id="a-avisos"></div>
+    <div class="form-group"><label>Para</label><div class="copiar-fila"><input type="text" id="a-para" readonly><button class="btn btn-outline btn-mini" data-copiar="a-para">Copiar</button></div></div>
+    <div class="form-group"><label>Copia (CC)</label><div class="copiar-fila"><input type="text" id="a-cc" readonly><button class="btn btn-outline btn-mini" data-copiar="a-cc">Copiar</button></div></div>
+    <div class="form-group"><label>Asunto</label><div class="copiar-fila"><input type="text" id="a-asunto" readonly><button class="btn btn-outline btn-mini" data-copiar="a-asunto">Copiar</button></div></div>
+    <div class="form-group"><label>Texto</label><textarea id="a-cuerpo" rows="16"></textarea></div>
+    <div class="modal-botones">
+      <span id="a-msg" class="muted" style="font-size:13px; margin-right:auto; align-self:center"></span>
+      <button class="btn btn-outline" id="a-cerrar">Cerrar</button>
+      <button class="btn btn-primary" data-copiar="a-cuerpo">Copiar texto</button>
     </div>
   </div>
 </div>
@@ -379,7 +405,8 @@ function pintarFicha(id) {
         : arr.length ? '<span class="badge badge-rojo">caducado</span>'
         : '<span class="badge badge-naranja">sin ' + txt + '</span>';
       const celdaPrev = previstas === null ? '<span class="badge badge-gris">sin datos</span>'
-        : p ? '<span class="badge badge-azul">desde ' + fechaES(p.prevista_desde) + '</span>' + (p.nota ? ' <span class="muted" style="font-size:12px">' + esc(p.nota) + '</span>' : '')
+        : p ? '<span class="badge badge-azul">desde ' + fechaES(p.prevista_desde) + '</span>' + (p.nota ? ' <span class="muted" style="font-size:12px">' + esc(p.nota) + '</span>' : '') +
+              ' <button class="btn btn-outline btn-mini" data-aviso="' + o.id + '" title="Correo de requisitos para copiar">📋 Texto de aviso</button>'
         : '<span class="muted">—</span>';
       const celdaGente = g === null ? '<span class="badge badge-gris">sin datos</span>'
         : g.length ? g.length + (g.filter(x => x.estado === 'rojo').length ? ' <span class="badge badge-rojo">' + g.filter(x => x.estado === 'rojo').length + ' en rojo</span>' : '')
@@ -404,6 +431,44 @@ function pintarFicha(id) {
   $('f-cerrar').addEventListener('click', () => { seleccionada = null; h.classList.add('oculto'); pintarLista(); });
   const bp = $('p-guardar');
   if (bp) bp.addEventListener('click', () => marcarPrevista(e.id));
+  h.querySelectorAll('button[data-aviso]').forEach(b => b.addEventListener('click', () => abrirAviso(e.id, b.dataset.aviso)));
+}
+
+// ── Texto de aviso al proveedor (redactado, envío manual) ────────────────
+function abrirAviso(empresaId, obraId) {
+  const e = (empresas || []).find(x => x.id === empresaId);
+  const o = misObras.find(x => x.id === obraId);
+  const p = (previstas || []).find(x => x.empresa_id === empresaId && x.obra_id === obraId);
+  if (!e || !o || !p) return;
+  const contacto = e.contacto_nombre || '';
+  const admin = o.administrativo_nombre || '';
+  const jefe = usuario.nombre || '';
+  const avisos = [];
+  if (!e.contacto_email) avisos.push('Esta subcontrata no tiene email de contacto apuntado.');
+  if (!admin && !o.administrativo_email) avisos.push('Esta obra no tiene administrativo/a apuntado: el párrafo de la copia sale con un hueco.');
+  $('a-avisos').innerHTML = avisos.map(t => '<div class="alert alert-warning">⚠️ ' + esc(t) + '</div>').join('');
+  $('a-titulo').textContent = e.nombre + ' · ' + o.nombre;
+  $('a-para').value = e.contacto_email || '';
+  $('a-cc').value = o.administrativo_email || '';
+  $('a-asunto').value = 'Documentación previa al inicio en obra — ' + o.nombre;
+  $('a-cuerpo').value =
+    'Hola' + (contacto ? ' ' + contacto : '') + ',\n\n' +
+    'Tal como acordamos, vuestro inicio está previsto en la obra ' + o.nombre + ' a partir del ' + fechaES(p.prevista_desde) + '. ' +
+    'Para que vuestro personal pueda acceder desde el primer día, necesitamos tener esto resuelto antes de esa fecha:\n\n' +
+    '1. Alta de la empresa y de todos los trabajadores que vayan a venir en la plataforma e-Coordina, con la documentación al día (TC, reconocimientos médicos, formación PRL, entrega de EPIs).\n' +
+    '2. Contrato firmado.\n' +
+    '3. Libro de subcontratación firmado antes de entrar.\n' +
+    '4. Acreditaciones de maquinaria si aplica (carretilla, plataforma elevadora, etc.).\n\n' +
+    'El acceso a la obra se controla por QR con el DNI del operario: quien no esté en e-Coordina con la documentación en regla no podrá entrar, aunque esté en la obra.\n\n' +
+    'Ponemos en copia a ' + (admin || '[administrativo/a]') + ', administrativo/a de la obra, por si tenéis alguna duda en estos temas.\n\n' +
+    'Un saludo,\n' + jefe;
+  $('a-msg').textContent = '';
+  $('modal-aviso-txt').classList.remove('oculto');
+}
+async function copiarCampo(id) {
+  const el = $(id);
+  try { await navigator.clipboard.writeText(el.value); $('a-msg').textContent = 'Copiado.'; }
+  catch (_) { el.focus(); el.select(); $('a-msg').textContent = 'Selecciona y copia con Ctrl+C.'; }
 }
 
 async function marcarPrevista(empresaId) {
@@ -483,6 +548,9 @@ async function guardarNueva() {
   $('n-guardar').addEventListener('click', guardarNueva);
   $('n-cif').addEventListener('input', avisarCifExistente);
   $('modal-nueva').addEventListener('click', ev => { if (ev.target === $('modal-nueva')) cerrarModal(); });
+  $('a-cerrar').addEventListener('click', () => $('modal-aviso-txt').classList.add('oculto'));
+  $('modal-aviso-txt').addEventListener('click', ev => { if (ev.target === $('modal-aviso-txt')) $('modal-aviso-txt').classList.add('oculto'); });
+  document.querySelectorAll('button[data-copiar]').forEach(b => b.addEventListener('click', () => copiarCampo(b.dataset.copiar)));
 
   $('lista').innerHTML = '<div class="muted" style="font-size:13px">Cargando…</div>';
   await cargarTodo();
