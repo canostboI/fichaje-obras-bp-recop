@@ -9,6 +9,7 @@
 <script src="../js/guardian.js"></script>
 <script src="../js/branding.js"></script>
 <script src="../js/auto-logout.js"></script>
+<script src="../js/foto-identidad.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -86,6 +87,18 @@
   .jornada-avisos button { background: none; border: none; padding: 0; margin: 0; font: inherit; color: var(--texto2); cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; }
   .jornada-avisos button:hover { color: var(--color-acento); }
   .acciones-jornada { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  /* ── La cara junto al nombre (112ª, 19/9/2026, petición de Dani: mismo
+     patrón que jefe/trabajadores.html y la lista de presentes). El hueco
+     es FIJO: los nombres quedan alineados haya foto o no. ── */
+  .celda-nombre { display: flex; align-items: center; gap: 10px; }
+  .cara { width: 30px; height: 30px; border-radius: 50%; flex: 0 0 auto; overflow: hidden;
+          background: var(--bg3); border: 1px solid var(--borde); display: flex;
+          align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
+          color: var(--texto2); letter-spacing: 0.5px; }
+  .cara img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cara.clicable { cursor: pointer; }
+  .cara.clicable:hover { border-color: var(--color-acento); }
 
   /* ── Historial de la jornada (solo lectura) ── */
   .hist-bloque { background: var(--bg3); border: 1px solid var(--borde); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
@@ -226,6 +239,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 AutoLogout.init(sb);
+FI.init(sb);
 
 const CLAVE_OBRA_ACTIVA_JEFE = 'jefe_obra_activa_id';
 
@@ -238,6 +252,7 @@ let miUsuarioAppId = null;
 let jornadasActuales = [];
 let nombresFirmantes = {};
 let falloNombresFirmantes = false;
+let carasPorTrabajador = {};   // trabajador_id → url firmada (112ª)
 
 (async function init() {
   // El guardián de sesión vive en js/guardian.js, igual en las 20 pantallas.
@@ -354,6 +369,9 @@ async function buscar() {
   // Nombres de quien registró/corrigió (consulta aparte: no dependemos de la FK)
   await cargarNombresFirmantes(data);
 
+  // Las caras (112ª). Una consulta y una sola firma para todas.
+  await cargarCaras(data);
+
   // Sin fecha vinieron del más nuevo al más viejo: se les da la vuelta,
   // porque agruparEnJornadas aparea entrada→salida en orden cronológico.
   const cronologico = fecha ? data : data.slice().reverse();
@@ -426,6 +444,65 @@ function nombreFirmante(id) {
   if (nombresFirmantes[id]) return nombresFirmantes[id];
   if (falloNombresFirmantes) return '⚠️ no se ha podido leer quién';
   return 'usuario no visible desde esta obra';
+}
+
+// ── La cara junto al nombre (112ª) ──
+// UNA consulta a fotos_identidad con los ids que ya salen en la lista y UNA
+// sola llamada a FI.enlaces para firmarlas todas de golpe. FI.enlaces NO deja
+// rastro en accesos_foto_log a propósito (decisión de Dani, 18/9/2026): un
+// registro con 23 líneas por pantalla no sirve de nada. Mirar UNA cara a
+// conciencia sigue siendo otra cosa.
+// Si algo falla se quedan las INICIALES: una foto que no carga no puede
+// romper la lista de fichajes, que es lo importante de esta pantalla.
+async function cargarCaras(fichajes) {
+  carasPorTrabajador = {};
+  const ids = [...new Set(fichajes.map(f => f.trabajador_id).filter(Boolean))];
+  if (ids.length === 0) return;
+
+  try {
+    const { data, error } = await sb
+      .from('fotos_identidad')
+      .select('trabajador_id, storage_path')
+      .in('trabajador_id', ids);
+    if (error || !data) return;
+
+    const rutaDe = {};
+    data.forEach(r => { if (r.storage_path) rutaDe[r.trabajador_id] = r.storage_path; });
+
+    const urls = await FI.enlaces(Object.values(rutaDe));
+    Object.keys(rutaDe).forEach(tid => {
+      const u = urls[rutaDe[tid]];
+      if (u) carasPorTrabajador[tid] = u;
+    });
+  } catch (e) {
+    console.warn('[caras] no se han podido cargar:', e);
+  }
+}
+
+function inicialesDe(nombreCompleto) {
+  const partes = String(nombreCompleto || '').replace(/,/g, ' ').trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return '·';
+  const a = partes[0][0] || '';
+  const b = partes.length > 1 ? (partes[partes.length - 1][0] || '') : '';
+  return (a + b).toUpperCase();
+}
+
+// Si la imagen no carga (enlace caducado, red), volvemos a las iniciales en el
+// sitio: mejor un círculo con letras que un icono de imagen rota.
+function pintarCara(j, nombreCompleto) {
+  const ini = esc(inicialesDe(nombreCompleto));
+  const url = carasPorTrabajador[j.trabajadorId];
+  if (!url) return `<span class="cara">${ini}</span>`;
+  return `<span class="cara clicable" title="Ver la foto de ${esc(nombreCompleto)}" `
+       + `onclick="verCara('${esc(j.trabajadorId)}')">`
+       + `<img src="${esc(url)}" alt="" loading="lazy" `
+       + `onerror="this.parentNode.classList.remove('clicable');this.parentNode.removeAttribute('onclick');this.parentNode.textContent='${ini}'">`
+       + `</span>`;
+}
+
+function verCara(trabajadorId) {
+  const url = carasPorTrabajador[trabajadorId];
+  if (url) FI.visor(url);
 }
 
 function agruparEnJornadas(fichajes) {
@@ -631,7 +708,7 @@ function pintarJornada(j, mostrarFecha, idxJornada) {
 
   return `<tr>
     ${mostrarFecha ? `<td style="color:var(--texto2);font-size:13px;white-space:nowrap">${fechaLegible}</td>` : ''}
-    <td><strong>${esc(nombreCompleto)}</strong></td>
+    <td><div class="celda-nombre">${pintarCara(j, nombreCompleto)}<strong>${esc(nombreCompleto)}</strong></div></td>
     <td style="color:var(--texto2)">${esc(j.dni)}</td>
     <td>${entradaTxt}</td>
     <td>${salidaTxt}</td>
