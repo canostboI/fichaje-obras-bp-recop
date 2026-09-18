@@ -3216,9 +3216,27 @@ async function firmarCierreMes() {
   }
 }
 
+// 114ª (18/9/2026, petición de Dani). El panel de cierre se abría solo cuando
+// había algo pendiente, pero NUNCA se volvía a cerrar: al pasar a un mes limpio
+// seguía desplegado y molestaba. Ahora, si no hay nada que corregir, se recoge.
+// La bandera guarda si lo ha abierto Dani a mano (clic en la cabecera): en ese
+// caso no se le cierra en las narices al repintarse el mes.
+let cierreAbiertoAMano = false;
+let cierreEscuchaPuesta = false;
+
 function actualizarPanelCierre() {
   const panel = document.getElementById('panel-cierre');
   const pendientes = autocierresPendientes();
+
+  // El clic en la cabecera solo llega si lo da una persona: abrir el panel
+  // desde el código (panel.open = true) no dispara este evento.
+  if (!cierreEscuchaPuesta) {
+    const cab = panel.querySelector('summary');
+    if (cab) {
+      cab.addEventListener('click', () => { cierreAbiertoAMano = !panel.open; });
+      cierreEscuchaPuesta = true;
+    }
+  }
 
   // --- Paso 1: autocierres por corregir ---
   const paso1 = document.getElementById('pc-paso-1');
@@ -3412,6 +3430,8 @@ function actualizarPanelCierre() {
   } else {
     estado.className = 'pc-estado listo';
     estado.textContent = '· listo para exportar';
+    // 114ª: nada pendiente = se recoge, salvo que lo haya abierto él a mano.
+    if (!cierreAbiertoAMano) panel.open = false;
   }
 
   // 83ª. El paso 6 (cierre) se actualiza DESPUÉS del panel de cierre,
