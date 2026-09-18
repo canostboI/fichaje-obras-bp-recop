@@ -132,6 +132,11 @@
   /* 110ª · Cara junto al nombre. Mismo patrón que la lista de presentes:
      hueco fijo (los nombres quedan alineados haya foto o no) e iniciales
      de respaldo si no hay foto o si la imagen no carga. */
+  /* 110ª · Inactivo (baja en la empresa): fila atenuada. Aquí no hay columna
+     «Activo», así que esta es la ÚNICA señal: sin ella, alguien que ya no
+     trabaja en la empresa se lee igual que el resto. */
+  tr.fila-inactivo td { opacity: .45; }
+  tr.fila-inactivo:hover td { opacity: .75; }
   .celda-nombre { display: flex; align-items: center; gap: 10px; }
   .cara { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
           background: var(--bg3); border: 1px solid var(--borde); display: flex;
@@ -1025,7 +1030,7 @@ async function cargarTrabajadores() {
     sb.from('validaciones_obra').select(`
       trabajador_id, obra_id, estado, estado_calculado, estado_forzado, motivo_forzado, motivos,
       forzado_en, forzado_hasta, fecha_validacion,
-      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, categoria_otra, precio_hora_personalizado, empresa:empresa_id(id, nombre))
+      trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, categoria_otra, precio_hora_personalizado, activo, empresa:empresa_id(id, nombre))
     `).in('obra_id', obraIds)
   ]);
 
@@ -1039,7 +1044,7 @@ async function cargarTrabajadores() {
   let validaciones = validacionesResult.data;
   if (validacionesResult.error) {
     const fallback = await sb.from('validaciones_obra')
-      .select('trabajador_id, obra_id, estado, estado_calculado, estado_forzado, motivo_forzado, motivos, forzado_en, forzado_hasta, fecha_validacion, trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, categoria_otra, precio_hora_personalizado)')
+      .select('trabajador_id, obra_id, estado, estado_calculado, estado_forzado, motivo_forzado, motivos, forzado_en, forzado_hasta, fecha_validacion, trabajador:trabajador_id(id, nombre, apellidos, dni, categoria, categoria_otra, precio_hora_personalizado, activo)')
       .in('obra_id', obraIds);
     // Si también falla el plan B, la tabla saldría VACÍA y parecería que no hay
     // trabajadores. Hay que decirlo, no enseñar una lista en blanco.
@@ -1072,6 +1077,9 @@ async function cargarTrabajadores() {
         dni: v.trabajador.dni, categoria: v.trabajador.categoria,
         categoria_otra: v.trabajador.categoria_otra,
         precio_hora_personalizado: v.trabajador.precio_hora_personalizado,
+        // 110ª · Baja en la empresa. Si el dato no llega se cuenta como activo:
+        // nunca se apaga a alguien por no haberlo podido leer.
+        activo: v.trabajador.activo !== false,
         empresa: v.trabajador.empresa || null, obras: []
       };
     }
@@ -1333,7 +1341,7 @@ function renderTabla(lista) {
         : '';
 
       filasBody += `
-        <tr class="${filaClase}" data-grupo="${esc(empresa)}">
+        <tr class="${filaClase}${t.activo === false ? ' fila-inactivo' : ''}" data-grupo="${esc(empresa)}">
           <td><div class="celda-nombre">${caraHtml(t)}<div><strong>${esc(nombreCompleto(t))}</strong>${rpSpan}${habSpan}</div></div></td>
           <td style="font-family:monospace">${esc(t.dni)}</td>
           <td>${esc(etiquetaCategoria(t) || '—')}</td>
