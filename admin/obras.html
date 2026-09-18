@@ -88,6 +88,12 @@
   .equipo-item-nombre { font-size: 14px; font-weight: 600; }
   .equipo-item-email { font-size: 12px; color: var(--texto2); }
   .equipo-vacio { color: var(--texto2); font-size: 13px; padding: 12px 0; }
+  /* 109ª: mensaje de bienvenida para WhatsApp */
+  .bv-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .bv-tabs button { flex: 1; background: var(--bg3); color: var(--texto2); border: 1px solid var(--borde); padding: 9px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .bv-tabs button.activo { background: var(--azul); color: #fff; border-color: var(--azul); }
+  .bv-texto { width: 100%; min-height: 260px; background: var(--bg3); color: var(--texto); border: 1px solid var(--borde); border-radius: 8px; padding: 12px 14px; font-size: 13px; line-height: 1.5; font-family: inherit; resize: vertical; }
+  .bv-ayuda { color: var(--texto2); font-size: 13px; margin-bottom: 14px; }
   .separador { border: none; border-top: 1px solid var(--borde); margin: 20px 0; }
   .equipo-anadir h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--texto2); margin-bottom: 14px; }
   .btn-peligro { background: transparent; color: var(--rojo); border: 1px solid rgba(244,67,54,0.3); padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; }
@@ -229,6 +235,24 @@
   </div>
 </div>
 
+<!-- Modal mensaje de bienvenida (109a) -->
+<div class="modal-overlay" id="modal-bienvenida">
+  <div class="modal">
+    <h2>📋 Mensaje de bienvenida</h2>
+    <div class="bv-ayuda">Elige el móvil que usa esa persona, copia el texto y pégaselo por WhatsApp. Los pasos para instalar la app son distintos en cada uno.</div>
+    <div class="bv-tabs">
+      <button id="bv-tab-android" class="activo">🤖 Android</button>
+      <button id="bv-tab-iphone">🍎 iPhone</button>
+    </div>
+    <textarea class="bv-texto" id="bv-texto" readonly></textarea>
+    <div class="ok-modal" id="ok-bienvenida" style="margin-top:14px;"></div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cerrar-bienvenida">Cerrar</button>
+      <button class="btn-primario" id="btn-copiar-bienvenida">Copiar texto</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal foto -->
 <div class="modal-overlay" id="modal-foto">
   <div class="modal">
@@ -259,6 +283,7 @@ window._sbAdmin = sb;
 AutoLogout.init(sb);
 
 let obraEditandoId = null, obraEquipoId = null, obraFotoId = null, fotoArchivo = null;
+let equipoActual = [];
 let todosUsuarios = [], todasObras = [], qrActual = null, vistaActual = 'obras', miUsuarioAppId = null;
 
 (async function init() {
@@ -478,8 +503,9 @@ async function cargarEquipo() {
   document.getElementById('equipo-lista').innerHTML = '<div class="cargando">Cargando…</div>';
   const { data, error } = await sb.from('usuarios_obra').select('id, rol_en_obra, usuario_app:usuario_app_id(id, nombre, email, auth_user_id, telefono, activo)').eq('obra_id', obraEquipoId);
   if (error) { document.getElementById('equipo-lista').innerHTML = '<div class="equipo-vacio">Error al cargar el equipo.</div>'; return; }
+  equipoActual = data || [];
   if (!data || data.length === 0) { document.getElementById('equipo-lista').innerHTML = '<div class="equipo-vacio">Esta obra no tiene equipo asignado todavía.</div>'; return; }
-  document.getElementById('equipo-lista').innerHTML = data.map(item => `<div class="equipo-item"><div class="equipo-item-info"><span class="equipo-item-nombre">${esc(item.usuario_app?.nombre || '—')}${item.usuario_app?.activo === false ? ' <span class="pill gris">De baja</span>' : ''}</span><span class="equipo-item-email">${esc(item.usuario_app?.email || '')} · <span class="pill ${item.rol_en_obra === 'jefe_obra' ? 'azul' : 'naranja'}">${item.rol_en_obra === 'jefe_obra' ? 'Jefe de obra' : 'Encargado'}</span>${!item.usuario_app?.auth_user_id ? ' <span class="pill naranja">⚠️ Sin vincular</span>' : ''}${!item.usuario_app?.auth_user_id ? ` <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;" onclick="editarEmail('${item.usuario_app?.id}', '${esc(item.usuario_app?.email || '')}')">Editar email</button>` : ` <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;" onclick="enviarEnlaceAcceso('${esc(item.usuario_app?.email || '')}', '${esc(item.usuario_app?.nombre || '')}')">Enviar enlace de acceso</button>`}</span><span class="equipo-item-email">📞 ${item.usuario_app?.telefono ? esc(item.usuario_app.telefono) : '<em>sin teléfono</em>'} <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;" onclick="editarTelefono('${item.usuario_app?.id}', '${esc(item.usuario_app?.telefono || '')}')">Editar</button></span></div><div style="display:flex; gap:6px;">${item.usuario_app?.activo === false ? `<button class="btn-secundario" onclick="reactivarUsuario('${item.usuario_app?.id}', '${esc(item.usuario_app?.nombre || '')}')">Reactivar</button>` : `<button class="btn-peligro" onclick="darDeBaja('${item.usuario_app?.id}', '${esc(item.usuario_app?.nombre || '')}')">Dar de baja</button>`}<button class="btn-peligro" onclick="quitarDelEquipo('${item.id}')">Quitar</button></div></div>`).join('');
+  document.getElementById('equipo-lista').innerHTML = data.map(item => `<div class="equipo-item"><div class="equipo-item-info"><span class="equipo-item-nombre">${esc(item.usuario_app?.nombre || '—')}${item.usuario_app?.activo === false ? ' <span class="pill gris">De baja</span>' : ''}</span><span class="equipo-item-email">${esc(item.usuario_app?.email || '')} · <span class="pill ${item.rol_en_obra === 'jefe_obra' ? 'azul' : 'naranja'}">${item.rol_en_obra === 'jefe_obra' ? 'Jefe de obra' : 'Encargado'}</span>${!item.usuario_app?.auth_user_id ? ' <span class="pill naranja">⚠️ Sin vincular</span>' : ''}${!item.usuario_app?.auth_user_id ? ` <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;" onclick="editarEmail('${item.usuario_app?.id}', '${esc(item.usuario_app?.email || '')}')">Editar email</button> <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;" onclick="abrirBienvenida('${item.usuario_app?.id}')">📋 Mensaje de bienvenida</button>` : ` <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;" onclick="enviarEnlaceAcceso('${esc(item.usuario_app?.email || '')}', '${esc(item.usuario_app?.nombre || '')}')">Enviar enlace de acceso</button>`}</span><span class="equipo-item-email">📞 ${item.usuario_app?.telefono ? esc(item.usuario_app.telefono) : '<em>sin teléfono</em>'} <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;" onclick="editarTelefono('${item.usuario_app?.id}', '${esc(item.usuario_app?.telefono || '')}')">Editar</button></span></div><div style="display:flex; gap:6px;">${item.usuario_app?.activo === false ? `<button class="btn-secundario" onclick="reactivarUsuario('${item.usuario_app?.id}', '${esc(item.usuario_app?.nombre || '')}')">Reactivar</button>` : `<button class="btn-peligro" onclick="darDeBaja('${item.usuario_app?.id}', '${esc(item.usuario_app?.nombre || '')}')">Dar de baja</button>`}<button class="btn-peligro" onclick="quitarDelEquipo('${item.id}')">Quitar</button></div></div>`).join('');
 }
 
 async function editarTelefono(usuarioAppId, actual) {
@@ -519,6 +545,66 @@ async function enviarEnlaceAcceso(email, nombre) {
   if (error) { mostrarErrorEquipo('No se ha podido enviar el enlace: ' + error.message); return; }
   mostrarOkEquipo(`✓ Enlace enviado a ${limpio}.`);
 }
+
+// ===== 109a: mensaje de bienvenida para WhatsApp =====
+const APP_URL = 'https://canostboi.github.io/fichaje-obras-bp-recop/';
+let bvNombre = '', bvEmail = '', bvSistema = 'android';
+
+function textoBienvenida(nombre, email, sistema) {
+  const nom = (nombre || '').trim().split(/\s+/)[0] || 'hola';
+  const saludo = nombre ? `Hola ${nom},` : 'Hola,';
+  const paso3 = sistema === 'iphone'
+    ? `3) Para tenerla como una app en el movil: con la web abierta en Safari, pulsa el boton Compartir (el cuadrado con la flecha hacia arriba, abajo en el centro) y luego "Anadir a pantalla de inicio" y Anadir.`
+    : `3) Para tenerla como una app en el movil: una vez dentro te saldra un boton "Instalar Portium". Pulsalo y se te queda el icono en la pantalla.`;
+  const paso1 = sistema === 'iphone'
+    ? `1) Abre este enlace EN SAFARI (importante: si lo pinchas desde aqui se abre un navegador que no vale, copia el enlace y pegalo en Safari):\n${APP_URL}`
+    : `1) Abre este enlace en Chrome:\n${APP_URL}`;
+  return `${saludo} ya tienes acceso a Portium, la app de control de acceso de la obra.
+
+${paso1}
+
+2) Pulsa "Primera vez? Crea tu contrasena" y usa este email: ${email}
+Te llegara un correo de confirmacion. Confirmalo y ya puedes entrar.
+
+${paso3}
+
+Cualquier duda me dices. - Dani`;
+}
+
+function pintarBienvenida() {
+  document.getElementById('bv-texto').value = textoBienvenida(bvNombre, bvEmail, bvSistema);
+  document.getElementById('bv-tab-android').classList.toggle('activo', bvSistema === 'android');
+  document.getElementById('bv-tab-iphone').classList.toggle('activo', bvSistema === 'iphone');
+  document.getElementById('ok-bienvenida').style.display = 'none';
+}
+
+function abrirBienvenida(usuarioAppId) {
+  const item = equipoActual.find(x => x.usuario_app?.id === usuarioAppId);
+  if (!item || !item.usuario_app?.email) { mostrarErrorEquipo('Ese usuario no tiene email guardado.'); return; }
+  abrirBienvenidaCon(item.usuario_app.nombre, item.usuario_app.email);
+}
+
+function abrirBienvenidaCon(nombre, email) {
+  bvNombre = nombre || ''; bvEmail = email || ''; bvSistema = 'android';
+  pintarBienvenida();
+  document.getElementById('modal-bienvenida').classList.add('visible');
+}
+
+document.getElementById('bv-tab-android').onclick = () => { bvSistema = 'android'; pintarBienvenida(); };
+document.getElementById('bv-tab-iphone').onclick  = () => { bvSistema = 'iphone';  pintarBienvenida(); };
+document.getElementById('btn-cerrar-bienvenida').onclick = () => { document.getElementById('modal-bienvenida').classList.remove('visible'); };
+document.getElementById('btn-copiar-bienvenida').onclick = async () => {
+  const area = document.getElementById('bv-texto');
+  const ok = document.getElementById('ok-bienvenida');
+  try {
+    await navigator.clipboard.writeText(area.value);
+  } catch (e) {
+    area.removeAttribute('readonly'); area.select(); document.execCommand('copy');
+    area.setAttribute('readonly', 'readonly');
+  }
+  ok.textContent = 'Texto copiado. Pegalo en WhatsApp.';
+  ok.style.display = 'block';
+};
 
 async function darDeBaja(usuarioAppId, nombre) {
   if (!usuarioAppId) return;
@@ -576,6 +662,7 @@ document.getElementById('btn-crear-usuario').onclick = async () => {
   rellenarSelectUsuarios(); limpiarFormularioNuevoUsuario();
   await cargarEquipo();
   mostrarOkEquipo(`✓ Usuario "${nombre}" creado y asignado.`);
+  abrirBienvenidaCon(nombre, email);
 };
 
 async function quitarDelEquipo(usuariosObraId) {
