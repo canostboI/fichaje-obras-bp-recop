@@ -414,6 +414,7 @@
       ⚠ Esta obra no tiene ningún Recurso Preventivo designado.
       <a onclick="irATrabaladoresRP()">Designar desde Trabajadores →</a>
     </div>
+    <div class="banner-rp-formacion oculto" id="banner-rp-baja"></div>
     <div class="banner-rp-formacion oculto" id="banner-rp-formacion"></div>
     <div class="banner-hab-caducidad oculto" id="banner-hab-caducidad"></div>
     <div class="banner-cierres oculto" id="banner-cierres"></div>
@@ -1022,16 +1023,38 @@ async function comprobarRP() {
   bannerSinRP.classList.add('oculto');
   bannerFormacion.classList.add('oculto');
   bannerFormacion.className = 'banner-rp-formacion oculto';
+  // 110ª · Un RP dado de baja en la empresa seguía contando como RP válido:
+  // la obra salía cubierta sin estarlo. Se comprueba `trabajadores.activo`.
+  const bannerBaja = document.getElementById('banner-rp-baja');
+  bannerBaja.className = 'banner-rp-formacion oculto';
   if (!obraActual) return;
   try {
     const { data: rps, error } = await sb
       .from('recursos_preventivos_obra')
-      .select('trabajador_id, trabajador:trabajador_id(id, nombre, apellidos)')
+      .select('trabajador_id, trabajador:trabajador_id(id, nombre, apellidos, activo)')
       .eq('obra_id', obraActual)
       .eq('activo', true);
     if (error) return;
     if (!rps || rps.length === 0) { bannerSinRP.classList.remove('oculto'); return; }
-    const idsRP = rps.map(r => r.trabajador_id);
+
+    // Designados que ya no están activos en la empresa. Si no se puede leer el
+    // dato (trabajador nulo) se cuenta como activo: no se inventa una baja.
+    const nombreDe = r => {
+      const t = r.trabajador || {};
+      return [t.nombre, t.apellidos].filter(Boolean).join(' ') || '(sin nombre)';
+    };
+    const rpsBaja = rps.filter(r => r.trabajador && r.trabajador.activo === false);
+    const rpsVivos = rps.filter(r => !(r.trabajador && r.trabajador.activo === false));
+    if (rpsBaja.length > 0) {
+      bannerBaja.className = 'banner-rp-formacion rojo';
+      bannerBaja.innerHTML = '🚫 Recurso Preventivo dado de baja en la empresa'
+        + (rpsBaja.length > 1 ? 's' : '') + ' — sigue designado en esta obra:<ul>'
+        + rpsBaja.map(r => `<li>${esc(nombreDe(r))}</li>`).join('')
+        + '</ul>Quítalo desde Trabajadores → Recursos Preventivos y designa a otra persona.';
+    }
+    if (rpsVivos.length === 0) { bannerSinRP.classList.remove('oculto'); return; }
+
+    const idsRP = rpsVivos.map(r => r.trabajador_id);
     const { data: vals, error: errVals } = await sb
       .from('validaciones_obra')
       .select('trabajador_id, motivos')
@@ -1047,16 +1070,13 @@ async function comprobarRP() {
     }
     const motivosPorRP = {};
     (vals || []).forEach(v => { motivosPorRP[v.trabajador_id] = v.motivos || []; });
-    const rpsConProblema = rps.filter(r => {
+    const rpsConProblema = rpsVivos.filter(r => {
       const motivos = motivosPorRP[r.trabajador_id] || [];
       return motivos.some(m => m.toLowerCase().includes('formación 60 horas') || m.toLowerCase().includes('formacion 60 horas'));
     });
     if (rpsConProblema.length === 0) return;
-    const todosConProblema = rpsConProblema.length === rps.length;
-    const nombres = rpsConProblema.map(r => {
-      const t = r.trabajador || {};
-      return [t.nombre, t.apellidos].filter(Boolean).join(' ') || '(sin nombre)';
-    });
+    const todosConProblema = rpsConProblema.length === rpsVivos.length;
+    const nombres = rpsConProblema.map(nombreDe);
     bannerFormacion.classList.remove('oculto');
     if (todosConProblema) {
       bannerFormacion.classList.add('rojo');
