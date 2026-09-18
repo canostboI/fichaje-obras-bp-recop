@@ -414,6 +414,7 @@
       ⚠ Esta obra no tiene ningún Recurso Preventivo designado.
       <a onclick="irATrabaladoresRP()">Designar desde Trabajadores →</a>
     </div>
+    <div class="banner-rp-formacion oculto" id="banner-rp-presente"></div>
     <div class="banner-rp-formacion oculto" id="banner-rp-baja"></div>
     <div class="banner-rp-formacion oculto" id="banner-rp-formacion"></div>
     <div class="banner-hab-caducidad oculto" id="banner-hab-caducidad"></div>
@@ -572,6 +573,9 @@ FI.init(sb);   // js/foto-identidad.js
 const CLAVE_OBRA_ACTIVA_JEFE = 'jefe_obra_activa_id';
 
 let obraActual = null;
+// 111a (18/9/2026) - Alarma de RP presente: alcance TODAS las obras del jefe,
+// no solo la seleccionada. Se rellena en init().
+let misObrasRP = [];
 let brandingActual = null;
 let intervalPresencia = null;
 let fotoUrlActual = '';
@@ -957,6 +961,8 @@ async function cargarEmpresasPropias() {
 
   if (error || !misObras || misObras.length === 0) { window.location.href = '../'; return; }
 
+  misObrasRP = misObras.map(uo => ({ id: uo.obra.id, nombre: uo.obra.nombre }));
+
   const selector = document.getElementById('selector-obra');
   selector.innerHTML = '';
   misObras.forEach(uo => {
@@ -986,6 +992,7 @@ async function cargarEmpresasPropias() {
   await cargarAvisosAutocierre();
   await cargarRondaEncargado();
   await comprobarRP();
+  await comprobarRPPresente();
   await comprobarHabilitacionesCaducidad();
   iniciarRefrescoPresencia();
 
@@ -1012,6 +1019,7 @@ async function cargarEmpresasPropias() {
     await cargarAvisosAutocierre();
     await cargarRondaEncargado();
     await comprobarRP();
+    await comprobarRPPresente();
     await comprobarHabilitacionesCaducidad();
     iniciarRefrescoPresencia();
   });
@@ -1086,6 +1094,96 @@ async function comprobarRP() {
       bannerFormacion.innerHTML = '⚠ Recurso Preventivo con Formación 60h pendiente o caducada:<ul>' + nombres.map(n => `<li>${esc(n)}</li>`).join('') + '</ul>';
     }
   } catch (_) {}
+}
+
+// ── 111ª (18/9/2026) · Alarma de RP presente. Pedida por Dani ────────────
+// comprobarRP() habla de DESIGNADOS; el cron vigilante escribe a las 19:00,
+// con la obra ya vacía. Esto avisa DURANTE la jornada, cuando aún se puede
+// llamar a alguien: hay gente dentro y ningún Recurso Preventivo designado,
+// activo en la empresa y con entrada abierta ahora mismo.
+// Alcance: TODAS las obras del jefe, no solo la seleccionada.
+// Margen: no salta hasta que la obra lleva 15 minutos abierta (por la mañana
+// el RP no tiene por qué ser el primero en fichar).
+const MIN_MARGEN_RP_PRESENTE = 15;
+
+async function comprobarRPPresente() {
+  const banner = document.getElementById('banner-rp-presente');
+  if (!banner) return;
+  banner.className = 'banner-rp-formacion oculto';
+  banner.innerHTML = '';
+  const obras = misObrasRP || [];
+  if (!obras.length) return;
+  const ids = obras.map(o => o.id);
+  const { desdeISO, hastaISO } = rangoHoyLocal();
+  try {
+    const { data: fich, error: errFich } = await sb
+      .from('fichajes')
+      .select('tipo, hora, trabajador_id, obra_id')
+      .in('obra_id', ids)
+      .gte('hora', desdeISO)
+      .lte('hora', hastaISO)
+      .order('hora', { ascending: true });
+    if (errFich) throw errFich;
+
+    const { data: rps, error: errRP } = await sb
+      .from('recursos_preventivos_obra')
+      .select('obra_id, trabajador_id, trabajador:trabajador_id(activo)')
+      .in('obra_id', ids)
+      .eq('activo', true);
+    if (errRP) throw errRP;
+
+    // Quién sigue dentro: entradas > salidas, igual que cargarPresencia().
+    const porObra = {};
+    (fich || []).forEach(f => {
+      const obra = porObra[f.obra_id] || (porObra[f.obra_id] = {});
+      const p = obra[f.trabajador_id] || (obra[f.trabajador_id] = { entradas: [], salidas: 0 });
+      if (f.tipo === 'entrada') p.entradas.push(f.hora); else p.salidas++;
+    });
+
+    // Un designado de baja en la empresa NO cuenta (mismo criterio que la
+    // 110ª). Si no se puede leer el dato, se cuenta como activo: no se
+    // inventa una baja.
+    const rpPorObra = {};
+    (rps || []).forEach(r => {
+      if (r.trabajador && r.trabajador.activo === false) return;
+      (rpPorObra[r.obra_id] || (rpPorObra[r.obra_id] = new Set())).add(r.trabajador_id);
+    });
+
+    const ahora = Date.now();
+    const sinRP = [];
+    obras.forEach(o => {
+      const gente = porObra[o.id] || {};
+      const dentro = [];
+      let primeraEntrada = null;
+      Object.keys(gente).forEach(tid => {
+        const p = gente[tid];
+        if (p.entradas.length <= p.salidas) return;
+        dentro.push(tid);
+        const h = new Date(p.entradas[p.entradas.length - 1]).getTime();
+        if (primeraEntrada === null || h < primeraEntrada) primeraEntrada = h;
+      });
+      if (!dentro.length) return;                                  // obra vacía: nada
+      if (primeraEntrada === null) return;
+      if (ahora - primeraEntrada < MIN_MARGEN_RP_PRESENTE * 60000) return;  // margen
+      const designados = rpPorObra[o.id];
+      const hayRPDentro = designados && dentro.some(tid => designados.has(tid));
+      if (!hayRPDentro) sinRP.push(o.nombre);
+    });
+
+    if (!sinRP.length) return;
+    banner.className = 'banner-rp-formacion rojo';
+    banner.innerHTML = '🚨 Ningún Recurso Preventivo en obra ahora mismo:<ul>'
+      + sinRP.map(n => `<li>${esc(n)}</li>`).join('')
+      + '</ul>Hay gente trabajando y ningún designado ha fichado entrada. '
+      + 'Llama a un Recurso Preventivo o designa a alguien que esté allí.';
+  } catch (e) {
+    // Un vigilante no puede fallar en silencio: callar aquí es indistinguible
+    // de "hay RP en obra".
+    console.error('RP presente:', e);
+    banner.className = 'banner-rp-formacion amarillo';
+    banner.innerHTML = '⚠ No se ha podido comprobar si hay Recurso Preventivo en obra. '
+      + 'No quiere decir que lo haya: quiere decir que no se ha podido mirar.';
+  }
 }
 
 // Ventana de 90 días para saber QUIÉN está en la obra (29/7/2026).
@@ -1612,6 +1710,7 @@ function iniciarRefrescoPresencia() {
     await cargarSolicitudes();
     await cargarIdentidadesPendientes();
     cargarRondaEncargado();
+    comprobarRPPresente();
   }, 60 * 1000);
 }
 
@@ -1622,6 +1721,7 @@ document.addEventListener('visibilitychange', async () => {
     await cargarSolicitudes();
     await cargarIdentidadesPendientes();
     cargarRondaEncargado();
+    comprobarRPPresente();
   }
 });
 
