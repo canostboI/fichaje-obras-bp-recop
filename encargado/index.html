@@ -537,6 +537,16 @@
 
     }
   
+
+  /* 111a (18/9/2026) - Alarma de RP presente (pedida por Dani). */
+  .banner-rp-enc {
+    border-radius: 12px; padding: 0.9rem 1.1rem; margin-bottom: 1rem;
+    font-size: 0.95rem; line-height: 1.45; display: none;
+  }
+  .banner-rp-enc.rojo { background: #ffebee; border: 2px solid #e53935; color: #8a1f1f; font-weight: 600; }
+  .banner-rp-enc.amarillo { background: #fff8e1; border: 1px solid #ffd54f; color: #8a5a00; }
+  .banner-rp-enc.visible { display: block; }
+
   .hab-iconos-enc { display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; margin-left: 2px; }
   /* 108a - El SVG de habilitaciones hereda currentColor. Naranja = caduca
      pronto o le falta la fecha; rojo = ya caducada. */
@@ -604,6 +614,8 @@
       <h2 id="nombre-obra">Cargando obra...</h2>
       <p id="fecha-hoy"></p>
     </div>
+
+    <div id="banner-rp-enc" class="banner-rp-enc"></div>
 
     <div id="contador-presencia" class="contador-presencia estado-vacio" style="display:none">
       <div class="contador-cabecera">
@@ -2405,6 +2417,72 @@
 
     // Solo actualizar botón de ronda si estamos viendo hoy
     if (esHoy(fecha)) actualizarBotonRonda(presentes.length);
+
+    // 111a - Alarma de RP presente. Sin await: si falla, el panel sigue.
+    comprobarRPPresenteEnc(fecha);
+  }
+
+  // ── 111ª (18/9/2026) · Alarma de RP presente. Pedida por Dani ──────────
+  // El cron vigilante escribe esto a las 19:00, con la obra ya vacía: es
+  // registro, no alarma. Aquí se avisa DURANTE la jornada, que es cuando
+  // aún se puede llamar a alguien.
+  // Salta si hay gente dentro y ningún Recurso Preventivo designado, activo
+  // en la empresa y con entrada abierta ahora mismo.
+  // Margen: 15 minutos desde la primera entrada abierta del día (por la
+  // mañana el RP no tiene por qué ser el primero en fichar).
+  // Solo en el día de hoy: en modo histórico no tiene sentido.
+  const MIN_MARGEN_RP_PRESENTE = 15;
+
+  async function comprobarRPPresenteEnc(fecha) {
+    const banner = document.getElementById('banner-rp-enc');
+    if (!banner) return;
+    banner.className = 'banner-rp-enc';
+    banner.innerHTML = '';
+    if (!obraActualId) return;
+    if (!esHoy(fecha || fechaHoyISO())) return;
+
+    const dentro = presentesCache || [];
+    if (!dentro.length) return;                       // obra vacía: nada
+
+    // Margen desde la entrada más antigua de los que siguen dentro.
+    let primera = null;
+    dentro.forEach(t => {
+      const h = new Date(t.horaISO).getTime();
+      if (!Number.isFinite(h)) return;
+      if (primera === null || h < primera) primera = h;
+    });
+    if (primera === null) return;
+    if (Date.now() - primera < MIN_MARGEN_RP_PRESENTE * 60000) return;
+
+    try {
+      const { data: rps, error } = await sb
+        .from('recursos_preventivos_obra')
+        .select('trabajador_id, trabajador:trabajador_id(activo)')
+        .eq('obra_id', obraActualId)
+        .eq('activo', true);
+      if (error) throw error;
+
+      // Un designado de baja en la empresa NO cuenta. Si no se puede leer
+      // el dato, cuenta como activo: no se inventa una baja.
+      const designados = new Set();
+      (rps || []).forEach(r => {
+        if (r.trabajador && r.trabajador.activo === false) return;
+        designados.add(r.trabajador_id);
+      });
+
+      if (dentro.some(t => designados.has(t.id))) return;   // hay RP dentro
+
+      banner.className = 'banner-rp-enc rojo visible';
+      banner.innerHTML = '🚨 <strong>Ningún Recurso Preventivo en obra ahora mismo.</strong><br>'
+        + 'Hay gente trabajando y ninguno de los designados ha fichado entrada. '
+        + 'Avisa al jefe de obra.';
+    } catch (e) {
+      // Callar aquí sería indistinguible de "sí hay RP en obra".
+      console.error('RP presente:', e);
+      banner.className = 'banner-rp-enc amarillo visible';
+      banner.innerHTML = '⚠ No se ha podido comprobar si hay Recurso Preventivo en obra. '
+        + 'No quiere decir que lo haya: quiere decir que no se ha podido mirar.';
+    }
   }
 
   function pintarContador(presentes, fecha) {
