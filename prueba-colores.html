@@ -6,185 +6,263 @@
 <title>Prueba de colores — Portium</title>
 <!--
   prueba-colores.html — PÁGINA DE PRUEBA, NO FORMA PARTE DE LA APP
-  18/9/2026 · pedida por Dani para ver la paleta por marca antes de tocar js/branding.js
-  No lee Supabase, no tiene login, no toca ningún archivo existente.
-  Cuando la paleta esté decidida y aplicada, este archivo se puede borrar.
+  18/9/2026 · pedida por Dani. v2: copia el CSS real de jefe/index.html (tema oscuro).
+  El negro NO cambia: lo único que cambia es --color-acento (y --color-acento-rgb).
+  No lee Supabase, no tiene login, no toca ningún archivo existente. Borrable.
 -->
 <style>
-  :root{
-    --color-principal:#1D6B79;
-    --color-acento:#1A7A8A;
-    --color-suave:#D6EEF2;
-    --color-texto:#ffffff;
-    --gris-fondo:#f4f5f7;
-    --gris-borde:#dcdfe4;
-    --gris-texto:#333;
-    --verde:#2e7d32;
-    --naranja:#ef6c00;
-    --rojo:#c62828;
+  :root {
+    --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
+    --bg: #111318; --bg2: #1a1d24; --bg3: #22262f; --borde: #2e3340;
+    --texto: #e8eaf0; --texto2: #8b909e; --sidebar-w: 200px;
+    --color-acento: #ff9800;
+    --color-acento-rgb: 255,152,0;
   }
-  *{box-sizing:border-box}
-  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-       background:var(--gris-fondo);color:var(--gris-texto)}
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+         background: var(--bg); color: var(--texto); min-height: 100vh; display: flex; }
 
-  /* ---- mandos de la prueba ---- */
-  .mandos{background:#fff;border-bottom:1px solid var(--gris-borde);padding:12px 16px;
-          display:flex;flex-wrap:wrap;gap:16px;align-items:center;position:sticky;top:0;z-index:5}
-  .mandos strong{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:#666}
-  .grupo{display:flex;gap:6px}
-  .grupo button{border:1px solid var(--gris-borde);background:#fff;padding:8px 14px;
-                border-radius:999px;cursor:pointer;font-size:14px}
-  .grupo button.on{background:var(--color-acento);color:#fff;border-color:var(--color-acento)}
+  .sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--borde);
+             display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+  .sidebar-logo { padding: 16px 20px 14px; font-size: 13px; font-weight: 800; letter-spacing: 1.5px;
+                  text-transform: uppercase; color: var(--color-acento); }
+  .sidebar-brand { padding: 0 16px 14px; border-bottom: 1px solid var(--borde); }
+  .sidebar-brand img { max-width: 100%; max-height: 40px; display: block; object-fit: contain; }
+  .sidebar-section { padding: 18px 14px 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px;
+                     text-transform: uppercase; color: var(--texto2); }
+  .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px;
+               color: var(--texto2); text-decoration: none; border-radius: 8px; margin: 2px 8px; }
+  .sidebar a.activo { background: var(--bg3); color: var(--texto); font-weight: 600; }
+  .sidebar a .ico { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid var(--borde); }
+  .btn-salir { width: 100%; background: transparent; border: 1px solid var(--borde); color: var(--texto2);
+               padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; text-align: left; }
 
-  /* ---- maqueta ---- */
-  .lienzo{display:flex;min-height:520px}
-  .lateral{width:210px;background:var(--color-principal);color:var(--color-texto);
-           padding:18px 0;flex-shrink:0}
-  .marca{padding:0 18px 16px;border-bottom:1px solid rgba(255,255,255,.18);margin-bottom:14px}
-  .marca img{max-width:130px;max-height:46px;display:block;filter:brightness(0) invert(1)}
-  .marca span{display:block;margin-top:10px;font-size:12px;letter-spacing:2px;opacity:.75}
-  .lateral a{display:block;padding:11px 18px;color:var(--color-texto);text-decoration:none;
-             font-size:14px;opacity:.85}
-  .lateral a.activo{background:var(--color-acento);opacity:1;font-weight:600}
+  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+  .mandos { padding: 12px 28px; border-bottom: 1px solid var(--borde); background: var(--bg2);
+            display: flex; flex-wrap: wrap; gap: 14px; align-items: center; position: sticky; top: 0; z-index: 9; }
+  .mandos strong { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--texto2); }
+  .grupo { display: flex; gap: 6px; }
+  .grupo button { background: transparent; border: 1px solid var(--borde); color: var(--texto2);
+                  padding: 7px 13px; border-radius: 20px; cursor: pointer; font-size: 13px; font-family: inherit; }
+  .grupo button.on { border-color: var(--color-acento); color: var(--color-acento); font-weight: 700; }
+  .codigo { font-size: 12px; color: var(--texto2); font-family: monospace; }
 
-  .central{flex:1;padding:22px;min-width:0}
-  .cabecera{background:var(--color-acento);color:var(--color-texto);
-            padding:16px 20px;border-radius:10px;margin-bottom:20px}
-  .cabecera h1{margin:0;font-size:19px}
-  .cabecera p{margin:4px 0 0;font-size:13px;opacity:.9}
+  .topbar { padding: 20px 28px; display: flex; align-items: center; justify-content: space-between;
+            flex-wrap: wrap; gap: 12px; }
+  .topbar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+  .topbar-fecha { font-size: 14px; color: var(--texto2); }
+  .topbar-right { display: flex; align-items: center; gap: 14px; }
+  .selector-obra { background: var(--bg2); border: 1px solid var(--color-acento); border-radius: 8px;
+                   color: var(--texto); font-size: 14px; padding: 8px 12px; font-family: inherit; }
+  .btn-qr { background: var(--bg2); border: 1px solid var(--borde); color: var(--texto); font-size: 13px;
+            padding: 8px 14px; border-radius: 8px; cursor: pointer; font-family: inherit; }
 
-  .tarjetas{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
-  .tarjeta{background:#fff;border:1px solid var(--gris-borde);border-radius:10px;padding:14px;
-           border-top:3px solid var(--color-acento)}
-  .tarjeta .cifra{font-size:26px;font-weight:700;color:var(--color-principal)}
-  .tarjeta .pie{font-size:12px;color:#777;margin-top:2px}
+  .contenido { padding: 4px 28px 28px; }
+  .banner-ronda { border-radius: 10px; padding: 13px 18px; margin-bottom: 16px; font-size: 14px;
+                  background: rgba(139,144,158,0.08); border: 1px solid var(--borde); color: var(--texto2); }
+  .panel-avisos { background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.4);
+                  border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+  .panel-avisos h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+                     color: var(--naranja); margin-bottom: 8px; }
+  .panel-avisos .detalle { font-size: 13px; color: var(--texto2); line-height: 1.6; }
 
-  .botones{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
-  .btn{padding:10px 18px;border-radius:8px;border:none;font-size:14px;cursor:pointer}
-  .btn-principal{background:var(--color-acento);color:#fff}
-  .btn-suave{background:var(--color-suave);color:var(--color-principal);font-weight:600}
-  .btn-linea{background:#fff;color:var(--color-acento);border:1px solid var(--color-acento)}
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+  .stat { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; padding: 20px 22px; }
+  .stat .numero { font-size: 38px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
+  .stat .etiqueta { font-size: 13px; color: var(--texto2); }
+  .stat .desglose { font-size: 12px; color: var(--texto2); margin-top: 6px; }
+  .stat .numero.verde { color: var(--verde); }
+  .stat .numero.naranja { color: var(--naranja); }
+  .stat .numero.rojo { color: var(--rojo); }
+  .stat .numero.marca { color: var(--color-acento); }
 
-  table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;
-        border:1px solid var(--gris-borde);font-size:14px}
-  th{background:var(--color-principal);color:var(--color-texto);text-align:left;padding:10px 12px;font-size:13px}
-  td{padding:10px 12px;border-top:1px solid var(--gris-borde)}
-  tr:nth-child(even) td{background:var(--color-suave)}
-  .sem{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
-  .v{background:var(--verde)} .n{background:var(--naranja)} .r{background:var(--rojo)}
+  .botonera { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+  .btn-marca { background: var(--color-acento); color: #fff; border: none; padding: 10px 18px;
+               border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; font-family: inherit; }
+  .btn-linea { background: transparent; border: 1px solid var(--color-acento); color: var(--color-acento);
+               padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; font-family: inherit; }
+  .btn-neutro { background: var(--bg2); border: 1px solid var(--borde); color: var(--texto);
+                padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; font-family: inherit; }
 
-  .nota{padding:14px 22px;font-size:13px;color:#666;line-height:1.5}
-  @media(max-width:700px){.lateral{display:none}}
+  .seccion { background: var(--bg2); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
+  .seccion-cab { padding: 14px 20px; border-bottom: 1px solid var(--borde); display: flex;
+                 align-items: center; justify-content: space-between; }
+  .seccion-cab h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;
+           background: rgba(76,175,80,0.15); color: var(--verde); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; padding: 10px 20px; font-size: 11px; font-weight: 700; color: var(--texto2);
+       text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--borde); }
+  td { padding: 13px 20px; border-bottom: 1px solid var(--borde); }
+  tr:last-child td { border-bottom: none; }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .pill.verde { background: rgba(76,175,80,0.15); color: var(--verde); }
+  .pill.naranja { background: rgba(255,152,0,0.15); color: var(--naranja); }
+  .pill.rojo { background: rgba(244,67,54,0.15); color: var(--rojo); }
+
+  .tr-empresa-cab td { background: var(--bg3); padding: 8px 20px; }
+  .empresa-cab-nombre { font-size: 11px; font-weight: 700; text-transform: uppercase;
+                        letter-spacing: 0.6px; color: var(--texto2); }
+  .empresa-cab-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px;
+                       background: rgba(139,144,158,0.15); color: var(--texto2); margin-left: 8px; }
+  .tr-empresa-cab.propia .empresa-cab-nombre { color: var(--color-acento); }
+  .tr-empresa-cab.propia .empresa-cab-badge {
+      background: rgba(var(--color-acento-rgb), 0.14); color: var(--color-acento); }
+
+  .nota { padding: 18px 28px 30px; font-size: 13px; color: var(--texto2); line-height: 1.6; }
+  @media (max-width: 760px) { .sidebar { display: none; } .main { margin-left: 0; }
+                              .stats { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
 
-<div class="mandos">
-  <strong>Marca</strong>
-  <div class="grupo" id="g-marca">
-    <button data-marca="bosch_pascual" class="on">Bosch Pascual</button>
-    <button data-marca="recop">Rècop</button>
-  </div>
-  <strong>Paleta</strong>
-  <div class="grupo" id="g-paleta">
-    <button data-paleta="nueva" class="on">Nueva</button>
-    <button data-paleta="actual">La de ahora</button>
-  </div>
-  <span id="codigos" style="font-size:12px;color:#888;font-family:monospace"></span>
-</div>
+<nav class="sidebar">
+  <div class="sidebar-logo">Portium</div>
+  <div class="sidebar-brand"><img id="logo" src="assets/logos/bosch_pascual_logo.svg" alt=""></div>
+  <div class="sidebar-section">Principal</div>
+  <a class="activo"><span class="ico">👷</span>Presencia</a>
+  <div class="sidebar-section">Gestión</div>
+  <a><span class="ico">🕐</span>Fichajes</a>
+  <a><span class="ico">📄</span>Resumen · Proforma</a>
+  <a><span class="ico">👥</span>Trabajadores</a>
+  <a><span class="ico">🎓</span>Habilitaciones</a>
+  <a><span class="ico">⭐</span>Valoraciones</a>
+  <a><span class="ico">🔴</span>Informe incidencias</a>
+  <a><span class="ico">🔄</span>e-Coordina</a>
+  <div class="sidebar-bottom"><button class="btn-salir">↩ Cerrar sesión</button></div>
+</nav>
 
-<div class="lienzo">
-  <nav class="lateral">
-    <div class="marca">
-      <img id="logo" src="assets/logos/bosch_pascual_logo.svg" alt="">
-      <span>PORTIUM</span>
+<div class="main">
+
+  <div class="mandos">
+    <strong>Marca</strong>
+    <div class="grupo" id="g-marca">
+      <button data-marca="bosch_pascual" class="on">Bosch Pascual</button>
+      <button data-marca="recop">Rècop</button>
     </div>
-    <a class="activo">Panel</a>
-    <a>Fichajes</a>
-    <a>Trabajadores</a>
-    <a>Documentos</a>
-    <a>Habilitaciones</a>
-    <a>Valoraciones</a>
-  </nav>
+    <strong>Acento</strong>
+    <div class="grupo" id="g-paleta">
+      <button data-paleta="actual">Actual</button>
+      <button data-paleta="corporativa" class="on">Corporativa</button>
+      <button data-paleta="aclarada">Aclarada</button>
+    </div>
+    <span class="codigo" id="codigo"></span>
+  </div>
 
-  <main class="central">
-    <div class="cabecera">
+  <div class="topbar">
+    <div>
       <h1 id="titulo">Muralla de Valls</h1>
-      <p>Jueves 18 de septiembre · 14 personas en obra</p>
+      <div class="topbar-fecha">Viernes, 18 de septiembre de 2026</div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn-qr">▦ Ver QR</button>
+      <select class="selector-obra"><option>MURALLA DE VALLS</option></select>
+    </div>
+  </div>
+
+  <div class="contenido">
+
+    <div class="banner-ronda">⏳ Pendiente confirmación de presencia del encargado hoy</div>
+
+    <div class="panel-avisos">
+      <h3>❓ Habilitaciones sin fecha de caducidad</h3>
+      <div class="detalle">LESTER ALAVA — Montaje de andamios<br>Mario Martínez — Montaje de andamios</div>
     </div>
 
-    <div class="tarjetas">
-      <div class="tarjeta"><div class="cifra">14</div><div class="pie">Presentes ahora</div></div>
-      <div class="tarjeta"><div class="cifra">3</div><div class="pie">Autocierres</div></div>
-      <div class="tarjeta"><div class="cifra">1</div><div class="pie">Accesos denegados</div></div>
-      <div class="tarjeta"><div class="cifra">2</div><div class="pie">Solicitudes hoy</div></div>
+    <div class="stats">
+      <div class="stat">
+        <div class="numero verde">22</div>
+        <div class="etiqueta">En obra ahora</div>
+        <div class="desglose">4 propios · 18 externos</div>
+      </div>
+      <div class="stat">
+        <div class="numero naranja">8</div>
+        <div class="etiqueta">Documentación naranja</div>
+      </div>
+      <div class="stat">
+        <div class="numero marca">3</div>
+        <div class="etiqueta">Valoraciones pendientes</div>
+        <div class="desglose">cifra con color de marca</div>
+      </div>
     </div>
 
-    <div class="botones">
-      <button class="btn btn-principal">Cerrar el mes</button>
-      <button class="btn btn-suave">Descargar proforma</button>
-      <button class="btn btn-linea">Ver ronda</button>
+    <div class="botonera">
+      <button class="btn-marca">Cerrar el mes</button>
+      <button class="btn-linea">Descargar proforma</button>
+      <button class="btn-neutro">Hoy no se trabaja</button>
     </div>
 
-    <table>
-      <tr><th>Trabajador</th><th>Empresa</th><th>Entrada</th><th>Estado</th></tr>
-      <tr><td>Pruebas Dani</td><td>Bosch Pascual</td><td>07:02</td><td><span class="sem v"></span>Verde</td></tr>
-      <tr><td>Lester A.</td><td>Rècop</td><td>07:05</td><td><span class="sem v"></span>Verde</td></tr>
-      <tr><td>Operario 3</td><td>Subcontrata SL</td><td>07:11</td><td><span class="sem n"></span>Naranja</td></tr>
-      <tr><td>Operario 4</td><td>Subcontrata SL</td><td>—</td><td><span class="sem r"></span>Rojo</td></tr>
-    </table>
-  </main>
+    <div class="seccion">
+      <div class="seccion-cab">
+        <h2>Trabajadores en obra ahora</h2>
+        <span class="badge">22 dentro</span>
+      </div>
+      <table>
+        <tr><th>Trabajador</th><th>DNI</th><th>Entrada</th><th>Doc.</th></tr>
+        <tr class="tr-empresa-cab propia"><td colspan="4">
+          <span class="empresa-cab-nombre">Bosch Pascual</span><span class="empresa-cab-badge">1</span>
+        </td></tr>
+        <tr><td>Mario Martínez</td><td>43687899C</td><td>07:59</td><td><span class="pill verde">verde</span></td></tr>
+        <tr class="tr-empresa-cab propia"><td colspan="4">
+          <span class="empresa-cab-nombre">Rècop</span><span class="empresa-cab-badge">2</span>
+        </td></tr>
+        <tr><td>LESTER ALAVA</td><td>25367747N</td><td>07:42</td><td><span class="pill verde">verde</span></td></tr>
+        <tr><td>FENNOUCH MOHAMED</td><td>42399409J</td><td>07:52</td><td><span class="pill verde">verde</span></td></tr>
+        <tr class="tr-empresa-cab"><td colspan="4">
+          <span class="empresa-cab-nombre">Bamsa y Obras, SLU</span><span class="empresa-cab-badge">2</span>
+        </td></tr>
+        <tr><td>BOULMANI, YOUSSEF</td><td>Z4621488B</td><td>07:50</td><td><span class="pill naranja">naranja</span></td></tr>
+        <tr><td>HANDA, MOHAMED</td><td>X7300264H</td><td>07:56</td><td><span class="pill rojo">rojo</span></td></tr>
+      </table>
+    </div>
+
+  </div>
+
+  <p class="nota">
+    Página de prueba. El negro es el de tu app y no cambia: lo único que cambia al pulsar arriba es
+    el color de marca (<code>--color-acento</code>). Verde, naranja y rojo son semáforo y nunca
+    dependen de la marca. Los nombres de empresa propia (Bosch Pascual y Rècop en la tabla) van con
+    el color de marca; las subcontratas, en gris.
+  </p>
+
 </div>
-
-<p class="nota">
-  Página de prueba. No lee la base de datos ni cambia nada de la app.
-  Los colores de semáforo (verde / naranja / rojo) no dependen de la marca y por eso no cambian.
-</p>
 
 <script>
 const PALETAS = {
-  nueva: {
-    bosch_pascual: { principal:'#1D6B79', acento:'#1A7A8A', suave:'#D6EEF2' },
-    recop:         { principal:'#8B3124', acento:'#A0392B', suave:'#F5D5D1' }
-  },
-  actual: {
-    bosch_pascual: { principal:'#1a1a1a', acento:'#c8102e', suave:'#f0f0f0' },
-    recop:         { principal:'#6b3410', acento:'#c9a876', suave:'#f0f0f0' }
-  }
+  actual:      { bosch_pascual:{hex:'#c8102e', rgb:'200,16,46'},  recop:{hex:'#c9a876', rgb:'201,168,118'} },
+  corporativa: { bosch_pascual:{hex:'#1A7A8A', rgb:'26,122,138'}, recop:{hex:'#A0392B', rgb:'160,57,43'} },
+  aclarada:    { bosch_pascual:{hex:'#2FA3B5', rgb:'47,163,181'}, recop:{hex:'#C9603F', rgb:'201,96,63'} }
 };
 const LOGOS = {
   bosch_pascual: 'assets/logos/bosch_pascual_logo.svg',
   recop:         'assets/logos/recop_logo.svg'
 };
-const OBRAS = { bosch_pascual: 'Muralla de Valls', recop: 'Escola Música Valls' };
+const OBRAS = { bosch_pascual:'Muralla de Valls', recop:'Escola Música Valls' };
 
 let marca = 'bosch_pascual';
-let paleta = 'nueva';
+let paleta = 'corporativa';
 
 function pintar(){
   const p = PALETAS[paleta][marca];
   const r = document.documentElement.style;
-  r.setProperty('--color-principal', p.principal);
-  r.setProperty('--color-acento', p.acento);
-  r.setProperty('--color-suave', p.suave);
+  r.setProperty('--color-acento', p.hex);
+  r.setProperty('--color-acento-rgb', p.rgb);
   document.getElementById('logo').src = LOGOS[marca];
   document.getElementById('titulo').textContent = OBRAS[marca];
-  document.getElementById('codigos').textContent = p.principal + '  ' + p.acento + '  ' + p.suave;
+  document.getElementById('codigo').textContent = p.hex;
 }
-
-document.getElementById('g-marca').addEventListener('click', e => {
-  if (!e.target.dataset.marca) return;
-  marca = e.target.dataset.marca;
-  [...e.currentTarget.children].forEach(b => b.classList.toggle('on', b === e.target));
-  pintar();
-});
-document.getElementById('g-paleta').addEventListener('click', e => {
-  if (!e.target.dataset.paleta) return;
-  paleta = e.target.dataset.paleta;
-  [...e.currentTarget.children].forEach(b => b.classList.toggle('on', b === e.target));
-  pintar();
-});
-
+function mando(id, campo){
+  document.getElementById(id).addEventListener('click', e => {
+    const v = e.target.dataset[campo];
+    if (!v) return;
+    if (campo === 'marca') marca = v; else paleta = v;
+    [...e.currentTarget.children].forEach(b => b.classList.toggle('on', b === e.target));
+    pintar();
+  });
+}
+mando('g-marca','marca');
+mando('g-paleta','paleta');
 pintar();
 </script>
 </body>
