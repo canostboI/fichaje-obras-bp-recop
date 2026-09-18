@@ -540,7 +540,19 @@
   .hab-iconos-enc { display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; margin-left: 2px; }
   /* 108a - El SVG de habilitaciones hereda currentColor. Naranja = caduca
      pronto o le falta la fecha; rojo = ya caducada. */
-  .hab-ico { display: inline-flex; align-items: center; }
+  .hab-ico, .ico-info {
+    display: inline-flex; align-items: center; vertical-align: middle;
+    border: 0; background: none; padding: 0 2px; margin: 0;
+    font: inherit; color: inherit; cursor: pointer; line-height: 1;
+  }
+  /* 108a - En movil no existe el texto al pasar el raton: tocar el icono
+     abre este cartelito. Se cierra solo, al tocar fuera o a los 4 s. */
+  .info-burbuja {
+    position: fixed; z-index: 9999; max-width: 78vw;
+    background: #263238; color: #fff; border-radius: 8px;
+    padding: 7px 11px; font-size: 0.82rem; line-height: 1.3;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+  }
   .hab-ico-naranja { color: #ef6c00; }
   .hab-ico-rojo { color: #c62828; }
   /* ── iconos foto/verif encargado (70a) ── */
@@ -2547,9 +2559,10 @@
       // Cada icono va en su propio span: el color y el texto de ayuda son
       // de ESA habilitacion, no del conjunto.
       const iconosHab = habsT.map(x =>
-        '<span class="hab-ico ' + colorHab(x.estado) + '" title="' +
-        esc(x.nombre + ' — ' + textoEstadoHab(x.estado)).replace(/"/g, '&quot;') +
-        '">' + x.icono + '</span>').join('');
+        '<button type="button" class="hab-ico ' + colorHab(x.estado) + '" data-info="' +
+        esc(x.nombre + ' · ' + textoEstadoHab(x.estado)).replace(/"/g, '&quot;') +
+        '" title="' + esc(x.nombre + ' · ' + textoEstadoHab(x.estado)).replace(/"/g, '&quot;') +
+        '">' + x.icono + '</button>').join('');
       const titHab = habsT.map(x => x.nombre).join(', ');
       const card = document.createElement('div');
       card.className = 'tarjeta-trab';
@@ -2557,7 +2570,7 @@
       card.innerHTML = `
         <div class="tarjeta-iniciales" data-trab="${esc(t.id)}">${esc(iniciales(t.nombre))}</div>
         <div class="tarjeta-info">
-          <div class="tarjeta-nombre">${esc(t.nombre)}${esRP ? ' <span title="Recurso Preventivo designado">🛡️</span>' : ''}${iconosHab ? ' <span class="hab-iconos-enc" title="Habilitaciones: ' + esc(titHab).replace(/"/g, '&quot;') + '">' + iconosHab + '</span>' : ''}</div>
+          <div class="tarjeta-nombre">${esc(t.nombre)}${esRP ? ' <button type="button" class="ico-info" data-info="Recurso Preventivo designado" title="Recurso Preventivo designado">🛡️</button>' : ''}${iconosHab ? ' <span class="hab-iconos-enc" title="Habilitaciones: ' + esc(titHab).replace(/"/g, '&quot;') + '">' + iconosHab + '</span>' : ''}</div>
           <div class="tarjeta-empresa">${esc(t.empresa || '—')}${t.categoria ? ' · ' + esc(t.categoria) : ''}</div>
           <div style="margin-top:4px">${iconoIdentEnc(t)}</div>
         </div>
@@ -2604,6 +2617,53 @@
     if (c === 'otra') return String((t && t.categoria_otra) || '').trim();
     return CATEGORIAS_ENC[c] || (c.charAt(0).toUpperCase() + c.slice(1));
   }
+
+  // 108a - Cartelito de ayuda al TOCAR un icono. En el movil el atributo
+  // title no se ve nunca, ni tocando ni manteniendo el dedo: sin esto, los
+  // colores del icono no se pueden interpretar. Un solo capturador para
+  // toda la pagina; los iconos solo declaran data-info.
+  let _burbuja = null;
+  let _burbujaReloj = null;
+  function cerrarBurbuja() {
+    if (_burbujaReloj) { clearTimeout(_burbujaReloj); _burbujaReloj = null; }
+    if (_burbuja && _burbuja.parentNode) _burbuja.parentNode.removeChild(_burbuja);
+    _burbuja = null;
+  }
+  function abrirBurbuja(elemento, texto) {
+    cerrarBurbuja();
+    if (!texto) return;
+    const b = document.createElement('div');
+    b.className = 'info-burbuja';
+    b.textContent = texto;
+    b.style.visibility = 'hidden';
+    document.body.appendChild(b);
+    _burbuja = b;
+
+    // Se coloca debajo del icono, y encima si no cabe. Nunca se sale por
+    // los lados: en un movil estrecho eso dejaria el texto cortado.
+    const r = elemento.getBoundingClientRect();
+    const ancho = b.offsetWidth, alto = b.offsetHeight;
+    let x = r.left + r.width / 2 - ancho / 2;
+    x = Math.max(8, Math.min(x, window.innerWidth - ancho - 8));
+    let y = r.bottom + 6;
+    if (y + alto > window.innerHeight - 8) y = Math.max(8, r.top - alto - 6);
+    b.style.left = x + 'px';
+    b.style.top = y + 'px';
+    b.style.visibility = 'visible';
+
+    _burbujaReloj = setTimeout(cerrarBurbuja, 4000);
+  }
+  document.addEventListener('click', e => {
+    const icono = e.target.closest ? e.target.closest('[data-info]') : null;
+    if (icono) {
+      e.preventDefault();
+      e.stopPropagation();
+      abrirBurbuja(icono, icono.getAttribute('data-info'));
+      return;
+    }
+    cerrarBurbuja();
+  }, true);
+  window.addEventListener('scroll', cerrarBurbuja, true);
 
   // 108a - Color del icono de habilitacion segun su estado.
   function colorHab(est) {
