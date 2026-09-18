@@ -84,6 +84,11 @@
   .error-modal { background: rgba(244,67,54,0.1); color: var(--rojo); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; display: none; }
   /* 110ª · Cara junto al nombre. Hueco fijo (nombres alineados haya foto o no)
      e iniciales de respaldo si no hay foto o si la imagen no carga. */
+  /* 110ª · Inactivo (baja en la empresa): fila atenuada. La pastilla gris «No»
+     al final de la fila sigue siendo el dato; esto solo lo hace visible de un
+     vistazo sin leer hasta la última columna. */
+  tr.fila-inactivo td { opacity: .45; }
+  tr.fila-inactivo:hover td { opacity: .75; }
   .celda-nombre { display: flex; align-items: center; gap: 10px; }
   .cara { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
           background: var(--bg3); border: 1px solid var(--borde); display: flex;
@@ -289,7 +294,7 @@ function renderTabla(data) {
         ? ' <span class="rp-icono" title="Recurso Preventivo en: '
           + String(esc(obrasRP.join(', '))).replace(/"/g, '&quot;') + '">🛡️</span>'
         : '';
-      filasBody += `<tr class="${filaClase}" data-grupo="${empresaEsc}"><td><div class="celda-nombre">${caraHtml(t)}<div><strong>${esc(t.nombre)} ${esc(t.apellidos)}</strong>${rpHtml}${iconosHtml}</div></div></td><td>${esc(t.dni)}</td><td>${esc(t.telefono || '—')}</td><td>${esc(t.categoria === 'otra' ? (t.categoria_otra || 'Otra') : (t.categoria || '—'))}</td><td>${formatearPrecio(t.precio_hora_personalizado)}</td><td><span class="pill ${estadoGeneral}">${estadoGeneral}</span></td><td>${obras}</td><td><span class="pill ${t.activo ? 'verde' : 'gris'}">${t.activo ? 'Sí' : 'No'}</span></td><td><div class="acciones"><button class="btn-secundario" onclick="abrirEditarPorId('${t.id}')">Editar</button>${obraIdFiltro ? `<button class="btn-secundario peligro" onclick="abrirModalQuitar('${t.id}')">Quitar de la obra</button>` : ''}</div></td></tr>`;
+      filasBody += `<tr class="${filaClase}${t.activo ? '' : ' fila-inactivo'}" data-grupo="${empresaEsc}"><td><div class="celda-nombre">${caraHtml(t)}<div><strong>${esc(t.nombre)} ${esc(t.apellidos)}</strong>${rpHtml}${iconosHtml}</div></div></td><td>${esc(t.dni)}</td><td>${esc(t.telefono || '—')}</td><td>${esc(t.categoria === 'otra' ? (t.categoria_otra || 'Otra') : (t.categoria || '—'))}</td><td>${formatearPrecio(t.precio_hora_personalizado)}</td><td><span class="pill ${estadoGeneral}">${estadoGeneral}</span></td><td>${obras}</td><td><span class="pill ${t.activo ? 'verde' : 'gris'}">${t.activo ? 'Sí' : 'No'}</span></td><td><div class="acciones"><button class="btn-secundario" onclick="abrirEditarPorId('${t.id}')">Editar</button>${obraIdFiltro ? `<button class="btn-secundario peligro" onclick="abrirModalQuitar('${t.id}')">Quitar de la obra</button>` : ''}</div></td></tr>`;
     });
   });
   document.getElementById('tabla-trabajadores').innerHTML = `<table>${cabecera}<tbody>${filasBody}</tbody></table>`;
