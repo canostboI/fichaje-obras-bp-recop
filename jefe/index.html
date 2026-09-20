@@ -1542,6 +1542,17 @@ async function cargarSolicitudes() {
           esc(x.empresa_declarada || '') + '». Parece ' + esc(sug.emp.nombre) +
           ': compruébalo antes de autorizar.</div>';
       }
+      // 114ª (20/9/2026) · CIF al resolver una solicitud. Pedido por Dani.
+      // El nombre NO identifica a una empresa (e-Coordina los trae con comas
+      // y puntos arbitrarios y el emparejamiento exige igualdad exacta): de
+      // ahí el duplicado real 39916945p / VERONICA RODES SEGURA. Con CIF, la
+      // RPC busca por él antes de crear y no duplica. Es OPCIONAL a
+      // propósito: el jefe no siempre lo tiene delante y la persona está
+      // esperando en la valla. Sin CIF la empresa se crea igual, pero marcada
+      // `pendiente_identificar` para completarla luego en Subcontratas.
+      form += '<div class="sol-form-lbl">CIF de la empresa (opcional)</div>' +
+        '<input type="text" class="sol-nota-inp sol-cif" autocomplete="off"' +
+          ' placeholder="Si lo sabes: evita crear la empresa dos veces">';
     }
     if (x.identidad_pendiente) {
       form += '<div class="sol-form-lbl">Identidad</div>' +
@@ -1593,10 +1604,17 @@ async function resolverSol(id, accion, clave) {
 
   // Lo que la RPC va a exigir se comprueba ANTES del confirm: pulsar,
   // confirmar y fallar es lo que hacia parecer roto el boton.
-  let empresaId = null, empresaTexto = null, notaIdent = null;
+  let empresaId = null, empresaTexto = null, notaIdent = null, cifEmpresa = null;
   const selEmp = item.querySelector('.sol-empresa-sel');
   const inpNota = item.querySelector('.sol-nota');
+  // 114ª (20/9/2026) · El CIF viaja tal cual se escribe: normalizar (quitar
+  // guiones y puntos, mayúsculas) es cosa de la RPC, que es donde también se
+  // busca y se crea. Dos normalizadores distintos acabarían discrepando.
+  const inpCif = item.querySelector('.sol-cif');
   if (accion === 'autorizar') {
+    if (inpCif) {
+      cifEmpresa = (inpCif.value || '').trim() || null;
+    }
     if (selEmp) {
       if (selEmp.value === '__nueva__') {
         empresaTexto = ((item.querySelector('.sol-empresa-nueva') || {}).value || '').trim();
@@ -1661,7 +1679,8 @@ async function resolverSol(id, accion, clave) {
     p_regularizar: regularizar,
     p_empresa_id: empresaId, p_empresa_texto: empresaTexto,
     p_nota_identidad: notaIdent,
-    p_motivo_identidad: (clave === 'regla' ? 'regularizada' : 'excepcional')
+    p_motivo_identidad: (clave === 'regla' ? 'regularizada' : 'excepcional'),
+    p_cif: cifEmpresa
   });
 
   if (error || !data || data.ok !== true) {
@@ -1689,6 +1708,10 @@ async function resolverSol(id, accion, clave) {
       if (data.ficha_creada === true) txt += ' Ficha creada EN ROJO.';
     }
     if (data.empresa_creada === true) txt += ' Empresa nueva dada de alta.';
+    // 114ª (20/9/2026) · La RPC devuelve `cif_aviso` cuando el CIF no se ha
+    // podido guardar (demasiado corto, ya es de otra empresa, o la empresa
+    // tenía otro distinto). Callarlo sería dar por hecho que quedó guardado.
+    if (data.cif_aviso) txt += ' ⚠ ' + data.cif_aviso;
   }
   msg.textContent = txt;
 
