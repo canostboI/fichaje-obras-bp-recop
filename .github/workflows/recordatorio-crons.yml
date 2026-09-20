@@ -9,6 +9,20 @@ name: Recordatorio · cambio de hora en crons
 # Minuto "raro" a propósito (congestión de GitHub Actions).
 # También se puede lanzar a mano desde la pestaña Actions.
 #
+# ⚠️ ACTUALIZADO 20/9/2026: añadido `reloj_naranja_diario` (jobid=13), el que
+# pasa a ROJO el naranja que no respalda nadie (alta manual de subcontrata sin
+# comprobar, o persona desaparecida del Excel de e-Coordina) a los 2 días
+# LABORABLES. **NO necesita ajuste estacional**: corre a `15 4 * * *` (06:15
+# Madrid en verano, 05:15 en invierno) y cuenta los días laborables con
+# `now() AT TIME ZONE 'Europe/Madrid'` DENTRO de la función.
+# 🔴 **PERO es el cron con el margen más estrecho de todos.** Tiene que correr
+# DESPUÉS de la sync nocturna de e-Coordina (que con retraso puede terminar
+# hasta las ~04:30 Madrid) y ANTES del primer fichaje del día (06:39 en
+# Muralla). En verano quedan 24 minutos de margen. Si alguna obra empieza a
+# fichar antes de las 06:15, HAY QUE ADELANTARLO. Si algún día corriera por
+# delante de la sync, el daño es pequeño y se arregla solo —la propia sync
+# devuelve el color bueno— pero deja una incidencia falsa de `naranja_caducado`.
+#
 # ⚠️ ACTUALIZADO 18/9/2026: añadido `vigilante_obra_diario` (jobid=12),
 # el que escribe cada noche en `incidencias` lo que ese día era verdad en
 # obra (habilitación caducada de quien fichó, empresa activa en rojo por
@@ -123,7 +137,8 @@ jobs:
           **Cómo:**
           - [ ] \`ecoordina.yml\`: editar **las DOS líneas** \`cron:\` en el repo.
           - [ ] pg_cron (los 4 de la tabla): en Supabase → SQL Editor, un \`SELECT cron.alter_job(jobid, schedule => '...')\` por cada uno, o desde la UI de Integrations → Cron.
-          - [ ] **NO tocar estos SEIS, que funcionan en ambas estaciones:** \`autocierre_nocturno\` (\`0 2 * * *\`), \`recordatorio_solicitudes_acceso\` (\`*/10 * * * *\`, decide el horario de obra leyendo la hora de Madrid por dentro), \`caducar-fotos-identidad\` (\`30 4 * * 0\`, semanal, compara contra un umbral de 12 meses), \`vaciar-cola-borrado-fotos\` (\`15 3 * * *\`), \`caducar_forzados_diario\` (\`30 3 * * *\`, calcula la fecha de Madrid por dentro y corre muy por delante del primer fichaje en las dos estaciones) y \`vigilante_obra_diario\` (\`0 19 * * 1-6\`, calcula el día de Madrid por dentro; a las 20:00/21:00 la jornada ya terminó).
+          - [ ] **NO tocar estos SIETE, que funcionan en ambas estaciones:** \`autocierre_nocturno\` (\`0 2 * * *\`), \`recordatorio_solicitudes_acceso\` (\`*/10 * * * *\`, decide el horario de obra leyendo la hora de Madrid por dentro), \`caducar-fotos-identidad\` (\`30 4 * * 0\`, semanal, compara contra un umbral de 12 meses), \`vaciar-cola-borrado-fotos\` (\`15 3 * * *\`), \`caducar_forzados_diario\` (\`30 3 * * *\`, calcula la fecha de Madrid por dentro y corre muy por delante del primer fichaje en las dos estaciones), \`vigilante_obra_diario\` (\`0 19 * * 1-6\`, calcula el día de Madrid por dentro; a las 20:00/21:00 la jornada ya terminó) y \`reloj_naranja_diario\` (\`15 4 * * *\`, cuenta días laborables de Madrid por dentro).
+          - [ ] 🔴 **Sí mirar \`reloj_naranja_diario\` aunque no se cambie:** es el de margen más estrecho (06:15 Madrid en verano, 24 min antes del primer fichaje de Muralla). Comprobar que sigue corriendo DESPUÉS de la sync nocturna y ANTES del primer fichaje de TODAS las obras, no solo de Muralla.
           - [ ] Verificar al día siguiente que la sync nocturna y los SMS de ronda llegan a su hora española habitual.
           - [ ] Comprobar en \`ecoordina_sync\` que la ejecución buena sigue terminando de madrugada, muy por delante de los fichajes de las 06:39 en Muralla.
 
