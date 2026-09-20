@@ -57,7 +57,15 @@
   + '.portium-nombre{font-family:Georgia,"Times New Roman",serif;line-height:1;font-weight:400;white-space:nowrap}'
   + '.portium-nombre .ium{color:' + ARENA + ';font-style:italic}'
   + 'header.con-portium{border-bottom:2px solid var(--portium-linea,' + TERRACOTA + ')}'
-  + 'header.con-portium .header-left{flex-wrap:wrap}';
+  + 'header.con-portium .header-left{flex-wrap:wrap}'
+  // 20/9: el bloque pasa a ser un enlace a la pantalla principal. Hay que
+  // neutralizar el aspecto de «.sidebar a» (padding, margen, fondo al pasar
+  // por encima), que si no lo pinta como una opción más del menú. Selector
+  // de tres clases para ganar sin !important.
+  + '.sidebar .portium-lateral{text-decoration:none;color:inherit}'
+  + '.sidebar a.portium-lateral{padding:16px 16px 12px;margin:0;border-radius:0;background:none}'
+  + '.sidebar a.portium-lateral:hover{background:none}'
+  + '.sidebar a.portium-lateral:hover .portium-nombre{opacity:.85}';
 
   function nombreHtml() {
     return '<span class="portium-nombre">Port<span class="ium">ium</span></span>';
@@ -73,7 +81,13 @@
 
   function enMenuLateral(sidebar) {
     if (sidebar.querySelector('.portium-lateral')) return;
-    var d = document.createElement('div');
+    // 20/9/2026 (Dani): el logo lleva a la pantalla principal del panel, que
+    // es lo que uno espera de un logo. «index.html» en relativo vale para los
+    // dos paneles: jefe/index.html es Presencia y encargado/index.html es su
+    // pantalla de inicio.
+    var d = document.createElement('a');
+    d.href = 'index.html';
+    d.title = 'Ir a la pantalla principal';
     d.className = 'portium-lateral';
     d.innerHTML = '<img src="' + ICONO + '" alt="">' + nombreHtml();
     sidebar.insertBefore(d, sidebar.firstChild);
