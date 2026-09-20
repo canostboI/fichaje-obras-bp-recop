@@ -2629,6 +2629,24 @@
     } catch (_) { /* se quedan las iniciales */ }
   }
 
+  // 114a (19/9/2026) - Iconos de entrada y salida. Sustituyen a los dos
+  // emoji de bandeja, que son el mismo dibujo con una flecha de 6 px en
+  // sentido contrario: a tamano de texto no se distinguen. Peticion de Dani
+  // ("la flecha es muy pequena y no se entiende"), con una puerta como
+  // referencia. Dibujados aqui a proposito, no copiados: el original era de
+  // banco de imagenes con licencia y a 16 px se emborronaba igual.
+  // El marco usa currentColor (hereda el color del texto de la tarjeta);
+  // el color lo pone la flecha: verde entra, rojo sale. Solo salen en modo
+  // historico: en el dia de hoy la tarjeta no tiene salida que distinguir.
+  const ICO_ENTRADA = '<svg width="16" height="14" viewBox="0 0 160 140" aria-hidden="true" style="vertical-align:-2px">'
+    + '<path d="M104 10 H150 V130 H104" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<path d="M10 70 H96" fill="none" stroke="#1D9E75" stroke-width="22" stroke-linecap="round"/>'
+    + '<path d="M66 34 L112 70 L66 106 Z" fill="#1D9E75"/></svg>';
+  const ICO_SALIDA = '<svg width="16" height="14" viewBox="0 0 160 140" aria-hidden="true" style="vertical-align:-2px">'
+    + '<path d="M104 10 H150 V130 H104" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<path d="M104 70 H36" fill="none" stroke="#E24B4A" stroke-width="22" stroke-linecap="round"/>'
+    + '<path d="M56 34 L10 70 L56 106 Z" fill="#E24B4A"/></svg>';
+
   // 86ª — El cuerpo del bucle de tarjetas, tal cual estaba, movido aquí para
   // que pintarTarjetas pueda llamarlo una vez por empresa.
   function pintarGrupo(presentes, esHoyFlag) {
@@ -2658,8 +2676,8 @@
           ${esHoyFlag
             ? `<div class="tarjeta-hora-grande">${esc(t.horaTexto)}</div>
                <div class="tarjeta-hora-rel">${esc(textoRelativo(t.horaISO))}</div>`
-            : `<div class="tarjeta-hora-grande" title="Hora de entrada">📥 ${esc(t.horaTexto)}</div>
-               <div class="tarjeta-hora-rel">${t.horaSalidaTexto ? '📤 ' + esc(t.horaSalidaTexto) : '<span style="color:#999">Sin salida registrada</span>'}</div>`
+            : `<div class="tarjeta-hora-grande" title="Hora de entrada">${ICO_ENTRADA} ${esc(t.horaTexto)}</div>
+               <div class="tarjeta-hora-rel">${t.horaSalidaTexto ? ICO_SALIDA + ' ' + esc(t.horaSalidaTexto) : '<span style="color:#999">Sin salida registrada</span>'}</div>`
           }
         </div>`;
       lista.appendChild(card);
