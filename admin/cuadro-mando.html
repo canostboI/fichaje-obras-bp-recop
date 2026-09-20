@@ -994,7 +994,7 @@ function pintarSalud(m) {
   const filas = [];
 
   // ÚNICO vigilante de crons de la app (92ª: absorbe el de admin/index.html).
-  // Dos reglas: los 9 esperados EXISTEN, y cada uno corrió dentro de su umbral
+  // Dos reglas: los 11 esperados EXISTEN, y cada uno corrió dentro de su umbral
   // (umbralCron conoce el calendario). Cron nuevo o calendario cambiado = tocar aquí.
   const CRONS_ESPERADOS = ['autocierre_nocturno', 'aviso_ronda_1', 'aviso_ronda_2', 'aviso_ronda_3',
     'auditoria_permisos_diaria', 'recordatorio_solicitudes_acceso', 'caducar-fotos-identidad',
@@ -1002,7 +1002,16 @@ function pintarSalud(m) {
     // 108ª (18/9/2026): vigilante de obra, jobid=12, 0 19 * * 1-6 (21:00 Madrid
     // en verano). Escribe en `incidencias` la foto del día: habilitaciones
     // caducadas en obra, empresa activa en rojo, RP ausente, contrato que caduca.
-    'vigilante_obra_diario'];
+    'vigilante_obra_diario',
+    // 20/9/2026: reloj del naranja sin comprobar, jobid=13, 15 4 * * * (06:15
+    // Madrid en verano). Pasa a ROJO a los 2 días LABORABLES el naranja que no
+    // respalda nadie: alta manual de subcontrata sin comprobar, o persona
+    // desaparecida del Excel de e-Coordina. Sin este cron, ese naranja pasa la
+    // valla indefinidamente y nadie se entera, que era el agujero que cerró.
+    // 🔴 Es el cron de margen más estrecho: entre el final de la sync nocturna
+    // y el primer fichaje del día. Si deja de correr, NO se nota en pantalla
+    // por ningún otro sitio; esta línea es la única alarma.
+    'reloj_naranja_diario'];
   const c = m.salud.crons;
   if (!c) filas.push(['Automatismos', 'gris', 'No se ha podido comprobar la salud de los crons.']);
   else if (!c.length) filas.push(['Automatismos', 'rojo', 'No hay ningún cron programado en la base de datos.']);
