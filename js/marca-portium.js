@@ -241,6 +241,9 @@
     cargar('logo-obra.js');
     // Y, solo en el importador, el menú del admin si quien entra es admin.
     if (pagina === 'documentos-ecoordina.html') cargar('menu-rol-ecoordina.js');
+    // 20/9/2026 — y, solo en Presencia, el botón de estado de la obra
+    // (pausar, reanudar, pedir que se termine) al lado de «Ver QR».
+    if (pagina === 'index.html' || pagina === '') cargar('estado-obra.js');
   } catch (e) {
     console.warn('[marca-portium] carga de los módulos de menú:', e);
   }
