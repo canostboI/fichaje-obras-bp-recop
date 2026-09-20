@@ -67,6 +67,8 @@
 
   var cliente = null;
   var cache = {};   // obra_id -> marca, para no repetir la consulta
+  var soloAcento = false;   // subcontratas: color sí, esconder logos no
+  var acentoPuesto = null;  // marca ya aplicada, para no repetir
 
   // ── Aspecto único de la cabecera ───────────────────────────────────
   // Gana a lo escrito en cada pantalla por especificidad (dos clases y
@@ -148,6 +150,48 @@
     marcarDoble();   // ya solo queda uno: vuelve al tamaño grande
   }
 
+  // ── El color de la marca ───────────────────────────────────────────
+  // El rótulo de arriba usa var(--color-acento), pero en estas cuatro
+  // pantallas NADIE llamaba a aplicarBranding(), así que la variable no
+  // existía y el rótulo caía al naranja de respaldo. Desde la 117ª el
+  // acento es teal (Bosch Pascual) o terracota (Rècop): aquí se quedaba
+  // el color viejo. Ya sabemos la marca —la consulta de abajo la trae—,
+  // así que solo falta aplicarla.
+  //
+  // branding.js no está cargado en estas pantallas: se pide al vuelo. Si
+  // no llega, el rótulo se queda naranja, que es como está hoy: un fallo
+  // no puede dejar la cabecera sin color.
+  function aplicarAcento(marca) {
+    if (!marca || acentoPuesto === marca) return;
+    if (typeof window.aplicarBranding === 'function') {
+      try { window.aplicarBranding(marca); acentoPuesto = marca; }
+      catch (e) { console.warn('[logo-obra] no se ha podido aplicar la marca:', e); }
+      return;
+    }
+    if (document.getElementById('logo-obra-branding')) return;  // ya pedido
+    var sc = document.createElement('script');
+    sc.id = 'logo-obra-branding';
+    sc.src = (function () {
+      try {
+        var yo = document.querySelector('script[src*="logo-obra.js"]');
+        if (yo && yo.src) return yo.src.replace(/logo-obra\.js.*$/, 'branding.js');
+      } catch (_) {}
+      return '../js/branding.js';
+    })();
+    sc.onload = function () { aplicarAcento(marca); };
+    sc.onerror = function () {
+      console.warn('[logo-obra] no se ha podido cargar branding.js; el rotulo se queda como esta');
+    };
+    document.head.appendChild(sc);
+  }
+
+  // Lo que se hace en cuanto se sabe la marca: color siempre, y esconder
+  // el logo que no toca salvo en las pantallas globales.
+  function pintarMarca(marca) {
+    aplicarAcento(marca);
+    if (!soloAcento) mostrarSolo(marca);
+  }
+
   // Obra activa: primero el selector de la pantalla, luego lo guardado.
   function obraActiva() {
     var selects = document.querySelectorAll('select');
@@ -172,7 +216,7 @@
   function revisar() {
     var obraId = obraActiva();
     if (!obraId) return;                       // sin obra: los dos logos
-    if (cache[obraId]) { mostrarSolo(cache[obraId]); return; }
+    if (cache[obraId]) { pintarMarca(cache[obraId]); return; }
 
     var c = sb();
     if (!c) return;
@@ -180,7 +224,7 @@
       .then(function (r) {
         if (r.error || !r.data || !r.data.empresa_marca) return;  // se quedan los dos
         cache[obraId] = r.data.empresa_marca;
-        mostrarSolo(cache[obraId]);
+        pintarMarca(cache[obraId]);
       })
       .catch(function (e) {
         console.warn('[logo-obra] no se ha podido leer la marca de la obra:', e);
@@ -196,8 +240,11 @@
       ponerRotulo();
 
       var pagina = ruta.split('/').pop() || '';
-      if (EXCLUIDAS.indexOf(pagina) !== -1) return;
-      if (logosDelMenu().length < 2) return;   // pantalla con logo dinámico: ya lo pone branding.js
+      // Subcontratas conserva los DOS logos a propósito (lista global de
+      // empresas), pero el rótulo sí lleva el color de la marca, como en
+      // las demás: lo que no se toca es cuántos logos se ven.
+      soloAcento = (EXCLUIDAS.indexOf(pagina) !== -1);
+      if (!soloAcento && logosDelMenu().length < 2) return;   // logo dinámico: ya lo pone branding.js
 
       // Cuando el usuario cambia de obra, el logo cambia con ella.
       document.addEventListener('change', function (ev) {
@@ -217,5 +264,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
   else iniciar();
 
-  window.LogoObra = { revisar: revisar, mostrarSolo: mostrarSolo, iniciar: iniciar, ponerCss: ponerCss, ponerRotulo: ponerRotulo };
+  window.LogoObra = { revisar: revisar, mostrarSolo: mostrarSolo, iniciar: iniciar, ponerCss: ponerCss, ponerRotulo: ponerRotulo, aplicarAcento: aplicarAcento };
 })();
