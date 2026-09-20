@@ -244,6 +244,11 @@
     // 20/9/2026 — y, solo en Presencia, el botón de estado de la obra
     // (pausar, reanudar, pedir que se termine) al lado de «Ver QR».
     if (pagina === 'index.html' || pagina === '') cargar('estado-obra.js');
+    // 20/9/2026 — y, solo en Presencia, el reloj del naranja sin comprobar:
+    // quién se queda sin poder entrar y qué día, antes de que pase. El módulo
+    // lleva su propio candado además de este, por si algún día se le llama
+    // desde otro sitio.
+    if (pagina === 'index.html' || pagina === '') cargar('aviso-sin-comprobar.js');
   } catch (e) {
     console.warn('[marca-portium] carga de los módulos de menú:', e);
   }
