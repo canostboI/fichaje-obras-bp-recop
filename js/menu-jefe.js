@@ -45,9 +45,11 @@
    PROBADO con jsdom contra las nueve pantallas reales del repo: las
    nueve dan la misma secuencia, cada una con su opción marcada, y el
    resultado no cambia si el módulo se ejecuta dos veces. La prueba
-   cazó dos fallos que no se veían leyendo el código: «../admin/index.html»
-   se confundía con Presencia (los dos acaban en index.html) y la
-   cabecera «Gestión» se quedaba huérfana al final.
+   cazó tres fallos que no se veían leyendo el código: «../admin/index.html»
+   se confundía con Presencia (los dos acaban en index.html), la
+   cabecera «Gestión» se quedaba huérfana al final, y el bloque de marca
+   Portium —que desde el 20/9 es un enlace a index.html— se colaba en el
+   menú como si fuera la opción Presencia.
 
    LO CARGA js/marca-portium.js, que ya está en las nueve pantallas.
    Para deshacerlo: quitar esa línea. Ningún HTML depende de esto.
@@ -91,7 +93,11 @@
     if (sidebar.id === 'sidebar-admin') return;                       // manda el menú admin
     if (sidebar.getAttribute('data-menu-jefe') === 'hecho') return;   // ya ordenado
 
-    var enlaces = Array.prototype.slice.call(sidebar.querySelectorAll('a'));
+    // El bloque de marca (Portium) es un enlace a index.html desde el 20/9, y
+    // sin esto se confundiría con «Presencia»: se le cambiaría el texto y la
+    // Presencia de verdad acabaría al final. No es una opción del menú.
+    var enlaces = Array.prototype.slice.call(sidebar.querySelectorAll('a'))
+      .filter(function (a) { return !a.classList.contains('portium-lateral'); });
     if (!enlaces.length) return;
 
     // Emparejar cada entrada de la lista con el enlace que ya existe.
