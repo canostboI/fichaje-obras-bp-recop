@@ -151,3 +151,47 @@
 
   window.MarcaPortium = { iniciar: iniciar };
 })();
+
+/* ============================================================
+   AÑADIDO 20/9/2026 — encender js/menu-rol-ecoordina.js
+   ------------------------------------------------------------
+   POR QUÉ AQUÍ Y NO EN LA PANTALLA
+   El importador de e-Coordina (jefe/documentos-ecoordina.html) es
+   el ÚNICO de la app y lo usan jefe Y admin. Necesita cargar
+   js/menu-rol-ecoordina.js, que le pone al admin su propio menú en
+   vez del menú del jefe. Añadir esa línea allí obliga a reescribir
+   un archivo de 62 KB entero, que es donde se cuela el error
+   invisible (norma de la 111ª). Este archivo lo cargan YA las nueve
+   pantallas del jefe, mide 153 líneas y se sube sin riesgo.
+
+   CANDADO: solo actúa en esa pantalla concreta. En las otras ocho
+   del jefe y en las cuatro del encargado esto es una comparación de
+   texto y nada más. Si algún día el importador cambia de nombre o
+   de sitio, esto deja de disparar y la pantalla se queda con el
+   menú del jefe: se nota, pero no se rompe nada.
+
+   PARA DESHACERLO: borrar este bloque. Nada más depende de él.
+   ============================================================ */
+(function () {
+  'use strict';
+  try {
+    var pagina = (window.location.pathname.split('/').pop() || '');
+    if (pagina !== 'documentos-ecoordina.html') return;
+    if (document.querySelector('script[src*="menu-rol-ecoordina.js"]')) return;
+
+    // Ruta a partir de la de este mismo archivo, igual que el icono de
+    // arriba: así sirve desde cualquier carpeta.
+    var ruta = '../js/menu-rol-ecoordina.js';
+    var yo = document.currentScript && document.currentScript.src;
+    if (yo) ruta = yo.replace(/marca-portium\.js.*$/, 'menu-rol-ecoordina.js');
+
+    var s = document.createElement('script');
+    s.src = ruta;
+    s.onerror = function () {
+      console.warn('[marca-portium] no se ha podido cargar menu-rol-ecoordina.js; el menú se queda como está');
+    };
+    document.head.appendChild(s);
+  } catch (e) {
+    console.warn('[marca-portium] menu-rol-ecoordina:', e);
+  }
+})();
