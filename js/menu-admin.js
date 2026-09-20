@@ -123,7 +123,12 @@
   // ── Inyectar en el contenedor ─────────────────────────────────────────────
   function init() {
     const contenedor = document.getElementById('sidebar-admin');
-    if (!contenedor) return; // pantalla sin menú modular (cierre-mes, foto-mes)
+    // 20/9/2026: el comentario de aquí decía que cierre-mes.html y
+    // foto-mes.html no usan el menú modular. Lo usan desde hace tiempo:
+    // las dos cargan este archivo y las dos tienen <div id="sidebar-admin">.
+    // Hoy no queda ninguna pantalla de admin sin él; la salida se conserva
+    // por si alguna vez se carga el módulo en una pantalla sin contenedor.
+    if (!contenedor) return; // pantalla sin contenedor: nada que pintar
 
     const base = contenedor.getAttribute('data-base') || '';
     const activoForzado = contenedor.getAttribute('data-activo') || '';

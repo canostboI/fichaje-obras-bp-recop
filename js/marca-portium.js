@@ -203,10 +203,30 @@
     // Ruta a partir de la de este mismo archivo, igual que el icono de
     // arriba: así sirve desde cualquier carpeta.
     var yo = document.currentScript && document.currentScript.src;
+    // 20/9/2026 — el sello del día.
+    // Las nueve pantallas del jefe cargan este archivo con un ?v= escrito a
+    // mano que llevaba congelado desde el 16/9: para que llegase un cambio
+    // había que editar los nueve HTML, y por eso no se actualizaba nunca.
+    // Los módulos hijos se pedían SIN sello (el .*$ de abajo se comía el ?v=),
+    // así que dependían del caché normal del navegador: diez minutos en los
+    // que parece que el cambio no funciona y uno se pone a depurar de balde.
+    // Con un sello de fecha, un módulo nuevo llega como muy tarde al día
+    // siguiente sin tocar una sola pantalla. Se paga con una descarga al día
+    // de tres archivos de pocos KB.
+    function selloDelDia() {
+      try {
+        var d = new Date();
+        return d.getFullYear().toString()
+             + ('0' + (d.getMonth() + 1)).slice(-2)
+             + ('0' + d.getDate()).slice(-2);
+      } catch (_) { return '1'; }
+    }
+
     function cargar(nombre) {
       if (document.querySelector('script[src*="' + nombre + '"]')) return;
       var src = '../js/' + nombre;
       if (yo) src = yo.replace(/marca-portium\.js.*$/, nombre);
+      src += '?d=' + selloDelDia();
       var s = document.createElement('script');
       s.src = src;
       s.onerror = function () {

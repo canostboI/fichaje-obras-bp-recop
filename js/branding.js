@@ -2,7 +2,7 @@
 // Uso: BRANDING[obra.empresa_marca]
 // Devuelve: { nombre, color_principal, color_acento, color_acento_rgb, color_texto, logo, logo_blanco }
 //
-// 18/9/2026 — Colores corporativos reales, decididos por Dani mirando prueba-colores.html:
+// 20/9/2026 — Colores corporativos reales, decididos por Dani mirando prueba-colores.html:
 //   Bosch Pascual -> teal      #1A7A8A
 //   Rècop         -> terracota #A0392B
 // Los mismos que usa el Excel proforma (js/excel-proforma.js).
