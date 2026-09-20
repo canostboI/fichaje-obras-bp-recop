@@ -39,9 +39,15 @@
       El texto lo cerró Dani el 18/9/2026. Si la obra no tiene administrativo
       apuntado, la ventana lo dice en amarillo: no se inventa la copia.
 
+  114ª (20/9/2026). Editar contacto y completar CIF desde la ficha, con la
+  RPC nueva `actualizar_empresa` (empresas sigue siendo solo lectura desde el
+  navegador: se escribe solo por RPC). El NOMBRE no se edita a propósito: es
+  la llave con la que e-Coordina empareja por igualdad exacta, y cambiarlo a
+  mano haría que la siguiente sync creara un duplicado. El CIF solo se
+  COMPLETA; sustituir uno por otro sería decir que es otra empresa, y eso se
+  arregla fusionando fichas.
+
   Qué NO hace todavía (pasos siguientes, con prompt propio):
-    · editar el contacto de una empresa ya creada (hace falta una RPC:
-      empresas es solo lectura desde el navegador, a propósito);
     · los enlaces desde trabajadores.html y desde las solicitudes.
 
   Regla de la casa: un fallo de consulta NUNCA se pinta como cero. Si algo no
@@ -380,13 +386,35 @@ function pintarFicha(id) {
     '<span style="margin-left:auto"><button class="btn btn-outline btn-mini" id="f-cerrar">Cerrar ficha</button></span></div>';
 
   if (sinCif || e.pendiente_identificar) {
-    html += '<div class="alert alert-warning">⚠️ <strong>Falta identificar esta empresa.</strong> No tiene CIF, así que cuando llegue por e-Coordina el sistema creará otra ficha y no sabrá que es la misma. Completar el CIF llega en el siguiente paso.</div>';
+    html += '<div class="alert alert-warning">⚠️ <strong>Falta identificar esta empresa.</strong> No tiene CIF, así que cuando llegue por e-Coordina el sistema creará otra ficha y no sabrá que es la misma. Complétalo aquí abajo, en «Editar contacto».</div>';
   }
 
   html += '<div class="grid2">' +
     '<div><div class="k">Persona de contacto</div><div class="v">' + (esc(e.contacto_nombre) || '<span class="muted">—</span>') + '</div></div>' +
     '<div><div class="k">Email</div><div class="v">' + (esc(e.contacto_email) || '<span class="muted">—</span>') + '</div></div>' +
     '<div><div class="k">Teléfono</div><div class="v">' + (esc(e.contacto_telefono) || '<span class="muted">—</span>') + '</div></div>' +
+    '</div>';
+
+  // 114ª (20/9/2026) · Editar contacto y completar CIF. El formulario nace
+  // cerrado: la ficha se abre para MIRAR, no para tocar. La casilla de CIF
+  // solo sale si falta; si ya lo tiene, no hay nada que decidir aquí.
+  html += '<button class="btn btn-outline btn-mini" id="c-abrir">✏️ Editar contacto' + (sinCif ? ' y CIF' : '') + '</button>' +
+    '<div id="c-form" class="oculto" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--borde)">' +
+      '<div id="c-aviso"></div>' +
+      '<div class="grid2" style="margin:0 0 10px">' +
+        '<div><div class="k">Persona de contacto</div><input type="text" id="c-nombre" style="width:100%; margin-top:4px" autocomplete="off" value="' + esc(e.contacto_nombre || '') + '"></div>' +
+        '<div><div class="k">Email</div><input type="email" id="c-email" style="width:100%; margin-top:4px" autocomplete="off" value="' + esc(e.contacto_email || '') + '"></div>' +
+        '<div><div class="k">Teléfono</div><input type="tel" id="c-tel" style="width:100%; margin-top:4px" autocomplete="off" value="' + esc(e.contacto_telefono || '') + '"></div>' +
+        (sinCif
+          ? '<div><div class="k">CIF / NIF (falta)</div><input type="text" id="c-cif" style="width:100%; margin-top:4px" placeholder="B12345678" autocomplete="off"></div>'
+          : '') +
+      '</div>' +
+      (sinCif ? '<div class="muted" style="font-size:12px; margin-bottom:8px">Al guardar el CIF, esta empresa deja de estar «pendiente de identificar».</div>' : '') +
+      '<div style="display:flex; gap:8px; align-items:center">' +
+        '<button class="btn btn-success btn-mini" id="c-guardar">Guardar</button>' +
+        '<button class="btn btn-outline btn-mini" id="c-cancelar">Cancelar</button>' +
+        '<span id="c-msg" style="font-size:13px"></span>' +
+      '</div>' +
     '</div>';
 
   // Obra a obra
@@ -429,6 +457,12 @@ function pintarFicha(id) {
 
   h.innerHTML = html;
   $('f-cerrar').addEventListener('click', () => { seleccionada = null; h.classList.add('oculto'); pintarLista(); });
+  const ca = $('c-abrir');
+  if (ca) {
+    ca.addEventListener('click', () => { $('c-form').classList.toggle('oculto'); });
+    $('c-cancelar').addEventListener('click', () => { $('c-form').classList.add('oculto'); });
+    $('c-guardar').addEventListener('click', () => guardarContacto(e.id, sinCif));
+  }
   const bp = $('p-guardar');
   if (bp) bp.addEventListener('click', () => marcarPrevista(e.id));
   h.querySelectorAll('button[data-aviso]').forEach(b => b.addEventListener('click', () => abrirAviso(e.id, b.dataset.aviso)));
@@ -486,6 +520,45 @@ async function marcarPrevista(empresaId) {
   }
   await cargarTodo();
   const m = $('p-msg'); if (m) { m.style.color = '#a5d6a7'; m.textContent = 'Apuntado.'; }
+}
+
+// ── Editar contacto y completar CIF (114ª) ──────────────────────────────
+// Toda la decisión sobre el CIF vive en `actualizar_empresa`: aquí no se
+// normaliza ni se compara nada, solo se manda lo escrito y se enseña lo que
+// conteste. Dos normalizadores distintos acabarían discrepando.
+// Un error NUNCA se traga: si la RPC dice que no, se dice por qué.
+async function guardarContacto(empresaId, pedirCif) {
+  const btn = $('c-guardar'), msg = $('c-msg'), av = $('c-aviso');
+  const cif = pedirCif && $('c-cif') ? ($('c-cif').value || '').trim() : '';
+  av.innerHTML = '';
+  btn.disabled = true; msg.style.color = ''; msg.textContent = 'Guardando…';
+
+  const { data, error } = await sb.rpc('actualizar_empresa', {
+    p_empresa_id: empresaId,
+    p_contacto_nombre: $('c-nombre').value,
+    p_contacto_email: $('c-email').value,
+    p_contacto_telefono: $('c-tel').value,
+    p_cif: cif || null
+  });
+  btn.disabled = false;
+
+  if (error || !data || data.ok !== true) {
+    msg.textContent = '';
+    const txt = (data && data.error) || (error && error.message) || 'No se ha podido guardar.';
+    av.innerHTML = '<div class="alert alert-danger">' + esc(txt) + '</div>';
+    return;
+  }
+
+  // El CIF puede no haberse guardado aunque todo lo demás sí (llegó vacío).
+  const guardado = data.cif_guardado === true;
+  // Al recargar, la ficha se repinta entera y el formulario vuelve a nacer
+  // cerrado: el «Guardado» de dentro no se vería. Va arriba de la ficha.
+  await cargarTodo();
+  const f = $('ficha');
+  if (f && !f.classList.contains('oculto')) {
+    f.insertAdjacentHTML('afterbegin', '<div class="alert alert-success">✓ Datos guardados.' +
+      (guardado ? ' Esta empresa ya está identificada por su CIF.' : '') + '</div>');
+  }
 }
 
 // ── Nueva empresa ────────────────────────────────────────────────────────
