@@ -1,5 +1,6 @@
 /* ============================================================
-   js/logo-obra.js — en el menú, el logo de la obra activa
+   js/logo-obra.js — cabecera del menú del jefe: un solo logo, igual
+   en las nueve pantallas
    ------------------------------------------------------------
    20/9/2026 (Dani): «en algunas se ven dos logos».
 
@@ -15,13 +16,24 @@
    jefe trabaja en una obra cada vez: ver «Bosch Pascual + Rècop» estando
    dentro de Muralla de Valls no informa de nada.
 
+   Y no era solo cuántos logos: cada pantalla le da un TAMAÑO distinto
+   (max-height 50 px, 42 px y height 22 px, tres variantes) y el rótulo
+   del rol («Jefe de obra») está en cinco y falta en cuatro. Por eso en
+   unas se veía grande y bien y en otras pequeño y descolocado.
+
    QUÉ HACE
-   En esas pantallas con dos logos, esconde el que NO es de la obra
-   activa. No pinta nada nuevo ni toca branding.js: los dos logos ya
-   están en el HTML; aquí solo se decide cuál se ve.
+   Deja la cabecera del menú igual en las nueve:
+     1. un solo logo, el de la obra activa (esconde el otro donde hay dos;
+        donde hay uno dinámico no toca nada, ya lo pone branding.js);
+     2. el mismo tamaño en todas, por CSS propio que gana a los tres
+        tamaños escritos en las pantallas;
+     3. el rótulo «Jefe de obra» debajo, creándolo donde falta.
+   No reescribe ninguna pantalla: los logos ya están en el HTML.
 
    EXCEPCIÓN A PROPÓSITO: jefe/subcontratas.html. Es una lista GLOBAL de
    empresas, no de una obra; ahí los dos logos sí dicen algo y se quedan.
+   El aspecto (tamaño y rótulo) sí se unifica también allí: lo que no se
+   toca es cuántos logos se ven, no cómo se ven.
 
    CÓMO SABE LA OBRA
    1. El selector de obra de la propia pantalla, si lo hay (es el dato
@@ -47,13 +59,46 @@
   var SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
   var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY';
 
-  // Pantallas que NO se tocan: la lista de subcontratas es global.
+  // Pantallas donde NO se esconde ningún logo: la lista de subcontratas
+  // es global, no de una obra.
   var EXCLUIDAS = ['subcontratas.html'];
 
   var RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
   var cliente = null;
   var cache = {};   // obra_id -> marca, para no repetir la consulta
+
+  // ── Aspecto único de la cabecera ───────────────────────────────────
+  // Gana a lo escrito en cada pantalla por especificidad (dos clases y
+  // un elemento contra una clase y un elemento), sin !important.
+  // El logo se enseña SOLO cuando ya tiene src: en cinco pantallas la
+  // imagen nace vacía y la rellena branding.js; sin este cuidado se vería
+  // el hueco de una imagen rota mientras tanto.
+  var CSS_CABECERA =
+      '.sidebar .sidebar-brand{padding:12px 16px 14px;display:flex;align-items:center;justify-content:center;gap:14px}'
+    + '.sidebar .sidebar-brand img:not([src]){display:none}'
+    + '.sidebar .sidebar-brand img[src]{display:block;width:auto;height:auto;max-width:150px;max-height:40px;object-fit:contain;opacity:.95}'
+    + '.sidebar .sidebar-logo{padding:0 20px 14px;font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--color-acento,#ff9800)}';
+
+  function ponerCss() {
+    if (document.getElementById('logo-obra-css')) return;
+    var st = document.createElement('style');
+    st.id = 'logo-obra-css';
+    st.textContent = CSS_CABECERA;
+    document.head.appendChild(st);
+  }
+
+  // El rótulo del rol falta en cuatro pantallas: se crea igual que en las
+  // otras cinco, justo debajo del logo.
+  function ponerRotulo() {
+    var brand = document.querySelector('.sidebar .sidebar-brand');
+    if (!brand || !brand.parentNode) return;
+    if (brand.parentNode.querySelector('.sidebar-logo')) return;
+    var d = document.createElement('div');
+    d.className = 'sidebar-logo';
+    d.textContent = 'Jefe de Obra';
+    brand.parentNode.insertBefore(d, brand.nextSibling);
+  }
 
   // ¿Qué logo es cada imagen? Por el nombre del archivo, que es estable:
   // bosch_pascual_logo_white.svg / recop_logo_white.svg
@@ -124,9 +169,13 @@
     try {
       var ruta = window.location.pathname;
       if (ruta.indexOf('/jefe/') === -1) return;
+      // El aspecto se unifica en las NUEVE, subcontratas incluida.
+      ponerCss();
+      ponerRotulo();
+
       var pagina = ruta.split('/').pop() || '';
       if (EXCLUIDAS.indexOf(pagina) !== -1) return;
-      if (logosDelMenu().length < 2) return;   // pantalla con logo dinámico: no es cosa nuestra
+      if (logosDelMenu().length < 2) return;   // pantalla con logo dinámico: ya lo pone branding.js
 
       // Cuando el usuario cambia de obra, el logo cambia con ella.
       document.addEventListener('change', function (ev) {
@@ -146,5 +195,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
   else iniciar();
 
-  window.LogoObra = { revisar: revisar, mostrarSolo: mostrarSolo, iniciar: iniciar };
+  window.LogoObra = { revisar: revisar, mostrarSolo: mostrarSolo, iniciar: iniciar, ponerCss: ponerCss, ponerRotulo: ponerRotulo };
 })();
