@@ -170,11 +170,13 @@
    AÑADIDO 20/9/2026 — encender los módulos de menú del jefe
    ------------------------------------------------------------
    POR QUÉ AQUÍ Y NO EN LAS PANTALLAS
-   Dos módulos de menú necesitan estar en las pantallas del jefe:
+   Estos módulos necesitan estar en las pantallas del jefe:
      · js/menu-jefe.js — deja el menú lateral con el mismo orden, los
        mismos iconos y las mismas secciones en las nueve. Estaban
        descuadradas entre sí (tres órdenes distintos, iconos cruzados
        en dos pantallas y una sin secciones).
+     · js/logo-obra.js — en las pantallas que llevan los dos logos
+       escritos a mano, deja a la vista solo el de la obra activa.
      · js/menu-rol-ecoordina.js — solo en el importador de e-Coordina,
        que es el único de la app y lo usan jefe Y admin: si quien entra
        es admin le pone su propio menú en vez del del jefe.
@@ -215,6 +217,8 @@
 
     // El mismo menú (orden, iconos y secciones) en las nueve pantallas.
     cargar('menu-jefe.js');
+    // Y en el menú, el logo de la obra activa en vez de los dos.
+    cargar('logo-obra.js');
     // Y, solo en el importador, el menú del admin si quien entra es admin.
     if (pagina === 'documentos-ecoordina.html') cargar('menu-rol-ecoordina.js');
   } catch (e) {
