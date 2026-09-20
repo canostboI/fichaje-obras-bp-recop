@@ -78,14 +78,35 @@
       '.sidebar .sidebar-brand{padding:12px 16px 14px;display:flex;align-items:center;justify-content:center;gap:14px}'
     + '.sidebar .sidebar-brand img:not([src]){display:none}'
     + '.sidebar .sidebar-brand img[src]{display:block;width:auto;height:auto;max-width:150px;max-height:40px;object-fit:contain;opacity:.95}'
+    // Cuando se quedan los DOS logos (subcontratas, que es global) no caben a
+    // ese tamaño: el menú mide 200 px y se salían por los lados. Con dos, cada
+    // uno se reparte la mitad y baja de alto. La clase la pone marcarDoble()
+    // según lo que haya de verdad en pantalla, no según el nombre del archivo.
+    + '.sidebar .sidebar-brand.brand-doble{gap:10px;padding:12px 10px 14px}'
+    + '.sidebar .sidebar-brand.brand-doble img[src]{max-width:calc(50% - 5px);max-height:22px}'
     + '.sidebar .sidebar-logo{padding:0 20px 14px;font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--color-acento,#ff9800)}';
 
   function ponerCss() {
-    if (document.getElementById('logo-obra-css')) return;
-    var st = document.createElement('style');
-    st.id = 'logo-obra-css';
-    st.textContent = CSS_CABECERA;
-    document.head.appendChild(st);
+    if (!document.getElementById('logo-obra-css')) {
+      var st = document.createElement('style');
+      st.id = 'logo-obra-css';
+      st.textContent = CSS_CABECERA;
+      document.head.appendChild(st);
+    }
+    marcarDoble();
+  }
+
+  // ¿Se van a ver dos logos? Entonces hay que estrecharlos. Se mira lo que
+  // queda VISIBLE, así que vale tanto para subcontratas (los dos a propósito)
+  // como para el instante previo a esconder uno en las demás.
+  function marcarDoble() {
+    var brand = document.querySelector('.sidebar .sidebar-brand');
+    if (!brand) return;
+    var visibles = logosDelMenu().filter(function (img) {
+      return img.style.display !== 'none';
+    }).length;
+    if (visibles > 1) brand.classList.add('brand-doble');
+    else brand.classList.remove('brand-doble');
   }
 
   // El rótulo del rol falta en cuatro pantallas: se crea igual que en las
@@ -124,6 +145,7 @@
     logos.forEach(function (img) {
       img.style.display = (marcaDeImagen(img) === marca) ? '' : 'none';
     });
+    marcarDoble();   // ya solo queda uno: vuelve al tamaño grande
   }
 
   // Obra activa: primero el selector de la pantalla, luego lo guardado.
