@@ -169,3 +169,49 @@
     init();
   }
 })();
+
+/* ============================================================
+   AÑADIDO 20/9/2026 — el aviso de «un jefe pide terminar una obra»
+   ------------------------------------------------------------
+   Va con el botón de estado de obra del panel del jefe: el jefe puede
+   pausar y reanudar su obra, pero TERMINARLA la cierra el admin, y la
+   petición tiene que aparecerle donde mira todos los días.
+
+   Se enciende desde aquí, y no con un <script> en la pantalla, porque
+   admin/cuadro-mando.html tiene 1.270 líneas y reescribir un archivo
+   grande por una línea es donde se cuela el error invisible (111ª).
+   Este archivo ya lo cargan las pantallas del admin.
+
+   El sello del día es el mismo truco que en js/marca-portium.js: un
+   módulo nuevo llega como muy tarde al día siguiente sin tocar ninguna
+   pantalla.
+
+   CANDADO: el propio módulo solo se pinta en el cuadro de mando.
+   PARA DESHACERLO: borrar este bloque.
+   ============================================================ */
+(function () {
+  'use strict';
+  try {
+    var ruta = window.location.pathname;
+    if (ruta.indexOf('/admin/') === -1) return;
+    if ((ruta.split('/').pop() || '') !== 'cuadro-mando.html') return;
+    if (document.querySelector('script[src*="aviso-fin-obra.js"]')) return;
+
+    var yo = document.currentScript && document.currentScript.src;
+    var src = '../js/aviso-fin-obra.js';
+    if (yo) src = yo.replace(/menu-admin\.js.*$/, 'aviso-fin-obra.js');
+    var d = new Date();
+    src += '?d=' + d.getFullYear()
+         + ('0' + (d.getMonth() + 1)).slice(-2)
+         + ('0' + d.getDate()).slice(-2);
+
+    var s = document.createElement('script');
+    s.src = src;
+    s.onerror = function () {
+      console.warn('[menu-admin] no se ha podido cargar aviso-fin-obra.js; el cuadro de mando se queda como estaba');
+    };
+    document.head.appendChild(s);
+  } catch (e) {
+    console.warn('[menu-admin] carga del aviso de fin de obra:', e);
+  }
+})();
