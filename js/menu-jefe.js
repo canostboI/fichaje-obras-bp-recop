@@ -14,7 +14,9 @@
        Trabajadores con el de Presencia: corridos un puesto, copia-pega
        antiguo. Y e-Coordina lleva otro icono distinto en esas dos;
      · las SECCIONES tampoco cuadran: ocho tienen «Principal / Gestión»
-       y documentos-ecoordina.html no tiene ninguna.
+       y documentos-ecoordina.html no tiene ninguna;
+     · la CLASE de la opción marcada tampoco: ocho usan «activo» en su
+       CSS y documentos-ecoordina.html usa «active».
    El ojo no lee «las mismas opciones en otro orden», lee «otro menú».
    De ahí la sensación de estar donde no tocaba.
 
@@ -30,8 +32,6 @@
        resumen-mes.html) NO se tocan: se quedan al final, tal cual.
      · El bloque Portium, el logo de la empresa, «Cerrar sesión» y
        cualquier cosa que no sea enlace o cabecera se quedan donde están.
-     · La pantalla actual se marca con class="active", que es la clase
-       del CSS del jefe (el admin usa "activo": son distintas).
 
    CUÁNDO NO HACE NADA
      · Fuera de /jefe/.
@@ -161,13 +161,19 @@
       padre.insertBefore(n, siguiente);
     });
 
-    // Marcar la pantalla actual.
+    // Marcar la pantalla actual. Se ponen y se quitan LAS DOS clases porque
+    // las pantallas no se pusieron de acuerdo: ocho usan «activo» en su CSS y
+    // documentos-ecoordina.html usa «active». Marcando solo una, en ocho
+    // pantallas funcionaba por casualidad (la clase ya venía escrita en el
+    // HTML) y habría fallado en cuanto el módulo moviera la marca.
     var actual = soloArchivo(window.location.pathname) || 'index.html';
     secuencia.forEach(function (n) {
       if (n.tagName !== 'A') return;
       var href = n.getAttribute('href');
-      if (esDeAqui(href) && soloArchivo(href) === actual) n.classList.add('active');
-      else n.classList.remove('active');
+      var esActual = esDeAqui(href) && soloArchivo(href) === actual;
+      ['active', 'activo'].forEach(function (c) {
+        if (esActual) n.classList.add(c); else n.classList.remove(c);
+      });
     });
 
     sidebar.setAttribute('data-menu-jefe', 'hecho');
