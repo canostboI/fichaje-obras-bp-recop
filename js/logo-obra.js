@@ -86,7 +86,7 @@
     // según lo que haya de verdad en pantalla, no según el nombre del archivo.
     + '.sidebar .sidebar-brand.brand-doble{gap:10px;padding:12px 10px 14px}'
     + '.sidebar .sidebar-brand.brand-doble img[src]{max-width:calc(50% - 5px);max-height:22px}'
-    + '.sidebar .sidebar-logo{padding:0 12px 14px;text-align:center;font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--color-acento,#ff9800)}'
+    + '.sidebar .sidebar-logo{padding:10px 12px 14px;text-align:center;font-size:13px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--color-acento,#ff9800)}'
     // 20/9/2026 (Dani, en pantalla): «no me gusta que no esté alineado».
     // En la cabecera caían CUATRO márgenes izquierdos distintos: Portium a
     // 16 px, el logo centrado, el rótulo a 20 px y «PRINCIPAL» a 14 px.
