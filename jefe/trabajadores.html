@@ -1315,6 +1315,18 @@ function renderTabla(lista) {
         return tieneLibro
           ? `<span class="badge-empresa libro" onclick="event.stopPropagation();abrirModalLibro('${esc(empresaObj.id)}','${esc(empresa)}')">📘 Libro</span>`
           : `<span class="badge-empresa sin-libro" onclick="event.stopPropagation();abrirModalLibro('${esc(empresaObj.id)}','${esc(empresa)}')">⚠ Sin libro</span>`;
+      })(),
+      (() => {
+        // 114ª (20/9/2026) · Atajo a la ficha de la subcontrata. Pedido por
+        // Dani. El nombre de la empresa era texto muerto: para ver su CIF,
+        // su contacto o en qué obras está prevista había que ir al menú y
+        // buscarla a mano. A diferencia de los demás badges, este NO depende
+        // de tener una obra filtrada: la ficha es global.
+        // Las empresas propias (BP / Rècop) no salen: Subcontratas las
+        // esconde por decisión de Dani y el enlace no llevaría a nada.
+        const empresaObj = todasEmpresas.find(e => e.nombre === empresa);
+        if (!empresaObj || empresaObj.es_empresa_propia) return '';
+        return `<span class="badge-empresa total" title="Ver la ficha de esta subcontrata" onclick="event.stopPropagation();window.location.href='subcontratas.html?empresa=${encodeURIComponent(empresaObj.id)}'">🏢 Ficha</span>`;
       })()
     ].join('');
 

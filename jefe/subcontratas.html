@@ -47,8 +47,16 @@
   COMPLETA; sustituir uno por otro sería decir que es otra empresa, y eso se
   arregla fusionando fichas.
 
-  Qué NO hace todavía (pasos siguientes, con prompt propio):
-    · los enlaces desde trabajadores.html y desde las solicitudes.
+  114ª (20/9/2026, mismo día). Dos añadidos:
+    · Se puede abrir directamente una ficha con ?empresa=<uuid>. Lo usa el
+      badge «🏢 Ficha» de jefe/trabajadores.html.
+    · Botón «✅ Ya enviado» en cada obra prevista: escribe `aviso_enviado_en`
+      con la RPC `marcar_aviso_enviado`. Lo declara la persona, no la app: el
+      correo sale del Outlook del jefe y aquí no hay forma de saberlo. Por eso
+      se puede desmarcar.
+
+  Qué NO hace todavía:
+    · el enlace desde las solicitudes de acceso.
 
   Regla de la casa: un fallo de consulta NUNCA se pinta como cero. Si algo no
   se ha podido leer, la ficha lo dice en amarillo.
@@ -434,7 +442,14 @@ function pintarFicha(id) {
         : '<span class="badge badge-naranja">sin ' + txt + '</span>';
       const celdaPrev = previstas === null ? '<span class="badge badge-gris">sin datos</span>'
         : p ? '<span class="badge badge-azul">desde ' + fechaES(p.prevista_desde) + '</span>' + (p.nota ? ' <span class="muted" style="font-size:12px">' + esc(p.nota) + '</span>' : '') +
-              ' <button class="btn btn-outline btn-mini" data-aviso="' + o.id + '" title="Correo de requisitos para copiar">📋 Texto de aviso</button>'
+              ' <button class="btn btn-outline btn-mini" data-aviso="' + o.id + '" title="Correo de requisitos para copiar">📋 Texto de aviso</button>' +
+              // 114ª · Lo declara la persona: la app no puede saber si el
+              // correo salió. Marcado = fecha; sin marcar, NO dice «no se
+              // envió», dice que nadie lo ha apuntado.
+              (p.aviso_enviado_en
+                ? ' <span class="badge badge-verde" title="Apuntado por alguien de la obra">✅ Aviso enviado ' + fechaES(p.aviso_enviado_en) + '</span>' +
+                  ' <button class="btn btn-outline btn-mini" data-enviado="' + o.id + '" data-quitar="1" title="Quitar la marca">↩</button>'
+                : ' <button class="btn btn-outline btn-mini" data-enviado="' + o.id + '" title="Apuntar que ya has mandado el correo">✅ Ya enviado</button>')
         : '<span class="muted">—</span>';
       const celdaGente = g === null ? '<span class="badge badge-gris">sin datos</span>'
         : g.length ? g.length + (g.filter(x => x.estado === 'rojo').length ? ' <span class="badge badge-rojo">' + g.filter(x => x.estado === 'rojo').length + ' en rojo</span>' : '')
@@ -466,6 +481,8 @@ function pintarFicha(id) {
   const bp = $('p-guardar');
   if (bp) bp.addEventListener('click', () => marcarPrevista(e.id));
   h.querySelectorAll('button[data-aviso]').forEach(b => b.addEventListener('click', () => abrirAviso(e.id, b.dataset.aviso)));
+  h.querySelectorAll('button[data-enviado]').forEach(b => b.addEventListener('click',
+    () => marcarAvisoEnviado(e.id, b.dataset.enviado, b.dataset.quitar !== '1', b)));
 }
 
 // ── Texto de aviso al proveedor (redactado, envío manual) ────────────────
@@ -520,6 +537,26 @@ async function marcarPrevista(empresaId) {
   }
   await cargarTodo();
   const m = $('p-msg'); if (m) { m.style.color = '#a5d6a7'; m.textContent = 'Apuntado.'; }
+}
+
+// ── «Ya enviado» (114ª) ─────────────────────────────────────────────────
+// El correo se manda a mano desde la cuenta del jefe, así que esto es una
+// DECLARACIÓN, no una comprobación: por eso se puede quitar. Un fallo no se
+// traga en silencio; si la RPC dice que no, se dice por qué.
+async function marcarAvisoEnviado(empresaId, obraId, enviado, btn) {
+  const txt = btn.textContent;
+  btn.disabled = true; btn.textContent = '…';
+  const { data, error } = await sb.rpc('marcar_aviso_enviado', {
+    p_empresa_id: empresaId, p_obra_id: obraId, p_enviado: enviado
+  });
+  if (error || !data || data.ok !== true) {
+    btn.disabled = false; btn.textContent = txt;
+    const f = $('ficha');
+    if (f) f.insertAdjacentHTML('afterbegin', '<div class="alert alert-danger">' +
+      esc((data && data.error) || (error && error.message) || 'No se ha podido apuntar.') + '</div>');
+    return;
+  }
+  await cargarTodo();
 }
 
 // ── Editar contacto y completar CIF (114ª) ──────────────────────────────
@@ -634,6 +671,23 @@ async function guardarNueva() {
 
   $('lista').innerHTML = '<div class="muted" style="font-size:13px">Cargando…</div>';
   await cargarTodo();
+
+  // 114ª · ?empresa=<uuid> abre esa ficha directamente (badge «🏢 Ficha» de
+  // trabajadores.html). Si el id no aparece en la lista NO se calla: puede
+  // ser una empresa propia (escondida por defecto) o un problema de permisos
+  // de lectura, y son cosas distintas de «no existe».
+  const idURL = new URLSearchParams(window.location.search).get('empresa');
+  if (idURL) {
+    const e = (empresas || []).find(x => x.id === idURL);
+    if (e) {
+      if (e.es_empresa_propia) $('ver-propias').checked = true;
+      pintarLista();
+      abrirFicha(e.id);
+    } else {
+      $('avisos').insertAdjacentHTML('afterbegin', '<div class="alert alert-warning">' +
+        'No se ha podido abrir esa empresa: no aparece en la lista. Búscala por nombre o CIF.</div>');
+    }
+  }
 })();
 </script>
 </body>
