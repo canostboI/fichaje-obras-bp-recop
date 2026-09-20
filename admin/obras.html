@@ -164,6 +164,16 @@
     </div>
     <div class="campo"><label>Nombre de la obra</label><input type="text" id="f-nombre" placeholder="Ej: Edificio Torres 3"></div>
     <div class="campo"><label>Dirección</label><input type="text" id="f-direccion" placeholder="Calle, ciudad"></div>
+    <!-- 114ª (20/9/2026) · Administrativo/a de la obra. Pedido por Dani.
+         Las columnas existen desde la 113ª pero no había dónde escribirlas:
+         hasta hoy se rellenaban por SQL. Van EN COPIA en el texto de aviso a
+         subcontratas (jefe/subcontratas.html); si faltan, esa ventana lo dice
+         en amarillo y deja un hueco en el texto, no se inventa nada. -->
+    <div class="campo-fila">
+      <div class="campo"><label>Administrativo/a (nombre)</label><input type="text" id="f-admin-nombre" placeholder="Ej: Txus" autocomplete="off"></div>
+      <div class="campo"><label>Administrativo/a (email)</label><input type="email" id="f-admin-email" placeholder="Ej: t.mendiry@recop.net" autocomplete="off"></div>
+    </div>
+    <div style="font-size:12px;color:#8b909e;margin:-8px 0 14px;">Va en copia en el correo de requisitos que el jefe manda a las subcontratas previstas.</div>
     <div class="campo-fila">
       <div class="campo"><label>Latitud</label><input type="number" id="f-latitud" placeholder="41.1234" step="0.0001"></div>
       <div class="campo"><label>Longitud</label><input type="number" id="f-longitud" placeholder="2.1234" step="0.0001"></div>
@@ -374,7 +384,7 @@ function abrirBienvenidaDir(usuarioAppId) {
 }
 
 async function cargarObras() {
-  const { data, error } = await sb.from('obras').select('id, numero_obra, nombre, direccion, latitud, longitud, empresa_marca, radio_gps, hora_entrada_default, hora_salida_default, activa, estado, foto_url, ecoordina_centro, ultima_sync_ecoordina, minutos_descanso').order('nombre');
+  const { data, error } = await sb.from('obras').select('id, numero_obra, nombre, direccion, latitud, longitud, empresa_marca, radio_gps, hora_entrada_default, hora_salida_default, activa, estado, foto_url, ecoordina_centro, ultima_sync_ecoordina, minutos_descanso, administrativo_nombre, administrativo_email').order('nombre');
   if (error) { document.getElementById('tabla-obras').innerHTML = '<div class="vacio">Error al cargar obras</div>'; return; }
   todasObras = data || [];
   if (todasObras.length === 0) { document.getElementById('tabla-obras').innerHTML = '<div class="vacio">No hay obras todavía</div>'; return; }
@@ -391,7 +401,7 @@ async function cargarUsuarios() {
 document.getElementById('btn-nueva').onclick = () => {
   obraEditandoId = null;
   document.getElementById('modal-titulo').textContent = 'Nueva obra';
-  ['f-numero','f-ecoordina-centro','f-nombre','f-direccion','f-latitud','f-longitud'].forEach(id => document.getElementById(id).value = '');
+  ['f-numero','f-ecoordina-centro','f-nombre','f-direccion','f-latitud','f-longitud','f-admin-nombre','f-admin-email'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('f-radio').value = '100';
   document.getElementById('f-descanso').value = '90';
   document.getElementById('f-entrada').value = '08:00';
@@ -409,6 +419,8 @@ function abrirEditarPorId(id) {
   document.getElementById('modal-titulo').textContent = 'Editar obra';
   document.getElementById('f-numero').value = o.numero_obra || '';
   document.getElementById('f-ecoordina-centro').value = o.ecoordina_centro || '';
+  document.getElementById('f-admin-nombre').value = o.administrativo_nombre || '';
+  document.getElementById('f-admin-email').value = o.administrativo_email || '';
   document.getElementById('f-nombre').value = o.nombre || '';
   document.getElementById('f-direccion').value = o.direccion || '';
   document.getElementById('f-latitud').value = o.latitud || '';
@@ -472,6 +484,8 @@ document.getElementById('btn-guardar').onclick = async () => {
   if (selEstado.selectedIndex === -1) selEstado.value = 'activa';
   const estado = selEstado.value;
   const ecoordinaCentroRaw = document.getElementById('f-ecoordina-centro').value.trim();
+  const adminNombreRaw = document.getElementById('f-admin-nombre').value.trim();
+  const adminEmailRaw = document.getElementById('f-admin-email').value.trim();
   if (!nombre)                           { mostrarError('El nombre es obligatorio.'); return; }
   if (isNaN(latitud) || isNaN(longitud)) { mostrarError('Las coordenadas son obligatorias.'); return; }
   if (latitud < -90 || latitud > 90 || longitud < -180 || longitud > 180) { mostrarError('Las coordenadas no son válidas.'); return; }
@@ -480,8 +494,9 @@ document.getElementById('btn-guardar').onclick = async () => {
   if (radio_gps > 1000) { if (!confirm('⚠️ Radio GPS muy grande: ' + radio_gps + ' m.\n\nCon este radio se puede fichar desde muy lejos de la obra, incluso desde casa.\n\n¿Guardar de todos modos?')) return; }
   if (isNaN(minutos_descanso) || minutos_descanso < 0 || minutos_descanso > 480) { mostrarError('El descanso debe ser un número de minutos entre 0 y 480.'); return; }
   if (!entradaRaw || !salidaRaw) { mostrarError('El horario es obligatorio.'); return; }
+  if (adminEmailRaw && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(adminEmailRaw)) { mostrarError('El email del administrativo/a no parece válido: ' + adminEmailRaw); return; }
   if (latitud < 27 || latitud > 44 || longitud < -19 || longitud > 5) { if (!confirm('⚠️ Estas coordenadas caen FUERA de España:\n\nLatitud: ' + latitud + '\nLongitud: ' + longitud + '\n\n¿Puede que hayas cambiado un signo, o intercambiado latitud y longitud?\n\n¿Guardar de todos modos?')) return; }
-  const payload = { numero_obra: numeroRaw === '' ? null : numeroRaw, nombre, direccion, latitud: Number(latitud.toFixed(4)), longitud: Number(longitud.toFixed(4)), radio_gps, minutos_descanso, hora_entrada_default: entradaRaw + ':00', hora_salida_default: salidaRaw + ':00', empresa_marca, estado, ecoordina_centro: ecoordinaCentroRaw === '' ? null : ecoordinaCentroRaw };
+  const payload = { numero_obra: numeroRaw === '' ? null : numeroRaw, nombre, direccion, latitud: Number(latitud.toFixed(4)), longitud: Number(longitud.toFixed(4)), radio_gps, minutos_descanso, hora_entrada_default: entradaRaw + ':00', hora_salida_default: salidaRaw + ':00', empresa_marca, estado, ecoordina_centro: ecoordinaCentroRaw === '' ? null : ecoordinaCentroRaw, administrativo_nombre: adminNombreRaw === '' ? null : adminNombreRaw, administrativo_email: adminEmailRaw === '' ? null : adminEmailRaw };
   let error;
   if (obraEditandoId) { ({ error } = await sb.from('obras').update(payload).eq('id', obraEditandoId)); }
   else { ({ error } = await sb.from('obras').insert(payload)); }
