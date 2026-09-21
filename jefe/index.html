@@ -2258,8 +2258,42 @@ async function cargarBloqueos() {
   // «Documentacion» a secas y parecia que no habias hecho nada. Ahora se
   // consulta el estado de AHORA y se anade una segunda linea, sin tocar la
   // primera. Un fallo de lectura NO se pinta como «sigue en rojo»: se calla.
+  // ── 21/9/2026 · «ESTE YA TIENE FICHA» ─────────────────────────────────
+  // Un «presente sin registrar» nace sin ficha, y esa anotacion NUNCA se
+  // enlaza a una despues. Resultado: aunque el encargado o tu le hayais dado
+  // de alta hace un rato, la linea seguia ofreciendo «Crear ficha» y no
+  // sabia a que empresa avisar. Se busca por DNI, que es lo unico que esa
+  // anotacion tiene de fiable, y solo entre la gente de ESTA obra.
+  const fichaPorDni = {};
+  const dnisSinFicha = porRevisar
+    .filter(g => !g.trabajador_id && g.dni)
+    .map(g => String(g.dni).trim().toUpperCase());
+  if (dnisSinFicha.length) {
+    const rDni = await sb.from('validaciones_obra')
+      .select('trabajador_id, trabajador:trabajador_id(id, dni, activo, empresa:empresa_id(nombre))')
+      .eq('obra_id', obraActual);
+    if (!rDni.error) {
+      (rDni.data || []).forEach(v => {
+        const t = v.trabajador;
+        if (!t || t.activo === false || !t.dni) return;
+        const k = String(t.dni).trim().toUpperCase();
+        if (dnisSinFicha.indexOf(k) === -1) return;
+        fichaPorDni[k] = { id: t.id, empresa: (t.empresa && t.empresa.nombre) || '' };
+      });
+    }
+  }
+  // A partir de aqui, cada linea sabe si tiene ficha: la suya o la hallada.
+  porRevisar.forEach(g => {
+    if (g.trabajador_id || !g.dni) return;
+    const f = fichaPorDni[String(g.dni).trim().toUpperCase()];
+    if (!f) return;
+    g.ficha_hallada_id = f.id;
+    if (!g.empresa) g.empresa = f.empresa;
+    else if (f.empresa) g.empresa = f.empresa;   // la ficha manda sobre lo tecleado en la valla
+  });
+
   const ahoraPorTrab = {};
-  const idsRevisar = porRevisar.map(g => g.trabajador_id).filter(Boolean);
+  const idsRevisar = porRevisar.map(g => g.trabajador_id || g.ficha_hallada_id).filter(Boolean);
   if (idsRevisar.length) {
     const hoyStr = Fechas.hoyMadrid();
     const [rVal, rExc] = await Promise.all([
@@ -2283,7 +2317,8 @@ async function cargarBloqueos() {
   }
 
   function notaDeAhora(g) {
-    const a = g.trabajador_id ? ahoraPorTrab[g.trabajador_id] : null;
+    const idFicha = g.trabajador_id || g.ficha_hallada_id;
+    const a = idFicha ? ahoraPorTrab[idFicha] : null;
     if (!a) return '';   // sin dato: no se afirma nada
     if (a.excepcion) return '✅ Ya le has autorizado hoy — dile que vuelva a escanear el QR.';
     if (a.estado === 'verde') return '✅ Su documentación ya está en verde — dile que vuelva a escanear el QR.';
@@ -2299,8 +2334,9 @@ async function cargarBloqueos() {
     const boton = g.incidencia_id
       ? `<button class="btn-visto-rojo" onclick="marcarVistoRojo('${g.incidencia_id}', this)">✓ Visto</button>`
       : '';
-    const enlaceFicha = (g.trabajador_id && g.tipos.indexOf('bloqueo_rojo') !== -1)
-      ? `<a class="btn-visto-rojo" href="trabajadores.html?trabajador=${encodeURIComponent(g.trabajador_id)}&obra=${encodeURIComponent(obraActual || '')}&forzar=1" style="text-decoration:none">📋 Ver ficha</a>`
+    const idFicha = g.trabajador_id || g.ficha_hallada_id;
+    const enlaceFicha = (idFicha && (g.tipos.indexOf('bloqueo_rojo') !== -1 || g.ficha_hallada_id))
+      ? `<a class="btn-visto-rojo" href="trabajadores.html?trabajador=${encodeURIComponent(idFicha)}&obra=${encodeURIComponent(obraActual || '')}&forzar=1" style="text-decoration:none">📋 Ver ficha</a>`
       : '';
     // 21/9/2026 · Un PRESENTE SIN REGISTRAR es alguien que esta en la obra y
     // la app no conoce: el caso mas urgente de los dos y, hasta hoy, el que
@@ -2310,7 +2346,7 @@ async function cargarBloqueos() {
     // Solo se ofrece si NO es ademas un bloqueo_rojo (ese ya tiene ficha).
     // `clase` la fija js/accesos-resueltos.js: 'sin_registrar' o 'trabajador'.
     // (En `tipos` el valor es 'presente_sin_registrar', el de la incidencia.)
-    const enlaceAlta = (g.clase === 'sin_registrar' && !g.trabajador_id && g.dni)
+    const enlaceAlta = (g.clase === 'sin_registrar' && !idFicha && g.dni)
       ? `<a class="btn-visto-rojo" href="trabajadores.html?alta=1&obra=${encodeURIComponent(obraActual || '')}&dni=${encodeURIComponent(g.dni)}&nombre=${encodeURIComponent(g.nombre || '')}&empresa=${encodeURIComponent(g.empresa || '')}" style="text-decoration:none">👤 Crear ficha</a>`
       : '';
     // 21/9/2026 · Pedido por Dani. Aviso a la subcontrata SIN volver a escribir
@@ -2320,7 +2356,7 @@ async function cargarBloqueos() {
     // dos textos distintos para lo mismo acabarian diciendo cosas distintas.
     // Va por EMPRESA a proposito: a la subcontrata se le escribe una vez, no
     // una por cada trabajador parado.
-    const enlaceAviso = (g.trabajador_id && g.empresa)
+    const enlaceAviso = (idFicha && g.empresa)
       ? `<a class="btn-visto-rojo" href="trabajadores.html?resumen=1&obra=${encodeURIComponent(obraActual || '')}&empresa=${encodeURIComponent(g.empresa)}" style="text-decoration:none">📨 Avisar a ${esc(g.empresa)}</a>`
       : '';
     return `
