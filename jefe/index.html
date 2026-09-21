@@ -2313,6 +2313,16 @@ async function cargarBloqueos() {
     const enlaceAlta = (g.clase === 'sin_registrar' && !g.trabajador_id && g.dni)
       ? `<a class="btn-visto-rojo" href="trabajadores.html?alta=1&obra=${encodeURIComponent(obraActual || '')}&dni=${encodeURIComponent(g.dni)}&nombre=${encodeURIComponent(g.nombre || '')}&empresa=${encodeURIComponent(g.empresa || '')}" style="text-decoration:none">👤 Crear ficha</a>`
       : '';
+    // 21/9/2026 · Pedido por Dani. Aviso a la subcontrata SIN volver a escribir
+    // el correo: lleva al «Resumen doc.» de Trabajadores, que ya sabe redactar
+    // el texto con los motivos exactos de e-Coordina, y baja directo a esa
+    // empresa. Se reutiliza el generador que ya existe en vez de copiarlo:
+    // dos textos distintos para lo mismo acabarian diciendo cosas distintas.
+    // Va por EMPRESA a proposito: a la subcontrata se le escribe una vez, no
+    // una por cada trabajador parado.
+    const enlaceAviso = (g.trabajador_id && g.empresa)
+      ? `<a class="btn-visto-rojo" href="trabajadores.html?resumen=1&obra=${encodeURIComponent(obraActual || '')}&empresa=${encodeURIComponent(g.empresa)}" style="text-decoration:none">📨 Avisar a ${esc(g.empresa)}</a>`
+      : '';
     return `
       <div class="bloqueo-item" data-id="${esc(g.incidencia_id || '')}">
         <div class="bloqueo-info">
@@ -2320,7 +2330,7 @@ async function cargarBloqueos() {
           <div class="detalle">${esc(etiquetaTxt)} · ${esc(horaUltimo)} · ${esc(intentosTexto)}${esc(dni)}</div>
           ${(() => { const n = notaDeAhora(g); return n ? `<div class="detalle" style="color:#4caf50">${esc(n)}</div>` : ''; })()}
         </div>
-        ${enlaceFicha}${enlaceAlta}${boton}
+        ${enlaceFicha}${enlaceAviso}${enlaceAlta}${boton}
       </div>`;
   }).join('');
   panel.classList.remove('oculto');

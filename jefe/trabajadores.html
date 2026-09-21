@@ -458,6 +458,9 @@
       </div>
       <span class="resumen-toggle-cargando" id="resumen-toggle-cargando" style="display:none">Consultando…</span>
     </label>
+    <!-- 21/9/2026 · Aviso cuando se llega buscando una empresa concreta desde
+         el banner rojo y esa empresa no sale en el resumen. -->
+    <div id="resumen-aviso-empresa" style="display:none;margin:10px 0;padding:10px 12px;border-radius:8px;background:rgba(255,152,0,0.12);color:#ff9800;font-size:13px;line-height:1.5"></div>
     <div id="resumen-naranja-contenido"></div>
     <div class="modal-acciones">
       <button type="button" class="btn-cancelar" id="btn-cerrar-resumen">Cerrar</button>
@@ -675,7 +678,10 @@ let avisosTabla = [];
   // vacío y parecería que no hay nada pendiente.
   const params = new URLSearchParams(window.location.search);
   if (params.get('resumen') === '1') {
-    abrirResumenDocumental(params.get('obra') || '');
+    // 21/9/2026 · `empresa` (opcional) llega desde el banner rojo del panel:
+    // abre el resumen y baja directo al texto de ESA subcontrata, en vez de
+    // dejar al jefe buscándola entre todas.
+    abrirResumenDocumental(params.get('obra') || '', params.get('empresa') || '');
   }
 
   // Llegada desde "Denegados sin resolver" (jefe/index.html):
@@ -2028,7 +2034,7 @@ document.getElementById('btn-quitar-autorizacion').addEventListener('click', asy
 
 // obraPreseleccionada: UUID opcional. Solo se aplica si es una obra del jefe;
 // si llega una obra ajena o inexistente, se cae a "Todas mis obras".
-function abrirResumenDocumental(obraPreseleccionada = '') {
+function abrirResumenDocumental(obraPreseleccionada = '', empresaDestacada = '') {
   presentesAhoraCache = null;
   const chk = document.getElementById('resumen-chk-presencia');
   if (chk) chk.checked = false;
@@ -2039,6 +2045,33 @@ function abrirResumenDocumental(obraPreseleccionada = '') {
   actualizarVisibilidadTogglePresencia();
   pintarResumenDocumental();
   document.getElementById('modal-resumen-overlay').classList.add('abierto');
+  if (empresaDestacada) destacarEmpresaEnResumen(empresaDestacada);
+}
+
+// 21/9/2026 · Baja hasta la tarjeta de una empresa concreta dentro del
+// resumen y la marca. Si no aparece (porque ya no tiene a nadie en naranja ni
+// en rojo, o porque el filtro de obra la deja fuera), NO se inventa nada: se
+// dice en una línea, porque un salto que no pasa parece que la app se ha
+// colgado.
+function destacarEmpresaEnResumen(nombreEmpresa) {
+  const norm = x => String(x || '').trim().toLowerCase();
+  const cabeceras = [...document.querySelectorAll('#resumen-naranja-contenido .resumen-empresa')];
+  const encontrada = cabeceras.find(el => {
+    const h = el.querySelector('h4');
+    return h && norm(h.textContent) === norm(nombreEmpresa);
+  });
+  const aviso = document.getElementById('resumen-aviso-empresa');
+  if (!encontrada) {
+    if (aviso) {
+      aviso.style.display = 'block';
+      aviso.textContent = 'No aparece ningún pendiente de «' + nombreEmpresa +
+        '» con este filtro. Puede que ya esté todo en verde, o que su gente esté en otra obra.';
+    }
+    return;
+  }
+  if (aviso) { aviso.style.display = 'none'; aviso.textContent = ''; }
+  encontrada.style.outline = '2px solid var(--color-acento, #e0a24a)';
+  encontrada.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function prepararFiltroResumenObras(obraForzada = '') {
