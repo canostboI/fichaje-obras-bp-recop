@@ -475,6 +475,11 @@ function construirModelo(d) {
     t.semaforo = rpc ? rpc.semaforo : null;
     t.manualesMes = rpc ? Number(rpc.manuales_mes) : null;
     t.excepcionesMes = rpc ? Number(rpc.excepciones_mes) : null;
+    // 21/9/2026 · Quien entra HOY estando en rojo, traido por la RPC y casado
+    // por obra_id. Lo de abajo (`riesgosHoy`) casa por NOMBRE de obra y por eso
+    // deja huerfanas; esto no puede fallar por un nombre que no coincide.
+    // `null` = no se ha podido leer; `[]` = leido y no hay ninguna.
+    t.excepcionesHoyRpc = rpc ? (rpc.excepciones_hoy || []) : null;
     t.cierre = rpc ? rpc.cierres : null;
     t.diasRetrasoCierre = null;
     if (t.cierre && Number(t.cierre.sin_cerrar) > 0 && t.cierre.mas_antiguo) {
@@ -838,11 +843,27 @@ function pintarObras(m) {
       ? '<div class="obra-lista">' + o.bien.map(b => '<div class="item"><span style="color:var(--verde)">✓</span> ' + esc(b) + '</div>').join('') + '</div>'
       : '';
 
-    const riesgosHTML = o.riesgosHoy && o.riesgosHoy.length
-      ? '<div class="obra-lista"><div class="item"><span class="pill azul">🗝️ ' + o.riesgosHoy.length + ' ' +
+    // 21/9/2026 · Fuente preferida: la RPC, que casa por obra_id y trae la
+    // empresa y el motivo. Si no se ha podido leer (null), se cae a la lista
+    // por nombre de obra, que es lo que habia. Si se leyo y esta vacia, no se
+    // pinta nada: es que hoy no ha entrado nadie en rojo.
+    let riesgosHTML = '';
+    if (o.excepcionesHoyRpc && o.excepcionesHoyRpc.length) {
+      const n = o.excepcionesHoyRpc.length;
+      riesgosHTML = '<div class="obra-lista"><div class="item rojo"><span class="pill rojo">🗝️ ' + n + ' ' +
+        plural(n, 'persona ha entrado hoy EN ROJO', 'personas han entrado hoy EN ROJO') + '</span>' +
+        '<div class="nota">' + o.excepcionesHoyRpc.map(r =>
+          '<b>' + esc(r.nombre || '(sin nombre)') + '</b>' +
+          (r.empresa ? ' (' + esc(r.empresa) + ')' : '') +
+          ' — autoriza ' + esc(r.autorizado_por || '—') +
+          (r.motivo ? ': «' + esc(r.motivo) + '»' : '')).join('<br>') +
+        '<br>La autorización vale SOLO hoy y queda registrada en el informe de incidencias.' +
+        '</div></div></div>';
+    } else if (o.excepcionesHoyRpc === null && o.riesgosHoy && o.riesgosHoy.length) {
+      riesgosHTML = '<div class="obra-lista"><div class="item"><span class="pill azul">🗝️ ' + o.riesgosHoy.length + ' ' +
           plural(o.riesgosHoy.length, 'riesgo asumido hoy', 'riesgos asumidos hoy') + '</span>' +
-          '<div class="nota">' + o.riesgosHoy.map(r => esc(r.persona) + ' — firmado por ' + esc(r.jefe)).join('<br>') + '</div></div></div>'
-      : '';
+          '<div class="nota">' + o.riesgosHoy.map(r => esc(r.persona) + ' — firmado por ' + esc(r.jefe)).join('<br>') + '</div></div></div>';
+    }
 
     const conTel = p => esc(p.nombre) + (p.telefono ? ' <a class="tel" href="tel:' + esc(p.telefono) + '">' + esc(p.telefono) + '</a>' : '');
     const equipo = [];
