@@ -685,6 +685,23 @@ let avisosTabla = [];
   // jefe. `abrirModalForzar` ya se protege sola si el trabajador o la obra
   // no aparecen (no hace nada), así que aquí no hace falta duplicar esa
   // comprobación.
+  // 21/9/2026 · Llegada desde el banner rojo con un PRESENTE SIN REGISTRAR
+  // (jefe/index.html): ?alta=1&obra=UUID&dni=...&nombre=...&empresa=...
+  // Esa persona no tiene ficha: lo que trae son los datos que ESCRIBIO ELLA
+  // MISMA en la valla. Se abre el alta con eso puesto para no volver a
+  // teclearlo, pero NO se guarda nada solo: lo confirma el jefe.
+  if (params.get('alta') === '1' && params.get('dni')) {
+    const obraValidaAlta = misObras.some(o => o.id === params.get('obra')) ? params.get('obra') : '';
+    if (obraValidaAlta) {
+      abrirAltaPrellenada({
+        dni: params.get('dni') || '',
+        nombre: params.get('nombre') || '',
+        empresa: params.get('empresa') || '',
+        obraId: obraValidaAlta
+      });
+    }
+  }
+
   if (params.get('forzar') === '1' && params.get('trabajador')) {
     const obraValidaForzar = misObras.some(o => o.id === params.get('obra')) ? params.get('obra') : '';
     if (obraValidaForzar) {
@@ -1593,6 +1610,58 @@ async function abrirEdicion(trabajadorId) {
   }
   renderCheckObras((vals || []).map(v => v.obra_id));
   document.getElementById('modal-overlay').classList.add('abierto');
+}
+
+// 21/9/2026 · Alta de alguien que llamo a la puerta y no existia en la app.
+// Tres cautelas:
+//  · Si el DNI YA tiene ficha, esto no es un alta: se redirige a la via de
+//    siempre (`abrirAltaDesdeBloqueo`), que conserva sus obras.
+//  · La empresa llega como TEXTO libre escrito por el trabajador. Solo se
+//    preselecciona si casa exactamente con una de la lista; si no, se deja
+//    sin elegir y se dice cual escribio, para que no se asigne una empresa
+//    equivocada por parecerse el nombre.
+//  · El reparto nombre/apellidos es una SUPOSICION (primera palabra y resto).
+//    Se avisa por escrito de que hay que revisarlo.
+async function abrirAltaPrellenada(datos) {
+  const dni = String(datos.dni || '').trim();
+
+  const yaTiene = todosTrabajadores.find(t => String(t.dni || '').trim().toUpperCase() === dni.toUpperCase());
+  if (yaTiene) { abrirAltaDesdeBloqueo(yaTiene.id, datos.obraId); return; }
+
+  const partes = String(datos.nombre || '').trim().split(/\s+/).filter(Boolean);
+  const nombre = partes.length ? partes[0] : '';
+  const apellidos = partes.length > 1 ? partes.slice(1).join(' ') : '';
+
+  const empresaTxt = String(datos.empresa || '').trim();
+  const norm = x => String(x || '').trim().toLowerCase();
+  const empresaCasada = empresaTxt
+    ? (todasEmpresas || []).find(e => norm(e.nombre) === norm(empresaTxt))
+    : null;
+
+  modoEdicion = null;
+  document.getElementById('modal-titulo').textContent = 'Alta de alguien que se quedó en la puerta';
+  document.getElementById('modal-nombre').value = nombre;
+  document.getElementById('modal-apellidos').value = apellidos;
+  document.getElementById('modal-dni').value = dni;
+  document.getElementById('modal-categoria').value = 'peon';
+  document.getElementById('modal-categoria-otra').value = '';
+  sincronizarCategoriaOtra();
+  document.getElementById('modal-precio-hora').value = '';
+  poblarSelectorEmpresas(empresaCasada ? empresaCasada.id : '');
+  document.getElementById('btn-guardar').disabled = false;
+
+  const avisos = ['⚠️ Estos datos los escribió la propia persona en la valla: revísalos antes de guardar.'];
+  if (partes.length > 1) avisos.push('El nombre y los apellidos se han separado por la primera palabra; corrígelo si no es así.');
+  if (empresaTxt && !empresaCasada) avisos.push('Escribió como empresa «' + empresaTxt + '», que no está en la lista: elígela tú o créala antes.');
+  if (!empresaTxt) avisos.push('No indicó empresa.');
+  avisos.push('Si es de una subcontrata, nacerá en ROJO y no podrá entrar hasta que le autorices una excepción.');
+  const m = document.getElementById('modal-msg');
+  m.className = 'msg-error';
+  m.textContent = avisos.join(' ');
+
+  renderCheckObras([datos.obraId]);
+  document.getElementById('modal-overlay').classList.add('abierto');
+  document.getElementById('modal-nombre').focus();
 }
 
 async function abrirAltaDesdeBloqueo(trabajadorId, obraId) {

@@ -2262,13 +2262,24 @@ async function cargarBloqueos() {
     const enlaceFicha = (g.trabajador_id && g.tipos.indexOf('bloqueo_rojo') !== -1)
       ? `<a class="btn-visto-rojo" href="trabajadores.html?trabajador=${encodeURIComponent(g.trabajador_id)}&obra=${encodeURIComponent(obraActual || '')}&forzar=1" style="text-decoration:none">📋 Ver ficha</a>`
       : '';
+    // 21/9/2026 · Un PRESENTE SIN REGISTRAR es alguien que esta en la obra y
+    // la app no conoce: el caso mas urgente de los dos y, hasta hoy, el que
+    // menos ayuda daba (solo «Visto»). El enlace lleva los datos que escribio
+    // el mismo en la valla, para no volver a teclearlos. No crea nada solo:
+    // abre el alta con los datos puestos y lo confirma el jefe.
+    // Solo se ofrece si NO es ademas un bloqueo_rojo (ese ya tiene ficha).
+    // `clase` la fija js/accesos-resueltos.js: 'sin_registrar' o 'trabajador'.
+    // (En `tipos` el valor es 'presente_sin_registrar', el de la incidencia.)
+    const enlaceAlta = (g.clase === 'sin_registrar' && !g.trabajador_id && g.dni)
+      ? `<a class="btn-visto-rojo" href="trabajadores.html?alta=1&obra=${encodeURIComponent(obraActual || '')}&dni=${encodeURIComponent(g.dni)}&nombre=${encodeURIComponent(g.nombre || '')}&empresa=${encodeURIComponent(g.empresa || '')}" style="text-decoration:none">👤 Crear ficha</a>`
+      : '';
     return `
       <div class="bloqueo-item" data-id="${esc(g.incidencia_id || '')}">
         <div class="bloqueo-info">
           <strong>${esc(g.nombre)}</strong>
           <div class="detalle">${esc(etiquetaTxt)} · ${esc(horaUltimo)} · ${esc(intentosTexto)}${esc(dni)}</div>
         </div>
-        ${enlaceFicha}${boton}
+        ${enlaceFicha}${enlaceAlta}${boton}
       </div>`;
   }).join('');
   panel.classList.remove('oculto');
