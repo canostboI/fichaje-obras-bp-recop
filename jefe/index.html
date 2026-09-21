@@ -2251,6 +2251,46 @@ async function cargarBloqueos() {
     ? `1 persona sin poder entrar · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'}`
     : `${porRevisar.length} personas sin poder entrar · ${totalIntentos} ${totalIntentos === 1 ? 'intento' : 'intentos'}`;
 
+  // ── 21/9/2026 · «Y AHORA QUE?» ────────────────────────────────────────
+  // El motivo que se ensena es la foto CONGELADA del intento, y eso esta
+  // bien (ver el comentario del modal, mas abajo). Pero si mientras tanto le
+  // has arreglado los papeles o le has autorizado, la linea seguia diciendo
+  // «Documentacion» a secas y parecia que no habias hecho nada. Ahora se
+  // consulta el estado de AHORA y se anade una segunda linea, sin tocar la
+  // primera. Un fallo de lectura NO se pinta como «sigue en rojo»: se calla.
+  const ahoraPorTrab = {};
+  const idsRevisar = porRevisar.map(g => g.trabajador_id).filter(Boolean);
+  if (idsRevisar.length) {
+    const hoyStr = Fechas.hoyMadrid();
+    const [rVal, rExc] = await Promise.all([
+      sb.from('validaciones_obra').select('trabajador_id, estado')
+        .eq('obra_id', obraActual).in('trabajador_id', idsRevisar),
+      sb.from('excepciones_acceso').select('trabajador_id, estado')
+        .eq('obra_id', obraActual).eq('fecha', hoyStr).in('trabajador_id', idsRevisar)
+    ]);
+    if (!rVal.error) {
+      (rVal.data || []).forEach(v => {
+        ahoraPorTrab[v.trabajador_id] = { estado: v.estado, excepcion: false };
+      });
+      if (!rExc.error) {
+        (rExc.data || []).forEach(e => {
+          if (e.estado === 'activa' && ahoraPorTrab[e.trabajador_id]) {
+            ahoraPorTrab[e.trabajador_id].excepcion = true;
+          }
+        });
+      }
+    }
+  }
+
+  function notaDeAhora(g) {
+    const a = g.trabajador_id ? ahoraPorTrab[g.trabajador_id] : null;
+    if (!a) return '';   // sin dato: no se afirma nada
+    if (a.excepcion) return '✅ Ya le has autorizado hoy — dile que vuelva a escanear el QR.';
+    if (a.estado === 'verde') return '✅ Su documentación ya está en verde — dile que vuelva a escanear el QR.';
+    if (a.estado === 'naranja') return '✅ Ya no está en rojo (ahora naranja) — dile que vuelva a escanear el QR.';
+    return '';           // sigue en rojo: la linea de arriba ya lo dice
+  }
+
   lista.innerHTML = porRevisar.map(g => {
     const dni = g.dni ? ` — ${g.dni}` : '';
     const horaUltimo = formatHora(g.ultimoIntento);
@@ -2278,6 +2318,7 @@ async function cargarBloqueos() {
         <div class="bloqueo-info">
           <strong>${esc(g.nombre)}</strong>
           <div class="detalle">${esc(etiquetaTxt)} · ${esc(horaUltimo)} · ${esc(intentosTexto)}${esc(dni)}</div>
+          ${(() => { const n = notaDeAhora(g); return n ? `<div class="detalle" style="color:#4caf50">${esc(n)}</div>` : ''; })()}
         </div>
         ${enlaceFicha}${enlaceAlta}${boton}
       </div>`;

@@ -1532,6 +1532,10 @@ async function clicIdent(trabajadorId, btn) {
 document.getElementById('buscador').addEventListener('input', () => aplicarFiltrosTabla());
 
 let modoEdicion = null;
+// 21/9/2026 · true solo cuando el modal se abrio desde el banner rojo con un
+// «presente sin registrar». Se apaga en TODOS los demas caminos que abren el
+// modal, para que no se quede pegada de una apertura anterior.
+let altaDesdeLaPuerta = false;
 
 function renderCheckObras(obrasSeleccionadas = []) {
   document.getElementById('lista-obras-check').innerHTML = misObras.map(o => `
@@ -1562,6 +1566,7 @@ document.getElementById('modal-categoria').addEventListener('change', sincroniza
 
 document.getElementById('btn-nuevo').addEventListener('click', () => {
   modoEdicion = null;
+  altaDesdeLaPuerta = false;
   document.getElementById('modal-titulo').textContent = 'Nuevo trabajador';
   document.getElementById('modal-nombre').value = '';
   document.getElementById('modal-apellidos').value = '';
@@ -1580,6 +1585,7 @@ document.getElementById('btn-nuevo').addEventListener('click', () => {
 
 async function abrirEdicion(trabajadorId) {
   modoEdicion = trabajadorId;
+  altaDesdeLaPuerta = false;
   document.getElementById('modal-titulo').textContent = 'Editar trabajador';
   document.getElementById('modal-msg').textContent = '';
   document.getElementById('btn-guardar').disabled = false;
@@ -1624,6 +1630,10 @@ async function abrirEdicion(trabajadorId) {
 //    Se avisa por escrito de que hay que revisarlo.
 async function abrirAltaPrellenada(datos) {
   const dni = String(datos.dni || '').trim();
+  // 21/9/2026 · Esta alta viene de alguien que aparecio en la puerta sin
+  // ficha: queda «identidad por confirmar», igual que cuando el encargado
+  // pide autorizacion. Mismo caso, mismo final.
+  altaDesdeLaPuerta = true;
 
   const yaTiene = todosTrabajadores.find(t => String(t.dni || '').trim().toUpperCase() === dni.toUpperCase());
   if (yaTiene) { abrirAltaDesdeBloqueo(yaTiene.id, datos.obraId); return; }
@@ -1682,6 +1692,7 @@ async function abrirAltaDesdeBloqueo(trabajadorId, obraId) {
   const obrasYa = (vals || []).map(v => v.obra_id);
   const obrasSeleccionadas = [...new Set([...obrasYa, obraId])];
   modoEdicion = trabajadorId;
+  altaDesdeLaPuerta = false;
   document.getElementById('modal-titulo').textContent = 'Dar de alta en obra';
   document.getElementById('modal-nombre').value = tw.nombre || '';
   document.getElementById('modal-apellidos').value = tw.apellidos || '';
@@ -1765,7 +1776,10 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     p_categoria: categoria || null,
     p_categoria_otra: categoria === 'otra' ? categoriaOtra : null,
     p_precio_hora: precio_hora_personalizado,
-    p_obra_ids: obrasSeleccionadas.map(id => id.trim()), p_empresa_id: empresaId
+    p_obra_ids: obrasSeleccionadas.map(id => id.trim()), p_empresa_id: empresaId,
+    // 21/9/2026 · Solo true en el alta que nace del banner rojo. La RPC lo
+    // ignora si la ficha ya existia (no reabre la pregunta a nadie).
+    p_identidad_pendiente: (!modoEdicion && altaDesdeLaPuerta)
   });
   if (rpcError) { msg.className = 'msg-error'; msg.textContent = 'Error: ' + rpcError.message; btn.disabled = false; return; }
   if (rpcData && rpcData.ok === false) { msg.className = 'msg-error'; msg.textContent = 'Error: ' + (rpcData.error || 'No se pudo guardar'); btn.disabled = false; return; }
