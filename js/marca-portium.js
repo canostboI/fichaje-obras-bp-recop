@@ -247,6 +247,15 @@
     // 20/9/2026 — y en Presencia, el aviso de quién ha desaparecido del
     // Excel de e-Coordina (lo detecta la sincronización de cada noche).
     if (pagina === 'index.html' || pagina === '') cargar('ausentes-ecoordina.js');
+    // 21/9/2026 — y en Presencia, el contrato y el libro de subcontratación
+    // de las empresas que tienen gente fichando. Cierra el punto que quedó a
+    // medias de la 124ª: la regla y el cron que cierra la puerta a los 5 días
+    // laborables ya existían, pero no los leía ninguna pantalla y el jefe se
+    // enteraba el día que su gente no pasaba la valla.
+    // 🔴 Va APARTE del de arriba a propósito: aquél avisa por PERSONA y éste
+    // por EMPRESA (decisión de Dani, 124ª). No se duplican: se midió antes de
+    // escribirlo y solo una persona de toda la base entraría en los dos.
+    if (pagina === 'index.html' || pagina === '') cargar('papeles-subcontratas.js');
     // 21/9/2026 — APAGADO: `aviso-sin-comprobar.js` decía lo mismo que
     // `ausentes-ecoordina.js` de las mismas personas. El lunes 21 los dos
     // banners enseñaron LOS MISMOS SIETE NOMBRES en la misma pantalla, y eso
