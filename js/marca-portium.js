@@ -247,11 +247,15 @@
     // 20/9/2026 — y en Presencia, el aviso de quién ha desaparecido del
     // Excel de e-Coordina (lo detecta la sincronización de cada noche).
     if (pagina === 'index.html' || pagina === '') cargar('ausentes-ecoordina.js');
-    // 20/9/2026 — y, solo en Presencia, el reloj del naranja sin comprobar:
-    // quién se queda sin poder entrar y qué día, antes de que pase. El módulo
-    // lleva su propio candado además de este, por si algún día se le llama
-    // desde otro sitio.
-    if (pagina === 'index.html' || pagina === '') cargar('aviso-sin-comprobar.js');
+    // 21/9/2026 — APAGADO: `aviso-sin-comprobar.js` decía lo mismo que
+    // `ausentes-ecoordina.js` de las mismas personas. El lunes 21 los dos
+    // banners enseñaron LOS MISMOS SIETE NOMBRES en la misma pantalla, y eso
+    // enseña a no mirarlos. Ahora `ausentes-ecoordina.js` pinta las dos cosas
+    // en una sola línea por persona: quién ha desaparecido de e-Coordina Y
+    // qué día se le cierra la puerta.
+    // 🔴 El archivo NO se borra: es la red de seguridad. Para volver atrás,
+    // descomentar esta línea y quitar la de arriba.
+    // if (pagina === 'index.html' || pagina === '') cargar('aviso-sin-comprobar.js');
   } catch (e) {
     console.warn('[marca-portium] carga de los módulos de menú:', e);
   }
