@@ -1267,6 +1267,27 @@
     });
     const bloqueados = porRevisar.filter(g => yaPueden.indexOf(g) === -1);
 
+    // ── 21/9/2026 · «ESTE YA NO ESTA EN ROJO» ──────────────────────────
+    // El panel solo miraba las SOLICITUDES. Pero a alguien se le puede
+    // levantar el rojo por otra via (el jefe le fuerza el color, o llega la
+    // sincronizacion de e-Coordina): entonces la RPC responde «ya NO esta en
+    // rojo» y al encargado le salia un error, que es exactamente lo
+    // contrario de lo que pasa. Ahora se sabe ANTES de pulsar.
+    // Un fallo de lectura no se pinta como «sigue en rojo»: se calla y el
+    // panel se comporta como antes.
+    const yaNoEnRojo = {};
+    const idsBloq = bloqueados.map(g => g.trabajador_id).filter(Boolean);
+    if (idsBloq.length) {
+      const rEst = await sb.from('validaciones_obra')
+        .select('trabajador_id, estado')
+        .eq('obra_id', obraActualId).in('trabajador_id', idsBloq);
+      if (!rEst.error) {
+        (rEst.data || []).forEach(v => {
+          if (v.estado && v.estado !== 'rojo') yaNoEnRojo[v.trabajador_id] = v.estado;
+        });
+      }
+    }
+
     pintarYaPueden(yaPueden);
 
     if (bloqueados.length === 0) {
@@ -1308,6 +1329,9 @@
         botonPedir = '<span class="etq-sol esp">⏳ Esperando al jefe de obra — NO entra</span>';
       } else if (solYa && solYa.estado === 'denegada') {
         botonPedir = '<span class="etq-sol no">✕ Denegado por el jefe de obra — NO entra</span>';
+      } else if (g.trabajador_id && yaNoEnRojo[g.trabajador_id]) {
+        // Ya no hace falta pedir nada: solo que vuelva a pasar el QR.
+        botonPedir = '<span class="etq-sol ok">✓ Ya puede fichar — que vuelva a escanear el QR</span>';
       } else {
         botonPedir = `<button class="btn-pedir" onclick="pedirAutorizacion('${claveSol}', this)">📨 Pedir permiso al jefe de obra</button>`;
       }
@@ -1398,6 +1422,19 @@
     }
 
     const { data, error } = await sb.rpc('pedir_autorizacion_acceso', params);
+
+    // 21/9/2026 · Esto NO es un fallo: es una buena noticia. A esa persona le
+    // han levantado el rojo mientras estaba en la puerta (el jefe le forzo el
+    // color, o llego la sincronizacion). Se dice como lo que es y se recarga,
+    // para que la linea deje de pedir algo que ya no hace falta.
+    if (data && data.codigo === 'NO_ESTA_EN_ROJO') {
+      btn.disabled = true;
+      btn.textContent = '✓ Ya puede fichar';
+      alert('Buenas noticias: a esta persona ya le han levantado el rojo. '
+          + 'No hace falta pedir permiso — dile que vuelva a escanear el QR en la valla.');
+      await cargarSolicitudesEnc();
+      return;
+    }
 
     if (error || !data || data.ok !== true) {
       btn.disabled = false;
