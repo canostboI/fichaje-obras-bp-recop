@@ -1259,34 +1259,46 @@
     await traerSolicitudesHoy();
     const porRevisar = clas.pendientes.filter(g => g.pendientes > 0);
 
-    // Los que el jefe de obra ya ha autorizado NO son "sin poder entrar":
-    // ya pueden fichar. Se pintan en su propio panel verde, aparte.
-    const yaPueden = porRevisar.filter(g => {
-      const q = solicitudDe(g.dni, g.trabajador_id);
-      return q && q.estado === 'autorizada';
-    });
-    const bloqueados = porRevisar.filter(g => yaPueden.indexOf(g) === -1);
-
     // ── 21/9/2026 · «ESTE YA NO ESTA EN ROJO» ──────────────────────────
-    // El panel solo miraba las SOLICITUDES. Pero a alguien se le puede
-    // levantar el rojo por otra via (el jefe le fuerza el color, o llega la
-    // sincronizacion de e-Coordina): entonces la RPC responde «ya NO esta en
-    // rojo» y al encargado le salia un error, que es exactamente lo
-    // contrario de lo que pasa. Ahora se sabe ANTES de pulsar.
-    // Un fallo de lectura no se pinta como «sigue en rojo»: se calla y el
+    // A alguien se le puede levantar el rojo por una via que NO es una
+    // solicitud (el jefe le fuerza el color, o llega la sincronizacion de
+    // e-Coordina). Antes eso no se miraba, y pasaban dos cosas: al pedir
+    // permiso salia un error que en realidad era una buena noticia, y esa
+    // persona se quedaba en el panel rojo mientras otra en su misma
+    // situacion salia en el verde.
+    // Un fallo de lectura no se pinta como «sigue en rojo»: se calla, y el
     // panel se comporta como antes.
     const yaNoEnRojo = {};
-    const idsBloq = bloqueados.map(g => g.trabajador_id).filter(Boolean);
-    if (idsBloq.length) {
+    const idsRevisar = porRevisar.map(g => g.trabajador_id).filter(Boolean);
+    if (idsRevisar.length) {
       const rEst = await sb.from('validaciones_obra')
         .select('trabajador_id, estado')
-        .eq('obra_id', obraActualId).in('trabajador_id', idsBloq);
+        .eq('obra_id', obraActualId).in('trabajador_id', idsRevisar);
       if (!rEst.error) {
         (rEst.data || []).forEach(v => {
           if (v.estado && v.estado !== 'rojo') yaNoEnRojo[v.trabajador_id] = v.estado;
         });
       }
     }
+
+    // 🔴 El panel verde se llena por «¿PUEDE ENTRAR?», no por «¿le firmaron
+    // un papel?». Son dos preguntas distintas desde que el rojo se puede
+    // levantar por varias vias, y para el encargado, que esta en la puerta,
+    // la unica que importa es la primera. Se guarda POR QUE puede entrar,
+    // porque no es lo mismo un permiso de hoy que tener los papeles en regla.
+    const yaPueden = porRevisar.filter(g => {
+      const q = solicitudDe(g.dni, g.trabajador_id);
+      if (q && q.estado === 'autorizada') { g.motivo_paso = 'autorizado'; return true; }
+      if (g.trabajador_id && yaNoEnRojo[g.trabajador_id]) {
+        g.motivo_paso = 'ya_no_rojo';
+        g.color_ahora = yaNoEnRojo[g.trabajador_id];
+        return true;
+      }
+      return false;
+    });
+
+
+    const bloqueados = porRevisar.filter(g => yaPueden.indexOf(g) === -1);
 
     pintarYaPueden(yaPueden);
 
@@ -1360,14 +1372,22 @@
     if (!p) return;
     if (!lista.length) { p.style.display = 'none'; p.innerHTML = ''; return; }
 
+    // 21/9/2026 · Aqui cabe gente que puede entrar por motivos DISTINTOS, y
+    // decirselos todos como «paso solo por hoy» seria mentir sobre la mitad.
+    // El subtitulo dice lo comun; cada linea dice lo suyo.
     let h = `<h2>✅ Ya pueden fichar (${lista.length})</h2>`
-          + `<p class="yapueden-sub">El jefe de obra les ha dado paso solo por hoy. Diles que fichen en la valla; en cuanto lo hagan desaparecen de aquí.</p>`;
+          + `<p class="yapueden-sub">Diles que fichen en la valla; en cuanto lo hagan desaparecen de aquí.</p>`;
     lista.forEach(g => {
       const l2 = (g.clase === 'sin_registrar')
         ? `${g.empresa ? esc(g.empresa) + ' · ' : ''}${g.dni ? esc(g.dni) : ''}`
         : (g.dni ? esc(g.dni) : '');
+      const porque = (g.motivo_paso === 'ya_no_rojo')
+        ? 'Su documentación ya no está en rojo'
+          + (g.color_ahora === 'naranja' ? ' (ahora en naranja)' : '')
+        : 'El jefe de obra le ha dado paso solo por hoy';
       h += `<div class="yapueden-item"><strong>${esc(g.nombre || '—')}</strong>`
         +  (l2 ? `<div class="yapueden-meta">${l2}</div>` : '')
+        +  `<div class="yapueden-meta">${esc(porque)}</div>`
         +  `</div>`;
     });
     p.innerHTML = h;
