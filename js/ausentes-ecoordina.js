@@ -40,6 +40,18 @@
    Escola eran 41 y ninguno había pisado la obra: mezclarlos hace que a la
    tercera mañana nadie mire el banner.
 
+   SE AVISA POR ESTAR SIN REVISAR, NO SOLO POR ESTAR MARCADO. Además de
+   los que las dos detecciones marcan, entra quien esté FICHANDO con un
+   dictamen de e-Coordina de más de 15 días (o sin ninguno), lo haya
+   marcado algo o no. Si un día la detección falla, el banner no se queda
+   callado. Nació del caso CHAABAN: fichaba a diario en Muralla con el
+   dictamen del 08/06 porque su empresa lo tenía de alta en el centro de
+   OTRA obra.
+
+   Y SE ENSEÑA LA FECHA DEL DATO, no la de la detección: «último dato de
+   e-Coordina: 08/06 (hace 105 días)». Decir «desaparecido desde el 21/09»
+   cuando ese día fue solo cuando nos dimos cuenta es engañar con la verdad.
+
    SI NO SE PUEDE COMPROBAR, LO DICE. Un banner vacío puede significar «no
    hay nadie» o «no se ha podido mirar», y no se pintan igual.
 
@@ -145,7 +157,20 @@
     return h;
   }
 
+  // La antigüedad del DATO, no la de la detección. El caso que lo motivó:
+  // un hombre fichando a diario con el dictamen de e-Coordina del 08/06. El
+  // banner decía «ya no aparece desde el 21/09», que es cuando lo detectamos,
+  // y la verdad era «su último dato es de hace 105 días».
+  function antiguedad(p) {
+    if (p.dias_dictamen === null || p.dias_dictamen === undefined) {
+      return 'e-Coordina no ha dicho nunca nada de esta persona en esta obra';
+    }
+    if (p.dias_dictamen <= 1) return null;          // al día: no hace falta decirlo
+    return 'último dato de e-Coordina: ' + fecha(p.dictamen) + ' (hace ' + p.dias_dictamen + ' días)';
+  }
+
   function porque(p) {
+    if (p.solo_sin_revisar) return 'está fichando y nadie ha revisado su documentación';
     if (p.ausente) return 'ya no aparece en e-Coordina';
     if (p.sin_comprobar) return 'nadie ha comprobado su documentación';
     return 'pendiente de comprobar';
@@ -169,6 +194,7 @@
       + (p.ultimo_fichaje ? ' — último fichaje ' + fecha(p.ultimo_fichaje) : ' — sin fichajes')
       + '</span>'
       + '<span class="aec-porque">' + esc(porque(p)) + (plazo ? ' · ' : '') + plazo + '</span>'
+      + (antiguedad(p) ? '<span class="aec-porque">' + esc(antiguedad(p)) + '</span>' : '')
       + '</div>' + visto + '</div>';
   }
 
@@ -218,7 +244,8 @@
                : urgentes.length + ' personas de tu obra necesitan que hagas algo')
            + '</b>';
       for (var u = 0; u < urgentes.length; u++) html += filaPersona(urgentes[u], true);
-      html += '<div class="aec-pie">Para arreglarlo, que su empresa los dé de alta en e-Coordina. '
+      html += '<div class="aec-pie">Para arreglarlo, que su empresa los dé de alta en e-Coordina '
+           +  'en el centro de ESTA obra: estar de alta en otra no vale. '
            +  (d.obra_pausada
                ? 'La obra está pausada, pero el plazo sigue corriendo: al reanudarla te los encontrarías cerrados.'
                : 'Mientras tanto pasan la valla con aviso; cuando se acabe el plazo, no.')
