@@ -1015,7 +1015,7 @@ function pintarSalud(m) {
   const filas = [];
 
   // ÚNICO vigilante de crons de la app (92ª: absorbe el de admin/index.html).
-  // Dos reglas: los 12 esperados EXISTEN, y cada uno corrió dentro de su umbral
+  // Dos reglas: los 13 esperados EXISTEN, y cada uno corrió dentro de su umbral
   // (umbralCron conoce el calendario). Cron nuevo o calendario cambiado = tocar aquí.
   const CRONS_ESPERADOS = ['autocierre_nocturno', 'aviso_ronda_1', 'aviso_ronda_2', 'aviso_ronda_3',
     'auditoria_permisos_diaria', 'recordatorio_solicitudes_acceso', 'caducar-fotos-identidad',
@@ -1041,7 +1041,15 @@ function pintarSalud(m) {
     // Excel no se le pedía ninguno de los dos: la de menos garantías era la
     // única a la que no se le exigía lo más importante.
     // 🔴 Si deja de correr, nadie lo nota: el único aviso es esta línea.
-    'papeles_subcontratas_diario'];
+    'papeles_subcontratas_diario',
+    // 22/9/2026: entrega real de los SMS, jobid=15, */15 5-20 * * * (cada 15
+    // min de 07:00 a 22:00 Madrid en verano). Twilio responde 201 al crear el
+    // mensaje y el fallo llega DESPUÉS; entre el 17 y el 22/9 fallaron 51 SMS
+    // seguidos (error 21703, servicio sin remitente) y aquí todo decía
+    // «enviado». Este cron vuelve a preguntar a Twilio y, si hay fallos, deja
+    // una incidencia por obra y día que ve el jefe en el Registro y el admin
+    // en la tarjeta. El contador «avisos fallidos» de la tarjeta lo lee.
+    'comprobar_entregas_sms'];
   const c = m.salud.crons;
   if (!c) filas.push(['Automatismos', 'gris', 'No se ha podido comprobar la salud de los crons.']);
   else if (!c.length) filas.push(['Automatismos', 'rojo', 'No hay ningún cron programado en la base de datos.']);
