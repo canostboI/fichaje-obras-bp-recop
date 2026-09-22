@@ -1,4 +1,11 @@
 <!DOCTYPE html>
+<!--
+  Habilitaciones — Jefe de obra
+  22/9/2026 (Dani): la lista de "Con habilitaciones" se veía a medias (alto fijo
+  de 300px) y nada indicaba que desde esta pantalla se pueden AÑADIR.
+  Cambios: alto de la lista de habilitados a 560px + texto de ayuda en la
+  cabecera y en el subtítulo. Solo aspecto y textos: ni BD ni lógica.
+-->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -47,6 +54,9 @@
   .seccion-body { padding: 16px 20px; }
 
   .tw-lista { display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow-y: auto; }
+  /* 22/9/2026: la lista principal se veía a medias. La caja encoge sola si hay pocos. */
+  #lista-habilitados { max-height: 560px; }
+  .cab-ayuda { font-size: 12px; color: var(--texto2); margin: -4px 0 12px; }
   .tw-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 13px; border: 1px solid var(--borde); border-radius: 8px; cursor: pointer; transition: background 0.12s, border-color 0.12s; }
   .tw-item:hover { background: var(--bg3); }
   .tw-item.seleccionado { background: var(--bg3); border-color: var(--azul); }
@@ -159,7 +169,7 @@
   <div class="topbar">
     <h1>🏗️ Habilitaciones</h1>
   </div>
-  <div class="subtitulo">Consulta y gestiona las habilitaciones de maquinaria y trabajos especiales de tus trabajadores.</div>
+  <div class="subtitulo">Consulta, <strong>añade</strong> y quita habilitaciones de maquinaria y trabajos especiales a tus trabajadores.</div>
 
   <div class="contenido">
 
@@ -180,6 +190,7 @@
             <span id="count-habilitados" style="font-size:12px;color:var(--texto2);"></span>
           </div>
           <div class="seccion-body">
+            <div class="cab-ayuda">Toca a un trabajador para ver, <strong>añadir</strong> o quitar sus habilitaciones. Si no está en la lista, búscalo abajo.</div>
             <div class="tw-lista" id="lista-habilitados">
               <div class="vacio">Selecciona una obra.</div>
             </div>
