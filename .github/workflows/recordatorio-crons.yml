@@ -9,6 +9,13 @@ name: Recordatorio · cambio de hora en crons
 # Minuto "raro" a propósito (congestión de GitHub Actions).
 # También se puede lanzar a mano desde la pestaña Actions.
 #
+# ⚠️ ACTUALIZADO 22/9/2026: añadido `comprobar_entregas_sms` (jobid=15), el que
+# vuelve a preguntar a Twilio si cada SMS llegó de verdad. Twilio responde 201 al
+# crear el mensaje y el fallo llega después: entre el 17 y el 22/9 fallaron 51
+# SMS seguidos (error 21703, servicio sin remitente) y todo decía «enviado».
+# **NO necesita ajuste estacional**: `*/15 5-20 * * *`, cada 15 min; en invierno
+# empieza y acaba una hora antes en Madrid y no importa.
+#
 # ⚠️ ACTUALIZADO 21/9/2026: añadido `papeles_subcontratas_diario` (jobid=14),
 # el que cierra la puerta al personal de una subcontrata que lleva más de 5 días
 # laborables sin contrato entre empresas o sin el libro de subcontratación
@@ -146,7 +153,7 @@ jobs:
           **Cómo:**
           - [ ] \`ecoordina.yml\`: editar **las DOS líneas** \`cron:\` en el repo.
           - [ ] pg_cron (los 4 de la tabla): en Supabase → SQL Editor, un \`SELECT cron.alter_job(jobid, schedule => '...')\` por cada uno, o desde la UI de Integrations → Cron.
-          - [ ] **NO tocar estos OCHO, que funcionan en ambas estaciones:** \`autocierre_nocturno\` (\`0 2 * * *\`), \`recordatorio_solicitudes_acceso\` (\`*/10 * * * *\`, decide el horario de obra leyendo la hora de Madrid por dentro), \`caducar-fotos-identidad\` (\`30 4 * * 0\`, semanal, compara contra un umbral de 12 meses), \`vaciar-cola-borrado-fotos\` (\`15 3 * * *\`), \`caducar_forzados_diario\` (\`30 3 * * *\`, calcula la fecha de Madrid por dentro y corre muy por delante del primer fichaje en las dos estaciones), \`vigilante_obra_diario\` (\`0 19 * * 1-6\`, calcula el día de Madrid por dentro; a las 20:00/21:00 la jornada ya terminó) y \`reloj_naranja_diario\` (\`15 4 * * *\`, cuenta días laborables de Madrid por dentro) y \`papeles_subcontratas_diario\` (\`10 4 * * *\`, ídem).
+          - [ ] **NO tocar estos NUEVE, que funcionan en ambas estaciones:** \`autocierre_nocturno\` (\`0 2 * * *\`), \`recordatorio_solicitudes_acceso\` (\`*/10 * * * *\`, decide el horario de obra leyendo la hora de Madrid por dentro), \`caducar-fotos-identidad\` (\`30 4 * * 0\`, semanal, compara contra un umbral de 12 meses), \`vaciar-cola-borrado-fotos\` (\`15 3 * * *\`), \`caducar_forzados_diario\` (\`30 3 * * *\`, calcula la fecha de Madrid por dentro y corre muy por delante del primer fichaje en las dos estaciones), \`vigilante_obra_diario\` (\`0 19 * * 1-6\`, calcula el día de Madrid por dentro; a las 20:00/21:00 la jornada ya terminó) y \`reloj_naranja_diario\` (\`15 4 * * *\`, cuenta días laborables de Madrid por dentro) y \`papeles_subcontratas_diario\` (\`10 4 * * *\`, ídem) y \`comprobar_entregas_sms\` (\`*/15 5-20 * * *\`, cada 15 min; la hora exacta da igual).
           - [ ] 🔴 **Sí mirar \`reloj_naranja_diario\` aunque no se cambie:** es el de margen más estrecho (06:15 Madrid en verano, 24 min antes del primer fichaje de Muralla). Comprobar que sigue corriendo DESPUÉS de la sync nocturna y ANTES del primer fichaje de TODAS las obras, no solo de Muralla.
           - [ ] Verificar al día siguiente que la sync nocturna y los SMS de ronda llegan a su hora española habitual.
           - [ ] Comprobar en \`ecoordina_sync\` que la ejecución buena sigue terminando de madrugada, muy por delante de los fichajes de las 06:39 en Muralla.
