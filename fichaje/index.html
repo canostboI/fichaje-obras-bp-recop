@@ -519,8 +519,10 @@
     font-weight: 600;
   }
   .dias-marco {
-    margin: 8px auto 0;
-    max-width: 320px;
+    /* Se come el padding de .confirmacion-final: en un móvil estrecho hacen
+       falta esos píxeles para que quepan las dos horas y el icono */
+    margin: 8px -14px 0;
+    max-width: none;
     border: 1.5px solid var(--gris-borde, #d0d7de);
     border-radius: 14px;
     background: #fff;
@@ -529,12 +531,12 @@
   }
   .dias-fila {
     display: grid;
-    grid-template-columns: 46px 1fr 34px;
+    grid-template-columns: 38px minmax(0, 1fr) 28px;
     align-items: center;
-    gap: 8px;
-    padding: 7px 10px 7px 8px;
+    gap: 6px;
+    padding: 7px 8px 7px 6px;
     border-top: 1px solid var(--gris-borde, #d0d7de);
-    min-height: 52px;
+    min-height: 50px;
   }
   .dias-fila:first-child { border-top: none; }
   .dias-fila.hoy {
@@ -553,25 +555,28 @@
     color: var(--color-principal, #1e3a5f);
   }
   .dias-dia .sem { font-size: 11px; text-transform: uppercase; letter-spacing: .03em; opacity: .8; }
-  .dias-dia .num { font-size: 21px; font-weight: 800; }
+  .dias-dia .num { font-size: 19px; font-weight: 800; }
   .dias-dia.repetido { opacity: .35; }
   /* Las horas: grandes, siempre de izquierda a derecha, también en árabe/urdu */
   .dias-tramo {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    font-size: 22px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    font-size: 19px; font-weight: 700;
     font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
     color: var(--texto, #1a1a1a);
     direction: ltr;
+    min-width: 0;
+    white-space: nowrap;
   }
-  .dias-tramo .flecha { font-size: 16px; color: var(--gris-borde, #d0d7de); }
+  .dias-tramo .flecha { font-size: 13px; color: var(--gris-borde, #d0d7de); }
   .dias-tramo .falta { color: var(--naranja, #e67e22); }
-  .dias-tramo .dentro { color: var(--verde, #2e7d32); font-size: 18px; }
-  .dias-tramo .lapiz { font-size: 13px; margin-left: 2px; }
+  .dias-tramo .dentro { color: var(--verde, #2e7d32); font-size: 16px; }
+  .dias-tramo .lapiz { font-size: 12px; }
   /* Icono de estado: un círculo, un color, un signo */
   .dias-icono {
-    width: 30px; height: 30px; border-radius: 50%;
+    width: 26px; height: 26px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    color: #fff; font-weight: 800; font-size: 18px; line-height: 1;
+    color: #fff; font-weight: 800; font-size: 16px; line-height: 1;
     justify-self: end;
   }
   .dias-icono.ok    { background: var(--verde, #2e7d32); }
@@ -587,8 +592,7 @@
   /* «¿Algo no cuadra? Díselo hoy al encargado» — con dibujos para quien no lee */
   .dias-ayuda {
     display: flex; align-items: center; justify-content: center; gap: 8px;
-    margin: 10px auto 0;
-    max-width: 320px;
+    margin: 10px -8px 0;
     font-size: 13px;
     color: var(--texto, #1a1a1a);
     opacity: .85;
