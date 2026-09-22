@@ -3,8 +3,8 @@
   Habilitaciones — Jefe de obra
   22/9/2026 (Dani): la lista de "Con habilitaciones" se veía a medias (alto fijo
   de 300px) y nada indicaba que desde esta pantalla se pueden AÑADIR.
-  Cambios: alto de la lista de habilitados a 560px + texto de ayuda en la
-  cabecera y en el subtítulo. Solo aspecto y textos: ni BD ni lógica.
+  Cambios: alto de la lista a 560px, textos de ayuda ("busca y añade") y el
+  botón "+ Añadir habilitación" en naranja de marca. Ni BD ni lógica.
 -->
 <html lang="es">
 <head>
@@ -57,6 +57,9 @@
   /* 22/9/2026: la lista principal se veía a medias. La caja encoge sola si hay pocos. */
   #lista-habilitados { max-height: 560px; }
   .cab-ayuda { font-size: 12px; color: var(--texto2); margin: -4px 0 12px; }
+  .buscar-titulo { font-size: 13px; font-weight: 700; color: var(--naranja); margin-bottom: 8px; }
+  /* 22/9/2026: el botón de añadir pasa a naranja de marca — se confundía con el resto. */
+  #btn-anadir { background: var(--naranja); color: #1a1d24; font-size: 14px; padding: 11px 18px; }
   .tw-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 13px; border: 1px solid var(--borde); border-radius: 8px; cursor: pointer; transition: background 0.12s, border-color 0.12s; }
   .tw-item:hover { background: var(--bg3); }
   .tw-item.seleccionado { background: var(--bg3); border-color: var(--azul); }
@@ -195,8 +198,9 @@
               <div class="vacio">Selecciona una obra.</div>
             </div>
             <hr class="separador">
+            <div class="buscar-titulo">🔍 Busca y añade habilitaciones</div>
             <div class="buscador-wrap">
-              <input type="text" id="input-buscar" placeholder="Buscar cualquier trabajador de la obra…" autocomplete="off" />
+              <input type="text" id="input-buscar" placeholder="Busca a cualquier trabajador de la obra para añadirle una habilitación…" autocomplete="off" />
             </div>
             <div class="buscar-hint">Escribe al menos 2 caracteres para buscar.</div>
             <div class="tw-lista" id="lista-trabajadores"></div>
