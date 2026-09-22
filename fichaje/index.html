@@ -508,91 +508,92 @@
   }
   .aviso-gps button.reintentar:active { transform: scale(0.98); }
 
-  /* 84ª — Tambor de horas recientes (85ª: scroll real + marco) */
-  .tambor-marco {
-    margin: 14px auto 0;
-    max-width: 280px;
-    position: relative;
-    border: 1.5px solid var(--gris-borde, #ccc);
-    border-radius: 14px;
-    background: rgba(0,0,0,0.03);
-    overflow: hidden;
-  }
-  .tambor-banda {
-    position: absolute;
-    left: 8px; right: 8px;
-    top: 50%;
-    height: 40px;
-    transform: translateY(-50%);
-    border-top: 1.5px solid var(--color-principal);
-    border-bottom: 1.5px solid var(--color-principal);
-    border-radius: 8px;
-    background: rgba(0,0,0,0.04);
-    pointer-events: none;
-    z-index: 2;
-  }
-  .tambor-horas {
-    height: 150px;
-    overflow-y: auto;
-    scroll-snap-type: y mandatory;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-    position: relative;
-    -webkit-mask-image: linear-gradient(to bottom,
-      transparent 0%, rgba(0,0,0,.35) 18%, black 42%, black 58%, rgba(0,0,0,.35) 82%, transparent 100%);
-    mask-image: linear-gradient(to bottom,
-      transparent 0%, rgba(0,0,0,.35) 18%, black 42%, black 58%, rgba(0,0,0,.35) 82%, transparent 100%);
-  }
-  .tambor-horas::-webkit-scrollbar { display: none; }
-  .tambor-horas-inner {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    /* padding = (alto contenedor − alto fila) / 2 para poder centrar
-       la primera y la última fila en la banda */
-    padding: 55px 0;
-  }
-  .tambor-fila {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    height: 40px;
-    flex: 0 0 40px;
-    padding: 0 22px;
-    font-size: 17px;
-    color: var(--texto);
-    scroll-snap-align: center;
-    opacity: 0.45;
-    transform: scale(0.88);
-    transition: opacity .12s linear, transform .12s linear;
-  }
-  .tambor-fila.central {
-    font-weight: 700;
-    font-size: 20px;
-    opacity: 1;
-    transform: scale(1);
-  }
-  .tambor-fila .dia { text-transform: capitalize; }
-  .tambor-fila .horas { font-variant-numeric: tabular-nums; }
-  .tambor-titulo {
+  /* 84ª — Tambor de horas recientes. 22/9/2026 — sustituido por
+     «Mis últimos días»: lista clara de fichajes por día, pensada para
+     entenderse sin leer (números, colores e iconos). Pedido por Dani. */
+  .dias-titulo {
     text-align: center;
     font-size: 13px;
-    color: var(--color-principal);
-    margin-top: 12px;
+    color: var(--color-principal, #1e3a5f);
+    margin-top: 14px;
     font-weight: 600;
   }
-  /* Pista de que se puede mover: flechitas a la derecha del marco */
-  .tambor-pista {
-    position: absolute;
-    right: 10px; top: 50%;
-    transform: translateY(-50%);
-    display: flex; flex-direction: column; gap: 22px;
-    font-size: 11px;
-    color: var(--color-principal);
-    opacity: 0.7;
-    pointer-events: none;
-    z-index: 3;
+  .dias-marco {
+    margin: 8px auto 0;
+    max-width: 320px;
+    border: 1.5px solid var(--gris-borde, #d0d7de);
+    border-radius: 14px;
+    background: #fff;
+    overflow: hidden;
+    text-align: left;
   }
+  .dias-fila {
+    display: grid;
+    grid-template-columns: 46px 1fr 34px;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px 7px 8px;
+    border-top: 1px solid var(--gris-borde, #d0d7de);
+    min-height: 52px;
+  }
+  .dias-fila:first-child { border-top: none; }
+  .dias-fila.hoy {
+    background: rgba(46,125,50,0.07);
+    box-shadow: inset 4px 0 0 var(--verde, #2e7d32);
+  }
+  .dias-fila.duda { background: rgba(230,126,34,0.08); }
+  .dias-fila.hoy.duda {
+    background: rgba(230,126,34,0.08);
+    box-shadow: inset 4px 0 0 var(--naranja, #e67e22);
+  }
+  /* Chip del día: letra del día arriba, número grande abajo */
+  .dias-dia {
+    display: flex; flex-direction: column; align-items: center;
+    line-height: 1.05;
+    color: var(--color-principal, #1e3a5f);
+  }
+  .dias-dia .sem { font-size: 11px; text-transform: uppercase; letter-spacing: .03em; opacity: .8; }
+  .dias-dia .num { font-size: 21px; font-weight: 800; }
+  .dias-dia.repetido { opacity: .35; }
+  /* Las horas: grandes, siempre de izquierda a derecha, también en árabe/urdu */
+  .dias-tramo {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-size: 22px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--texto, #1a1a1a);
+    direction: ltr;
+  }
+  .dias-tramo .flecha { font-size: 16px; color: var(--gris-borde, #d0d7de); }
+  .dias-tramo .falta { color: var(--naranja, #e67e22); }
+  .dias-tramo .dentro { color: var(--verde, #2e7d32); font-size: 18px; }
+  .dias-tramo .lapiz { font-size: 13px; margin-left: 2px; }
+  /* Icono de estado: un círculo, un color, un signo */
+  .dias-icono {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 18px; line-height: 1;
+    justify-self: end;
+  }
+  .dias-icono.ok    { background: var(--verde, #2e7d32); }
+  .dias-icono.duda  { background: var(--naranja, #e67e22); }
+  .dias-icono.dentro {
+    background: var(--verde, #2e7d32);
+    animation: dias-latido 1.6s ease-in-out infinite;
+  }
+  @keyframes dias-latido {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50%      { transform: scale(.82); opacity: .55; }
+  }
+  /* «¿Algo no cuadra? Díselo hoy al encargado» — con dibujos para quien no lee */
+  .dias-ayuda {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin: 10px auto 0;
+    max-width: 320px;
+    font-size: 13px;
+    color: var(--texto, #1a1a1a);
+    opacity: .85;
+  }
+  .dias-ayuda .ic { font-size: 20px; }
 
   .selector-idioma {
     display: flex;
@@ -872,14 +873,12 @@
       <div class="hora" id="final-hora"></div>
       <div id="final-motivos" class="motivos oculto" style="text-align:left;"></div>
       <div id="final-olvido" class="aviso-olvido oculto"></div>
-      <!-- 84ª — Tambor de horas recientes (solo tras entrada) -->
-      <div id="tambor-horas-wrap" class="oculto">
-        <div class="tambor-titulo" id="tambor-titulo"></div>
-        <div class="tambor-marco">
-          <div class="tambor-banda"></div>
-          <div class="tambor-pista"><span>▲</span><span>▼</span></div>
-          <div class="tambor-horas" id="tambor-scroll"><div class="tambor-horas-inner" id="tambor-inner"></div></div>
-        </div>
+      <!-- 84ª — Tambor de horas. 22/9/2026 — «Mis últimos días»: lista de
+           fichajes por día para que la persona compruebe lo que hay registrado. -->
+      <div id="dias-wrap" class="oculto">
+        <div class="dias-titulo" id="dias-titulo"></div>
+        <div class="dias-marco" id="dias-lista"></div>
+        <div class="dias-ayuda"><span class="ic">❓</span><span id="dias-ayuda-texto"></span><span class="ic">👷</span></div>
       </div>
     </div>
     <button type="button" class="secundario" id="btn-nuevo-fichaje" style="margin-top:10px;">Nuevo fichaje</button>
@@ -1110,7 +1109,8 @@ const TEXTOS = {
           p: "Puedes pedir acceso, corrección o supresión de tus datos, y oponerte o limitar su uso, escribiendo a rgpdportium@gmail.com con tu nombre y una copia de tu documento de identidad." },
       ]
     },
-    tambor_titulo:       'Tus últimas jornadas',
+    tambor_titulo:       'Tus últimos días fichados',
+    dias_ayuda:          '¿Algo no cuadra? Díselo hoy al encargado.',
     dias_semana:         ['dom','lun','mar','mié','jue','vie','sáb'],
     dni_invalido:        'Introduzca un DNI o NIE válido.',
     dni_letra_mal:       'La letra no coincide con los números. Revise su DNI.',
@@ -1263,7 +1263,8 @@ const TEXTOS = {
           p: "Pots demanar accés, correcció o supressió de les teves dades, i oposar-te o limitar-ne l'ús, escrivint a rgpdportium@gmail.com amb el teu nom i una còpia del teu document d'identitat." },
       ]
     },
-    tambor_titulo:       'Les teves últimes jornades',
+    tambor_titulo:       'Els teus últims dies fitxats',
+    dias_ayuda:          'Alguna cosa no quadra? Digues-ho avui a l\'encarregat.',
     dias_semana:         ['dg','dl','dt','dc','dj','dv','ds'],
     dni_invalido:        'Introduïu un DNI o NIE vàlid.',
     dni_letra_mal:       'La lletra no coincideix amb els números. Reviseu el vostre DNI.',
@@ -1405,7 +1406,8 @@ const TEXTOS = {
           p: "يمكنك طلب الاطلاع على بياناتك أو تصحيحها أو حذفها، والاعتراض على استعمالها أو تقييده، بمراسلة rgpdportium@gmail.com مع ذكر اسمك وإرفاق نسخة من وثيقة هويتك." },
       ]
     },
-    tambor_titulo:       'آخر أيام عملك',
+    tambor_titulo:       'آخر أيام تسجيلك',
+    dias_ayuda:          'هل هناك خطأ؟ أخبر المشرف اليوم.',
     dias_semana:         ['أحد','إثن','ثلا','أرب','خمي','جمع','سبت'],
     dni_invalido:        'يرجى إدخال رقم هوية صحيح.',
     dni_letra_mal:       'الحرف لا يتطابق مع الأرقام. يرجى مراجعة هويتك.',
@@ -1547,7 +1549,8 @@ const TEXTOS = {
           p: "Poți cere acces, corectarea sau ștergerea datelor tale, și te poți opune sau poți limita folosirea lor, scriind la rgpdportium@gmail.com cu numele tău și o copie a actului de identitate." },
       ]
     },
-    tambor_titulo:       'Ultimele tale zile de lucru',
+    tambor_titulo:       'Ultimele tale zile pontate',
+    dias_ayuda:          'Ceva nu e corect? Spune-i azi șefului de echipă.',
     dias_semana:         ['dum','lun','mar','mie','joi','vin','sâm'],
     dni_invalido:        'Introduceți un DNI sau NIE valid.',
     dni_letra_mal:       'Litera nu corespunde cu cifrele. Verificați DNI-ul.',
@@ -1696,7 +1699,8 @@ const TEXTOS = {
           p: "آپ اپنے ڈیٹا تک رسائی، درستگی یا حذف کرنے کا مطالبہ کر سکتے ہیں، اور اس کے استعمال پر اعتراض یا پابندی لگا سکتے ہیں۔ اس کے لیے rgpdportium@gmail.com پر اپنا نام اور شناختی دستاویز کی نقل کے ساتھ لکھیں۔" },
       ]
     },
-    tambor_titulo:       'آپ کے آخری کام کے دن',
+    tambor_titulo:       'آپ کے آخری درج شدہ دن',
+    dias_ayuda:          'کچھ غلط ہے؟ آج ہی فورمین کو بتائیں۔',
     dias_semana:         ['اتو','سوم','منگ','بدھ','جمر','جمع','ہفت'],
     dni_invalido:        'درست DNI یا NIE درج کریں۔',
     dni_letra_mal:       'حرف اعداد سے میل نہیں کھاتا۔ اپنا شناختی نمبر دوبارہ دیکھیں۔',
@@ -1844,7 +1848,8 @@ const TEXTOS = {
           p: "ਤੁਸੀਂ ਆਪਣੇ ਡੇਟਾ ਤੱਕ ਪਹੁੰਚ, ਸੁਧਾਰ ਜਾਂ ਮਿਟਾਉਣ ਦੀ ਮੰਗ ਕਰ ਸਕਦੇ ਹੋ, ਅਤੇ ਇਸ ਦੀ ਵਰਤੋਂ ਦਾ ਵਿਰੋਧ ਜਾਂ ਹੱਦਬੰਦੀ ਕਰ ਸਕਦੇ ਹੋ। ਇਸ ਲਈ rgpdportium@gmail.com ਉੱਤੇ ਆਪਣਾ ਨਾਂ ਅਤੇ ਪਛਾਣ ਪੱਤਰ ਦੀ ਕਾਪੀ ਨਾਲ ਲਿਖੋ।" },
       ]
     },
-    tambor_titulo:       'ਤੁਹਾਡੇ ਪਿਛਲੇ ਕੰਮ ਦੇ ਦਿਨ',
+    tambor_titulo:       'ਤੁਹਾਡੇ ਆਖਰੀ ਦਰਜ ਦਿਨ',
+    dias_ayuda:          'ਕੁਝ ਗਲਤ ਹੈ? ਅੱਜ ਹੀ ਫੋਰਮੈਨ ਨੂੰ ਦੱਸੋ।',
     dias_semana:         ['ਐਤ','ਸੋਮ','ਮੰਗ','ਬੁੱਧ','ਵੀਰ','ਸ਼ੁੱਕ','ਸ਼ਨੀ'],
     dni_invalido:        'ਸਹੀ DNI ਜਾਂ NIE ਭਰੋ।',
     dni_letra_mal:       'ਅੱਖਰ ਅੰਕਾਂ ਨਾਲ ਮੇਲ ਨਹੀਂ ਖਾਂਦਾ। ਆਪਣਾ ਪਛਾਣ ਨੰਬਰ ਦੁਬਾਰਾ ਵੇਖੋ।',
@@ -1987,7 +1992,8 @@ const TEXTOS = {
           p: "You can ask for access to your data, or for it to be corrected or deleted, and you can object to or restrict its use, by writing to rgpdportium@gmail.com with your name and a copy of your identity document." },
       ]
     },
-    tambor_titulo:       'Your recent work days',
+    tambor_titulo:       'Your last recorded days',
+    dias_ayuda:          'Something wrong? Tell the foreman today.',
     dias_semana:         ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
     dni_invalido:        'Please enter a valid ID number (DNI or NIE).',
     dni_letra_mal:       'The letter does not match the numbers. Please check your ID.',
@@ -3454,9 +3460,10 @@ function mostrarConfirmacionFinal(r) {
     el.finalOlvido.classList.add('oculto');
   }
 
-  // 84ª — Tambor de horas recientes tras fichar (85ª: también en la salida).
+  // 84ª — Tambor de horas tras fichar (85ª: también en la salida).
+  // 22/9/2026 — ahora «Mis últimos días» (fichajes por día).
   // Accesorio: si falla, el fichaje ya está hecho.
-  cargarTamborHoras(estado.dni, estado.obraId);
+  cargarMisDias(estado.dni, estado.obraId);
 
   // El fichaje ha salido bien: el idioma que hay en pantalla es el de esta
   // persona. Es el único momento en que idioma y DNI van juntos con certeza.
@@ -3467,16 +3474,24 @@ function mostrarConfirmacionFinal(r) {
 
   irA(el.pasoFinal);
 }
-// 84ª — TAMBOR DE HORAS RECIENTES (85ª: scroll real + molinete + visible)
-// Llama a la RPC pública horas_jornada_recientes y pinta una ruleta
-// desplazable con los últimos días. Accesorio: si falla, no pasa nada.
-async function cargarTamborHoras(dni, obraId) {
-  const wrap = document.getElementById('tambor-horas-wrap');
-  const scroll = document.getElementById('tambor-scroll');
-  const inner = document.getElementById('tambor-inner');
-  const titulo = document.getElementById('tambor-titulo');
+// 84ª — TAMBOR DE HORAS RECIENTES. 22/9/2026 — sustituido por «MIS ÚLTIMOS
+// DÍAS» (pedido por Dani): la misma RPC pública horas_jornada_recientes
+// devuelve ahora los fichajes por día (entrada → salida) de esta persona en
+// esta obra, y aquí se pintan como una lista que se entiende sin leer:
+//   ✓ verde   = día completo y normal
+//   ? naranja = algo raro: salida sin fichar (cierre automático), tramo de
+//               pocos minutos (doble fichaje) o fichaje suelto
+//   ● verde latiendo = hoy, dentro de la obra
+//   ✏️ = ese fichaje lo corrigió o lo puso a mano el encargado/jefe
+// No se enseñan horas trabajadas a propósito: solo lo que hay fichado.
+// Accesorio: si falla, no pasa nada, el fichaje ya está hecho.
+async function cargarMisDias(dni, obraId) {
+  const wrap = document.getElementById('dias-wrap');
+  const lista = document.getElementById('dias-lista');
+  const titulo = document.getElementById('dias-titulo');
+  const ayuda = document.getElementById('dias-ayuda-texto');
   wrap.classList.add('oculto');
-  inner.innerHTML = '';
+  lista.innerHTML = '';
   try {
     const { data, error } = await sb.rpc('horas_jornada_recientes', {
       p_dni: dni, p_obra_id: obraId
@@ -3484,47 +3499,61 @@ async function cargarTamborHoras(dni, obraId) {
     if (error || !data || !data.length) return;
 
     titulo.textContent = T('tambor_titulo');
+    ayuda.textContent = T('dias_ayuda');
     const diasSemana = T('dias_semana') || ['dom','lun','mar','mié','jue','vie','sáb'];
+    // Hoy según el reloj del móvil, en fecha local (nunca toISOString).
+    const ahora = new Date();
+    const hoy = ahora.getFullYear() + '-' + String(ahora.getMonth() + 1).padStart(2, '0') +
+      '-' + String(ahora.getDate()).padStart(2, '0');
 
     data.forEach(d => {
       const fecha = new Date(d.fecha + 'T12:00:00'); // mediodía para evitar DST
       const diaSem = diasSemana[fecha.getDay()];
       const diaMes = fecha.getDate();
-      const h = Math.floor(d.horas_netas);
-      const m = Math.round((d.horas_netas - h) * 60);
-      const fila = document.createElement('div');
-      fila.className = 'tambor-fila';
-      fila.innerHTML =
-        '<span class="dia">' + escapar(diaSem) + ' ' + diaMes + '</span>' +
-        '<span class="horas">' + h + 'h ' + String(m).padStart(2, '0') + 'min</span>';
-      inner.appendChild(fila);
+      const esHoy = (d.fecha === hoy);
+      const tramos = Array.isArray(d.tramos) && d.tramos.length ? d.tramos : [null];
+
+      tramos.forEach((t, i) => {
+        const estado = t ? t.estado : 'sin_salida';
+        const raro = (estado === 'auto' || estado === 'corto' ||
+                      estado === 'sin_salida' || estado === 'sin_entrada');
+        const fila = document.createElement('div');
+        fila.className = 'dias-fila' + (esHoy ? ' hoy' : '') + (raro ? ' duda' : '');
+
+        // Chip del día (en el segundo tramo del mismo día, atenuado)
+        const chip = '<div class="dias-dia' + (i > 0 ? ' repetido' : '') + '">' +
+          '<span class="sem">' + escapar(diaSem) + '</span>' +
+          '<span class="num">' + diaMes + '</span></div>';
+
+        // Horas: entrada → salida. Lo que falta se pinta en naranja.
+        const ent = (t && t.entrada) ? escapar(t.entrada) : '<span class="falta">??</span>';
+        let sal;
+        if (estado === 'dentro')      sal = '<span class="dentro">●</span>';
+        else if (estado === 'auto')   sal = '<span class="falta">??</span>';
+        else if (t && t.salida)       sal = escapar(t.salida);
+        else                          sal = '<span class="falta">??</span>';
+        const lapiz = (t && (t.corregido || t.manual)) ? '<span class="lapiz">✏️</span>' : '';
+        const tramo = '<div class="dias-tramo">' + ent +
+          '<span class="flecha">▶</span>' + sal + lapiz + '</div>';
+
+        // Icono: ✓ verde, ? naranja, o ● verde latiendo si está dentro hoy
+        let icono;
+        if (estado === 'dentro')  icono = '<div class="dias-icono dentro">●</div>';
+        else if (raro)            icono = '<div class="dias-icono duda">?</div>';
+        else                      icono = '<div class="dias-icono ok">✓</div>';
+
+        fila.innerHTML = chip + tramo + icono;
+        lista.appendChild(fila);
+      });
     });
 
-    // Efecto molinete: la fila más cercana al centro del marco se agranda.
-    const actualizarCentral = () => {
-      const centro = scroll.getBoundingClientRect().top + scroll.clientHeight / 2;
-      let mejor = null, mejorDist = Infinity;
-      inner.querySelectorAll('.tambor-fila').forEach(f => {
-        const r = f.getBoundingClientRect();
-        const dist = Math.abs((r.top + r.height / 2) - centro);
-        if (dist < mejorDist) { mejorDist = dist; mejor = f; }
-        f.classList.remove('central');
-      });
-      if (mejor) mejor.classList.add('central');
-    };
-    scroll.addEventListener('scroll', actualizarCentral, { passive: true });
-
     wrap.classList.remove('oculto');
-    // Arranca centrado en el día más reciente (el primero) y marca el central
-    scroll.scrollTop = 0;
-    actualizarCentral();
-
-    // Que se vea sin que nadie tenga que buscarlo: baja hasta el tambor.
+    // Que se vea sin que nadie tenga que buscarlo.
     setTimeout(() => {
       wrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 350);
   } catch (e) {
-    console.warn('[tambor] Error (no bloquea):', e);
+    console.warn('[mis-dias] Error (no bloquea):', e);
   }
 }
 </script>
