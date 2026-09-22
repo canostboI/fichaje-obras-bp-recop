@@ -1777,6 +1777,24 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     }
   }
 
+  // 22/9/2026 · Aviso al marcar PERSONAL PROPIO (auditoría del falso verde,
+  // decisión de Dani). El personal propio nace en VERDE y queda fuera de las
+  // cinco capas del control documental: nadie vuelve a mirarlo. Eso está bien
+  // para quien es de la casa (hay un departamento que garantiza las altas),
+  // pero una equivocación en este desplegable mete a un desconocido en verde
+  // para siempre. Por eso se pregunta. La RPC además deja la línea firmada:
+  // esto es el aviso, no el cerrojo.
+  const empresaElegida = todasEmpresas.find(e => e.id === empresaId);
+  if (empresaElegida && empresaElegida.es_empresa_propia) {
+    const seguroPropio = confirm(
+      'Vas a dar de alta a ' + nombre + ' ' + apellidos + ' como PERSONAL PROPIO de '
+      + empresaElegida.nombre + '.\n\n'
+      + 'El personal propio entra en VERDE y NO pasa por el control documental '
+      + 'de e-Coordina: no se le comprueban los papeles ni ahora ni más adelante.\n\n'
+      + '¿Seguro que es de la casa? Si es de una subcontrata, elige su empresa.');
+    if (!seguroPropio) { msg.className = ''; msg.textContent = ''; btn.disabled = false; return; }
+  }
+
   const { data: rpcData, error: rpcError } = await sb.rpc('crear_o_actualizar_trabajador', {
     p_nombre: nombre, p_apellidos: apellidos, p_dni: dni,
     p_categoria: categoria || null,

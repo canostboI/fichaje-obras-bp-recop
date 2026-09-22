@@ -1661,6 +1661,33 @@ async function resolverSol(id, accion, clave) {
     if (!window.confirm(aviso)) return;
   }
 
+  // 22/9/2026 · Aviso al resolver con una empresa PROPIA (auditoría del falso
+  // verde, decisión de Dani). Resolver así deja a esa persona en verde y FUERA
+  // de las cinco capas del control documental: nadie vuelve a mirarla. Es lo
+  // correcto para quien es de la casa, y una puerta abierta si el desplegable
+  // se marcó por error a las siete de la mañana. La RPC deja además la línea
+  // firmada; esto es el aviso, no el cerrojo.
+  // Si no se pudo leer la lista de empresas propias, se dice: un vigilante que
+  // no puede mirar lo dice, no calla.
+  if (accion === 'autorizar' && empresaId) {
+    if (empresasPropias.has(empresaId)) {
+      if (!window.confirm(
+        'Vas a resolver el acceso de ' + quien + ' como PERSONAL PROPIO.\n\n' +
+        'El personal propio queda en VERDE y NO pasa por el control documental ' +
+        'de e-Coordina: no se le comprueban los papeles ni ahora ni más adelante.\n\n' +
+        '¿Seguro que es de la casa? Si viene por una subcontrata, elige su empresa.')) {
+        return;
+      }
+    } else if (falloEmpresasPropias) {
+      if (!window.confirm(
+        'No se ha podido comprobar si la empresa elegida es personal propio.\n\n' +
+        'Si lo fuera, esta persona quedaría en verde y fuera del control ' +
+        'documental de e-Coordina.\n\n¿Continúas igualmente?')) {
+        return;
+      }
+    }
+  }
+
   item.querySelectorAll('.sol-btn').forEach(b => { b.disabled = true; });
   msg.className = 'sol-estado';
   msg.textContent = 'Enviando…';
