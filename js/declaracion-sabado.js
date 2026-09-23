@@ -1,12 +1,22 @@
 // ============================================================
-// js/declaracion-sabado.js — Declaración de sábados con autocierre
+// js/declaracion-sabado.js — Declaración de los sábados
 // ============================================================
-// QUÉ ES: cuando un sábado alguien fichó la entrada pero no la
-// salida (autocierre), el encargado es el único que sabe si esa
-// persona hizo la mañana. Este módulo le saca un modal BLOQUEANTE
-// con la lista y tres respuestas por persona. La declaración NO
-// fija horas: es información para que el JEFE DE OBRA decida y
-// fije las 8 h en resumen-mes (regla 31ª: decisión por persona).
+// QUÉ ES: el sábado se paga por acuerdo (8 h a quien hizo la
+// mañana), no por lo que marca el reloj. El encargado es el único
+// que sabe si cada persona la hizo. Este módulo le saca un modal
+// BLOQUEANTE con la lista de jornadas del sábado y tres respuestas
+// por persona.
+//
+// 23/9/2026 (decisión de Dani): «si el encargado ha dicho que son
+// ocho, ya debería marcar ocho». Desde hoy:
+// - La declaración «hizo la mañana» FIJA las 8 h en la BD
+//   (`declarar_sabado`, respaldo 129/135): el jefe ya no firma
+//   nada en resumen-mes, solo lo ve. Su ajuste manual manda sobre
+//   el del encargado.
+// - Se declara TODA jornada de sábado, no solo las que la app
+//   cerró sola (respaldo 134): el que fichó salida a las 13:05
+//   también hizo la mañana y también cobra 8 h.
+// Antes (15/9): solo autocierres, y la declaración solo informaba.
 //
 // REGLAS:
 // - Se puede aplazar con "Ahora no" un máximo de 2 veces por
@@ -138,11 +148,10 @@ const DeclSabado = (() => {
     const modal = document.createElement('div');
     modal.id = 'dsab-modal';
 
-    let html = `<h2>⏱️ Sábados sin salida real</h2>
-      <p class="dsab-expl">Estas personas ficharon la entrada del sábado pero no la salida
-      (la app les cerró la jornada sola). Tú eres quien estaba en obra:
-      di si <b>hicieron la mañana</b>. El jefe de obra lo usa para pagar las horas.
-      No fija nada solo: es tu declaración.</p>`;
+    let html = `<h2>☀️ Sábados por declarar</h2>
+      <p class="dsab-expl">Tú eres quien estaba en obra: di si cada persona
+      <b>hizo la mañana</b> del sábado. A quien la hizo se le cuentan 8 h, por acuerdo,
+      sea cual sea la hora de salida. Si dices que no la hizo, el jefe de obra decide.</p>`;
 
     // Agrupar por fecha
     let fechaActual = null;
@@ -153,7 +162,7 @@ const DeclSabado = (() => {
       }
       html += `<div class="dsab-fila" id="dsab-fila-${i}">
         <div class="dsab-nombre">${_esc(f.trabajador_nombre)}</div>
-        <div class="dsab-entrada">Entrada: ${_esc(f.hora_entrada)} · salida cerrada por la app</div>
+        <div class="dsab-entrada">${_reloj(f)}</div>
         <div class="dsab-botones">` +
         RESPUESTAS.map(r =>
           `<button style="background:${r.color}"
@@ -232,6 +241,14 @@ const DeclSabado = (() => {
 
   function _cerrar() {
     _quitarModal();
+  }
+
+  // Lo que marcó el reloj. Solo informa: la respuesta es del encargado.
+  function _reloj(f) {
+    const ent = _esc(f.hora_entrada);
+    if (f.salida_automatica) return `Entrada: ${ent} · sin salida (la app cerró la jornada sola)`;
+    if (!f.hora_salida || f.hora_salida === '—') return `Entrada: ${ent} · sin salida`;
+    return `Entrada: ${ent} · Salida: ${_esc(f.hora_salida)}`;
   }
 
   function _esc(t) {
