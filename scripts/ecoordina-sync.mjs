@@ -16,6 +16,12 @@
 //  POLÍTICA DECIDIDA: nunca bloquea a los ausentes (p_dnis_a_bloquear = []).
 //  Solo actualiza estados.
 //
+//  23/9/2026 (pedido por Dani): además guarda los DOCUMENTOS DE EMPRESA (filas
+//  del CSV sin trabajador: seguro RC, RLC, Hacienda, SS, acta de adhesión,
+//  REA...) con la RPC guardar_documentos_empresa_ecoordina, para verlos en la
+//  ficha de Subcontratas. Solo para mirar: no cambia colores. Si falla, se
+//  apunta pero NO es fallo grave.
+//
 //  Secrets necesarios:  SUPABASE_EMAIL  /  SUPABASE_PASSWORD  (usuario admin)
 // ============================================================================
 
@@ -817,6 +823,57 @@ async function main() {
       if (updErr) log(`   ⚠ no se pudo marcar ultima_sync_ecoordina en ${obra.nombre}:`, updErr.message);
     }
 
+    // 23/9/2026 · Documentos de EMPRESA (pedido por Dani: verlos en la ficha de
+    // Subcontratas). Las filas sin trabajador se guardan tal cual, una línea
+    // por papel, en documentos_empresa_ecoordina. La función reescribe la obra
+    // entera cada noche (la tabla no crece). NO cambia colores: estos papeles
+    // ya tiñen a los trabajadores en calcularResultadoObra. Si falla, va al log
+    // y al resumen, pero NO es fallo grave: los colores de la noche ya están
+    // bien, y la pantalla enseña la fecha de la última lectura buena.
+    let docsEmpresa = 'sin filas';
+    {
+      const filasDocsEmpresa = [];
+      for (const f of filasObra) {
+        if (String(f['Trabajador'] || '').trim()) continue;
+        const empresaRaw = String(f['Empresa'] || '').trim();
+        if (!empresaRaw) continue;
+        const { nombre, cif } = extraerEmpresa(empresaRaw);
+        filasDocsEmpresa.push({
+          cif,
+          empresa: nombre,
+          documento: String(f['Documento'] || '').trim(),
+          estado: String(f['Estado'] || '').trim(),
+          caducidad: String(f['F.caducidad'] || '').trim()
+        });
+      }
+      if (filasDocsEmpresa.length) {
+        // try/catch: una excepción aquí (p. ej. un corte de red) NO puede
+        // saltarse el registro en ecoordina_sync, o a las 21:00 saldría un
+        // falso [sync_parada] con SMS al admin.
+        let dData = null, dErr = null;
+        try {
+          ({ data: dData, error: dErr } = await sb.rpc('guardar_documentos_empresa_ecoordina', {
+            p_obra_id: obra.id,
+            p_filas: filasDocsEmpresa
+          }));
+        } catch (e) {
+          dErr = { message: 'excepción: ' + (e && e.message ? e.message : String(e)) };
+        }
+        if (dErr || !dData || !dData.ok) {
+          docsEmpresa = 'ERROR: ' + ((dErr && dErr.message) || (dData && dData.error) || 'respuesta vacía');
+          log(`   ⚠ documentos de empresa NO guardados: ${docsEmpresa}`);
+        } else if (dData.aviso) {
+          docsEmpresa = `conservados (${dData.conservadas}): ${dData.aviso}`;
+          log(`   ⚠ documentos de empresa: ${docsEmpresa}`);
+        } else {
+          docsEmpresa = `${dData.guardadas} (${dData.empresas} empresas, ${dData.con_problemas} con problema)`;
+          log(`   documentos de empresa: ${docsEmpresa}`);
+        }
+      } else {
+        log('   documentos de empresa: el CSV no trae ninguno para esta obra (se conservan los anteriores)');
+      }
+    }
+
     // DAT-025 · Las filas con un trabajador que no hemos sabido identificar se
     // REGISTRAN. No tumban la sincronizacion (un pasaporte permanente dejaria
     // el banner clavado en rojo y un aviso que sale siempre no lo lee nadie),
@@ -827,7 +884,7 @@ async function main() {
         log(`      · "${f.trabajador}" · ${f.empresa || '(sin empresa)'} · ${f.doc}`);
       }
     }
-    resumen.push({ obra: obra.nombre, trabajadores: resultado.length, ...cuenta, aplicados: res.aplicados, fallosCrear: res.fallosCrear, rpc: res.mainOk ? 'OK' : 'ERROR', sin_identificar: filasSinIdentificar.length, forzados_vivos: res.forzadosVivos, forzados_apagados: res.forzadosApagados });
+    resumen.push({ obra: obra.nombre, trabajadores: resultado.length, ...cuenta, aplicados: res.aplicados, fallosCrear: res.fallosCrear, rpc: res.mainOk ? 'OK' : 'ERROR', sin_identificar: filasSinIdentificar.length, forzados_vivos: res.forzadosVivos, forzados_apagados: res.forzadosApagados, docs_empresa: docsEmpresa });
   }
 
   log('================ RESUMEN ================');
