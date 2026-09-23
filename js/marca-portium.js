@@ -244,6 +244,19 @@
     // el menú fijo de 200 px se comía media pantalla. Por encima de 600 px
     // de ancho no cambia nada.
     cargar('menu-movil.js');
+    // 23/9/2026 — y la hoja de estilos del jefe en el móvil (tabla de
+    // presentes, tarjetas, cabecera). Todo dentro de @media (max-width:
+    // 600px): en el ordenador el navegador ni la lee. Va como <link> al
+    // final del <head>, así gana al <style> de cada pantalla sin !important.
+    (function () {
+      if (document.querySelector('link[href*="movil-jefe.css"]')) return;
+      var href = '../css/movil-jefe.css';
+      if (yo) href = yo.replace(/js\/marca-portium\.js.*$/, 'css/movil-jefe.css');
+      var l = document.createElement('link');
+      l.rel = 'stylesheet';
+      l.href = href + '?d=' + selloDelDia();
+      document.head.appendChild(l);
+    })();
     // Y, solo en el importador, el menú del admin si quien entra es admin.
     if (pagina === 'documentos-ecoordina.html') cargar('menu-rol-ecoordina.js');
     // 20/9/2026 — y, solo en Presencia, el botón de estado de la obra
