@@ -8,8 +8,13 @@
    - TODO vive dentro de @media (max-width: 600px). Por encima de 600 px
      el navegador ni lo lee: el escritorio queda exactamente igual.
    - Solo aspecto. Ni una línea de JavaScript, ni un dato, ni un permiso.
-   - Los selectores van atados a su pantalla (#tabla-presencia, .stats…)
-     para no tocar tablas de otras pantallas sin querer.
+   - Las tablas van atadas a su pantalla (#tabla-presencia, #lista…) para
+     no tocar las de otras pantallas sin querer. Algunas clases de
+     márgenes se comparten (.contenido, .card, .modal, .seccion-cab): se
+     comprobó en qué pantallas salen y en todas conviene lo mismo.
+   - Probado el 23/9 en las nueve pantallas con datos de ejemplo a 412 y
+     360 px (nada se sale) y a 1.366 px: idéntico píxel a píxel con y
+     sin esta hoja.
 
    POR QUÉ UN ARCHIVO APARTE Y NO DENTRO DE css/movil.css
    movil.css lleva reglas generales del encargado (.card, main…) que en
@@ -92,8 +97,237 @@
     min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
 
-  /* ── 5. Cinturón de seguridad ──
-     Si algún día un texto largo vuelve a estirar algo, que se parta en
-     lugar de sacar la página de la pantalla. */
-  .main { overflow-x: hidden; }
+  /* ── 5. SIN «cinturón» a propósito ──
+     La primera versión llevaba .main { overflow-x: hidden }. Se quitó el
+     mismo día: no hace que nada quepa, solo RECORTA lo que sobra sin
+     avisar, y una columna recortada no se puede ni deslizar para verla.
+     Lo que no quepa, que se deslice dentro de su propia caja (ver
+     e-Coordina y Resumen más abajo). */
+}
+
+
+/* ═══ FICHAJES (jefe/fichajes.html) ════════════════════════════════
+   QUÉ ARREGLA (medido a 412 px)
+   Siete columnas (ocho si no hay día elegido: sale la de Fecha) con
+   20 px de margen por celda: la tabla medía casi el doble que la
+   pantalla. Cada jornada pasa a ser una tarjeta:
+       ┌─────────────────────────────────────┐
+       │ mié 23 sep            (si hay fecha)│
+       │ (cara) NOMBRE APELLIDOS   ● En obra │
+       │ Z4970455E                           │
+       │ Entrada 07:43  Salida 12:13  4h 30m │
+       │ [✏ Entrada] [✏ Salida]              │
+       └─────────────────────────────────────┘
+   Las columnas se cuentan DESDE EL FINAL (nth-last-child) porque la de
+   Fecha va delante y solo existe a veces: desde el final, Acciones es
+   siempre la 1ª, Estado la 2ª… y así no hace falta tocar el HTML.
+   ═════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+
+  .barra-filtros { gap: 8px; }
+  .barra-filtros input { width: auto; flex: 1 1 140px; min-height: 40px; }
+  .barra-filtros button { min-height: 40px; }
+  .selector-obra { max-width: 100%; min-width: 0; }
+  .seccion-cab { padding: 12px 14px; }
+
+  #tabla-fichajes table,
+  #tabla-fichajes tbody { display: block; width: 100%; }
+  #tabla-fichajes thead { display: none; }
+
+  #tabla-fichajes tbody tr:not(.fila-empresa) {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "fecha  fecha  fecha  fecha"
+      "nombre nombre nombre estado"
+      "dni    dni    dni    dni"
+      "ent    sal    dur    dur"
+      "acc    acc    acc    acc";
+    column-gap: 14px; row-gap: 4px;
+    align-items: center;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--borde, #2e3345);
+  }
+  #tabla-fichajes tbody tr:not(.fila-empresa) td {
+    padding: 0; border: none; background: none; min-width: 0;
+  }
+  #tabla-fichajes tbody tr:not(.fila-empresa) td:nth-last-child(8) { grid-area: fecha; font-size: 12px; }
+  #tabla-fichajes tbody tr:not(.fila-empresa) td:nth-last-child(7) { grid-area: nombre; overflow-wrap: anywhere; }
+  #tabla-fichajes tbody tr:not(.fila-empresa) td:nth-last-child(6) { grid-area: dni; font-size: 12px; padding-left: 40px; }
+  #tabla-fichajes tbody tr:not(.fila-empresa) td:nth-last-child(5) { grid-area: ent; padding-left: 40px; margin-top: 4px; white-space: nowrap; }
+  #tabla-fichajes tbody tr:not(.fila-empresa) td:nth-last-child(4) { grid-area: sal; margin-top: 4px; white-space: nowrap; }
+  #tabla-fichajes tbody tr:not(.fila-empresa) td:nth-last-child(3) { grid-area: dur; margin-top: 4px; }
+  #tabla-fichajes tbody tr:not(.fila-empresa) td:nth-last-child(2) { grid-area: estado; align-self: start; }
+  #tabla-fichajes tbody tr:not(.fila-empresa) td:nth-last-child(1) { grid-area: acc; padding-left: 40px; margin-top: 6px; }
+
+  /* Sin la cabecera de columnas, las dos horas se dicen solas. */
+  #tabla-fichajes tbody tr:not(.fila-empresa) td:nth-last-child(5)::before { content: 'Entrada '; font-size: 12px; color: var(--texto2, #8b909e); }
+  #tabla-fichajes tbody tr:not(.fila-empresa) td:nth-last-child(4)::before { content: 'Salida '; font-size: 12px; color: var(--texto2, #8b909e); }
+
+  /* Botones de corregir, para dedo. */
+  #tabla-fichajes .btn-naranja { min-height: 36px; padding: 6px 12px; }
+
+  #tabla-fichajes tr.fila-empresa { display: block; }
+  #tabla-fichajes tr.fila-empresa td { display: block; padding: 8px 14px; }
+
+  /* Ventanas emergentes: que no se pegue al borde. */
+  .modal { padding: 20px 16px; }
+}
+
+
+/* ═══ TRABAJADORES (jefe/trabajadores.html) ════════════════════════
+   QUÉ ARREGLA (medido a 412 px)
+   La tabla tiene siete columnas y un ancho mínimo de 980 px a propósito
+   (en el ordenador se desliza dentro de su caja). En el móvil eso es
+   deslizar dos pantallas y media para llegar a «Editar». Cada persona
+   pasa a ser una tarjeta:
+       ┌─────────────────────────────────────┐
+       │ (cara) NOMBRE APELLIDOS  🛡️ 🏗️      │
+       │        47238372Y · Oficial 1ª       │
+       │        [✓ Válido · MURALLA]         │
+       │        Jornada [Normal]  25,00 €/h  │
+       │        🪪 [Editar] [Quitar de…]      │
+       └─────────────────────────────────────┘
+   🔴 Las filas de una empresa plegada llevan la clase «oculto»: la
+   regla va con :not(.oculto) para no volver a enseñarlas.
+   ═════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+
+  .buscador, .selector-obra-trabajadores { width: 100%; min-width: 0; }
+  .barra-filtros, .barra-botones { width: 100%; }
+  .barra-botones > button { flex: 1 1 auto; justify-content: center; min-height: 40px; }
+
+  #tabla-trabajadores table { min-width: 0; }
+  #tabla-trabajadores table,
+  #tabla-trabajadores tbody { display: block; width: 100%; }
+  #tabla-trabajadores thead { display: none; }
+
+  #tabla-trabajadores tbody tr.grupo-fila:not(.oculto) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "nombre nombre"
+      ".      dni"
+      ".      cat"
+      ".      obras"
+      ".      jornada"
+      ".      precio"
+      ".      acc";
+    column-gap: 0; row-gap: 5px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--borde, #2e3345);
+  }
+  #tabla-trabajadores tbody tr.grupo-fila td {
+    padding: 0; border: none; background: none; min-width: 0;
+  }
+  #tabla-trabajadores tbody tr.grupo-fila td:nth-child(1) { grid-area: nombre; overflow-wrap: anywhere; }
+  #tabla-trabajadores tbody tr.grupo-fila td:nth-child(2) { grid-area: dni; padding-left: 40px; font-size: 12px; color: var(--texto2, #8b909e); }
+  #tabla-trabajadores tbody tr.grupo-fila td:nth-child(3) { grid-area: cat; padding-left: 40px; font-size: 13px; }
+  #tabla-trabajadores tbody tr.grupo-fila td:nth-child(4) { grid-area: precio; padding-left: 40px; font-size: 13px; }
+  #tabla-trabajadores tbody tr.grupo-fila td:nth-child(5) { grid-area: jornada; padding-left: 40px; font-size: 13px; }
+  #tabla-trabajadores tbody tr.grupo-fila td:nth-child(6) { grid-area: obras; padding-left: 40px; }
+  #tabla-trabajadores tbody tr.grupo-fila td:nth-child(7) { grid-area: acc; padding-left: 40px; margin-top: 4px; }
+  #tabla-trabajadores tbody tr.grupo-fila td:nth-child(4)::before { content: 'Precio hora: '; color: var(--texto2, #8b909e); font-size: 12px; }
+  #tabla-trabajadores tbody tr.grupo-fila td:nth-child(5)::before { content: 'Jornada: '; color: var(--texto2, #8b909e); font-size: 12px; }
+  #tabla-trabajadores .acciones { flex-wrap: wrap; gap: 6px; }
+  #tabla-trabajadores .btn-accion { min-height: 36px; }
+
+  /* Cabecera de empresa: nombre arriba, etiquetas debajo en varias líneas. */
+  #tabla-trabajadores tr.grupo-empresa-cab { display: block; }
+  #tabla-trabajadores tr.grupo-empresa-cab td { display: block; padding: 10px 14px; }
+  #tabla-trabajadores .grupo-empresa-label { flex-wrap: wrap; row-gap: 6px; }
+  #tabla-trabajadores .grupo-empresa-badges { margin-left: 0; flex-wrap: wrap; width: 100%; }
+  #tabla-trabajadores .badge-empresa { padding: 5px 10px; }
+}
+
+
+/* ═══ SUBCONTRATAS (jefe/subcontratas.html) ════════════════════════
+   El listado (5 columnas) y la tabla «En mis obras» de la ficha pasan a
+   tarjetas: cada dato en su renglón, con su nombre delante cuando sin
+   la cabecera no se entendería. Al tocar una empresa la ficha ya baja
+   sola (scrollIntoView de la pantalla), así que no hay que tocar nada más.
+   ═════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+
+  #buscar { min-width: 0; flex-basis: 100%; }
+  .card { padding: 16px 14px; }
+
+  #lista table, #lista tbody, #lista tr, #lista td,
+  #ficha table, #ficha tbody, #ficha tr, #ficha td { display: block; width: 100%; }
+  #lista thead, #ficha thead { display: none; }
+
+  #lista tr.emp { padding: 10px 4px; border-bottom: 1px solid var(--borde, #2e3340); }
+  #lista tr.emp td { padding: 2px 0; border: none; }
+  #lista tr.emp td:nth-child(2) { color: var(--texto2, #8b909e); }
+  #lista tr.emp td:nth-child(4)::before { content: 'Prevista en: '; color: var(--texto2, #8b909e); font-size: 12px; }
+  #lista tr.emp td:nth-child(5)::before { content: 'Gente en mis obras: '; color: var(--texto2, #8b909e); font-size: 12px; }
+
+  #ficha tbody tr { padding: 10px 0; border-bottom: 1px solid var(--borde, #2e3340); }
+  #ficha tbody tr:last-child { border-bottom: none; }
+  #ficha tbody td { padding: 3px 0; border: none; }
+  #ficha tbody td:nth-child(1) { font-weight: 700; }
+  #ficha tbody td:nth-child(2)::before { content: 'Prevista: '; color: var(--texto2, #8b909e); font-size: 12px; }
+  #ficha tbody td:nth-child(3)::before { content: 'Contrato: '; color: var(--texto2, #8b909e); font-size: 12px; }
+  #ficha tbody td:nth-child(4)::before { content: 'Libro subc.: '; color: var(--texto2, #8b909e); font-size: 12px; }
+  #ficha tbody td:nth-child(5)::before { content: 'Gente: '; color: var(--texto2, #8b909e); font-size: 12px; }
+  #ficha .btn-mini { min-height: 34px; margin-top: 4px; }
+}
+
+
+/* ═══ HABILITACIONES (jefe/habilitaciones.html) ════════════════════
+   Dos columnas fijas (1fr + 340 px) y un selector de obra de 260 px
+   como mínimo: ya sin datos se salía. Las columnas se apilan: arriba la
+   lista de personas (y el panel de la elegida, que la pantalla ya baja
+   a enseñar), debajo el catálogo de tipos.
+   ═════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+  .dos-columnas { grid-template-columns: minmax(0, 1fr); }
+  .filtro-obra select { min-width: 0; flex: 1 1 auto; }
+  .seccion-body { padding: 14px 12px; }
+  .tw-item { min-height: 44px; }
+}
+
+
+/* ═══ INFORME DE INCIDENCIAS (jefe/informe-rojos.html) ═════════════
+   El informe es una hoja blanca con 40 px de margen, pensada para
+   imprimir. Las tablas de 2-3 columnas caben si se les quita el margen
+   de papel; las de 4 o más se deslizan (ver abajo). La impresión no
+   cambia (@media print va aparte y el papel es más ancho que 600 px).
+   ═════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+  .informe { padding: 20px 14px; }
+  .campo select { min-width: 0; max-width: 100%; }
+  table.inf-tabla { font-size: 13px; }
+  table.inf-tabla th { padding: 7px 6px; font-size: 10px; letter-spacing: 0.2px; }
+  table.inf-tabla td { padding: 8px 6px; }
+  .des-num { font-size: 22px; min-width: 40px; }
+  /* Las de 4 columnas o más (el detalle de autorizaciones, los presentes
+     sin registrar) no caben sin partir nombres y DNI por la mitad: se
+     deslizan dentro de su caja y las palabras quedan enteras. Probado:
+     partir «GURJEET» en «GURJEE-T» se lee peor que deslizar. */
+  table.inf-tabla:has(th:nth-child(4)) {
+    display: block; max-width: 100%;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+  }
+}
+
+
+/* ═══ E-COORDINA Y TIPOS DE JORNADA: deslizar dentro de su caja ═════
+   jefe/documentos-ecoordina.html (resultado del importador, 6
+   columnas) y la tabla de tipos de jornada de jefe/resumen-mes.html
+   son herramientas de ordenador. En el móvil no se rehacen: la tabla
+   se desliza DENTRO de su caja con el dedo y la página no se mueve,
+   igual que la tabla del mes (.tabla-scroll) que ya funcionaba así.
+   ═════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+  #tablaResultado, .alert table, table.tipos {
+    display: block; max-width: 100%;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+  }
 }
