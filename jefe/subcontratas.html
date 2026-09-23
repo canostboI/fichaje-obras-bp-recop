@@ -55,6 +55,23 @@
       correo sale del Outlook del jefe y aquí no hay forma de saberlo. Por eso
       se puede desmarcar.
 
+  23/9/2026 (pedido por Dani). DOCUMENTOS DE EMPRESA: «además del contrato y
+  el libro, toda aquella documentación que es de la empresa, no de un
+  trabajador» (seguro RC, RLC, certificados de Hacienda y SS, acta de
+  adhesión al plan de seguridad y salud, REA...). No se apuntan aquí: los
+  dicta e-Coordina y el robot los guarda cada noche en
+  `documentos_empresa_ecoordina` (una línea por papel, obra y CIF; se
+  reescribe cada noche). La empresa se casa por CIF.
+    · Lista: columna «Docs. empresa» (la ÚLTIMA, para no mover las etiquetas
+      del móvil en css/movil-jefe.css): «en regla» o «2 caducados»; un papel
+      mal en dos obras cuenta una vez.
+    · Ficha: la misma columna por obra y, debajo, SOLO los papeles que
+      fallan (decisión de Dani: los buenos se cuentan, no se listan), con la
+      fecha de la lectura. Si la lectura tiene más de 2 días, lo dice: un
+      color sin fecha miente.
+    · Solo para mirar: no cambia colores ni cierra puertas (esos papeles ya
+      tiñen a los trabajadores en la sync).
+
   Qué NO hace todavía:
     · el enlace desde las solicitudes de acceso.
 
@@ -129,6 +146,11 @@
   .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 22px; margin: 10px 0 16px; font-size: 13px; }
   .grid2 .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--texto2); }
   .grid2 .v { margin-top: 2px; }
+  .docs-emp { margin-top: 12px; padding: 10px 12px; background: var(--bg3, #22262f); border-radius: 8px; }
+  .docs-emp-tit { font-size: 12px; font-weight: 700; color: var(--texto2, #8b909e); margin-bottom: 4px; }
+  .docs-emp-fila { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--borde, #2e3340); font-size: 13px; }
+  .docs-emp-fila span:first-child { min-width: 0; }
+  .docs-emp-pie { font-size: 12px; padding-top: 6px; }
   .subt { font-size: 12px; font-weight: 700; color: var(--texto2); text-transform: uppercase; letter-spacing: 0.5px; margin: 14px 0 8px; }
   .prevista-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--borde); }
 
@@ -255,6 +277,7 @@ let previstas = [];         // empresas_previstas_obra (solo de mis obras, por R
 let contratos = [];         // contratos_empresa (mis obras)
 let libros = [];            // libros_subcontratacion (mis obras)
 let personas = [];          // validaciones_obra + empresa del trabajador (mis obras)
+let docsEmp = [];           // 23/9/2026: documentos de EMPRESA dictados por e-Coordina (mis obras)
 let fallos = [];            // qué consultas no se han podido leer
 let seleccionada = null;    // id de la empresa abierta en la ficha
 
@@ -313,7 +336,11 @@ async function cargarTodo() {
     if (rV.error) { fallos.push('personas'); personas = null; }
     else personas = (rV.data || []).filter(v => v.trabajador && v.trabajador.empresa_id)
       .map(v => ({ obra_id: v.obra_id, empresa_id: v.trabajador.empresa_id, estado: v.estado, activo: v.trabajador.activo !== false }));
-  } else { contratos = []; libros = []; personas = []; }
+
+    // 23/9/2026 · Documentos de empresa (los guarda el robot cada noche).
+    docsEmp = await leerDocsEmpresa(ids);
+    if (docsEmp === null) fallos.push('documentos de empresa');
+  } else { contratos = []; libros = []; personas = []; docsEmp = []; }
 
   pintarAvisos();
   pintarLista();
@@ -335,6 +362,89 @@ function resumenEmpresa(e) {
   return r;
 }
 
+// ── Documentos de empresa (23/9/2026) ────────────────────────────────────
+// Se leen por páginas de 1.000: PostgREST corta ahí sin avisar, y una lista
+// cortada es un dato falso. Si una página falla, todo es «sin datos».
+async function leerDocsEmpresa(ids) {
+  const todas = [];
+  for (let desde = 0; ; desde += 1000) {
+    const r = await sb.from('documentos_empresa_ecoordina')
+      .select('id, obra_id, cif, documento, estado, fecha_caducidad, sincronizado_en')
+      .in('obra_id', ids).order('id').range(desde, desde + 999);
+    if (r.error) return null;
+    const d = r.data || [];
+    todas.push(...d);
+    if (d.length < 1000) return todas;
+  }
+}
+// «Validado» = en regla. Caducado / No válido / Sin presentar, en rojo.
+// Validación pendiente / Incompleto, en naranja (ya lo han subido; falta que
+// coordinación lo revise). Un estado que no conocemos (Twind puede escribir
+// otros), en rojo: el fallo cae del lado de avisar.
+const DOC_NARANJA = ['validación pendiente', 'validacion pendiente', 'pendiente', 'incompleto'];
+function claseDoc(estado) {
+  const s = String(estado || '').trim().toLowerCase();
+  if (s === 'validado') return 'verde';
+  return DOC_NARANJA.includes(s) ? 'naranja' : 'rojo';
+}
+function docsDe(e, obraId) {
+  if (docsEmp === null) return null;
+  const cif = normCif(e.cif);
+  if (!cif) return [];
+  return docsEmp.filter(d => normCif(d.cif) === cif && (!obraId || d.obra_id === obraId));
+}
+function textoEstadoDoc(d) {
+  const s = String(d.estado || '').trim().toLowerCase();
+  return s + (s === 'caducado' && d.fecha_caducidad ? ' ' + fechaES(d.fecha_caducidad) : '');
+}
+function ultimaLectura(filas) {
+  return filas.reduce((m, d) => (d.sincronizado_en && d.sincronizado_en > m ? d.sincronizado_en : m), '');
+}
+function textoLectura(ts) {
+  if (!ts) return 'sin fecha de lectura';
+  const t = new Date(ts);
+  const txt = 'leído de e-Coordina el ' + t.toLocaleString('es-ES', { timeZone: 'Europe/Madrid', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const dias = Math.floor((Date.now() - t.getTime()) / 86400000);
+  return dias > 2 ? '⚠️ ' + txt + ' (hace ' + dias + ' días: puede haber cambiado)' : txt;
+}
+function lecturaVieja(ts) { return !ts || (Date.now() - new Date(ts).getTime()) > 2 * 86400000; }
+// Lista: un papel mal en dos obras cuenta una vez (seguro, SS... son de la empresa).
+function badgeDocsLista(filas) {
+  if (filas === null) return '<span class="badge badge-gris">sin datos</span>';
+  if (!filas.length) return '<span class="muted" title="e-Coordina no trae documentos de empresa de esta subcontrata en tus obras">—</span>';
+  const malos = new Map();
+  for (const d of filas) {
+    if (claseDoc(d.estado) === 'verde') continue;
+    const prev = malos.get(d.documento);
+    if (!prev || (claseDoc(prev.estado) === 'naranja' && claseDoc(d.estado) === 'rojo')) malos.set(d.documento, d);
+  }
+  if (!malos.size) return '<span class="badge badge-verde" title="' + esc(textoLectura(ultimaLectura(filas))) + '">en regla</span>';
+  const lista = [...malos.values()];
+  const estados = new Set(lista.map(d => String(d.estado).trim().toLowerCase()));
+  const n = lista.length;
+  let txt = n + ' por resolver';
+  if (estados.size === 1) {
+    const st = [...estados][0];
+    txt = st === 'caducado' ? n + (n === 1 ? ' caducado' : ' caducados')
+        : st === 'no válido' ? n + (n === 1 ? ' no válido' : ' no válidos')
+        : n + ' ' + st;
+  }
+  const hayRojo = lista.some(d => claseDoc(d.estado) === 'rojo');
+  const title = lista.map(d => d.documento + ': ' + textoEstadoDoc(d)).join('\n');
+  return '<span class="badge badge-' + (hayRojo ? 'rojo' : 'naranja') + '" title="' + esc(title) + '">' + esc(txt) + '</span>';
+}
+// Ficha: una obra.
+function celdaDocsObra(filas) {
+  if (filas === null) return '<span class="badge badge-gris">sin datos</span>';
+  if (!filas.length) return '<span class="muted" title="e-Coordina no trae documentos de empresa de esta subcontrata en esta obra">—</span>';
+  const ult = ultimaLectura(filas);
+  const vieja = lecturaVieja(ult) ? ' <span class="badge badge-gris" title="' + esc(textoLectura(ult)) + '">lectura vieja</span>' : '';
+  const malos = filas.filter(d => claseDoc(d.estado) !== 'verde');
+  if (!malos.length) return '<span class="badge badge-verde" title="' + esc(textoLectura(ult)) + '">✓ en regla</span>' + vieja;
+  const hayRojo = malos.some(d => claseDoc(d.estado) === 'rojo');
+  return '<span class="badge badge-' + (hayRojo ? 'rojo' : 'naranja') + '">' + malos.length + ' de ' + filas.length + ' por resolver</span>' + vieja;
+}
+
 // ── Lista ────────────────────────────────────────────────────────────────
 function pintarLista() {
   const h = $('lista');
@@ -353,7 +463,7 @@ function pintarLista() {
 
   if (!filas.length) { h.innerHTML = '<div class="muted" style="padding:12px 4px; font-size:13px;">Ninguna subcontrata coincide.</div>'; return; }
 
-  let html = '<table><thead><tr><th>Empresa</th><th>CIF</th><th>Contacto</th><th>Prevista en</th><th>Gente en mis obras</th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th>Empresa</th><th>CIF</th><th>Contacto</th><th>Prevista en</th><th>Gente en mis obras</th><th>Docs. empresa</th></tr></thead><tbody>';
   for (const e of filas) {
     const r = resumenEmpresa(e);
     const sinCif = !normCif(e.cif);
@@ -367,7 +477,7 @@ function pintarLista() {
       ((sinCif || e.pendiente_identificar) ? ' <span class="badge badge-naranja" title="Sin CIF: e-Coordina no podrá reconocerla">falta identificar</span>' : '') + '</td>' +
       '<td class="cif">' + (esc(e.cif) || '<span class="muted">—</span>') + '</td>' +
       '<td>' + (esc(e.contacto_nombre) || '<span class="muted">—</span>') + (e.contacto_email ? '<br><span class="muted" style="font-size:12px">' + esc(e.contacto_email) + '</span>' : '') + '</td>' +
-      '<td>' + prev + '</td><td>' + gente + '</td></tr>';
+      '<td>' + prev + '</td><td>' + gente + '</td><td>' + badgeDocsLista(docsDe(e, null)) + '</td></tr>';
   }
   h.innerHTML = html + '</tbody></table>';
   h.querySelectorAll('tr.emp').forEach(tr => tr.addEventListener('click', () => abrirFicha(tr.dataset.id)));
@@ -430,7 +540,7 @@ function pintarFicha(id) {
   if (!misObras.length) {
     html += '<div class="muted" style="font-size:13px">' + (fallos.includes('obras') ? 'No se han podido leer tus obras.' : 'No tienes obras asignadas.') + '</div>';
   } else {
-    html += '<table><thead><tr><th>Obra</th><th>Prevista</th><th>Contrato</th><th>Libro subc.</th><th>Gente</th></tr></thead><tbody>';
+    html += '<table><thead><tr><th>Obra</th><th>Prevista</th><th>Contrato</th><th>Libro subc.</th><th>Gente</th><th>Docs. empresa</th></tr></thead><tbody>';
     for (const o of misObras) {
       const p = previstas ? previstas.find(x => x.empresa_id === e.id && x.obra_id === o.id) : undefined;
       const c = contratos ? contratos.filter(x => x.empresa_id === e.id && x.obra_id === o.id) : null;
@@ -455,10 +565,29 @@ function pintarFicha(id) {
         : g.length ? g.length + (g.filter(x => x.estado === 'rojo').length ? ' <span class="badge badge-rojo">' + g.filter(x => x.estado === 'rojo').length + ' en rojo</span>' : '')
         : '<span class="muted">—</span>';
       html += '<tr><td><strong>' + esc(o.nombre) + '</strong>' + (o.estado === 'pausada' ? ' <span class="badge badge-gris">pausada</span>' : '') + '</td>' +
-        '<td>' + celdaPrev + '</td><td>' + celdaDoc(c, 'contrato') + '</td><td>' + celdaDoc(l, 'libro') + '</td><td>' + celdaGente + '</td></tr>';
+        '<td>' + celdaPrev + '</td><td>' + celdaDoc(c, 'contrato') + '</td><td>' + celdaDoc(l, 'libro') + '</td><td>' + celdaGente + '</td>' +
+        '<td>' + celdaDocsObra(docsDe(e, o.id)) + '</td></tr>';
     }
     html += '</tbody></table>';
-    html += '<div class="muted" style="font-size:12px; margin-top:6px">Contrato y libro se apuntan desde <a href="trabajadores.html" style="color:inherit">Trabajadores</a>, como hasta ahora.</div>';
+    html += '<div class="muted" style="font-size:12px; margin-top:6px">Contrato y libro se apuntan desde <a href="trabajadores.html" style="color:inherit">Trabajadores</a>, como hasta ahora. Los documentos de empresa los dicta e-Coordina cada noche: se corrigen allí.</div>';
+
+    // 23/9/2026 · Documentos de empresa: el detalle, SOLO de lo que falla.
+    if (docsEmp !== null && docsEmp.length === 0) {
+      html += '<div class="muted" style="font-size:12px; margin-top:6px">Los documentos de empresa aparecerán después de la próxima sincronización de e-Coordina (de madrugada).</div>';
+    }
+    for (const o of misObras) {
+      const f = docsDe(e, o.id);
+      if (!f || !f.length) continue;
+      const malos = f.filter(d => claseDoc(d.estado) !== 'verde').sort((a, b) =>
+        (claseDoc(a.estado) === 'rojo' ? 0 : 1) - (claseDoc(b.estado) === 'rojo' ? 0 : 1) || a.documento.localeCompare(b.documento));
+      if (!malos.length) continue;   // «en regla» ya lo dice la tabla
+      html += '<div class="docs-emp"><div class="docs-emp-tit">Documentos de empresa por resolver · ' + esc(o.nombre) + '</div>';
+      for (const d of malos) {
+        html += '<div class="docs-emp-fila"><span>' + esc(d.documento) + '</span><span class="badge badge-' + claseDoc(d.estado) + '">' + esc(textoEstadoDoc(d)) + '</span></div>';
+      }
+      const buenos = f.length - malos.length;
+      html += '<div class="muted docs-emp-pie">' + (buenos ? (buenos === 1 ? 'El otro, validado' : 'Los otros ' + buenos + ', validados') + ' · ' : '') + esc(textoLectura(ultimaLectura(f))) + '</div></div>';
+    }
 
     // Marcar prevista
     html += '<div class="prevista-form">' +
