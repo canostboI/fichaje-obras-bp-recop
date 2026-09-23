@@ -49,6 +49,16 @@
    dejar el menú sin ningún logo (patrón de la casa: un fallo no se
    pinta como un cero).
 
+   AÑADIDO 23/9/2026 (Dani): «es raro que solo te lleve la parte de arriba
+   de esas tres cosas que parecen lo mismo». Portium ya era un enlace a
+   Presencia (js/marca-portium.js, 20/9); el logo de la obra y el rótulo
+   «Jefe de Obra» eran dos <div> sin destino. Ahora los tres llevan a
+   index.html (Presencia, la pantalla principal del jefe). Se hace con un
+   clic sobre el <div> y no envolviéndolo en un <a>: la regla «.sidebar a»
+   de cada pantalla lo pintaría como una opción más del menú (fondo al pasar
+   por encima, márgenes), que es justo la pelea que ya tuvo Portium. También
+   con Enter desde el teclado, para no dejar un botón a medias.
+
    LO CARGA js/marca-portium.js. Para deshacerlo: quitar esa línea.
    Ningún HTML depende de esto.
    ============================================================ */
@@ -95,7 +105,12 @@
     // pinta js/marca-portium.js, que NO define justify-content: se centra
     // desde aquí, que tiene candado de /jefe/, para no tocar el panel del
     // encargado, donde ese mismo bloque va en la cabecera horizontal.
-    + '.sidebar .portium-lateral,.sidebar a.portium-lateral{justify-content:center}';
+    + '.sidebar .portium-lateral,.sidebar a.portium-lateral{justify-content:center}'
+    // 23/9/2026: el logo y el rótulo llevan a Presencia, como Portium.
+    // Cursor de mano y el mismo guiño que Portium al pasar por encima.
+    + '.sidebar .sidebar-brand,.sidebar .sidebar-logo{cursor:pointer;outline:none}'
+    + '.sidebar .sidebar-brand:hover img[src],.sidebar .sidebar-logo:hover{opacity:.85}'
+    + '.sidebar .sidebar-brand:focus-visible,.sidebar .sidebar-logo:focus-visible{outline:2px solid var(--color-acento,#ff9800);outline-offset:-2px}';
 
   function ponerCss() {
     if (!document.getElementById('logo-obra-css')) {
@@ -130,6 +145,29 @@
     d.className = 'sidebar-logo';
     d.textContent = 'Jefe de Obra';
     brand.parentNode.insertBefore(d, brand.nextSibling);
+  }
+
+  // 23/9/2026 (Dani): el logo de la obra y el rótulo «Jefe de Obra» llevan
+  // a Presencia, igual que Portium. Son <div> en las nueve pantallas y se
+  // quedan como <div>: clic y Enter, con título y tabindex para que se
+  // sepa que se puede pulsar. «index.html» en relativo es Presencia desde
+  // cualquier pantalla de /jefe/. Si algo falla, se quedan como estaban.
+  function hacerPulsables() {
+    var sidebar = document.querySelector('.sidebar');
+    if (!sidebar) return;
+    var bloques = [sidebar.querySelector('.sidebar-brand'), sidebar.querySelector('.sidebar-logo')];
+    bloques.forEach(function (el) {
+      if (!el || el.getAttribute('data-lleva-a-presencia')) return;
+      el.setAttribute('data-lleva-a-presencia', '1');
+      el.setAttribute('title', 'Ir a la pantalla principal');
+      el.setAttribute('role', 'link');
+      el.setAttribute('tabindex', '0');
+      var ir = function () { window.location.href = 'index.html'; };
+      el.addEventListener('click', ir);
+      el.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); ir(); }
+      });
+    });
   }
 
   // ¿Qué logo es cada imagen? Por el nombre del archivo, que es estable:
@@ -247,6 +285,7 @@
       // El aspecto se unifica en las NUEVE, subcontratas incluida.
       ponerCss();
       ponerRotulo();
+      hacerPulsables();
 
       var pagina = ruta.split('/').pop() || '';
       // Subcontratas conserva los DOS logos a propósito (lista global de
