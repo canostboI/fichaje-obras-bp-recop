@@ -1,0 +1,99 @@
+/* ═══════════════════════════════════════════════════════════════════
+   movil-jefe.css — Portium · el panel del jefe de obra en el móvil
+   23/9/2026 — pedido por Dani: «estaría bien que el jefe de obra lo vea
+   bien en el móvil; al final se acaba usando, aunque luego estés en el
+   ordenador».
+
+   HERMANO DE css/movil.css (que es el del encargado), MISMA RECETA
+   - TODO vive dentro de @media (max-width: 600px). Por encima de 600 px
+     el navegador ni lo lee: el escritorio queda exactamente igual.
+   - Solo aspecto. Ni una línea de JavaScript, ni un dato, ni un permiso.
+   - Los selectores van atados a su pantalla (#tabla-presencia, .stats…)
+     para no tocar tablas de otras pantallas sin querer.
+
+   POR QUÉ UN ARCHIVO APARTE Y NO DENTRO DE css/movil.css
+   movil.css lleva reglas generales del encargado (.card, main…) que en
+   las pantallas del jefe cambiarían cosas que nadie ha mirado. Aquí solo
+   entra lo del jefe, medido pantalla a pantalla.
+
+   QUIÉN LO CARGA
+   - js/marca-portium.js, en las nueve pantallas de jefe/ (ningún HTML
+     lleva <link>: para quitarlo, borrar esa línea).
+   - El menú en cajón (☰) NO está aquí: es js/menu-movil.js.
+   ═══════════════════════════════════════════════════════════════════ */
+
+
+/* ═══ PRESENCIA (jefe/index.html) ═══════════════════════════════════
+   QUÉ ARREGLA (medido en navegador a 412 px)
+   La tabla «Trabajadores en obra ahora» tenía cuatro columnas con
+   20 px de margen a cada lado de cada celda: medía más que la pantalla
+   y empujaba la página entera hacia la derecha. Por eso se cortaban
+   también la tercera tarjeta (Denegados) y el selector de obra.
+   ═════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+
+  /* ── 1. Menos margen alrededor: el ancho es oro ── */
+  .contenido { padding: 14px 10px; }
+
+  /* ── 2. Cabecera: los botones bajan de renglón en vez de salirse ── */
+  .topbar-right { flex-wrap: wrap; gap: 8px; max-width: 100%; }
+  .topbar-right select { max-width: 100%; min-width: 0; }
+
+  /* ── 3. Las tres tarjetas caben en una fila ── */
+  .stats { gap: 8px; }
+  .stat { padding: 12px 10px; min-width: 0; }
+  .stat .numero { font-size: 30px; }
+  .stat .etiqueta { font-size: 12px; line-height: 1.3; }
+  .stat .desglose { font-size: 11px; }
+
+  /* ── 4. La tabla de presentes: una persona, dos renglones ──
+     Cada fila deja de ser una fila de tabla y pasa a ser una rejilla:
+       ┌──────────────────────────┬───────┬────────┐
+       │ NOMBRE APELLIDOS  🛡️ 🏗️  │ 07:51 │ verde  │
+       │ 43687899C (gris)         │       │        │
+       └──────────────────────────┴───────┴────────┘
+     Nada se esconde: el DNI sigue ahí, debajo del nombre.
+     La cabecera de columnas sobra (hora y color se entienden solos). */
+  #tabla-presencia table,
+  #tabla-presencia tbody { display: block; width: 100%; }
+  #tabla-presencia thead { display: none; }
+
+  #tabla-presencia tbody tr:not(.tr-empresa-cab) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    column-gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--borde, #2e3345);
+  }
+  #tabla-presencia tbody tr:not(.tr-empresa-cab) td {
+    padding: 0; border: none; background: none;
+  }
+  #tabla-presencia tbody tr:not(.tr-empresa-cab) td:nth-child(1) {
+    grid-column: 1; grid-row: 1; min-width: 0; overflow-wrap: anywhere; line-height: 1.35;
+  }
+  #tabla-presencia tbody tr:not(.tr-empresa-cab) td:nth-child(2) {
+    grid-column: 1; grid-row: 2; font-size: 12px; color: var(--texto2, #8b909e); margin-top: 2px;
+  }
+  #tabla-presencia tbody tr:not(.tr-empresa-cab) td:nth-child(3) {
+    grid-column: 2; grid-row: 1 / span 2; font-variant-numeric: tabular-nums;
+  }
+  #tabla-presencia tbody tr:not(.tr-empresa-cab) td:nth-child(4) {
+    grid-column: 3; grid-row: 1 / span 2;
+  }
+  #tabla-presencia tbody tr:last-child { border-bottom: none; }
+
+  /* La banda de empresa ocupa todo el ancho y recorta con «…». */
+  #tabla-presencia .tr-empresa-cab { display: block; }
+  #tabla-presencia .tr-empresa-cab td { display: block; padding: 8px 12px; }
+  #tabla-presencia .empresa-cab-inner { min-width: 0; }
+  #tabla-presencia .empresa-cab-nombre {
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* ── 5. Cinturón de seguridad ──
+     Si algún día un texto largo vuelve a estirar algo, que se parta en
+     lugar de sacar la página de la pantalla. */
+  .main { overflow-x: hidden; }
+}
