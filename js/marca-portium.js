@@ -239,6 +239,11 @@
     cargar('menu-jefe.js');
     // Y en el menú, el logo de la obra activa en vez de los dos.
     cargar('logo-obra.js');
+    // 23/9/2026 — y en el móvil, el menú lateral como cajón con botón ☰.
+    // Pedido por Dani: el jefe acaba consultando el panel desde el móvil y
+    // el menú fijo de 200 px se comía media pantalla. Por encima de 600 px
+    // de ancho no cambia nada.
+    cargar('menu-movil.js');
     // Y, solo en el importador, el menú del admin si quien entra es admin.
     if (pagina === 'documentos-ecoordina.html') cargar('menu-rol-ecoordina.js');
     // 20/9/2026 — y, solo en Presencia, el botón de estado de la obra
