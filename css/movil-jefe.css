@@ -264,6 +264,9 @@
   #lista tr.emp td:nth-child(2) { color: var(--texto2, #8b909e); }
   #lista tr.emp td:nth-child(4)::before { content: 'Prevista en: '; color: var(--texto2, #8b909e); font-size: 12px; }
   #lista tr.emp td:nth-child(5)::before { content: 'Gente en mis obras: '; color: var(--texto2, #8b909e); font-size: 12px; }
+  /* 23/9/2026 · Documentos de empresa (e-Coordina): sexta columna, la última
+     a propósito para no mover las etiquetas de las cinco de antes. */
+  #lista tr.emp td:nth-child(6)::before { content: 'Docs. empresa: '; color: var(--texto2, #8b909e); font-size: 12px; }
 
   #ficha tbody tr { padding: 10px 0; border-bottom: 1px solid var(--borde, #2e3340); }
   #ficha tbody tr:last-child { border-bottom: none; }
@@ -273,6 +276,7 @@
   #ficha tbody td:nth-child(3)::before { content: 'Contrato: '; color: var(--texto2, #8b909e); font-size: 12px; }
   #ficha tbody td:nth-child(4)::before { content: 'Libro subc.: '; color: var(--texto2, #8b909e); font-size: 12px; }
   #ficha tbody td:nth-child(5)::before { content: 'Gente: '; color: var(--texto2, #8b909e); font-size: 12px; }
+  #ficha tbody td:nth-child(6)::before { content: 'Docs. empresa: '; color: var(--texto2, #8b909e); font-size: 12px; }
   #ficha .btn-mini { min-height: 34px; margin-top: 4px; }
 }
 
