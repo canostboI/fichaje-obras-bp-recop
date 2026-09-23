@@ -20,6 +20,8 @@
 <script src="../js/fechas.js"></script>
 <script src="../js/habilitaciones.js?v=20260915"></script>
 <script src="../js/foto-identidad.js"></script>
+<!-- 23/9/2026 (Dani): verificar en persona desde el bloque «identidad por confirmar» -->
+<script src="../js/verificacion-identidad.js?v=20260923"></script>
 <script src="../js/impresion.js"></script>
 <script src="../js/instalar-app.js"></script>
 <style>
@@ -1305,7 +1307,13 @@ async function cargarIdentidadesPendientes() {
   if (!obraActual) { panel.classList.add('oculto'); return; }
 
   const { data, error } = await sb.rpc('listar_identidades_pendientes', { p_obra_id: obraActual });
-  if (error || !data || data.ok !== true) { panel.classList.add('oculto'); return; }
+  // 23/9/2026 (repaso del circuito, Dani): un fallo ya no esconde el bloque.
+  if (error || !data || data.ok !== true) {
+    document.getElementById('ident-cuenta').textContent = '?';
+    lista.innerHTML = '<div class="ident-dias">⚠ No se ha podido comprobar si hay personas pendientes de identificar. Recarga la página.</div>';
+    panel.classList.remove('oculto');
+    return;
+  }
 
   // Quien tiene tarjeta de solicitud pendiente HOY se resuelve alli (la
   // tarjeta ya pide la nota de identidad): ensenarlo tambien aqui era
@@ -1315,6 +1323,7 @@ async function cargarIdentidadesPendientes() {
   if (!personas.length) { panel.classList.add('oculto'); lista.innerHTML = ''; return; }
 
   document.getElementById('ident-cuenta').textContent = personas.length;
+  identPersonas = new Map(personas.map(p => [p.trabajador_id, p]));
 
   const filas = await Promise.all(personas.map(async p => {
     const url = await urlFotoTrabajador(p.foto_path);
@@ -1333,9 +1342,12 @@ async function cargarIdentidadesPendientes() {
       +     (p.registrado_por ? '<br>Registrado por ' + escIdent(p.registrado_por) : '')
       +   '</div>'
       +   '<div class="ident-dias">' + cuando + '</div><br>'
-      +   '<button class="ident-foto-btn" onclick="anadirFotoIdent(\'' + p.trabajador_id + '\')">'
-      +     (url ? '\uD83D\uDCF7 Rehacer la foto' : '\uD83D\uDCF7 Anadir la foto') + '</button>'
-      +   '<button class="ident-cerrar" onclick="abrirCierreIdent(\'' + p.trabajador_id + '\', this)">Decidir que pasa con esta persona</button>'
+      // 23/9/2026 (Dani): verificar en persona CIERRA la identidad (trigger de la BD).
+      // La misma ventana hace la foto, así que sustituye al botón de la foto.
+      // Lo único que no se cierra solo es «rechazado»: ése es el otro botón.
+      +   '<button class="ident-foto-btn" onclick="verificarIdent(\'' + p.trabajador_id + '\', this)">'
+      +     '\uD83E\uDEAA Verificar en persona</button>'
+      +   '<button class="ident-cerrar" onclick="abrirCierreIdent(\'' + p.trabajador_id + '\', this)">\u2715 Rechazado, no vuelve</button>'
       +   '<div class="ident-form-hueco"></div>'
       + '</div></div>';
   }));
@@ -1369,6 +1381,28 @@ function anadirFotoIdent(trabajadorId) {
   }, { tema: 'oscuro' });
 }
 
+// 23/9/2026 (Dani). Verificar en persona desde el bloque rojo: misma ventana
+// única que en Trabajadores (js/verificacion-identidad.js). Al guardar, la BD
+// cierra identidad_pendiente sola y firma la línea; aquí solo se recarga.
+var identPersonas = new Map();   // var, no let: se usa en una función definida más arriba
+async function verificarIdent(trabajadorId, btn) {
+  if (!obraActual) return;
+  if (!window.VerifIdentidad || typeof VerifIdentidad.identificar !== 'function') {
+    alert('La página tiene una versión antigua guardada. Recarga la página.');
+    return;
+  }
+  const p = identPersonas.get(trabajadorId) || {};
+  if (btn) btn.disabled = true;
+  try {
+    await VerifIdentidad.identificar(sb, trabajadorId, obraActual, {
+      tema: 'oscuro', nombre: p.nombre || '', empresa: p.empresa || '',
+      onGuardado: function () { cargarIdentidadesPendientes(); }
+    });
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 function verFotoIdent(url) {
   document.getElementById('ident-visor-img').src = url;
   document.getElementById('ident-visor').classList.remove('oculto');
@@ -1379,28 +1413,25 @@ function abrirCierreIdent(trabajadorId, btn) {
   if (!hueco) return;
   if (hueco.innerHTML) { hueco.innerHTML = ''; return; }
   hueco.innerHTML = '<div class="ident-form">'
-    + '<select class="ident-motivo">'
-    +   '<option value="">\u2014 Que ha pasado con esta persona \u2014</option>'
-    +   '<option value="regularizada">Documentacion regularizada</option>'
-    +   '<option value="excepcional">Acceso excepcional autorizado</option>'
-    +   '<option value="rechazado">Rechazado, no vuelve</option>'
-    + '</select>'
-    + '<input type="text" class="ident-nota" placeholder="Que has averiguado" autocomplete="off">'
+    // 23/9/2026 (Dani): ya no hay desplegable. «Regularizada» y «excepcional»
+    // cerraban la identidad SIN haber visto a la persona; la única forma de
+    // darla por buena es verificarla con el documento. Aquí solo queda el rechazo.
+    + '<div class="ident-dias">Para cuando esta persona no va a volver. Si la has visto con el documento, pulsa \u00AB\uD83E\uDEAA Verificar en persona\u00BB: eso lo cierra solo.</div>'
+    + '<input type="text" class="ident-nota" placeholder="Qu\u00E9 ha pasado (obligatorio)" autocomplete="off">'
     + '<div class="ident-form-btns">'
-    +   '<button style="background:#f44336;color:#fff" onclick="cerrarIdent(\'' + trabajadorId + '\', this)">Cerrar</button>'
+    +   '<button style="background:#f44336;color:#fff" onclick="cerrarIdent(\'' + trabajadorId + '\', this)">Confirmar rechazo</button>'
     +   '<button style="background:#444;color:#ddd" onclick="this.closest(\'.ident-form\').parentElement.innerHTML=\'\'">Cancelar</button>'
     + '</div><div class="ident-msg"></div></div>';
 }
 
 async function cerrarIdent(trabajadorId, btn) {
   const form   = btn.closest('.ident-form');
-  const motivo = form.querySelector('.ident-motivo').value;
+  const motivo = 'rechazado';   // 23/9/2026: el único cierre a mano que queda
   const nota   = (form.querySelector('.ident-nota').value || '').trim();
   const msg    = form.querySelector('.ident-msg');
 
   msg.style.color = '#f44336';
-  if (!motivo) { msg.textContent = 'Elige que ha pasado.'; return; }
-  if (nota.length < 3) { msg.textContent = 'Escribe que has averiguado. Sin motivo no es una firma.'; return; }
+  if (nota.length < 3) { msg.textContent = 'Escribe qué ha pasado. Sin motivo no es una firma.'; return; }
 
   btn.disabled = true;
   msg.style.color = '#999';
@@ -1471,8 +1502,20 @@ function sugerirEmpresa(texto) {
 }
 
 function solEmpresaCambia(sel) {
-  const inp = sel.closest('.sol-item').querySelector('.sol-empresa-nueva');
+  const item = sel.closest('.sol-item');
+  const inp = item.querySelector('.sol-empresa-nueva');
   if (inp) inp.classList.toggle('visible', sel.value === '__nueva__');
+  // 23/9/2026 (Dani): «Ya está en regla» solo con empresa PROPIA. La BD lo
+  // comprueba igual (resolver_solicitud_acceso); esto solo esconde el botón.
+  const emp = empresasAlta.find(e => e.id === sel.value);
+  solMostrarRegla(item, !!(emp && emp.propia));
+}
+
+function solMostrarRegla(item, propia) {
+  const b = item.querySelector('.sol-btn.regla');
+  const h = item.querySelector('.sol-ecoordina');
+  if (b) b.style.display = propia ? '' : 'none';
+  if (h) h.style.display = propia ? 'none' : '';
 }
 
 function solFoto(trabajadorId) {
@@ -1487,7 +1530,14 @@ async function cargarSolicitudes() {
   if (!obraActual) { panel.classList.add('oculto'); return; }
 
   const { data, error } = await sb.rpc('listar_solicitudes_hoy', { p_obra_id: obraActual });
-  if (error || !data || data.ok !== true) { panel.classList.add('oculto'); return; }
+  // 23/9/2026 (repaso del circuito, Dani): antes un fallo escondía el panel
+  // como si nadie esperase en la puerta. Un fallo de consulta nunca se pinta
+  // como un cero: se dice.
+  if (error || !data || data.ok !== true) {
+    lista.innerHTML = '<div class="sol-causa">⚠ No se ha podido comprobar si alguien espera autorización en la puerta. Recarga la página.</div>';
+    panel.classList.remove('oculto');
+    return;
+  }
 
   // El criterio de cero: se enseña lo que sigue estando pendiente DE VERDAD.
   // Si la sync de la noche ya puso a esa persona en verde, la petición se
@@ -1524,8 +1574,9 @@ async function cargarSolicitudes() {
     // antes, la RPC rechazaba por falta de nota de identidad y el panel no
     // tenia donde escribirla — un callejon sin salida con aspecto de roto.
     let form = '';
+    const sug0 = nueva ? sugerirEmpresa(x.empresa_declarada || x.empresa) : null;
     if (nueva) {
-      const sug = sugerirEmpresa(x.empresa_declarada || x.empresa);
+      const sug = sug0;
       const opciones = empresasAlta.map(e =>
         '<option value="' + esc(e.id) + '"' +
         (sug && sug.emp.id === e.id ? ' selected' : '') + '>' +
@@ -1555,8 +1606,14 @@ async function cargarSolicitudes() {
         '<input type="text" class="sol-nota-inp sol-cif" autocomplete="off"' +
           ' placeholder="Si lo sabes: evita crear la empresa dos veces">';
     }
+    // 23/9/2026 (Dani): ¿la empresa de esta tarjeta es propia? Al pintar se
+    // mira la sugerida (desconocido) o la de su ficha (ya dado de alta).
+    const propiaIni = nueva
+      ? !!(sug0 && sug0.emp.propia)
+      : empresasAlta.some(e => e.propia && e.nombre === x.empresa);
     if (x.identidad_pendiente) {
-      form += '<div class="sol-form-lbl">Identidad</div>' +
+      // 23/9/2026: autorizar ya NO cierra la identidad; la nota queda como nota.
+      form += '<div class="sol-form-lbl">Identidad (sigue pendiente hasta verificarla en persona)</div>' +
         '<input type="text" class="sol-nota-inp sol-nota" autocomplete="off"' +
           ' placeholder="Qué has averiguado sobre esta persona (obligatorio)">';
       if (x.trabajador_ref) {
@@ -1575,10 +1632,13 @@ async function cargarSolicitudes() {
       causa +
       form +
       '<div class="sol-acciones">' +
-        '<button class="sol-btn regla" onclick="resolverSol(\'' + esc(x.id) + '\',\'autorizar\',\'regla\')">✓ Ya está en regla</button>' +
+        '<button class="sol-btn regla"' + (propiaIni ? '' : ' style="display:none"') + ' onclick="resolverSol(\'' + esc(x.id) + '\',\'autorizar\',\'regla\')">✓ Ya está en regla</button>' +
         '<button class="sol-btn riesgo" onclick="resolverSol(\'' + esc(x.id) + '\',\'autorizar\',\'riesgo\')">⚠ Asumo el riesgo</button>' +
         '<button class="sol-btn no" onclick="resolverSol(\'' + esc(x.id) + '\',\'denegar\',\'no\')">✕ No entra</button>' +
       '</div>' +
+      '<div class="sol-causa sol-ecoordina"' + (propiaIni ? ' style="display:none"' : '') + '>' +
+        '¿Está en regla en e-Coordina? Pulsa <a href="documentos-ecoordina.html" style="color:inherit">🔄 Actualizar e-Coordina</a> ' +
+        'y tendrá su color real en unos minutos.</div>' +
       '<div class="sol-estado" id="sol-msg-' + esc(x.id) + '"></div>' +
     '</div>';
   }).join('');
