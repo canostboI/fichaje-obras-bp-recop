@@ -673,10 +673,13 @@ function etiquetaCat(t) {  const ETQ = { peon:'Peón', oficial:'Oficial', encarg
   </div>
 </div>
 
-<!-- Modal Revisión rápida del sábado: una línea por persona, un clic por persona -->
+<!-- Modal del sábado. 23/9/2026 (Dani): «si el encargado ha dicho que son
+     ocho, ya debería marcar ocho». Desde hoy la declaración del encargado FIJA
+     las 8 h (declarar_sabado, respaldo 129); este modal ya solo INFORMA, como el
+     de los dobles pases: enseña a quién le falta y lo que dijo el encargado. -->
 <div class="modal-overlay" id="modal-sabado">
   <div class="modal" style="max-width:560px">
-    <h2>✔ Firmar el sábado</h2>
+    <h2>☀️ Sábado sin fijar</h2>
     <div class="subtitulo" id="sab-subtitulo">—</div>
     <div id="sab-lista"></div>
     <div class="modal-acciones">
@@ -1001,26 +1004,12 @@ function textoCalculoIncompleto(queSale) {
     }
   });
 
-  // Revisión rápida del sábado. Delegado: las filas se repintan.
+  // Modal del sábado (informativo desde el 23/9/2026). Solo una salida:
+  // "Fijar horas…" abre el día suelto de esa persona, con su motivo escrito
+  // a mano. Se cierra este para no dejar dos abiertos.
   document.getElementById('btn-cerrar-sabado').addEventListener('click', cerrarRevisionSabado);
   document.getElementById('modal-sabado').addEventListener('click', async (e) => {
     if (e.target.id === 'modal-sabado') { await cerrarRevisionSabado(); return; }
-
-    const tidFirmar = e.target.getAttribute && e.target.getAttribute('data-firmar');
-    if (tidFirmar) { await firmarSabado(tidFirmar, e.target); return; }
-
-    // "Firmar igualmente": desbloquea el botón del avisado, no firma. La
-    // segunda pulsación sigue siendo una decisión, no un descuido.
-    const tidIgual = e.target.getAttribute && e.target.getAttribute('data-igual');
-    if (tidIgual) {
-      const fila = e.target.closest('.sab-fila');
-      fila.querySelector('.btn-firmar').disabled = false;
-      e.target.remove();
-      return;
-    }
-
-    // "otras…": el caso raro se resuelve en el modal de siempre, con su
-    // motivo escrito a mano. Se cierra este para no dejar dos abiertos.
     const tidOtras = e.target.getAttribute && e.target.getAttribute('data-otras');
     if (tidOtras) {
       const dia = sabadoAbierto.dia;
@@ -2792,12 +2781,20 @@ async function cerrarRevisionAutocierres() {
   }
 }
 
-// ====== REVISIÓN RÁPIDA DEL SÁBADO ======
+// ====== EL SÁBADO: LO QUE DIJO EL ENCARGADO ======
 //
 // Las 8 h NO son por ser sábado: son por haber hecho la mañana (~08:00 a
-// 14:00). El que viene una hora cobra su hora. Por eso esto NO es un
-// "aceptar los 16 de golpe": es una firma por persona, con el reloj
-// delante, pero de un solo clic en vez de cinco.
+// 14:00). El que viene una hora cobra su hora.
+//
+// 23/9/2026 (decisión de Dani): «si el encargado ha dicho que son ocho, ya
+// debería marcar ocho». QUIEN FIRMA ES EL ENCARGADO: al declarar «hizo la
+// mañana» en su móvil, `declarar_sabado` (respaldo 129) fija las 8 h en
+// ajustes_horas_dia con su firma y esa persona desaparece de aquí. Este
+// modal ya no firma nada (antes tenía «✔ Firmo 8 h»): es informativo, como
+// el de los dobles pases. Enseña a quién le falta, lo que dijo el encargado
+// («no la hizo», o nada todavía) y una sola puerta: fijar las horas del día
+// suelto, con motivo a mano. El jefe puede corregir cualquier celda igual
+// que siempre; su ajuste manda sobre el del encargado.
 //
 // LO QUE EL RELOJ SABE Y LO QUE NO:
 // El 93% de los sábados de julio y agosto NO tienen hora de salida real:
@@ -2812,16 +2809,14 @@ async function cerrarRevisionAutocierres() {
 const SAB_SALIDA_PRONTO = 12;   // hora
 const SAB_ENTRADA_TARDE = 10;   // hora
 const SAB_HORAS_ACUERDO = 8;
-const SAB_MOTIVO = 'Sábado, 8 h por acuerdo';
 
 let sabadoAbierto = null;       // { dia }
 // P13: declaración del encargado sobre los autocierres del sábado.
-// Solo INFORMA: la decisión de las 8 h sigue siendo del jefe (regla 31ª).
+// 23/9/2026: la declaración «hizo la mañana» YA FIJA las 8 h (en la BD).
 // A propósito NO se enseña en los modales hermanos (autocierres y doble
 // pase): allí la pregunta es si el RELOJ es bueno, no si hizo la mañana.
 let declaracionesSabadoDia = {};   // trabajador_id -> { respuesta, usuarios_app }
 let declSabadoError = false;
-let sabadoHuboCambios = false;
 
 // Lee el reloj de una persona en un día. Devuelve lo que se sabe de
 // verdad, distinguiendo lo marcado de lo inventado.
@@ -2858,13 +2853,13 @@ function hhmm(d) {
 
 function abrirRevisionSabado(dia) {
   sabadoAbierto = { dia };
-  sabadoHuboCambios = false;
   cargarDeclaracionesSabadoDia(mesCargado + '-' + String(dia).padStart(2, '0'));
   const [year, month] = mesCargado.split('-').map(Number);
   const fecha = new Date(year, month - 1, dia);
   document.getElementById('sab-subtitulo').textContent =
     fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }) +
-    ' · firma ' + SAB_HORAS_ACUERDO + ' h a quien hizo la mañana';
+    ' · a quien el encargado declaró «hizo la mañana» ya se le han fijado ' + SAB_HORAS_ACUERDO +
+    ' h. Estos son los que faltan.';
   renderRevisionSabado();
   document.getElementById('modal-sabado').classList.add('visible');
 }
@@ -2876,7 +2871,7 @@ function renderRevisionSabado() {
   const delDia = sab.pendientes.filter(p => p.dia === dia);
 
   if (delDia.length === 0) {
-    cont.innerHTML = '<div class="dia-vacio">Todo este sábado está firmado. 👍</div>';
+    cont.innerHTML = '<div class="dia-vacio">Todo este sábado tiene sus horas fijadas. 👍</div>';
     return;
   }
 
@@ -2905,12 +2900,10 @@ function renderRevisionSabado() {
         <div class="sab-nombre">${r.avisar ? '⚠ ' : ''}${escapeHtml(f.nombre)}</div>
         <div class="sab-reloj">${reloj}</div>
         ${lineaDeclSabado(f.trabajador_id)}
-        ${r.avisar ? `<div class="sab-aviso">${escapeHtml(r.motivoAviso)}
-          <button class="sab-igual" data-igual="${escapeHtml(f.trabajador_id)}">Firmar 8 h igualmente</button></div>` : ''}
+        ${r.avisar ? `<div class="sab-aviso">${escapeHtml(r.motivoAviso)}</div>` : ''}
       </div>
       <div class="sab-acc">
-        <button class="btn-firmar" data-firmar="${escapeHtml(f.trabajador_id)}" ${r.avisar ? 'disabled' : ''}>✔ Firmo 8 h</button>
-        <button class="btn-otras" data-otras="${escapeHtml(f.trabajador_id)}">otras…</button>
+        <button class="btn-otras" data-otras="${escapeHtml(f.trabajador_id)}">Fijar horas…</button>
       </div>
     </div>`;
   }).join('');
@@ -2940,11 +2933,17 @@ async function cargarDeclaracionesSabadoDia(fechaStr) {
 
 function lineaDeclSabado(tid) {
   const d = declaracionesSabadoDia[tid];
-  if (!d) return '';
+  if (!d) {
+    if (declSabadoError) return '';
+    return '<div class="sab-decl" style="font-size:0.82rem;margin-top:2px;color:#aaaaaa">' +
+      'El encargado aún no ha dicho nada de este sábado.</div>';
+  }
   const quien = (d.usuarios_app && d.usuarios_app.nombre) ? d.usuarios_app.nombre : 'El encargado';
   const M = {
-    hizo_manana:    { t: '✅ hizo la mañana', c: '#4caf50' },
-    no_hizo_manana: { t: '❌ no la hizo / se fue antes', c: '#ff5252' },
+    // «hizo la mañana» ya trae las 8 h fijadas desde la BD; si sale aquí es
+    // que las horas fijadas se quitaron a mano después.
+    hizo_manana:    { t: '✅ hizo la mañana (las 8 h se quitaron a mano después)', c: '#4caf50' },
+    no_hizo_manana: { t: '❌ no la hizo / se fue antes: fija las horas que correspondan', c: '#ff5252' },
     no_lo_se:       { t: '🤷 no lo sabe', c: '#aaaaaa' }
   };
   const m = M[d.respuesta];
@@ -2959,38 +2958,10 @@ function notaDeclSabado() {
     '⚠ No se han podido leer las declaraciones del encargado. Cierra y vuelve a abrir para reintentar.</div>';
 }
 
-async function firmarSabado(trabajadorId, boton) {
-  const dia = sabadoAbierto.dia;
-  const fila = boton.closest('.sab-fila');
-  boton.disabled = true;
-  boton.textContent = 'Firmando…';
-
-  const fechaStr = mesCargado + '-' + String(dia).padStart(2, '0');
-  const res = await guardarHorasDia(trabajadorId, fechaStr, SAB_HORAS_ACUERDO, SAB_MOTIVO);
-
-  if (!res.ok) {
-    boton.disabled = false;
-    boton.textContent = '✔ Firmo 8 h';
-    let err = fila.querySelector('.sab-error');
-    if (!err) { err = document.createElement('div'); err.className = 'sab-error'; fila.appendChild(err); }
-    err.textContent = 'No se ha podido guardar: ' + res.error;
-    return;
-  }
-
-  sabadoHuboCambios = true;
-  fila.className = 'sab-fila firmada';
-  fila.querySelector('.sab-acc').innerHTML = '<span class="sab-hecho">✔ 8 h firmadas</span>';
-}
-
-// Al cerrar se recarga el mes UNA vez, no después de cada firma: recargar
-// 16 veces sería lento y repintaría la tabla entera bajo el modal.
+// Aquí no se guarda nada (23/9/2026), así que cerrar no recarga el mes.
 async function cerrarRevisionSabado() {
   document.getElementById('modal-sabado').classList.remove('visible');
   sabadoAbierto = null;
-  if (sabadoHuboCambios) {
-    sabadoHuboCambios = false;
-    await cargarResumen();
-  }
 }
 
 // 83ª. CIERRE DE MES DESDE EL JEFE DE OBRA
@@ -3379,7 +3350,8 @@ function actualizarPanelCierre() {
       (diasPend.length === 1 ? ' sábado' : ' sábados') + '. ' +
       'El sábado se paga por acuerdo (8 h), no por lo que marca el reloj: ' +
       'sin fijar, el proforma cobra las horas calculadas y esas jornadas salen cortas. ' +
-      'Corregir el fichaje NO lo arregla: hay que fijar las horas.';
+      'A quien el encargado declara «hizo la mañana» ya se le fijan las 8 h solas; ' +
+      'estos son los que él dijo que no, o de los que aún no ha dicho nada.';
 
     diasPend.forEach(dia => {
       const delDia = sab.pendientes
@@ -3397,7 +3369,7 @@ function actualizarPanelCierre() {
       bRev.className = 'pc-chip';
       bRev.style.borderColor = 'var(--verde)';
       bRev.style.color = 'var(--verde)';
-      bRev.textContent = '✔ Revisar este sábado (' + delDia.length + ')';
+      bRev.textContent = '☀️ Ver este sábado (' + delDia.length + ')';
       bRev.onclick = () => abrirRevisionSabado(dia);
       chips4.appendChild(bRev);
     });
