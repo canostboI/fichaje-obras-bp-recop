@@ -29,9 +29,11 @@
        el aviso vuelve a salir con el nuevo;
      · queda firmado (quién y cuándo);
      · no desaparece, se repliega a una línea gris;
-     · 🔴 **deja de silenciar cuando queda un día o menos para el cierre**.
-       Dar por enterado no puede hacer que te quedes sin un oficial el
-       jueves por la mañana sin previo aviso;
+     · 23/9/2026 (Dani: «ya me ha informado, no necesito volver a verlo»):
+       el visto silencia HASTA EL CIERRE, también el día antes. Hasta hoy
+       dejaba de silenciar a 1 día o menos, y el botón parecía no hacer
+       nada: se pulsaba y la fila seguía en naranja. La regla vive en
+       `avisos_documentales_obra` (respaldo 127); aquí solo se pinta;
      · si la persona vuelve a e-Coordina y más tarde vuelve a desaparecer,
        el visto viejo no vale: es otra causa y se avisa de cero.
 
@@ -266,7 +268,8 @@
       html += '<div class="aec aec-gris">✔ <b>' + vistos.length + '</b> que ya diste por vista(s). '
            + '<button type="button" class="aec-mas" data-mas="vistos">'
            + (verVistos ? 'ocultar' : 'ver') + '</button>'
-           + '<div class="aec-pie">Volverán a avisarte el día antes de que se les cierre la puerta.</div>';
+           + '<div class="aec-pie">No volverán a avisarte por esta causa. Si vuelven a e-Coordina y '
+           + 'desaparecen otra vez, sí.</div>';
       if (verVistos) for (var s = 0; s < vistos.length; s++) html += filaPersona(vistos[s], false);
       html += '</div>';
     }
@@ -289,6 +292,13 @@
           p_visto: b.getAttribute('data-v') === '1'
         }).then(function (r) {
           if (r.error) { b.disabled = false; alert('No se ha podido guardar: ' + r.error.message); return; }
+          // 23/9/2026: la función devuelve {ok:false, error:'...'} sin error de
+          // red. Antes se callaba y el botón parecía no hacer nada.
+          if (r.data && r.data.ok === false) {
+            b.disabled = false;
+            alert('No se ha podido guardar: ' + (r.data.error || 'motivo desconocido'));
+            return;
+          }
           revisar(true);
         }).catch(function () { b.disabled = false; });
       };
