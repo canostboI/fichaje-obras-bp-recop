@@ -731,8 +731,17 @@ async function main() {
       const centroNorm = normalizar(centroObra);
       filasObra = filas.filter(f => normalizar(f['Centro']) === centroNorm);
       if (!filasObra.length) {
-        log(`— ${obra.nombre}: 0 filas para el centro "${centroObra}"`);
-        resumen.push({ obra: obra.nombre, estado: '0 filas' });
+        // 23/9/2026 · A8 de la auditoría del falso verde (pedido por Dani).
+        // Antes, una obra ACTIVA con 0 filas se saltaba en silencio y el run
+        // salía en verde. Si e-Coordina renombra el centro o lo quita del
+        // listado, nadie recibe dictado y la app se quedaba con los colores
+        // de ayer sin avisar. Una obra activa nunca tiene legítimamente 0
+        // filas: es fallo grave (run en ROJO, issue en GitHub, fila 'error'
+        // en ecoordina_sync). Los semáforos de ayer se conservan; la valla
+        // los cierra sola a los 7 días (A8 en validar_acceso).
+        log(`— ${obra.nombre}: 0 filas para el centro "${centroObra}" ⚠ FALLO: una obra activa sin filas no es un día bueno`);
+        resumen.push({ obra: obra.nombre, estado: '0 filas (fallo)', rpc: 'ERROR' });
+        huboFalloGrave = true;
         continue;
       }
     }
