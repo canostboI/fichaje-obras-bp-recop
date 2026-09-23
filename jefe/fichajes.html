@@ -78,6 +78,11 @@
   .jornada-avisos { font-size: 11px; color: var(--texto2); margin-top: 3px; }
   .jornada-avisos button { background: none; border: none; padding: 0; margin: 0; font: inherit; color: var(--texto2); cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; }
   .jornada-avisos button:hover { color: var(--color-acento); }
+  /* ── 23/9/2026, petición de Dani («una persona en la vida real, dos en la
+     app»): cuando alguien tiene varias jornadas el mismo día (entró, salió y
+     volvió a entrar), cada fila lo dice bajo el nombre. La ficha es una;
+     lo que se repite es la jornada. ── */
+  .jornada-repite { display: block; font-size: 11px; font-weight: 500; color: var(--texto2, #8b909e); margin-top: 2px; }
   .acciones-jornada { display: flex; gap: 6px; flex-wrap: wrap; }
 
   /* ── La cara junto al nombre (112ª, 19/9/2026, petición de Dani: mismo
@@ -376,7 +381,10 @@ async function buscar() {
     if (fechaDiff !== 0) return fechaDiff;
     const empDiff = compararEmpresas(a.empresa, b.empresa);
     if (empDiff !== 0) return empDiff;
-    return claveNombre(a).localeCompare(claveNombre(b), 'es');
+    const nomDiff = claveNombre(a).localeCompare(claveNombre(b), 'es');
+    if (nomDiff !== 0) return nomDiff;
+    // 23/9/2026: misma persona, varias jornadas el mismo día → en orden de entrada.
+    return (a.entradaHora || '').localeCompare(b.entradaHora || '');
   });
 
   document.getElementById('badge-total').textContent = jornadas.length + (jornadas.length === 1 ? ' jornada' : ' jornadas');
@@ -600,6 +608,13 @@ function pintarConFranjas(jornadas, mostrarFecha) {
   const columnas = mostrarFecha ? 8 : 7;
   let html = '';
   let grupoActual = null;
+  // 23/9/2026: cuántas jornadas tiene cada persona cada día, y cuál es cada fila.
+  const totalPorPersonaDia = {};
+  jornadas.forEach(j => {
+    const k = j.fechaKey + '|' + j.trabajadorId;
+    totalPorPersonaDia[k] = (totalPorPersonaDia[k] || 0) + 1;
+  });
+  const vistas = {};
   jornadas.forEach((j, i) => {
     const grupo = j.fechaKey + '|' + j.empresa;
     if (grupo !== grupoActual) {
@@ -609,7 +624,10 @@ function pintarConFranjas(jornadas, mostrarFecha) {
       ).size;
       html += `<tr class="fila-empresa"><td colspan="${columnas}">${esc(j.empresa)}<span class="num">${personas} ${personas === 1 ? 'persona' : 'personas'}</span></td></tr>`;
     }
-    html += pintarJornada(j, mostrarFecha, i);
+    const k = j.fechaKey + '|' + j.trabajadorId;
+    vistas[k] = (vistas[k] || 0) + 1;
+    const repite = totalPorPersonaDia[k] > 1 ? { num: vistas[k], total: totalPorPersonaDia[k] } : null;
+    html += pintarJornada(j, mostrarFecha, i, repite);
   });
   return html;
 }
@@ -632,8 +650,13 @@ function calcularDuracion(entradaIso, salidaIso) {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-function pintarJornada(j, mostrarFecha, idxJornada) {
+function pintarJornada(j, mostrarFecha, idxJornada, repite) {
   const nombreCompleto = [j.nombre, j.apellidos].filter(Boolean).join(' ') || '(sin nombre)';
+
+  // 23/9/2026: si la persona tiene más de una jornada ese día, decirlo.
+  const repiteHtml = repite
+    ? `<span class="jornada-repite">↩ ${repite.num}ª de ${repite.total} entradas el mismo día</span>`
+    : '';
 
   // Fecha legible
   const fechaLegible = j.fechaKey
@@ -693,7 +716,7 @@ function pintarJornada(j, mostrarFecha, idxJornada) {
 
   return `<tr>
     ${mostrarFecha ? `<td style="color:var(--texto2);font-size:13px;white-space:nowrap">${fechaLegible}</td>` : ''}
-    <td><div class="celda-nombre">${pintarCara(j, nombreCompleto)}<strong>${esc(nombreCompleto)}</strong></div></td>
+    <td><div class="celda-nombre">${pintarCara(j, nombreCompleto)}<div><strong>${esc(nombreCompleto)}</strong>${repiteHtml}</div></div></td>
     <td style="color:var(--texto2)">${esc(j.dni)}</td>
     <td>${entradaTxt}</td>
     <td>${salidaTxt}</td>
