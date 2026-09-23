@@ -38,6 +38,9 @@
        busca en el momento de tocar ☰, no al cargar.
      · Las ventanas emergentes (z-index 100) y el banner de conexión
        (200) siguen por encima del cajón (60).
+     · jefe/resumen-mes.html ya tenía su arreglo: menú en barra
+       horizontal por debajo de 760 px. Entre 600 y 760 se queda igual;
+       por debajo de 600 manda el cajón, como en las otras ocho.
 
    CUÁNDO NO HACE NADA
      · Fuera de /jefe/ (lo pide marca-portium.js solo allí).
@@ -66,6 +69,18 @@
     +     'box-shadow:none;overflow-y:auto;-webkit-overflow-scrolling:touch}'
     +   'body.mm-abierto .sidebar{transform:translateX(0);'
     +     'box-shadow:4px 0 24px rgba(0,0,0,.45)}'
+    // jefe/resumen-mes.html convierte el menú en barra horizontal por
+    // debajo de 760 px. Aquí (por debajo de 600) se deshace, para que el
+    // cajón sea igual en las nueve. «html body .sidebar» gana a su
+    // «.sidebar» sin !important; entre 600 y 760 su barra sigue igual.
+    +   'html body .sidebar{position:fixed;top:0;left:0;bottom:0;'
+    +     'flex-direction:column;align-items:stretch;overflow-x:hidden;'
+    +     'border-right:1px solid var(--borde, #2e3345);border-bottom:none}'
+    +   'html body .sidebar .sidebar-brand,html body .sidebar .sidebar-section,'
+    +     'html body .sidebar .sidebar-bottom{display:block}'
+    // marca-portium.js esconde el bloque Portium (con estilo en línea)
+    // cuando esa barra esconde el logo; en el cajón vuelve a verse.
+    +   '.sidebar .portium-lateral{display:flex !important}'
     // Opciones del menú con altura de dedo.
     +   '.sidebar a{min-height:44px;box-sizing:border-box}'
     // Fondo oscuro detrás del cajón.
