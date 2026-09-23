@@ -370,11 +370,28 @@ document.getElementById('btn-guardar').onclick = async () => {
   if (categoria === 'otra' && !categoriaOtra) { mostrarError('Has elegido «Otra…»: escribe el nombre de la categoría.'); return; }
   let precio_hora_personalizado = null;
   if (precioHoraRaw !== '') { precio_hora_personalizado = Number(precioHoraRaw); if (isNaN(precio_hora_personalizado) || precio_hora_personalizado < 0) { mostrarError('El precio hora debe ser un número válido.'); return; } }
-  const payload = { nombre, apellidos, dni, activo, telefono: telefono || null, categoria: categoria || null, categoria_otra: categoria === 'otra' ? categoriaOtra : null, precio_hora_personalizado };
-  let error;
-  if (trabajadorEditandoId) { ({ error } = await sb.from('trabajadores').update(payload).eq('id', trabajadorEditandoId)); }
-  else { ({ error } = await sb.from('trabajadores').insert(payload)); }
-  if (error) { mostrarError(error.code === '23505' ? 'Ya existe un trabajador con ese DNI.' : 'Error al guardar: ' + error.message); return; }
+  // 23/9/2026 · Segundo pestillo de A2 (auditoría del falso verde). Esta
+  // pantalla era el ÚNICO sitio que escribía directo en `trabajadores`
+  // (.insert/.update). Ahora pasa por la RPC `guardar_trabajador_admin`, que
+  // comprueba que quien llama es admin y hace lo mismo que hacía esto: crear
+  // o editar POR FICHA (así se puede corregir un DNI), sin tocar colores ni
+  // obras. Con esto se puede quitar a `authenticated` el permiso de escribir
+  // en la tabla. La RPC devuelve {ok:false, error} para los fallos esperados
+  // (DNI repetido, letra del DNI que no cuadra, «Otra…» vacía): se comprueban
+  // `error` Y `data.ok`, y se enseña el motivo tal cual.
+  const { data, error } = await sb.rpc('guardar_trabajador_admin', {
+    p_id: trabajadorEditandoId || null,
+    p_nombre: nombre,
+    p_apellidos: apellidos,
+    p_dni: dni,
+    p_telefono: telefono || null,
+    p_categoria: categoria || null,
+    p_categoria_otra: categoria === 'otra' ? categoriaOtra : null,
+    p_precio_hora: precio_hora_personalizado,
+    p_activo: activo
+  });
+  if (error) { mostrarError('Error al guardar: ' + error.message); return; }
+  if (!data || data.ok !== true) { mostrarError((data && data.error) ? data.error : 'No se ha podido guardar (respuesta vacía).'); return; }
   document.getElementById('modal-trabajador').classList.remove('visible');
   await cargarTrabajadores();
 };
