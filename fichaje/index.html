@@ -4,10 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Fichaje de obra</title>
+<link rel="icon" type="image/png" href="../assets/icons/portium-192.png">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/branding.js"></script>
 <script src="../js/motivos.js"></script>
+<!-- 24/9/2026 (Dani): animación de Portium en la espera tras el DNI (js/apertura.js, modo espera).
+     Va DENTRO de la tarjeta de espera, en lugar de la ruedecita: no tapa las banderas ni el «±m» del GPS.
+     Nunca retrasa el fichaje. Si el módulo no carga, la ruedecita sigue. -->
+<script src="../js/apertura.js?v=20260924b" data-modo="espera"></script>
 
 <style>
   :root {
@@ -845,7 +850,7 @@
 
   <div class="tarjeta oculto" id="paso-cargando">
     <div class="cargando">
-      <div class="spinner"></div>
+      <div class="spinner" data-portium-espera></div>
       <div id="cargando-texto">Validando acceso…</div>
     </div>
   </div>
