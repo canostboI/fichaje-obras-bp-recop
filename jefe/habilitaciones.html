@@ -67,11 +67,11 @@
   .tw-sub { font-size: 12px; color: var(--texto2); margin-top: 2px; }
   .tw-habs-badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
   .tw-hab-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; }
-  .tw-hab-badge.caducada      { background: rgba(244,67,54,0.15);   color: var(--rojo); }
-  .tw-hab-badge.proxima       { background: rgba(255,193,7,0.15);   color: var(--amarillo); }
-  .tw-hab-badge.vigente       { background: rgba(76,175,80,0.15);   color: var(--verde); }
-  .tw-hab-badge.sin_caducidad { background: rgba(139,144,158,0.15); color: var(--texto2); }
-  .tw-hab-badge.falta-fecha   { background: rgba(255,152,0,0.18);   color: var(--naranja); }
+  /* 24/9/2026 - Misma regla de colores en toda la app: azul = vigente o no caduca;
+     naranja = caduca pronto o le falta la fecha; rojo = caducada. */
+  .tw-hab-badge.vigente, .tw-hab-badge.sin_caducidad { background: rgba(33,150,243,0.15); color: var(--azul); }
+  .tw-hab-badge.proxima, .tw-hab-badge.falta-fecha   { background: rgba(255,152,0,0.15); color: var(--naranja); }
+  .tw-hab-badge.caducada      { background: rgba(244,67,54,0.15); color: var(--rojo); }
 
   .buscador-wrap { display: flex; gap: 10px; margin-bottom: 6px; }
   .buscador-wrap input { flex: 1; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font-size: 14px; padding: 9px 13px; font-family: inherit; }
@@ -86,11 +86,15 @@
 
   .hab-lista { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
   .hab-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 13px; border: 1px solid var(--borde); border-radius: 8px; background: var(--bg3); gap: 10px; flex-wrap: wrap; }
-  .hab-item.vigente       { border-left: 3px solid var(--verde); }
-  .hab-item.proxima       { border-left: 3px solid var(--amarillo); }
+  /* 24/9/2026 - Misma regla de colores en toda la app: azul = vigente o no caduca;
+     naranja = caduca pronto o le falta la fecha; rojo = caducada. */
+  .hab-item.vigente, .hab-item.sin_caducidad { border-left: 3px solid var(--azul); }
+  .hab-item.proxima, .hab-item.falta-fecha   { border-left: 3px solid var(--naranja); }
   .hab-item.caducada      { border-left: 3px solid var(--rojo); }
-  .hab-item.sin_caducidad { border-left: 3px solid var(--texto2); }
-  .hab-item.falta-fecha   { border-left: 3px solid var(--naranja); }
+  /* El icono de cada habilitación de la ficha, del color de su estado. */
+  .hab-item.vigente .hab-svg, .hab-item.sin_caducidad .hab-svg { color: var(--azul); }
+  .hab-item.proxima .hab-svg, .hab-item.falta-fecha .hab-svg   { color: var(--naranja); }
+  .hab-item.caducada .hab-svg { color: var(--rojo); }
   .hab-nombre { font-size: 14px; font-weight: 600; flex: 1; }
   .hab-caducidad { font-size: 12px; color: var(--texto2); }
   .hab-acciones { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
@@ -98,11 +102,9 @@
   .hab-titulo.con { color: var(--azul); }
 
   .badge { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 20px; }
-  .badge.vigente        { background: rgba(76,175,80,0.15);   color: var(--verde); }
-  .badge.proxima        { background: rgba(255,193,7,0.15);   color: var(--amarillo); }
-  .badge.caducada       { background: rgba(244,67,54,0.15);   color: var(--rojo); }
-  .badge.sin_caducidad  { background: rgba(139,144,158,0.15); color: var(--texto2); }
-  .badge.falta-fecha    { background: rgba(255,152,0,0.18);   color: var(--naranja); }
+  .badge.vigente, .badge.sin_caducidad { background: rgba(33,150,243,0.15); color: var(--azul); }
+  .badge.proxima, .badge.falta-fecha   { background: rgba(255,152,0,0.15); color: var(--naranja); }
+  .badge.caducada       { background: rgba(244,67,54,0.15); color: var(--rojo); }
 
   /* Edición de fecha en línea. Sustituye al prompt() del navegador, que
      obligaba a teclear AAAA-MM-DD a mano y se corrompía según el idioma. */
@@ -118,7 +120,7 @@
 
   .tipo-lista { display: flex; flex-direction: column; gap: 4px; }
   .tipo-item { display: flex; align-items: center; gap: 10px; padding: 9px 13px; border: 1px solid var(--borde); border-radius: 8px; }
-  .tipo-icono { font-size: 18px; width: 30px; display: inline-flex; align-items: center; justify-content: center; color: var(--naranja); }
+  .tipo-icono { font-size: 18px; width: 30px; display: inline-flex; align-items: center; justify-content: center; color: var(--texto2); }
   .hab-nombre .hab-svg { margin-right: 6px; vertical-align: -6px; }
   .tipo-nombre { font-size: 13px; font-weight: 500; }
 
