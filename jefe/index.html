@@ -337,9 +337,9 @@
   .iconos-hab-tabla { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; vertical-align: middle; color: var(--texto2); }
   .hab-est { display: inline-flex; align-items: center; cursor: default; }
   .hab-est.vigente, .hab-est.no_caduca { color: var(--azul); }
-  .hab-est.proxima     { color: var(--naranja); }
+  /* 24/9/2026 - Misma regla en toda la app: sin fecha = naranja (hay que arreglarlo). */
+  .hab-est.proxima, .hab-est.falta_fecha { color: var(--naranja); }
   .hab-est.caducada    { color: var(--rojo); }
-  .hab-est.falta_fecha { color: #9aa0a6; }
 
   /* ── La cara junto al nombre (24/9/2026, Dani: «aquí no salen las caras de
      la gente»). Mismo patrón que jefe/fichajes.html: círculo de hueco FIJO,
