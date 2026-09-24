@@ -23,8 +23,13 @@
      · Un toque en cualquier sitio la salta.
 
    SEGURIDAD: nunca puede dejar la pantalla tapada. Hay un
-   temporizador de retirada a los 4 s pase lo que pase, y cualquier
+   temporizador de retirada a los 5 s pase lo que pase, y cualquier
    error dentro del módulo quita la capa.
+
+   24/9/2026, tarde (Dani): «es muy breve». El logo completo solo se
+   veía un tercio de segundo. Ahora se queda quieto 1,25 s más: empieza
+   a desvanecerse a los 2,8 s (antes 1,9) y se ha ido a los ~3,2 s. Las
+   rayas, el arco y la palabra van igual de rápido que antes.
 
    COLORES: fijos de Portium, no de la obra (a esa hora aún no se
    sabe de quién es la obra). El fondo inicial es el background_color
@@ -63,8 +68,8 @@
   var ARENA = '#d6b67c';
   var LINEA = '#a4502a';
   var TEXTO = '#f2efe9';
-  var DURACION_MS = 1900;         // cuándo empieza a desvanecerse
-  var RETIRADA_MS = 4000;         // red de seguridad
+  var DURACION_MS = 2800;         // cuándo empieza a desvanecerse (antes 1900)
+  var RETIRADA_MS = 5000;         // red de seguridad (antes 4000)
 
   var yo = null;
   try { yo = document.currentScript; } catch (_) {}
