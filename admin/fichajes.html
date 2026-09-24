@@ -56,7 +56,14 @@
   .pill.azul  { background: rgba(33,150,243,0.15); color: var(--azul); }
   .vacio    { padding: 40px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 40px 20px; text-align: center; color: var(--texto2); }
-  .iconos-hab { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; vertical-align: middle; color: var(--naranja); }
+  .iconos-hab { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; vertical-align: middle; color: var(--texto2); }
+  /* 24/9/2026 - Iconos de habilitación coloreados por estado, misma regla en
+     toda la app: azul = vigente o no caduca; naranja = caduca pronto o le
+     falta la fecha; rojo = caducada. */
+  .hab-est { display: inline-flex; align-items: center; cursor: default; }
+  .hab-est.vigente, .hab-est.no_caduca { color: var(--azul); }
+  .hab-est.proxima, .hab-est.falta_fecha { color: var(--naranja); }
+  .hab-est.caducada { color: var(--rojo); }
 </style>
 <script src="../js/auto-logout.js"></script>
 <script src="../js/fechas.js"></script>
@@ -154,14 +161,9 @@ async function buscar() {
   const habIconos = {};
   if (ids.length > 0) {
     const { data: habs } = await sb.from('habilitaciones_trabajador')
-      .select('trabajador_id, tipo:tipo_habilitacion_id(nombre)')
+      .select('trabajador_id, fecha_caducidad, sin_caducidad, tipo:tipo_habilitacion_id(nombre)')
       .in('trabajador_id', ids).eq('activo', true);
-    (habs || []).forEach(h => {
-      const nombreTipo = h.tipo?.nombre || '';
-      const icono = icoHab(nombreTipo, 18);
-      if (!habIconos[h.trabajador_id]) habIconos[h.trabajador_id] = [];
-      if (!habIconos[h.trabajador_id].some(x => x.icono === icono)) habIconos[h.trabajador_id].push({ icono, nombre: nombreTipo });
-    });
+    (habs || []).forEach(h => meterIconoHab(habIconos, h));
   }
 
   document.getElementById('badge-total').textContent = data.length + ' registros';
@@ -196,11 +198,31 @@ function icoHab(tipo, px) {
 }
 // Lista de habilitaciones de un trabajador → iconos en fila + nombres para
 // el title. Los nombres van escapados también para comillas.
+// 24/9/2026 - Cada icono lleva el color de su estado y su propio texto al
+// pasar el ratón (nombre + caducidad), igual que en Presencia.
 function htmlIconosHab(lista, clase) {
   if (!lista || !lista.length) return '';
-  const nombres = lista.map(x => x.nombre).join(', ');
-  const tit = String(esc(nombres)).replace(/"/g, '&quot;');
-  return ' <span class="' + clase + '" title="Habilitaciones: ' + tit + '">' + lista.map(x => x.icono).join('') + '</span>';
+  const iconos = lista.map(x => {
+    const est = ['vigente', 'no_caduca', 'proxima', 'caducada', 'falta_fecha'].indexOf(x.estado) !== -1
+      ? x.estado : 'falta_fecha';
+    const tit = String(esc(x.nombre + (x.texto ? ' — ' + x.texto : ''))).replace(/"/g, '&quot;');
+    return '<span class="hab-est ' + est + '" title="' + tit + '">' + x.icono + '</span>';
+  }).join('');
+  return ' <span class="' + clase + '">' + iconos + '</span>';
+}
+// Si dos habilitaciones comparten dibujo (toro y carretilla), manda la peor.
+function gravedadHab(estado) {
+  return ({ caducada: 4, proxima: 3, falta_fecha: 2, vigente: 1, no_caduca: 1 })[estado] || 2;
+}
+function meterIconoHab(mapa, h) {
+  const nombreTipo = h.tipo?.nombre || '';
+  const icono = icoHab(nombreTipo, 18);
+  const estado = Hab.estado(h);
+  const item = { icono, nombre: nombreTipo, estado, texto: Hab.textoCaducidad(h) };
+  const lista = mapa[h.trabajador_id] || (mapa[h.trabajador_id] = []);
+  const i = lista.findIndex(x => x.icono === icono);
+  if (i === -1) lista.push(item);
+  else if (gravedadHab(estado) > gravedadHab(lista[i].estado)) lista[i] = item;
 }
 function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
 function formatFechaHora(iso) { if (!iso) return '—'; const d = new Date(iso); return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); }

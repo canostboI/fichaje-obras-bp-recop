@@ -96,7 +96,14 @@
           color: var(--texto2); letter-spacing: .5px; }
   .cara img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .rp-icono { display: inline-block; margin-left: 5px; font-size: 14px; vertical-align: middle; cursor: default; }
-  .iconos-hab { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; vertical-align: middle; color: var(--naranja); }
+  .iconos-hab { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; vertical-align: middle; color: var(--texto2); }
+  /* 24/9/2026 - Iconos de habilitación coloreados por estado, misma regla en
+     toda la app: azul = vigente o no caduca; naranja = caduca pronto o le
+     falta la fecha; rojo = caducada. */
+  .hab-est { display: inline-flex; align-items: center; cursor: default; }
+  .hab-est.vigente, .hab-est.no_caduca { color: var(--azul); }
+  .hab-est.proxima, .hab-est.falta_fecha { color: var(--naranja); }
+  .hab-est.caducada { color: var(--rojo); }
 </style>
   <script src="../js/auto-logout.js"></script>
   <script src="../js/fechas.js"></script>
@@ -210,7 +217,7 @@ async function cargarTrabajadores() {
   rpObrasPorTrabajador = {};
   fotoUrlPorTrabajador = {};
   if (ids.length > 0) {
-    const { data: habs } = await sb.from('habilitaciones_trabajador').select('trabajador_id, tipo:tipo_habilitacion_id(nombre)').in('trabajador_id', ids).eq('activo', true);
+    const { data: habs } = await sb.from('habilitaciones_trabajador').select('trabajador_id, fecha_caducidad, sin_caducidad, tipo:tipo_habilitacion_id(nombre)').in('trabajador_id', ids).eq('activo', true);
     // Recursos Preventivos activos. Si esta consulta falla NO se pinta escudo a
     // nadie: un escudo ausente se nota; uno inventado, no.
     const { data: rps, error: errRp } = await sb.from('recursos_preventivos_obra')
@@ -232,7 +239,7 @@ async function cargarTrabajadores() {
       const urls = await FI.enlaces(Object.values(rutas));
       Object.keys(rutas).forEach(tid => { if (urls[rutas[tid]]) fotoUrlPorTrabajador[tid] = urls[rutas[tid]]; });
     } catch (e2) { console.error('fotos de identidad:', e2); }
-    (habs || []).forEach(h => { const nombreTipo = h.tipo?.nombre || ''; const icono = icoHab(nombreTipo, 18); if (!habIconosPorTrabajador[h.trabajador_id]) habIconosPorTrabajador[h.trabajador_id] = []; if (!habIconosPorTrabajador[h.trabajador_id].some(x => x.icono === icono)) habIconosPorTrabajador[h.trabajador_id].push({ icono, nombre: nombreTipo }); });
+    (habs || []).forEach(h => meterIconoHab(habIconosPorTrabajador, h));
   }
   rellenarFiltros(data);
   aplicarFiltros();
@@ -419,11 +426,31 @@ function caraHtml(t) {
   return '<span class="cara" title="' + (url ? 'Foto de identidad' : 'Sin foto') + '">' + dentro + '</span>';
 }
 
+// 24/9/2026 - Cada icono lleva el color de su estado y su propio texto al
+// pasar el ratón (nombre + caducidad), igual que en Presencia.
 function htmlIconosHab(lista, clase) {
   if (!lista || !lista.length) return '';
-  const nombres = lista.map(x => x.nombre).join(', ');
-  const tit = String(esc(nombres)).replace(/"/g, '&quot;');
-  return ' <span class="' + clase + '" title="Habilitaciones: ' + tit + '">' + lista.map(x => x.icono).join('') + '</span>';
+  const iconos = lista.map(x => {
+    const est = ['vigente', 'no_caduca', 'proxima', 'caducada', 'falta_fecha'].indexOf(x.estado) !== -1
+      ? x.estado : 'falta_fecha';
+    const tit = String(esc(x.nombre + (x.texto ? ' — ' + x.texto : ''))).replace(/"/g, '&quot;');
+    return '<span class="hab-est ' + est + '" title="' + tit + '">' + x.icono + '</span>';
+  }).join('');
+  return ' <span class="' + clase + '">' + iconos + '</span>';
+}
+// Si dos habilitaciones comparten dibujo (toro y carretilla), manda la peor.
+function gravedadHab(estado) {
+  return ({ caducada: 4, proxima: 3, falta_fecha: 2, vigente: 1, no_caduca: 1 })[estado] || 2;
+}
+function meterIconoHab(mapa, h) {
+  const nombreTipo = h.tipo?.nombre || '';
+  const icono = icoHab(nombreTipo, 18);
+  const estado = Hab.estado(h);
+  const item = { icono, nombre: nombreTipo, estado, texto: Hab.textoCaducidad(h) };
+  const lista = mapa[h.trabajador_id] || (mapa[h.trabajador_id] = []);
+  const i = lista.findIndex(x => x.icono === icono);
+  if (i === -1) lista.push(item);
+  else if (gravedadHab(estado) > gravedadHab(lista[i].estado)) lista[i] = item;
 }
 function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
 function formatearPrecio(valor) { if (valor === null || valor === undefined || valor === '') return '—'; const n = Number(valor); if (isNaN(n)) return '—'; return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €/h'; }
