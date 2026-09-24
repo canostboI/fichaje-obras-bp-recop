@@ -565,6 +565,8 @@
     padding: 7px 11px; font-size: 0.82rem; line-height: 1.3;
     box-shadow: 0 4px 14px rgba(0,0,0,0.3);
   }
+  /* 24/9/2026 - Misma regla en toda la app: azul = vigente o no caduca. */
+  .hab-ico-azul { color: #1565c0; }
   .hab-ico-naranja { color: #ef6c00; }
   .hab-ico-rojo { color: #c62828; }
   /* ── iconos foto/verif encargado (70a) ── */
@@ -2465,7 +2467,11 @@
           // que usan la pantalla de Habilitaciones y el correo de avisos.
           const est = (typeof Hab.estado === 'function') ? Hab.estado(h) : 'vigente';
           const lista = habIconosPorTrabajadorCache[h.trabajador_id] || (habIconosPorTrabajadorCache[h.trabajador_id] = []);
-          if (!lista.some(x => x.icono === icono)) lista.push({ icono, nombre: nombreTipo, estado: est });
+          // 24/9/2026 - Si dos comparten dibujo (toro y carretilla), manda la peor.
+          const grav = e => ({ caducada: 4, proxima: 3, falta_fecha: 2 })[e] || 1;
+          const i = lista.findIndex(x => x.icono === icono);
+          if (i === -1) lista.push({ icono, nombre: nombreTipo, estado: est });
+          else if (grav(est) > grav(lista[i].estado)) lista[i] = { icono, nombre: nombreTipo, estado: est };
         });
       } catch (_) {}
     }
@@ -2826,7 +2832,7 @@
   function colorHab(est) {
     if (est === 'caducada') return 'hab-ico-rojo';
     if (est === 'proxima' || est === 'falta_fecha') return 'hab-ico-naranja';
-    return '';
+    return 'hab-ico-azul';
   }
   function textoEstadoHab(est) {
     if (typeof Hab.etiqueta === 'function') return Hab.etiqueta(est);
