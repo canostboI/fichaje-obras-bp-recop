@@ -215,3 +215,44 @@
     console.warn('[menu-admin] carga del aviso de fin de obra:', e);
   }
 })();
+
+/* ============================================================
+   AÑADIDO 24/9/2026 — el menú del admin, como cajón en el móvil
+   ------------------------------------------------------------
+   Dani, en el móvil: «el admin no tiene menú lateral, estoy
+   atrapado». El cuadro de mando escondía el menú por debajo de
+   900 px sin dar otra salida. Se reutiliza js/menu-movil.js, el
+   cajón con botón ☰ que ya usa el jefe (por debajo de 600 px).
+
+   Mismo sistema que el bloque de arriba (sello del día, sin tocar
+   ninguna pantalla). El sello lleva una «a» detrás a propósito: el
+   jefe pide menu-movil.js con el sello del día sin letra, y si el
+   mismo móvil lo tenía ya guardado de hoy, el admin recibiría la
+   copia vieja (sin el arreglo del display:none del cuadro de mando).
+
+   PARA DESHACERLO: borrar este bloque.
+   ============================================================ */
+(function () {
+  'use strict';
+  try {
+    if (window.location.pathname.indexOf('/admin/') === -1) return;
+    if (document.querySelector('script[src*="menu-movil.js"]')) return;
+
+    var yo = document.currentScript && document.currentScript.src;
+    var src = '../js/menu-movil.js';
+    if (yo) src = yo.replace(/menu-admin\.js.*$/, 'menu-movil.js');
+    var d = new Date();
+    src += '?d=' + d.getFullYear()
+         + ('0' + (d.getMonth() + 1)).slice(-2)
+         + ('0' + d.getDate()).slice(-2) + 'a';
+
+    var s = document.createElement('script');
+    s.src = src;
+    s.onerror = function () {
+      console.warn('[menu-admin] no se ha podido cargar menu-movil.js; el menú se queda como estaba');
+    };
+    document.head.appendChild(s);
+  } catch (e) {
+    console.warn('[menu-admin] carga del menú del móvil:', e);
+  }
+})();
