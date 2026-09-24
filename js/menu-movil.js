@@ -42,14 +42,27 @@
        horizontal por debajo de 760 px. Entre 600 y 760 se queda igual;
        por debajo de 600 manda el cajón, como en las otras ocho.
 
+   24/9/2026 — TAMBIÉN EN EL ADMIN. Dani, en el móvil: «el admin no
+   tiene menú lateral, estoy atrapado». admin/cuadro-mando.html
+   esconde el menú por debajo de 900 px (.sidebar{display:none}) y no
+   ponía nada en su lugar; las otras pantallas del admin lo dejaban
+   fijo y apretaban el contenido, como le pasaba al jefe. Ahora lo
+   pide también js/menu-admin.js (en las doce pantallas del admin).
+   Para que el cajón se vea aunque la pantalla lo haya escondido, por
+   debajo de 600 px el menú lleva display:flex !important (en el jefe
+   ya era flex: no cambia nada allí). Entre 600 y 900 px el cuadro de
+   mando sigue sin menú (tablet en vertical): pendiente si hace falta.
+
    CUÁNDO NO HACE NADA
-     · Fuera de /jefe/ (lo pide marca-portium.js solo allí).
+     · Fuera de /jefe/ y /admin/ (lo piden marca-portium.js y
+       menu-admin.js solo allí).
      · Si la página no tiene .sidebar o ya se ejecutó una vez.
      · Si algo falla: se retira y la pantalla queda como estaba. Un menú
        es accesorio y no puede tumbar la página (regla de marca-portium).
 
-   PARA DESHACERLO: quitar la línea cargar('menu-movil.js') de
-   js/marca-portium.js. Ningún HTML depende de esto.
+   PARA DESHACERLO: en el jefe, quitar la línea cargar('menu-movil.js')
+   de js/marca-portium.js; en el admin, borrar el bloque del 24/9/2026
+   al final de js/menu-admin.js. Ningún HTML depende de esto.
    ============================================================ */
 
 (function () {
@@ -64,7 +77,7 @@
     // El contenido recupera todo el ancho.
     +   '.main{margin-left:0 !important;min-width:0}'
     // El menú sale de la pantalla por la izquierda y entra al abrir.
-    +   '.sidebar{width:min(280px,82vw) !important;transform:translateX(-105%);'
+    +   '.sidebar{display:flex !important;width:min(280px,82vw) !important;transform:translateX(-105%);'
     +     'transition:transform .22s ease;z-index:60 !important;'
     +     'box-shadow:none;overflow-y:auto;-webkit-overflow-scrolling:touch}'
     +   'body.mm-abierto .sidebar{transform:translateX(0);'
