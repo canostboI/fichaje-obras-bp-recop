@@ -340,6 +340,24 @@
   .hab-est.proxima     { color: var(--naranja); }
   .hab-est.caducada    { color: var(--rojo); }
   .hab-est.falta_fecha { color: #9aa0a6; }
+
+  /* ── La cara junto al nombre (24/9/2026, Dani: «aquí no salen las caras de
+     la gente»). Mismo patrón que jefe/fichajes.html: círculo de hueco FIJO,
+     con la foto o con las iniciales, para que los nombres queden alineados
+     haya foto o no. Al pulsarla se ve en grande. ── */
+  .celda-nombre { display: flex; align-items: center; gap: 10px; }
+  .cara { width: 30px; height: 30px; border-radius: 50%; flex: 0 0 auto; overflow: hidden;
+          background: var(--bg3); border: 1px solid var(--borde); display: flex;
+          align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
+          color: var(--texto2); letter-spacing: 0.5px; }
+  .cara img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cara.clicable { cursor: pointer; }
+  .cara.clicable:hover { border-color: var(--color-acento); }
+  /* En el móvil el DNI va en el renglón de debajo (css/movil-jefe.css):
+     se mete a la altura del nombre, no debajo de la cara. */
+  @media (max-width: 600px) {
+    #tabla-presencia tbody tr:not(.tr-empresa-cab) td:nth-child(2) { padding-left: 40px; }
+  }
   .banner-hab-caducidad ul { margin: 4px 0 0 18px; font-size: 13px; }
   .banner-hab-caducidad ul { list-style: none; margin-left: 0; padding-left: 0; }
   .banner-hab-caducidad li { margin-bottom: 4px; display: flex; align-items: center; gap: 10px; }
@@ -596,6 +614,13 @@ let misObrasRP = [];
 let brandingActual = null;
 let intervalPresencia = null;
 let fotoUrlActual = '';
+// 24/9/2026 · Caras de la tabla de presentes: trabajador_id → url firmada.
+let carasPorTrabajador = {};
+// Enlaces ya firmados, por ruta: { url, t }. La tabla se repinta cada minuto;
+// sin esto, cada minuto se firmarían enlaces NUEVOS y todas las fotos se
+// volverían a descargar. Se reutilizan 50 min (el enlace dura 60).
+let enlacesCaraCache = {};
+const MIN_REUSO_ENLACE_CARA = 50;
 
 let validacionesCache = {};
 let naranjasActualesCache = [];
@@ -2076,6 +2101,8 @@ async function cargarPresencia() {
     idsRP = new Set((rps || []).map(r => r.trabajador_id));
   } catch (_) {}
 
+  await cargarCaras(ids);
+
   // 24/9/2026 (Dani): ahora también la caducidad, para pintar cada icono
   // con el color de su estado. Si dos habilitaciones dan el mismo dibujo
   // (p. ej. toro y carretilla), se queda la PEOR: un icono azul no puede
@@ -2154,7 +2181,7 @@ async function cargarPresencia() {
       const marcaRP = idsRP.has(t.trabajador.id) ? ' <span title="Recurso Preventivo designado">🛡️</span>' : '';
       const iconosHabHtml = htmlIconosHab(habIconosPorTrabajador[t.trabajador.id], 'iconos-hab-tabla');
       filas += `<tr>
-        <td><strong>${esc(t.trabajador.nombre)} ${esc(t.trabajador.apellidos)}</strong>${marcaRP}${iconosHabHtml}</td>
+        <td><div class="celda-nombre">${pintarCara(t.trabajador)}<div><strong>${esc(t.trabajador.nombre)} ${esc(t.trabajador.apellidos)}</strong>${marcaRP}${iconosHabHtml}</div></div></td>
         <td>${esc(t.trabajador.dni)}</td>
         <td>${formatHora(ultimaEntrada.hora)}</td>
         <td>${pillHtml}</td>
@@ -2748,6 +2775,70 @@ function parseDetalleSR(detalle) {
 function icoHab(tipo, px) {
   return (typeof Hab.iconoSvg === 'function') ? Hab.iconoSvg(tipo, px) : Hab.icono(tipo);
 }
+// ── La cara junto al nombre (24/9/2026, Dani) ──
+// Copia de jefe/fichajes.html: UNA consulta a fotos_identidad con los
+// presentes y UNA sola firma para todas (FI.enlaces). FI.enlaces NO deja
+// rastro en accesos_foto_log a propósito (decisión de Dani, 18/9/2026).
+// Si algo falla se quedan las INICIALES: una foto que no carga no puede
+// romper la lista de presentes, que es lo importante de esta pantalla.
+async function cargarCaras(ids) {
+  const nuevo = {};
+  try {
+    if (!ids || !ids.length) { carasPorTrabajador = nuevo; return; }
+    const { data, error } = await sb
+      .from('fotos_identidad')
+      .select('trabajador_id, storage_path')
+      .in('trabajador_id', ids);
+    if (error || !data) { carasPorTrabajador = nuevo; return; }
+
+    const rutaDe = {};
+    data.forEach(r => { if (r.storage_path) rutaDe[r.trabajador_id] = r.storage_path; });
+
+    const ahora = Date.now();
+    const vigente = ruta => enlacesCaraCache[ruta] &&
+      (ahora - enlacesCaraCache[ruta].t) < MIN_REUSO_ENLACE_CARA * 60000;
+    const porFirmar = Object.values(rutaDe).filter(r => !vigente(r));
+    if (porFirmar.length) {
+      const urls = await FI.enlaces(porFirmar);
+      Object.keys(urls).forEach(r => { enlacesCaraCache[r] = { url: urls[r], t: ahora }; });
+    }
+    Object.keys(rutaDe).forEach(tid => {
+      const c = enlacesCaraCache[rutaDe[tid]];
+      if (c && c.url) nuevo[tid] = c.url;
+    });
+  } catch (e) {
+    console.warn('[caras] no se han podido cargar:', e);
+  }
+  carasPorTrabajador = nuevo;
+}
+
+function inicialesDe(nombreCompleto) {
+  const partes = String(nombreCompleto || '').replace(/,/g, ' ').trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return '·';
+  const a = partes[0][0] || '';
+  const b = partes.length > 1 ? (partes[partes.length - 1][0] || '') : '';
+  return (a + b).toUpperCase();
+}
+
+// Si la imagen no carga (enlace caducado, red), vuelven las iniciales en el
+// sitio: mejor un círculo con letras que un icono de imagen rota.
+function pintarCara(tr) {
+  const nombreCompleto = [tr.nombre, tr.apellidos].filter(Boolean).join(' ');
+  const ini = esc(inicialesDe(nombreCompleto));
+  const url = carasPorTrabajador[tr.id];
+  if (!url) return `<span class="cara">${ini}</span>`;
+  const tit = String(esc('Ver la foto de ' + nombreCompleto)).replace(/"/g, '&quot;');
+  return `<span class="cara clicable" title="${tit}" onclick="verCara('${esc(tr.id)}')">`
+       + `<img src="${String(esc(url)).replace(/"/g, '&quot;')}" alt="" loading="lazy" `
+       + `onerror="this.parentNode.classList.remove('clicable');this.parentNode.removeAttribute('onclick');this.parentNode.textContent='${ini}'">`
+       + `</span>`;
+}
+
+function verCara(trabajadorId) {
+  const url = carasPorTrabajador[trabajadorId];
+  if (url) FI.visor(url);
+}
+
 // Cuál de dos estados es peor, para quedarse con él cuando dos
 // habilitaciones comparten dibujo. Un estado desconocido cuenta como
 // «sin fecha»: nunca se pinta azul lo que no se sabe.
