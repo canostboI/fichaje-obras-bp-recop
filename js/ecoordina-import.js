@@ -118,6 +118,19 @@ window.EcoordinaImport = (function () {
     if (!texto) return '';
     return texto.split(' - ')[0].trim();
   }
+  // 24/9/2026 · NOMBRE Y CIF (A12 de la auditoría; Dani: «haz todo lo que puedas»).
+  // «Dos CIF distintos son dos empresas» (23/9, ya así en la BD). Antes las cinco
+  // comprobaciones de empresa (propia, autónomo sin asalariados, exención,
+  // contrato y libro) casaban POR EL NOMBRE aunque el CIF fuera otro: una
+  // «RÈCOP» con otro CIF habría salido como personal propio, en verde y fuera de
+  // las cinco capas. Ahora el nombre solo cuenta si a una de las dos le falta el
+  // CIF: a la del Excel (se busca `NOMBRE:`) o a la de la app (se carga, además,
+  // `NOMBRESINCIF:`). Medido el 24/9: 0 casos; es preventivo.
+  // El CIF se compara con la receta de la BD: mayúsculas y sin guiones, puntos
+  // ni espacios («B-43467968» = «B43467968»), para no crear rojos falsos.
+  function normalizarCif(s) {
+    return normalizar(s).replace(/[^A-Z0-9]/g, '');
+  }
   function extraerEmpresa(texto) {
     if (!texto) return { nombre: '', cif: '' };
     const partes = texto.split(' - ');
@@ -142,13 +155,26 @@ window.EcoordinaImport = (function () {
   }
 
   // ── Fechas ─────────────────────────────────────────────────────────────────
+  // 24/9/2026 · FECHAS DE DOS CIFRAS (hallazgo del 23/9; Dani: «a tu criterio»).
+  // El lector (xlsx con raw:false) toma «03/09/2026» por fecha americana y la
+  // reescribe «3/9/26» CON EL MISMO ORDEN DE CIFRAS; solo las de día > 12 llegan
+  // intactas. Antes aquí solo se leía el año de 4 cifras: los días 1-12 la fecha
+  // se ignoraba y el margen del recibo no se daba (rojo directo). Ahora se lee
+  // también D/M/AA (año 20AA) y se COMPRUEBA que la fecha existe: «31/02» o
+  // «13/13» no se corrigen, se ignoran (sin fecha → sin margen → su regla).
+  // ⚠️ NO poner dateNF en XLSX.read para el CSV: arregla esto pero convierte
+  // fechas basura en buenas («31/02/2026» → «03/03/2026»). Probado el 24/9.
   function parsearFechaEcoordina(texto) {
     if (!texto) return null;
     const t = String(texto).trim();
-    const m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    const m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
     if (!m) return null;
-    const d = new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10));
-    return isNaN(d.getTime()) ? null : d.getTime();
+    const dia = parseInt(m[1], 10), mes = parseInt(m[2], 10);
+    const anio = m[3].length === 2 ? 2000 + parseInt(m[3], 10) : parseInt(m[3], 10);
+    const d = new Date(anio, mes - 1, dia);
+    if (isNaN(d.getTime())) return null;
+    if (d.getFullYear() !== anio || d.getMonth() !== mes - 1 || d.getDate() !== dia) return null;
+    return d.getTime();
   }
   function fechaMasRecienteDeFila(fila) {
     const candidatos = [fila['F.emisión'], fila['F.emision'], fila['F.verificado'], fila['F.cumplimentado'], fila['F.solicitado']];
@@ -232,12 +258,18 @@ window.EcoordinaImport = (function () {
     const m = String(hoyTexto || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (!m) return null;
     const hoy = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+    // 24/9/2026 · Un papel «Caducado» con caducidad POSTERIOR a hoy es un dato
+    // absurdo (o una fecha leída al revés): sin margen, se queda en su regla.
+    if (tCad > hoy.getTime()) return null;
     const transcurridos = laborablesEntre(new Date(tCad), hoy);
     if (transcurridos === null) return null;
+    // 24/9/2026 · La fecha del motivo, escrita entera (el lector la deja «3/9/26»).
+    const dCad = new Date(tCad);
+    const fechaLeida = String(dCad.getDate()).padStart(2, '0') + '/' + String(dCad.getMonth() + 1).padStart(2, '0') + '/' + dCad.getFullYear();
     return {
       dias,
       agotado: transcurridos > dias,
-      fechaTexto: String(fechaCaducidadTexto).trim()
+      fechaTexto: fechaLeida
     };
   }
 
@@ -282,9 +314,9 @@ window.EcoordinaImport = (function () {
     if (!empresaRaw) return false;
     const { nombre, cif } = extraerEmpresa(empresaRaw);
     const nNombre = normalizar(nombre);
-    const nCif = normalizar(cif);
+    const nCif = normalizarCif(cif);
     if (nNombre && nCif && empresasPropias.has(`${nNombre}|${nCif}`)) return true;
-    if (nNombre && empresasPropias.has(`NOMBRE:${nNombre}`)) return true;
+    if (nNombre && empresasPropias.has(nCif ? `NOMBRESINCIF:${nNombre}` : `NOMBRE:${nNombre}`)) return true;
     if (nCif && empresasPropias.has(`CIF:${nCif}`)) return true;
     return false;
   }
@@ -295,9 +327,9 @@ window.EcoordinaImport = (function () {
     if (!empresaRaw) return false;
     const { nombre, cif } = extraerEmpresa(empresaRaw);
     const nNombre = normalizar(nombre);
-    const nCif = normalizar(cif);
+    const nCif = normalizarCif(cif);
     if (nNombre && nCif && autonomosSolos.has(`${nNombre}|${nCif}`)) return true;
-    if (nNombre && autonomosSolos.has(`NOMBRE:${nNombre}`)) return true;
+    if (nNombre && autonomosSolos.has(nCif ? `NOMBRESINCIF:${nNombre}` : `NOMBRE:${nNombre}`)) return true;
     if (nCif && autonomosSolos.has(`CIF:${nCif}`)) return true;
     return false;
   }
@@ -318,11 +350,11 @@ window.EcoordinaImport = (function () {
     if (!exenciones || !exenciones.size || !empresaRaw || !nombreDoc) return null;
     const { nombre, cif } = extraerEmpresa(empresaRaw);
     const nNombre = normalizar(nombre);
-    const nCif = normalizar(cif);
+    const nCif = normalizarCif(cif);
     const nDoc = normalizar(nombreDoc);
     const claves = [];
     if (nNombre && nCif) claves.push(`${nNombre}|${nCif}`);
-    if (nNombre) claves.push(`NOMBRE:${nNombre}`);
+    if (nNombre) claves.push(nCif ? `NOMBRESINCIF:${nNombre}` : `NOMBRE:${nNombre}`);
     if (nCif) claves.push(`CIF:${nCif}`);
     for (const clave of claves) {
       const docs = exenciones.get(clave);
@@ -335,9 +367,9 @@ window.EcoordinaImport = (function () {
     if (!empresaRaw) return false;
     const { nombre, cif } = extraerEmpresa(empresaRaw);
     const nNombre = normalizar(nombre);
-    const nCif = normalizar(cif);
+    const nCif = normalizarCif(cif);
     if (nNombre && nCif && contratosVigentes.has(`${nNombre}|${nCif}`)) return true;
-    if (nNombre && contratosVigentes.has(`NOMBRE:${nNombre}`)) return true;
+    if (nNombre && contratosVigentes.has(nCif ? `NOMBRESINCIF:${nNombre}` : `NOMBRE:${nNombre}`)) return true;
     if (nCif && contratosVigentes.has(`CIF:${nCif}`)) return true;
     return false;
   }
@@ -346,9 +378,9 @@ window.EcoordinaImport = (function () {
     if (!empresaRaw) return false;
     const { nombre, cif } = extraerEmpresa(empresaRaw);
     const nNombre = normalizar(nombre);
-    const nCif = normalizar(cif);
+    const nCif = normalizarCif(cif);
     if (nNombre && nCif && librosVigentes.has(`${nNombre}|${nCif}`)) return true;
-    if (nNombre && librosVigentes.has(`NOMBRE:${nNombre}`)) return true;
+    if (nNombre && librosVigentes.has(nCif ? `NOMBRESINCIF:${nNombre}` : `NOMBRE:${nNombre}`)) return true;
     if (nCif && librosVigentes.has(`CIF:${nCif}`)) return true;
     return false;
   }
@@ -379,7 +411,12 @@ window.EcoordinaImport = (function () {
     if (esCsv) {
       wb = XLSX.read(contenido, { type: 'string', raw: false, FS: ';' });
     } else {
-      wb = XLSX.read(contenido, { type: 'array' });
+      // 24/9/2026 · En un .xlsx las fechas son fechas de verdad y, con el
+      // formato corto por defecto, el lector las escribe A LA AMERICANA de
+      // verdad («4/5/26» = 5 de abril). parsearFechaEcoordina lee día/mes:
+      // sin esto entendería 4 de mayo. dateNF hace que salgan «05/04/2026».
+      // (Aquí sí se puede: no hay texto que interpretar. En el CSV, NO.)
+      wb = XLSX.read(contenido, { type: 'array', dateNF: 'dd/mm/yyyy' });
     }
     return convertirWorkbookAFilas(wb);
   }
@@ -432,9 +469,10 @@ window.EcoordinaImport = (function () {
     if (error) { console.error('Error cargando empresas propias:', error); return set; }
     for (const e of (data || [])) {
       const nNombre = normalizar(e.nombre);
-      const nCif = normalizar(e.cif);
+      const nCif = normalizarCif(e.cif);
       if (nNombre && nCif) set.add(`${nNombre}|${nCif}`);
       if (nNombre) set.add(`NOMBRE:${nNombre}`);
+      if (nNombre && !nCif) set.add(`NOMBRESINCIF:${nNombre}`);
       if (nCif) set.add(`CIF:${nCif}`);
     }
     return set;
@@ -448,9 +486,10 @@ window.EcoordinaImport = (function () {
     if (error) { console.error('Error cargando autónomos sin asalariados:', error); return set; }
     for (const e of (data || [])) {
       const nNombre = normalizar(e.nombre);
-      const nCif = normalizar(e.cif);
+      const nCif = normalizarCif(e.cif);
       if (nNombre && nCif) set.add(`${nNombre}|${nCif}`);
       if (nNombre) set.add(`NOMBRE:${nNombre}`);
+      if (nNombre && !nCif) set.add(`NOMBRESINCIF:${nNombre}`);
       if (nCif) set.add(`CIF:${nCif}`);
     }
     return set;
@@ -477,12 +516,13 @@ window.EcoordinaImport = (function () {
     for (const ex of (data || [])) {
       const emp = ex.empresa || {};
       const nNombre = normalizar(emp.nombre);
-      const nCif = normalizar(emp.cif);
+      const nCif = normalizarCif(emp.cif);
       const nDoc = normalizar(ex.nombre_documento);
       if (!nDoc) continue;
       const claves = [];
       if (nNombre && nCif) claves.push(`${nNombre}|${nCif}`);
       if (nNombre) claves.push(`NOMBRE:${nNombre}`);
+      if (nNombre && !nCif) claves.push(`NOMBRESINCIF:${nNombre}`);
       if (nCif) claves.push(`CIF:${nCif}`);
       for (const clave of claves) {
         if (!mapa.has(clave)) mapa.set(clave, new Map());
@@ -504,9 +544,10 @@ window.EcoordinaImport = (function () {
     if (error) { console.error('Error cargando contratos:', error); return set; }
     for (const c of (data || [])) {
       const nNombre = normalizar(c.empresa?.nombre);
-      const nCif = normalizar(c.empresa?.cif);
+      const nCif = normalizarCif(c.empresa?.cif);
       if (nNombre && nCif) set.add(`${nNombre}|${nCif}`);
       if (nNombre) set.add(`NOMBRE:${nNombre}`);
+      if (nNombre && !nCif) set.add(`NOMBRESINCIF:${nNombre}`);
       if (nCif) set.add(`CIF:${nCif}`);
     }
     return set;
@@ -524,9 +565,10 @@ window.EcoordinaImport = (function () {
     if (error) { console.error('Error cargando libros de subcontratación:', error); return set; }
     for (const l of (data || [])) {
       const nNombre = normalizar(l.empresa?.nombre);
-      const nCif = normalizar(l.empresa?.cif);
+      const nCif = normalizarCif(l.empresa?.cif);
       if (nNombre && nCif) set.add(`${nNombre}|${nCif}`);
       if (nNombre) set.add(`NOMBRE:${nNombre}`);
+      if (nNombre && !nCif) set.add(`NOMBRESINCIF:${nNombre}`);
       if (nCif) set.add(`CIF:${nCif}`);
     }
     return set;
