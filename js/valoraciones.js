@@ -17,7 +17,7 @@
    Reglas en la BD, no aquí: 1-2 estrellas exigen motivo; quién ve
    qué lo decide puedo_ver_valoraciones(). No bloquea la valla.
 
-   139ª · FUERA EL PANEL LATERAL (Dani, 24/9): el ranking de la
+   27/9/2026 · FUERA EL PANEL LATERAL (Dani): el ranking de la
    derecha (104ª) repetía la pestaña «Ranking por empresa», sacaba
    empresas sin ninguna nota y, al ser más alto que la pantalla, no
    se podía llegar al final. Se quita. En su lugar, «Valorar» tiene
