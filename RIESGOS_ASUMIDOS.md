@@ -5,8 +5,9 @@
 > escritas y no se redescubran como "bugs" en el futuro.
 >
 > Creado: 6/7/2026 (auditoría profunda, hallazgo MJ-19).
-> Última actualización: 2/8/2026 (revisión de grants a `anon` y
-> cierre documental de A-02).
+> Última actualización: 28/9/2026 (R-6: motivos que devuelve
+> `registrar_fichaje`; cierra el A16 de la auditoría de septiembre).
+> Antes: 2/8/2026 (revisión de grants a `anon` y cierre documental de A-02).
 
 ---
 
@@ -163,6 +164,9 @@ solo nombre de pila + color + acción sugerida + mensaje genérico. Ver
 `pg_get_functiondef` el 2/8/2026:** el `json_build_object` final no
 contiene `motivos` ni `obra_abierta_otra`; los motivos detallados solo
 se escriben en la incidencia `bloqueo_rojo` (uso interno, con RLS).
+**Ojo (28/9/2026):** lo anterior vale para `validar_acceso` (la
+primera pantalla, antes de pulsar Entrada). `registrar_fichaje` sí
+devuelve los motivos detallados al pulsar Entrada: ver **R-6**.
 
 **Riesgo residual, ahora SÍ aceptado:** con un UUID de obra cualquiera
 + anon key todavía se puede comprobar si un DNI existe en el sistema y
@@ -196,6 +200,48 @@ automático).
   con capturas de pantalla del fallo en el artifact `debug/`.
 - Importador manual del jefe (`jefe/documentos-ecoordina.html`) y del
   admin como respaldo: misma lógica, mismo módulo compartido.
+
+---
+
+## R-6 · `registrar_fichaje` devuelve los motivos detallados a `anon` — A16
+
+**Qué es:** al pulsar Entrada en la valla, si la persona está en rojo
+sin excepción, `registrar_fichaje` responde `ACCESO_DENEGADO` con la
+lista `motivos`; si entra en naranja (o con excepción), la respuesta
+de éxito también la lleva. Es el texto de `validaciones_obra.motivos`
+que escribe el robot de e-Coordina: **nombre del documento + estado**
+(«Apto médico (Caducado) → rojo», «[Empresa] Certificado … Seguridad
+Social (SS) (Caducado) → naranja», «Sin contrato entre empresas →
+rojo»…). La pantalla quita la nota interna «[sin regla definida…]»
+(`js/motivos.js`), pero la RPC la devuelve tal cual. Quien tenga el
+UUID de la obra (R-4), la anon key (R-3), un DNI completo y falsee el
+GPS (R-2) puede leer, sin iniciar sesión, qué papeles le faltan a esa
+persona y a su empresa.
+
+**Estado:** ✅ **ACEPTADO por Dani el 28/9/2026** (sesión 141ª).
+
+**Por qué se acepta:**
+- Está hecho **a propósito**: el trabajador ve qué documento le falta
+  para poder decírselo al encargado (por eso `nombreDoc` no se traduce
+  en `fichaje/index.html`). Quitarlo y dejar solo «Consulta con tu
+  encargado» complicaría el día a día en obra.
+- Lo que se revela es poco: nombre del documento y si está caducado o
+  sin presentar. Nunca el contenido del papel ni otro dato personal.
+- Hace falta el **DNI completo** de antemano (no enumerable a coste
+  razonable, igual que en R-4) y falsear el GPS (R-2).
+
+**Mitigaciones activas (medidas en `pg_get_functiondef` el 28/9/2026):**
+- **Cada sondeo deja rastro con nombre y hora.** En rojo, incidencia
+  `bloqueo_rojo` (una por persona, obra y día: los intentos siguientes
+  de ese mismo día no añaden otra). En verde o naranja, lo que queda es
+  un **fichaje real** en la lista del jefe (y en naranja, además, la
+  incidencia `aviso_naranja`, también una por persona, obra y día).
+- Las salidas garantizadas no pasan por el bloqueo rojo.
+- GPS recalculado en servidor contra el radio de la obra (R-2).
+
+**Revisión futura:** revisar si el paso a Twind cambia el texto de los
+motivos, si se decide que la valla enseñe solo mensajes genéricos, o si
+aparecen `bloqueo_rojo` o fichajes que nadie en la obra reconoce.
 
 ---
 
