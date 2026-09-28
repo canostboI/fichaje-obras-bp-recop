@@ -51,7 +51,10 @@ window.LibroIncidencias = (function () {
     autocierre: '🕛', otro: '📌', forzado_caducado: '⏳', acceso_rechazado: '⛔',
     habilitacion_caducada: '🏗️', empresa_en_rojo: '🏢', rp_incompleto: '🦺',
     contrato_caduca: '📄', aviso_naranja: '🟠', excepcion_autorizada: '🗝️',
-    fichaje_corregido: '✏️', fuera_de_zona: '📍', retirada: '🗑️'
+    fichaje_corregido: '✏️', fuera_de_zona: '📍', retirada: '🗑️',
+    // 28/9/2026: los 4 tipos que faltaban (salían con el ⚠️ genérico).
+    ausente_ecoordina: '❓', naranja_caducado: '⌛', empresa_sin_papeles: '🔒',
+    empresa_nueva_en_obra: '🆕'
   };
 
   // Qué significa cada tipo para quien no conoce la tabla (una línea).
@@ -71,7 +74,11 @@ window.LibroIncidencias = (function () {
     excepcion_autorizada: 'Entró en rojo porque el jefe de obra lo autorizó y firmó.',
     fichaje_corregido: 'Se corrigió o borró un fichaje; queda de qué hora a cuál.',
     fuera_de_zona: 'Fichó fuera del radio de la obra.',
-    retirada: 'Se retiró algo (baja, habilitación, RP, contrato, libro) y quién lo hizo.'
+    retirada: 'Se retiró algo (baja, habilitación, RP, contrato, libro) y quién lo hizo.',
+    ausente_ecoordina: 'Dejó de salir en el Excel de e-Coordina: su verde pasó a naranja.',
+    naranja_caducado: 'Nadie comprobó sus papeles a tiempo: el naranja pasó a rojo y ya no entra.',
+    empresa_sin_papeles: 'Empresa sin contrato o libro en vigor: la app cerró la puerta a su gente.',
+    empresa_nueva_en_obra: 'Una empresa empezó en obra sin que nadie la hubiera anunciado en la app.'
   };
 
   var sb, usuario, cfg, hueco;
