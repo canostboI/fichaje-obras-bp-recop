@@ -62,6 +62,14 @@
     empresa_en_rojo:        ALERTA,  // empresa con actividad reciente y en rojo por contrato/libro (empresa_id, sin persona)
     rp_incompleto:          ALERTA,  // hubo actividad y ningún RP fichó, o el RP no tiene la 60h
     contrato_caduca:        ALERTA,  // contrato o libro que caduca en 7 días sin otro vigente detrás
+    // ⚑ 28/9/2026. Cuatro tipos que ya admite el CHECK de la tabla y que
+    // faltaban aquí: salían con su nombre técnico («naranja_caducado») y el
+    // filtro «Alertas» del Libro de incidencias los dejaba FUERA (se filtra
+    // en el servidor con esta lista). Los cuatro piden que alguien actúe.
+    ausente_ecoordina:      ALERTA,  // 121ª: ya no sale en el Excel de e-Coordina ([verde] / [naranja])
+    naranja_caducado:       ALERTA,  // reloj del naranja: nadie comprobó sus papeles a tiempo, pasa a rojo ([sin_comprobar])
+    empresa_sin_papeles:    ALERTA,  // cerrar_empresas_sin_papeles: empresa sin contrato o libro, puerta cerrada a su gente ([sin_papeles])
+    empresa_nueva_en_obra:  ALERTA,  // capa 5 del vigilante: empresa que empieza en obra sin que nadie la anunciara ([empresa_nueva])
 
     // --- RASTRO: solo registro, sin acción pendiente ---
     // ⚠️ MEDIDO EN LA 54ª (24/8/2026). NO ES UNA BANDEJA ATRASADA.
@@ -116,6 +124,10 @@
     empresa_en_rojo:        'Empresa en rojo',
     rp_incompleto:          'Recurso Preventivo incompleto',
     contrato_caduca:        'Contrato o libro que caduca',
+    ausente_ecoordina:      'Ya no sale en e-Coordina',
+    naranja_caducado:       'Naranja sin comprobar: pasa a rojo',
+    empresa_sin_papeles:    'Empresa sin contrato o libro: puerta cerrada',
+    empresa_nueva_en_obra:  'Empresa nueva en obra sin anunciar',
     aviso_naranja:          'Aviso naranja',
     excepcion_autorizada:   'Excepción autorizada',
     fichaje_corregido:      'Fichaje corregido',
