@@ -418,6 +418,9 @@
     .form-sf-msg { font-size: 0.83rem; margin-top: 0.4rem; }
     /* Los estilos de la foto (.fi-*) los trae js/foto-identidad.js (68a). */
     .bloqueo-botones { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+    /* 28/9/2026 · «Se ha ido» también en la tarjeta roja: en columna, sin los
+       márgenes que lleva en el panel amarillo (allí va al lado de la etiqueta). */
+    .bloqueo-botones .btn-sefue { margin: 0; background: white; }
 
     .modal-accesos { background: white; color: #222; border-radius: 14px; padding: 1.4rem; max-width: 720px; width: 92%; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.35); }
     .modal-accesos-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 0.4rem; }
@@ -1176,6 +1179,11 @@
   // email al jefe. Quien acabó fichando NO debe contar ahí.
   async function cargarBloqueos() {
     const panel = document.getElementById('panel-bloqueos');
+    // 28/9/2026 · Quién sale HOY en el panel rojo. Lo lee el panel amarillo
+    // («Esperando al jefe de obra») para no repetir a la misma persona.
+    // Se vacía al empezar: si esta función falla o sale antes de pintar,
+    // el amarillo lo enseña todo (mejor repetir que esconder).
+    window.__enPanelRojo = { ids: {}, dnis: {} };
     if (!obraActualId) { panel.style.display = 'none'; rojosHoyCache = 0; pintarYaPueden([]); return; }
 
     const { desdeISO, hastaISO } = rangoHoyLocal();
@@ -1304,6 +1312,11 @@
 
 
     const bloqueados = porRevisar.filter(g => yaPueden.indexOf(g) === -1);
+    bloqueados.forEach(g => {
+      if (g.trabajador_id) window.__enPanelRojo.ids[g.trabajador_id] = true;
+      const d = String(g.dni || '').toUpperCase().trim();
+      if (d) window.__enPanelRojo.dnis[d] = true;
+    });
 
     pintarYaPueden(yaPueden);
 
@@ -1343,7 +1356,11 @@
       if (solYa && solYa.estado === 'autorizada') {
         botonPedir = '<span class="etq-sol ok">✓ Autorizado — que fiche en la valla</span>';
       } else if (solYa && solYa.estado === 'pendiente') {
-        botonPedir = '<span class="etq-sol esp">⏳ Esperando al jefe de obra — NO entra</span>';
+        // 28/9/2026 · Caso CHAABAN (OMAX): salía aquí Y en el panel amarillo.
+        // Ahora esta tarjeta es la ficha completa de la persona, así que el
+        // «Se ha ido» (que corta los recordatorios al jefe) vive también aquí.
+        botonPedir = '<span class="etq-sol esp">⏳ Esperando al jefe de obra — NO entra</span>'
+          + `<button class="btn-sefue" onclick="marcarSeFue('${esc(solYa.id)}', this)">Se ha ido</button>`;
       } else if (solYa && solYa.estado === 'denegada') {
         botonPedir = '<span class="etq-sol no">✕ Denegado por el jefe de obra — NO entra</span>';
       } else if (g.trabajador_id && yaNoEnRojo[g.trabajador_id]) {
@@ -1457,6 +1474,7 @@
       btn.textContent = '✓ Ya puede fichar';
       alert('Buenas noticias: a esta persona ya le han levantado el rojo. '
           + 'No hace falta pedir permiso — dile que vuelva a escanear el QR en la valla.');
+      await cargarBloqueos();
       await cargarSolicitudesEnc();
       return;
     }
@@ -1469,6 +1487,9 @@
     }
 
     btn.textContent = data.ya_existia ? '✓ Ya estaba pedido' : '✓ Pedido al jefe de obra';
+    // 28/9/2026 · Se repinta también el rojo: así la tarjeta pasa a «⏳
+    // Esperando al jefe de obra» con su «Se ha ido» (el amarillo ya no la repite).
+    await cargarBloqueos();
     await cargarSolicitudesEnc();
   }
 
@@ -1484,6 +1505,9 @@
       alert('No se ha podido quitar: ' + ((data && data.error) || (error && error.message) || 'error'));
       return;
     }
+    // 28/9/2026 · El botón puede estar en el panel rojo o en el amarillo:
+    // se repintan los dos, en el mismo orden de siempre (rojo primero).
+    await cargarBloqueos();
     await cargarSolicitudesEnc();
   }
 
@@ -1497,8 +1521,19 @@
     // Solo lo que sigue ESPERANDO respuesta. Lo autorizado ya sale en el
     // panel verde y lo denegado sigue en el rojo: repetirlo aquí solo añade
     // ruido, y un panel con ruido se deja de mirar.
-    const esperando = lista.filter(x =>
-      x.estado === 'pendiente' && x.sigue_pendiente_de_verdad !== false);
+    // 28/9/2026 · Tampoco se repite a quien ya sale en el panel rojo («Sin
+    // poder entrar»): allí tiene su etiqueta de espera y su «Se ha ido».
+    // Aquí quedan los que nunca escanearon (pedidos con «+ Pedir permiso
+    // para alguien no registrado») y los que el encargado ya marcó «✓ Visto»
+    // en el rojo, para que su petición no desaparezca de la vista.
+    const enRojo = window.__enPanelRojo || { ids: {}, dnis: {} };
+    const esperando = lista.filter(x => {
+      if (x.estado !== 'pendiente' || x.sigue_pendiente_de_verdad === false) return false;
+      if (x.trabajador_id && enRojo.ids[x.trabajador_id]) return false;
+      const d = String(x.dni || '').toUpperCase().trim();
+      if (d && enRojo.dnis[d]) return false;
+      return true;
+    });
 
     let html = '';
     if (esperando.length) {
