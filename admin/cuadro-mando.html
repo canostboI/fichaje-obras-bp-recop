@@ -160,6 +160,7 @@
 <script src="../js/accesos-resueltos.js"></script>
 <script src="../js/incidencias-familias.js"></script>
 <script src="../js/sb-paginado.js"></script>
+<script src="../js/rp-presente.js?v=20260926"></script>
 </head>
 <body>
 
@@ -222,10 +223,9 @@ if (!window.Fechas || !window.AccesosResueltos || !window.SbPaginado || !window.
 
 const HORA_CORTE = 10;
 const MIN_SOLICITUD_ROJA = 30;
-// 111a (18/9/2026) - Alarma de RP presente (pedida por Dani). Margen desde la
-// primera entrada abierta del dia: por la manana el RP no tiene por que ser el
-// primero en fichar.
-const MIN_MARGEN_RP_PRESENTE = 15;
+// 111a (18/9/2026) - Alarma de RP presente (pedida por Dani). 26/9/2026: la
+// regla y sus margenes (15 min al abrir, 30 min desde que sale el ultimo RP)
+// viven en js/rp-presente.js, compartida con el jefe y el encargado.
 const REFRESCO_MS = 5 * 60 * 1000;
 
 let ultimoModelo = null;
@@ -450,17 +450,23 @@ function construirModelo(d) {
       const designados = new Set((d.rps || [])
         .filter(r => r.obra_id === o.id && !(r.trabajador && r.trabajador.activo === false))
         .map(r => r.trabajador_id));
-      t.rpDentro = t.dentroIds.some(id => designados.has(id));
-      const minDentro = t.primeraDentro ? minutosDesde(t.primeraDentro) : null;
-      if (!t.rpDentro && minDentro != null && minDentro >= MIN_MARGEN_RP_PRESENTE) {
+      const ev = window.RpPresente ? RpPresente.evaluar({
+        dentroIds: t.dentroIds,
+        primeraEntradaDentro: t.primeraDentro,
+        designados,
+        fichajes: t.fichajesSuyos || []
+      }) : null;
+      // Sin el módulo no se puede mirar: se dice («datos incompletos»), no se calla.
+      if (!ev) t.datosIncompletos = true;
+      t.rpDentro = ev ? ev.rpDentro : null;
+      if (ev && ev.alarma) {
         t.rojo.push({
           nivel: 'rojo', obra: o.nombre, marca: '🚨',
           qué: 'Ningún Recurso Preventivo en obra ahora mismo',
-          quién: 'Hay ' + t.dentro + ' ' + plural(t.dentro, 'persona', 'personas') +
-                 ' dentro desde las ' + hhmm(t.primeraDentro) +
-                 ' y ninguno de los designados ha fichado entrada.' +
+          quién: 'Hay ' + t.dentro + ' ' + plural(t.dentro, 'persona', 'personas') + ' dentro. ' +
+                 esc(RpPresente.explicar(ev)) +
                  (t.equipo.jefes.length ? ' Jefe de obra: ' + t.equipo.jefes.map(j => esc(j.nombre)).join(', ') : ''),
-          reloj: textoEspera(minDentro),
+          reloj: textoEspera(ev.minutosSinRP),
           enlaces: [['Ver fichajes', 'fichajes.html'], ['Trabajadores', 'trabajadores.html']]
         });
       }
