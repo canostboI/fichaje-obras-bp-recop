@@ -79,6 +79,8 @@
   .des-cuerpo { flex: 1; }
   .des-tit { font-size: 15px; font-weight: 700; color: #1a1a1a; }
   .des-exp { font-size: 13px; color: #666; margin-top: 3px; line-height: 1.5; }
+  /* 26/9/2026: cifra en rojo en «Días de trabajo sin Recurso Preventivo» (2 clases: gana al tema oscuro) */
+  .des-num.malo { color: var(--rojo); }
   .des-causas { margin: 2px 0 4px 74px; font-size: 13px; color: #666; line-height: 1.6; }
   .des-causas .doc { color: #333; }
   .des-causas .n { font-weight: 700; color: #1a1a1a; }
@@ -185,6 +187,7 @@ const LOGOS = { bosch_pascual: '../assets/logos/bosch_pascual_logo_white.svg', r
 function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt == null ? '' : txt); return d.innerHTML; }
 function fmtFecha(iso) { if (!iso) return null; const d = new Date(iso + 'T00:00:00'); return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }); }
 function fmtHoy() { return new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }); }
+function fmtFechaDia(iso) { if (!iso) return ''; const d = new Date(iso + 'T00:00:00'); return d.toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }); }
 function fmtFechaCorta(iso) { if (!iso) return ''; const d = new Date(iso + 'T00:00:00'); return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
 
 async function cargarObras() {
@@ -243,7 +246,32 @@ function pintarInforme(d, rango) {
   const ex = d.excepciones || {}, exJefes = Array.isArray(ex.jefes) ? ex.jefes : [], exEmpresas = Array.isArray(ex.empresas) ? ex.empresas : [], exDetalle = Array.isArray(ex.detalle) ? ex.detalle : [], exTotal = ex.total || 0, exPersonas = ex.personas || 0, exRevocadas = ex.revocadas || 0;
   const sr = d.sin_registrar || {}, srPersonas = Array.isArray(sr.personas) ? sr.personas : [], srEmpresas = Array.isArray(sr.empresas) ? sr.empresas : [], srTotalPersonas = sr.total_personas || 0, srTotalIntentos = sr.total_intentos || 0;
 
-  if (total === 0 && srTotalPersonas === 0 && exTotal === 0 && !(d.rondas && d.rondas.rondas > 0)) { zona.innerHTML = `<div class="informe">${cabeceraHTML(logos, d.obra_nombre, periodoTxt)}<div class="inf-vacio">No se registraron accesos denegados durante el periodo seleccionado.</div>${pieHTML()}</div>`; return; }
+  // 26/9/2026 (Dani): «Días de trabajo sin Recurso Preventivo». Datos del
+  // vigilante de las 21:00 (informe_rojos → recurso_preventivo). Sale SIEMPRE,
+  // también con 0: «todos los días hubo RP» es un dato que vale en una inspección.
+  const rp = d.recurso_preventivo || null;
+  let rpHTML = '';
+  if (rp) {
+    const sinRp = Array.isArray(rp.dias_sin_rp) ? rp.dias_sin_rp : [];
+    const sin60 = Array.isArray(rp.rp_sin_60h) ? rp.rp_sin_60h : [];
+    const varias = (d.obras_incluidas || 1) > 1;
+    const vDesde = rp.vigilado_desde || null;
+    const vDesdeTxt = vDesde ? fmtFecha(vDesde) : '';
+    const titulo = '<h2>Días de trabajo sin Recurso Preventivo</h2>';
+    if (vDesde && rango.hasta && rango.hasta < vDesde) {
+      rpHTML = `<div class="inf-seccion">${titulo}<div class="inf-genericos">El sistema empezó a comprobarlo el <strong>${esc(vDesdeTxt)}</strong>. Este periodo es anterior y no hay datos.</div></div>`;
+    } else {
+      const nS = sinRp.length, n6 = sin60.length;
+      const tablaSin = nS ? `<table class="inf-tabla" style="margin:6px 0 10px"><thead><tr><th>Día</th>${varias ? '<th>Obra</th>' : ''}<th class="num">Personas trabajando</th></tr></thead><tbody>${sinRp.map(x => `<tr><td class="destacado">${esc(fmtFechaDia(x.dia))}</td>${varias ? `<td>${esc(x.obra_nombre)}</td>` : ''}<td class="num">${x.personas != null ? x.personas : '—'}</td></tr>`).join('')}</tbody></table>` : '';
+      const tabla60 = n6 ? `<table class="inf-tabla" style="margin:6px 0 10px"><thead><tr><th>Día</th>${varias ? '<th>Obra</th>' : ''}<th>Recurso Preventivo</th></tr></thead><tbody>${sin60.map(x => `<tr><td>${esc(fmtFechaDia(x.dia))}</td>${varias ? `<td>${esc(x.obra_nombre)}</td>` : ''}<td class="destacado">${esc(x.persona)}</td></tr>`).join('')}</tbody></table>` : '';
+      rpHTML = `<div class="inf-seccion">${titulo}<div class="subtitulo">Días en que hubo gente trabajando en la obra y no fichó ningún Recurso Preventivo designado. El sistema lo comprueba cada día a las 21:00${vDesdeTxt ? `, desde el ${esc(vDesdeTxt)}` : ''}.</div>`
+        + `<div class="des-fila"><div class="des-num${nS ? ' malo' : ''}">${nS}</div><div class="des-cuerpo"><div class="des-tit">${nS === 1 ? 'Día con gente trabajando y sin ningún Recurso Preventivo en obra' : 'Días con gente trabajando y sin ningún Recurso Preventivo en obra'}</div><div class="des-exp">${nS ? 'Nadie de los designados como Recurso Preventivo fichó en toda la jornada.' : 'Todos los días con actividad hubo al menos un Recurso Preventivo fichado.'}</div></div></div>${tablaSin}`
+        + `<div class="des-fila"><div class="des-num${n6 ? ' malo' : ''}">${n6}</div><div class="des-cuerpo"><div class="des-tit">Veces que hizo de Recurso Preventivo alguien sin la formación de 60 horas en regla</div><div class="des-exp">${n6 ? 'Fichó un Recurso Preventivo, pero con la Formación 60 h pendiente o caducada.' : 'Los Recursos Preventivos que ficharon tenían la formación de 60 horas en regla.'}</div></div></div>${tabla60}`
+        + `<div class="des-limite"><strong>Qué no mide:</strong> el sistema comprueba si algún Recurso Preventivo fichó ese día, no si estuvo presente durante toda la jornada. Los domingos no se comprueban.</div></div>`;
+    }
+  }
+
+  if (total === 0 && srTotalPersonas === 0 && exTotal === 0 && !(d.rondas && d.rondas.rondas > 0)) { zona.innerHTML = `<div class="informe">${cabeceraHTML(logos, d.obra_nombre, periodoTxt)}<div class="inf-vacio">No se registraron accesos denegados durante el periodo seleccionado.</div>${rpHTML}${pieHTML()}</div>`; return; }
 
   const titular = total > 0 ? `<div class="inf-titular"><div class="dos"><div><div class="cifra">${personas}</div><div class="rot">${personas === 1 ? 'Persona frenada' : 'Personas frenadas'} por el sistema</div><div class="nota">Les faltaba algún documento por presentar o renovar</div></div><div><div class="cifra">${total}</div><div class="rot">${total === 1 ? 'Alerta detectada' : 'Alertas detectadas'}</div><div class="nota">Una misma persona puede tener varios documentos pendientes, y se le avisa cada día que lo intenta</div></div></div></div>` : '';
 
@@ -281,7 +309,7 @@ function pintarInforme(d, rango) {
 
   const excepHTML = exTotal > 0 ? `<div class="inf-seccion"><h2>Entradas autorizadas sin documentación en regla</h2><div class="subtitulo">Total: <strong>${exTotal}</strong> ${exTotal === 1 ? 'autorización' : 'autorizaciones'} sobre ${exPersonas} ${exPersonas === 1 ? 'persona' : 'personas'}${exRevocadas > 0 ? `, de las cuales ${exRevocadas} se retiraron después` : ''}.</div>${exJefes.length ? `<table class="inf-tabla"><thead><tr><th>Autorizado por</th><th class="num">Veces</th><th class="num">Personas</th></tr></thead><tbody>${exJefes.map(j => `<tr><td class="destacado">${esc(j.jefe)}</td><td class="num">${j.veces}</td><td class="num">${j.personas}</td></tr>`).join('')}</tbody></table>` : ''}${exEmpresas.length ? `<table class="inf-tabla" style="margin-top:14px"><thead><tr><th>Empresa</th><th class="num">Veces</th><th class="num">Personas</th></tr></thead><tbody>${exEmpresas.map(e => { const s = e.empresa_nombre === 'Sin empresa asignada'; return `<tr class="${s ? 'fila-suave' : ''}"><td class="${s ? '' : 'destacado'}">${esc(e.empresa_nombre)}</td><td class="num">${e.veces}</td><td class="num">${e.personas}</td></tr>`; }).join('')}</tbody></table>` : ''}<table class="inf-tabla" style="margin-top:14px"><thead><tr><th>Fecha</th><th>Persona</th><th>Empresa</th><th>Autoriza</th><th>Motivo</th></tr></thead><tbody>${exDetalle.map(x => { const r = x.estado === 'revocada'; const m = esc(x.motivo_autorizacion || '(sin motivo)') + (r ? `<br><em>Retirada: ${esc(x.motivo_revocacion || 'sin motivo')}</em>` : ''); return `<tr class="${r ? 'fila-suave' : ''}"><td>${esc(fmtFechaCorta(x.fecha))}</td><td class="${r ? '' : 'destacado'}">${esc(x.persona)}</td><td>${esc(x.empresa_nombre)}</td><td>${esc(x.jefe)}</td><td>${m}</td></tr>`; }).join('')}</tbody></table></div>` : '';
 
-  zona.innerHTML = `<div class="informe">${cabeceraHTML(logos, d.obra_nombre, periodoTxt)}${titular}${desenlaceHTML}${rondasHTML}${porObraHTML}${categoriasHTML}${empresasHTML}${excepHTML}${sinRegHTML}${genericosHTML}${pieHTML()}</div>`;
+  zona.innerHTML = `<div class="informe">${cabeceraHTML(logos, d.obra_nombre, periodoTxt)}${titular}${rpHTML}${desenlaceHTML}${rondasHTML}${porObraHTML}${categoriasHTML}${empresasHTML}${excepHTML}${sinRegHTML}${genericosHTML}${pieHTML()}</div>`;
 }
 
 (async function init() {
