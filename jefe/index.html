@@ -20,6 +20,7 @@
 <script src="../js/accesos-resueltos.js"></script>
 <script src="../js/sb-paginado.js"></script>
 <script src="../js/fechas.js"></script>
+<script src="../js/rp-presente.js?v=20260926"></script>
 <script src="../js/habilitaciones.js?v=20260915"></script>
 <script src="../js/foto-identidad.js"></script>
 <!-- 23/9/2026 (Dani): verificar en persona desde el bloque «identidad por confirmar» -->
@@ -1144,9 +1145,10 @@ async function comprobarRP() {
 // llamar a alguien: hay gente dentro y ningún Recurso Preventivo designado,
 // activo en la empresa y con entrada abierta ahora mismo.
 // Alcance: TODAS las obras del jefe, no solo la seleccionada.
-// Margen: no salta hasta que la obra lleva 15 minutos abierta (por la mañana
-// el RP no tiene por qué ser el primero en fichar).
-const MIN_MARGEN_RP_PRESENTE = 15;
+// Margen (26/9/2026, Dani): la regla vive en js/rp-presente.js, compartida con
+// el encargado y el admin. 15 min al abrir la obra; 30 min desde que sale el
+// último RP (por la tarde sale unos minutos antes que los últimos y daba
+// falsa alarma cada día).
 
 async function comprobarRPPresente() {
   const banner = document.getElementById('banner-rp-presente');
@@ -1191,6 +1193,7 @@ async function comprobarRPPresente() {
       (rpPorObra[r.obra_id] || (rpPorObra[r.obra_id] = new Set())).add(r.trabajador_id);
     });
 
+    if (!window.RpPresente) throw new Error('No se ha cargado js/rp-presente.js');
     const ahora = Date.now();
     const sinRP = [];
     obras.forEach(o => {
@@ -1205,19 +1208,21 @@ async function comprobarRPPresente() {
         if (primeraEntrada === null || h < primeraEntrada) primeraEntrada = h;
       });
       if (!dentro.length) return;                                  // obra vacía: nada
-      if (primeraEntrada === null) return;
-      if (ahora - primeraEntrada < MIN_MARGEN_RP_PRESENTE * 60000) return;  // margen
-      const designados = rpPorObra[o.id];
-      const hayRPDentro = designados && dentro.some(tid => designados.has(tid));
-      if (!hayRPDentro) sinRP.push(o.nombre);
+      const ev = RpPresente.evaluar({
+        dentroIds: dentro,
+        primeraEntradaDentro: primeraEntrada,
+        designados: rpPorObra[o.id] || new Set(),
+        fichajes: (fich || []).filter(f => f.obra_id === o.id),
+        ahora
+      });
+      if (ev.alarma) sinRP.push({ nombre: o.nombre, ev });
     });
 
     if (!sinRP.length) return;
     banner.className = 'banner-rp-formacion rojo';
     banner.innerHTML = '🚨 Ningún Recurso Preventivo en obra ahora mismo:<ul>'
-      + sinRP.map(n => `<li>${esc(n)}</li>`).join('')
-      + '</ul>Hay gente trabajando y ningún designado ha fichado entrada. '
-      + 'Llama a un Recurso Preventivo o designa a alguien que esté allí.';
+      + sinRP.map(x => `<li><strong>${esc(x.nombre)}</strong>: ${esc(RpPresente.explicar(x.ev))}</li>`).join('')
+      + '</ul>Llama a un Recurso Preventivo o designa a alguien que esté allí.';
   } catch (e) {
     // Un vigilante no puede fallar en silencio: callar aquí es indistinguible
     // de "hay RP en obra".
