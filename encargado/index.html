@@ -17,6 +17,7 @@
   <script src="../js/branding.js"></script>
   <script src="../js/auto-logout.js"></script>
   <script src="../js/fechas.js"></script>
+  <script src="../js/rp-presente.js?v=20260926"></script>
   <script src="../js/habilitaciones.js?v=20260915"></script>
   <script src="../js/motivos.js"></script>
   <script src="../js/accesos-resueltos.js"></script>
@@ -2486,7 +2487,7 @@
     if (esHoy(fecha)) actualizarBotonRonda(presentes.length);
 
     // 111a - Alarma de RP presente. Sin await: si falla, el panel sigue.
-    comprobarRPPresenteEnc(fecha);
+    comprobarRPPresenteEnc(fecha, fichajes);
   }
 
   // ── 111ª (18/9/2026) · Alarma de RP presente. Pedida por Dani ──────────
@@ -2495,12 +2496,12 @@
   // aún se puede llamar a alguien.
   // Salta si hay gente dentro y ningún Recurso Preventivo designado, activo
   // en la empresa y con entrada abierta ahora mismo.
-  // Margen: 15 minutos desde la primera entrada abierta del día (por la
-  // mañana el RP no tiene por qué ser el primero en fichar).
+  // Margen (26/9/2026, Dani): la regla vive en js/rp-presente.js, compartida
+  // con el jefe y el admin. 15 min al abrir la obra; 30 min desde que sale el
+  // último RP (por la tarde sale unos minutos antes que los últimos y daba
+  // falsa alarma cada día).
   // Solo en el día de hoy: en modo histórico no tiene sentido.
-  const MIN_MARGEN_RP_PRESENTE = 15;
-
-  async function comprobarRPPresenteEnc(fecha) {
+  async function comprobarRPPresenteEnc(fecha, fichajesDia) {
     const banner = document.getElementById('banner-rp-enc');
     if (!banner) return;
     banner.className = 'banner-rp-enc';
@@ -2519,9 +2520,9 @@
       if (primera === null || h < primera) primera = h;
     });
     if (primera === null) return;
-    if (Date.now() - primera < MIN_MARGEN_RP_PRESENTE * 60000) return;
 
     try {
+      if (!window.RpPresente) throw new Error('No se ha cargado js/rp-presente.js');
       const { data: rps, error } = await sb
         .from('recursos_preventivos_obra')
         .select('trabajador_id, trabajador:trabajador_id(activo)')
@@ -2537,11 +2538,17 @@
         designados.add(r.trabajador_id);
       });
 
-      if (dentro.some(t => designados.has(t.id))) return;   // hay RP dentro
+      const ev = RpPresente.evaluar({
+        dentroIds: dentro.map(t => t.id),
+        primeraEntradaDentro: primera,
+        designados,
+        fichajes: fichajesDia || []
+      });
+      if (!ev.alarma) return;                               // hay RP o aún en margen
 
       banner.className = 'banner-rp-enc rojo visible';
       banner.innerHTML = '🚨 <strong>Ningún Recurso Preventivo en obra ahora mismo.</strong><br>'
-        + 'Hay gente trabajando y ninguno de los designados ha fichado entrada. '
+        + esc(RpPresente.explicar(ev)) + ' '
         + 'Avisa al jefe de obra.';
     } catch (e) {
       // Callar aquí sería indistinguible de "sí hay RP en obra".
