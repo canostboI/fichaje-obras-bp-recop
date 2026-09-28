@@ -9,6 +9,7 @@
 <script src="../js/guardian.js"></script>
 <script src="../js/auto-logout.js"></script>
 <script src="../js/fechas.js"></script>
+<script src="../js/sb-paginado.js"></script>
 <!--
   Subcontratas (113ª, 18/9/2026). Pedido por Dani.
   Nombre elegido por Dani: «Subcontratas», no «Empresas», para no confundir
@@ -331,11 +332,20 @@ async function cargarTodo() {
     const rL = await sb.from('libros_subcontratacion').select('empresa_id, obra_id, valido_desde, valido_hasta').in('obra_id', ids);
     if (rL.error) { fallos.push('libros'); libros = null; } else libros = rL.data || [];
 
-    const rV = await sb.from('validaciones_obra')
-      .select('obra_id, estado, trabajador:trabajador_id(empresa_id, activo)').in('obra_id', ids);
-    if (rV.error) { fallos.push('personas'); personas = null; }
-    else personas = (rV.data || []).filter(v => v.trabajador && v.trabajador.empresa_id)
-      .map(v => ({ obra_id: v.obra_id, empresa_id: v.trabajador.empresa_id, estado: v.estado, activo: v.trabajador.activo !== false }));
+    // 28/9/2026 · Por tandas (js/sb-paginado.js): con varias obras se pasa de
+    // 1.000 filas y PostgREST corta sin avisar → contaría menos gente de la real.
+    // Si una tanda falla, «personas» queda sin datos (se avisa), nunca a medias.
+    try {
+      if (!window.SbPaginado || !SbPaginado.traerTodo) throw new Error('Falta js/sb-paginado.js');
+      const filasV = await SbPaginado.traerTodo(() => sb.from('validaciones_obra')
+        .select('id, obra_id, estado, trabajador:trabajador_id(empresa_id, activo)').in('obra_id', ids)
+        .order('id'), { etiqueta: 'lista de personas por obra' });
+      personas = filasV.filter(v => v.trabajador && v.trabajador.empresa_id)
+        .map(v => ({ obra_id: v.obra_id, empresa_id: v.trabajador.empresa_id, estado: v.estado, activo: v.trabajador.activo !== false }));
+    } catch (e) {
+      console.error('subcontratas · personas:', e);
+      fallos.push('personas'); personas = null;
+    }
 
     // 23/9/2026 · Documentos de empresa (los guarda el robot cada noche).
     docsEmp = await leerDocsEmpresa(ids);
