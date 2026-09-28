@@ -6,7 +6,9 @@
 >
 > Creado: 6/7/2026 (auditoría profunda, hallazgo MJ-19).
 > Última actualización: 28/9/2026 (R-6: motivos que devuelve
-> `registrar_fichaje`; cierra el A16 de la auditoría de septiembre).
+> `registrar_fichaje`; cierra el A16 de la auditoría de septiembre ·
+> R-7: «Mis últimos días» solo justo después de fichar · R-3 corregido
+> a 6 RPC públicas).
 > Antes: 2/8/2026 (revisión de grants a `anon` y cierre documental de A-02).
 
 ---
@@ -71,18 +73,20 @@ páginas (es inevitable en una web estática sin servidor propio).
 
 **Por qué se acepta:** es el diseño estándar de Supabase. La anon key
 **no da acceso a nada por sí misma**: todo pasa por RLS + FORCE RLS y
-por las 5 únicas RPC públicas. La seguridad no depende del secreto de
+por las 6 únicas RPC públicas. La seguridad no depende del secreto de
 la clave, sino de las policies.
 
 **Mitigaciones activas (verificadas en auditoría, 27/6; inventario de
 RPC revisado y corregido el 2/8/2026):**
-- `anon` solo puede ejecutar 5 RPC: `obra_publica`, `validar_acceso`,
+- `anon` solo puede ejecutar 6 RPC: `obra_publica`, `validar_acceso`,
   `registrar_fichaje`, `registrar_presente_sin_registrar`,
-  `registrar_incidencia_movil_compartido`.
-- Las 5 se invocan **únicamente desde `fichaje/index.html`** (página
+  `registrar_incidencia_movil_compartido` y `horas_jornada_recientes`
+  (esta última desde el 12/9/2026; ver R-7).
+- Las 6 se invocan **únicamente desde `fichaje/index.html`** (página
   anónima del trabajador). Verificado por búsqueda en el repo el
   2/8/2026: ninguna de ellas se llama desde `jefe/`, `encargado/` ni
-  `admin/` con sesión anónima.
+  `admin/` con sesión anónima. Revisado otra vez el 28/9/2026 con las 6: solo
+  `fichaje/index.html`.
 - `sincronizar_activa_desde_estado()` tenía EXECUTE para `anon` sin
   justificación. **REVOCADO a `anon` y a `authenticated` el 17/8/2026**
   (verificado: `has_function_privilege` = false para los dos). Sigue
@@ -130,6 +134,13 @@ desvía de la realidad, y las dos veces en la misma dirección — dando por
 hecho algo que nadie volvió a comprobar. **Un cambio de permisos no se
 anota como hecho hasta haberlo verificado con `has_function_privilege`
 después de ejecutarlo.** «Success. No rows returned» no es verificación.
+
+**Tercera nota (28/9/2026):** `horas_jornada_recientes` se abrió a `anon`
+el 12/9/2026 (sesión 84ª, «Mis últimos días» en la valla). Se añadió a la
+lista blanca de `auditoria_permisos()`, pero **no aquí**: hasta hoy este
+apartado seguía diciendo «5». Lo destapó el recuento (anon 6) al releer
+el documento. Visto desde el otro lado, la regla de arriba vale igual:
+**abrir una RPC a `anon` = tocar R-3 en el mismo paso.**
 
 **Consulta de verificación** (SQL Editor, para repetir la comprobación
 en futuras auditorías):
@@ -242,6 +253,49 @@ persona y a su empresa.
 **Revisión futura:** revisar si el paso a Twind cambia el texto de los
 motivos, si se decide que la valla enseñe solo mensajes genéricos, o si
 aparecen `bloqueo_rojo` o fichajes que nadie en la obra reconoce.
+
+---
+
+## R-7 · «Mis últimos días» (`horas_jornada_recientes`) — solo justo después de fichar
+
+**Qué es:** tras un fichaje bueno, la valla enseña al trabajador sus
+entradas y salidas de los últimos 7 días con fichajes en esa obra
+(«Mis últimos días», para que detecte fallos y se lo diga al encargado).
+La RPC `horas_jornada_recientes(p_dni, p_obra_id)` es pública (`anon`) y
+entra **solo con el DNI**, sin segundo dato: decisión de Dani (12/9/2026).
+
+**El agujero (hasta el 28/9/2026):** la RPC **no pedía GPS ni dejaba
+rastro**. Con un DNI completo y el UUID del QR (R-4), cualquiera podía
+leer desde fuera de la obra, y sin que nadie lo supiera, a qué hora
+entraba y salía esa persona los últimos días. Comprobado en un bloque
+deshecho con la ficha de pruebas `00000001R`: devolvía sus fichajes
+del 24/9 sin haber fichado.
+
+**Estado:** ✅ **CERRADO el 28/9/2026** (sesión 141ª, decisión de Dani;
+respaldo 148, migración `20260928210732`, misma firma). La función
+devuelve `[]` salvo que exista un fichaje de **esa persona** en **esa
+obra** con `origen = 'qr'` (solo lo escribe `registrar_fichaje`) y
+`creado_en` de los **últimos 15 minutos**.
+
+**Por qué no cambia nada para el trabajador:** la valla solo pide esta
+lista en `cargarMisDias`, llamada desde `mostrarConfirmacionFinal`,
+es decir, justo después de un fichaje (entrada o salida) que ha salido
+bien.
+
+**Riesgo residual, aceptado:** quien quiera leer los horarios de otro
+tiene que **fichar por él antes** (R-1): estar en la obra (R-2) y dejar
+un fichaje real a la vista del jefe. En esos 15 minutos puede ver la
+lista, igual que la vería el propio trabajador.
+
+**Prueba (bloque deshecho, llamando como `anon`):** sin fichaje reciente
+→ `[]` · recién fichado por la valla en Muralla → lista con hoy y días
+anteriores · mismo DNI preguntando por otra obra → `[]` · fichaje de 16
+minutos → `[]` · fichaje reciente pero `manual` → `[]` · DNI inexistente
+→ `[]`. `auditoria_permisos()`: 0 desviaciones.
+
+**Revisión futura:** si algún día la lista se enseña en otro momento (p.
+ej. antes de fichar, o en un portal del trabajador con PIN), hay que
+revisar esta condición: con ella, la lista saldría vacía.
 
 ---
 
