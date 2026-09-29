@@ -727,6 +727,39 @@
     .pie { padding-top: 10px; }
   }
 
+  /* 29/9/2026 (Dani) — La pantalla final («Salida/Entrada registrada» +
+     «Tus últimos días») tiene que verse ENTERA, sin deslizar. Solo se
+     aprieta esta pantalla (clase `en-final` en el body, la pone irA); las
+     demás no cambian. El ✓ va al lado del título, la cabecera se encoge,
+     las banderas van en una sola fila pequeña (siguen funcionando) y las
+     filas de días pierden aire. Va después del @media de pantallas bajas
+     para mandar sobre él. */
+  body.en-final .contenedor { padding: 8px 14px; }
+  body.en-final .cabecera { padding: 0; }
+  body.en-final .logo-marca { max-height: 32px; margin-bottom: 2px; }
+  body.en-final .cabecera .obra-nombre { font-size: 16px; }
+  body.en-final .selector-idioma { flex-wrap: nowrap; gap: 2px; margin-top: 4px; }
+  body.en-final .selector-idioma button { font-size: 18px; padding: 2px 4px; }
+  body.en-final .tarjeta { padding: 12px 12px 10px; margin-top: 8px; }
+  body.en-final .confirmacion-final { padding: 0 6px; }
+  body.en-final .final-cabeza {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  body.en-final .confirmacion-final .tick { font-size: 34px; margin: 0; }
+  body.en-final .confirmacion-final .titulo { font-size: 22px; margin: 0; line-height: 1.15; }
+  body.en-final .confirmacion-final .nombre { font-size: 15px; margin: 2px 0 0; line-height: 1.25; }
+  body.en-final .confirmacion-final .hora { font-size: 30px; margin: 2px 0 0; line-height: 1.15; }
+  body.en-final .dias-titulo { margin-top: 6px; }
+  body.en-final .dias-marco { margin: 4px -8px 0; }
+  body.en-final .dias-fila { min-height: 40px; padding: 4px 8px 4px 6px; }
+  body.en-final .dias-dia .num { font-size: 17px; }
+  body.en-final .dias-ayuda { margin: 6px -6px 0; }
+  body.en-final .dias-ayuda .ic { font-size: 18px; }
+  body.en-final #btn-nuevo-fichaje { margin-top: 8px !important; }
+  body.en-final .pie { padding-top: 6px; }
+  body.en-final .rgpd-enlace { margin-top: 0; padding: 4px 10px; }
+  body.en-final .firma-portium { margin: 2px 0 0; }
+
   .rgpd-enlace {
     display: block;
     margin: 6px auto 0;
@@ -876,8 +909,10 @@
 
   <div class="tarjeta oculto" id="paso-final">
     <div class="confirmacion-final">
-      <div class="tick" id="final-tick">✓</div>
-      <div class="titulo" id="final-titulo"></div>
+      <div class="final-cabeza">
+        <div class="tick" id="final-tick">✓</div>
+        <div class="titulo" id="final-titulo"></div>
+      </div>
       <div class="nombre" id="final-nombre"></div>
       <div class="hora" id="final-hora"></div>
       <div id="final-motivos" class="motivos oculto" style="text-align:left;"></div>
@@ -2883,6 +2918,8 @@ function irA(paso) {
   [el.pasoDni, el.pasoCargando, el.pasoResultado, el.pasoFinal, el.pasoSinRegistrar]
     .forEach(p => p.classList.add('oculto'));
   paso.classList.remove('oculto');
+  // 29/9/2026 — la pantalla final va compacta para caber sin deslizar
+  document.body.classList.toggle('en-final', paso === el.pasoFinal);
   // 105ª bis (decisión de Dani): también en la pantalla del DNI, donde la
   // persona está quieta tecleando. Tocar una bandera la corta hasta el
   // siguiente cambio de pantalla.
