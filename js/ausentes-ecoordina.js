@@ -28,7 +28,16 @@
      · es POR PERSONA, no del banner entero: si mañana desaparece otro,
        el aviso vuelve a salir con el nuevo;
      · queda firmado (quién y cuándo);
-     · no desaparece, se repliega a una línea gris;
+     · 29/9/2026 (Dani: «una vez visto ya está»): lo visto DESAPARECE de
+       Presencia, sin línea gris ni «volver a avisar». Hasta hoy se
+       replegaba a «✔ N que ya diste por vista(s)» y seguía ocupando sitio.
+       Si un visto se da por error, se deshace desde la BD
+       (`marcar_aviso_visto` con p_visto = false: la función lo sigue
+       admitiendo, solo se ha quitado el botón);
+     · 29/9/2026: botón «✔ Visto a todos» en cada bloque con 2 o más
+       personas. Pregunta antes y llama a `marcar_aviso_visto` una vez por
+       persona, una detrás de otra: cada visto queda firmado igual que si
+       se pulsara a mano. Sin función nueva en la BD;
      · 23/9/2026 (Dani: «ya me ha informado, no necesito volver a verlo»):
        el visto silencia HASTA EL CIERRE, también el día antes. Hasta hoy
        dejaba de silenciar a 1 día o menos, y el botón parecía no hacer
@@ -73,7 +82,6 @@
   var cliente = null;
   var obraEnCurso = null;
   var verAntiguos = false;
-  var verVistos = false;
 
   function sb() {
     if (cliente) return cliente;
@@ -137,6 +145,12 @@
       'color:inherit;font-family:inherit;font-size:12px;padding:4px 10px;border-radius:7px;cursor:pointer;opacity:.75}',
       '#ausentes-ecoordina .aec-visto:hover{opacity:1}',
       '#ausentes-ecoordina .aec-visto[disabled]{opacity:.4;cursor:wait}',
+      '#ausentes-ecoordina .aec-cab{display:flex;gap:10px;align-items:flex-start}',
+      '#ausentes-ecoordina .aec-cab-txt{flex:1;min-width:0}',
+      '#ausentes-ecoordina .aec-todos{flex:0 0 auto;background:none;border:1px solid currentColor;',
+      'color:inherit;font-family:inherit;font-size:12px;font-weight:700;padding:4px 10px;border-radius:7px;cursor:pointer;opacity:.85}',
+      '#ausentes-ecoordina .aec-todos:hover{opacity:1}',
+      '#ausentes-ecoordina .aec-todos[disabled]{opacity:.4;cursor:wait}',
       '#ausentes-ecoordina .aec-mas{background:none;border:0;color:inherit;font-family:inherit;',
       'font-size:12px;text-decoration:underline;cursor:pointer;padding:0;opacity:.85}',
       '#ausentes-ecoordina .aec-pie{margin-top:9px;opacity:.85;font-size:12px;font-weight:400}'
@@ -178,7 +192,7 @@
     return 'pendiente de comprobar';
   }
 
-  function filaPersona(p, conVisto) {
+  function filaPersona(p) {
     var plazo = '';
     if (p.ya_en_rojo) {
       plazo = '<span class="aec-ya">ya no puede entrar</span>';
@@ -187,9 +201,7 @@
       if (t) plazo = '<span class="aec-plazo">deja de entrar ' + esc(t) + '</span>';
     }
 
-    var visto = conVisto
-      ? '<button type="button" class="aec-visto" data-tr="' + esc(p.trabajador_id) + '" data-v="1">✔ visto</button>'
-      : '<button type="button" class="aec-visto" data-tr="' + esc(p.trabajador_id) + '" data-v="0">volver a avisar</button>';
+    var visto = '<button type="button" class="aec-visto" data-tr="' + esc(p.trabajador_id) + '" data-v="1">✔ visto</button>';
 
     return '<div class="aec-fila"><div class="aec-txt">'
       + '<b>' + esc(p.nombre) + '</b> <span class="aec-donde">(' + esc(p.empresa) + ')'
@@ -198,6 +210,14 @@
       + '<span class="aec-porque">' + esc(porque(p)) + (plazo ? ' · ' : '') + plazo + '</span>'
       + (antiguedad(p) ? '<span class="aec-porque">' + esc(antiguedad(p)) + '</span>' : '')
       + '</div>' + visto + '</div>';
+  }
+
+  // Solo con 2 o más: con una persona ya está su propio «✔ visto».
+  function botonTodos(lista) {
+    if (!lista || lista.length < 2) return '';
+    var ids = [];
+    for (var i = 0; i < lista.length; i++) ids.push(esc(lista[i].trabajador_id));
+    return '<button type="button" class="aec-todos" data-ids="' + ids.join(',') + '">✔ Visto a todos</button>';
   }
 
   function pintar(d, h) {
@@ -240,12 +260,13 @@
       var hayRojos = false;
       for (var k = 0; k < urgentes.length; k++) if (urgentes[k].ya_en_rojo) hayRojos = true;
       html += '<div class="aec ' + (hayRojos ? 'aec-rojo' : 'aec-naranja') + '">'
+           + '<div class="aec-cab"><div class="aec-cab-txt">'
            + (hayRojos ? '🚫 ' : '🚪 ') + '<b>'
            + (urgentes.length === 1
                ? 'Una persona de tu obra necesita que hagas algo'
                : urgentes.length + ' personas de tu obra necesitan que hagas algo')
-           + '</b>';
-      for (var u = 0; u < urgentes.length; u++) html += filaPersona(urgentes[u], true);
+           + '</b></div>' + botonTodos(urgentes) + '</div>';
+      for (var u = 0; u < urgentes.length; u++) html += filaPersona(urgentes[u]);
       html += '<div class="aec-pie">Para arreglarlo, que su empresa los dé de alta en e-Coordina '
            +  'en el centro de ESTA obra: estar de alta en otra no vale. '
            +  (d.obra_pausada
@@ -255,24 +276,18 @@
     }
 
     if (antiguos.length) {
-      html += '<div class="aec aec-gris">🧹 Además hay <b>' + antiguos.length
+      html += '<div class="aec aec-gris"><div class="aec-cab"><div class="aec-cab-txt">🧹 Además hay <b>' + antiguos.length
            + '</b> persona(s) asignada(s) a esta obra que no fichan desde hace más de un mes y que '
            + 'e-Coordina ya no reconoce. No es un peligro: es una lista por limpiar. '
            + '<button type="button" class="aec-mas" data-mas="antiguos">'
-           + (verAntiguos ? 'ocultar' : 'ver quiénes son') + '</button>';
-      if (verAntiguos) for (var a = 0; a < antiguos.length; a++) html += filaPersona(antiguos[a], true);
+           + (verAntiguos ? 'ocultar' : 'ver quiénes son') + '</button>'
+           + '</div>' + botonTodos(antiguos) + '</div>';
+      if (verAntiguos) for (var a = 0; a < antiguos.length; a++) html += filaPersona(antiguos[a]);
       html += '</div>';
     }
 
-    if (vistos.length) {
-      html += '<div class="aec aec-gris">✔ <b>' + vistos.length + '</b> que ya diste por vista(s). '
-           + '<button type="button" class="aec-mas" data-mas="vistos">'
-           + (verVistos ? 'ocultar' : 'ver') + '</button>'
-           + '<div class="aec-pie">No volverán a avisarte por esta causa. Si vuelven a e-Coordina y '
-           + 'desaparecen otra vez, sí.</div>';
-      if (verVistos) for (var s = 0; s < vistos.length; s++) html += filaPersona(vistos[s], false);
-      html += '</div>';
-    }
+    // 29/9/2026: lo visto (`vistos`) ya no se pinta. Se sigue separando
+    // arriba para que no se cuele en «urgentes» ni en «antiguos».
 
     h.innerHTML = html;
     enganchar(h);
@@ -303,11 +318,40 @@
         }).catch(function () { b.disabled = false; });
       };
     }
+    var todos = h.querySelectorAll('.aec-todos');
+    for (var t = 0; t < todos.length; t++) {
+      todos[t].onclick = function () {
+        var b = this;
+        var c = sb();
+        if (!c) return;
+        var ids = (b.getAttribute('data-ids') || '').split(',').filter(function (x) { return RE_UUID.test(x); });
+        if (!ids.length) return;
+        if (!confirm('¿Dar por vistas a las ' + ids.length + ' personas? Dejarán de salir en este aviso.')) return;
+        var botonesBloque = b.closest('.aec').querySelectorAll('button');
+        for (var q = 0; q < botonesBloque.length; q++) botonesBloque[q].disabled = true;
+        var fallos = 0, ultimoError = '';
+        // Una detrás de otra: la función firma cada visto por separado.
+        var cadena = Promise.resolve();
+        ids.forEach(function (id) {
+          cadena = cadena.then(function () {
+            return c.rpc('marcar_aviso_visto', { p_trabajador_id: id, p_obra_id: obraEnCurso, p_visto: true })
+              .then(function (r) {
+                if (r.error) { fallos++; ultimoError = r.error.message; }
+                else if (r.data && r.data.ok === false) { fallos++; ultimoError = r.data.error || 'motivo desconocido'; }
+              }, function (e) { fallos++; ultimoError = (e && e.message) || 'sin conexión'; });
+          });
+        });
+        cadena.then(function () {
+          if (fallos) alert('No se ha podido guardar el visto de ' + fallos + ' de ' + ids.length
+            + ' personas: ' + ultimoError + '\nLas que sí se han guardado ya no salen.');
+          revisar(true);
+        });
+      };
+    }
     var mas = h.querySelectorAll('.aec-mas');
     for (var j = 0; j < mas.length; j++) {
       mas[j].onclick = function () {
-        if (this.getAttribute('data-mas') === 'antiguos') verAntiguos = !verAntiguos;
-        else verVistos = !verVistos;
+        verAntiguos = !verAntiguos;
         revisar(true);
       };
     }
@@ -350,7 +394,7 @@
       revisar(true);
       var sel = document.getElementById('selector-obra');
       if (sel) sel.addEventListener('change', function () {
-        verAntiguos = false; verVistos = false;
+        verAntiguos = false;
         setTimeout(function () { revisar(true); }, 0);
       });
     } catch (e) {
