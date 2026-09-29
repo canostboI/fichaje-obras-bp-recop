@@ -94,6 +94,11 @@
   .pill.clicable { cursor: pointer; transition: filter 0.15s, transform 0.1s; }
   .pill.clicable:hover { filter: brightness(1.25); }
   .pill.clicable:active { transform: scale(0.96); }
+  /* 29/9/2026 · Pase temporal junto al color (caso Jonay, MUFEMA). */
+  .pase { display: block; width: max-content; margin-top: 5px; padding: 2px 8px; border-radius: 6px;
+          font-size: 11px; font-weight: 700; white-space: nowrap; cursor: pointer;
+          background: rgba(255,152,0,0.10); color: var(--naranja); border: 1px dashed var(--naranja); }
+  .pase:hover { filter: brightness(1.25); }
   .vacio { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
 
@@ -664,6 +669,9 @@ let enlacesCaraCache = {};
 const MIN_REUSO_ENLACE_CARA = 50;
 
 let validacionesCache = {};
+// 29/9/2026 · trabajador_id → { etiqueta, detalle } de quien entra con un
+// pase temporal (forzado a verde/naranja o autorizado solo hoy).
+let pasesCache = {};
 let naranjasActualesCache = [];
 // true si la última carga no pudo leer validaciones_obra: el modal de naranjas
 // no puede decir "no hay ninguno" cuando lo que pasa es que no lo sabe.
@@ -2280,6 +2288,54 @@ async function cargarPresencia() {
 
   await cargarCaras(ids);
 
+  // 29/9/2026 (Dani, caso Jonay): quien entra con un PASE TEMPORAL tiene que
+  // distinguirse de un naranja normal de e-Coordina. Dos clases de pase:
+  //   · forzado a verde/naranja (p. ej. «He revisado sus papeles»), con fecha
+  //   · excepción de hoy (rojo autorizado en la puerta), solo ese día
+  // Consulta APARTE a propósito: si falla, se quedan sin etiqueta, pero el
+  // color y el contador de naranjas no se tocan. Los forzados a rojo no son
+  // un pase (son un bloqueo) y no llevan etiqueta.
+  pasesCache = {};
+  try {
+    const hoyStr = Fechas.hoyMadrid();
+    const [rFor, rExc] = await Promise.all([
+      sb.from('validaciones_obra')
+        .select('trabajador_id, estado, estado_forzado, forzado_hasta, forzado_en, motivo_forzado, estado_calculado')
+        .eq('obra_id', obraActual).eq('estado_forzado', true).in('trabajador_id', ids),
+      sb.from('excepciones_acceso')
+        .select('trabajador_id, estado, motivo_autorizacion')
+        .eq('obra_id', obraActual).eq('fecha', hoyStr).eq('estado', 'activa').in('trabajador_id', ids)
+    ]);
+    if (rExc.error) console.warn('[pases] excepciones:', rExc.error.message);
+    (rExc.data || []).forEach(e => {
+      pasesCache[e.trabajador_id] = {
+        etiqueta: '🎫 Pase solo hoy',
+        detalle: 'Autorizado en la puerta SOLO para hoy'
+          + (e.motivo_autorizacion ? ': «' + e.motivo_autorizacion + '»' : '') + '.\n'
+          + 'Mañana volverá a necesitar autorización si su documentación sigue igual.'
+      };
+    });
+    // El forzado va después: si tiene los dos, manda el que dura más.
+    if (rFor.error) console.warn('[pases] forzados:', rFor.error.message);
+    (rFor.data || []).forEach(v => {
+      if (v.estado !== 'verde' && v.estado !== 'naranja') return;
+      if (v.forzado_hasta && v.forzado_hasta < hoyStr) return;
+      const ecoord = v.estado_calculado
+        ? 'e-Coordina sigue diciendo ' + String(v.estado_calculado).toUpperCase() + '.'
+        : 'e-Coordina no ha dicho nada de esta persona en esta obra.';
+      pasesCache[v.trabajador_id] = {
+        etiqueta: v.forzado_hasta ? '🎫 Pase hasta ' + fechaCortaPase(v.forzado_hasta) : '🎫 Pase sin fecha',
+        detalle: 'Pase en ' + String(v.estado).toUpperCase()
+          + (v.forzado_en ? ' dado el ' + new Date(v.forzado_en).toLocaleDateString('es-ES', { day: 'numeric', month: 'numeric', timeZone: 'Europe/Madrid' }) : '')
+          + (v.forzado_hasta ? ', válido hasta el ' + fechaLarga(v.forzado_hasta) : ', sin fecha de fin')
+          + (v.motivo_forzado ? ':\n«' + v.motivo_forzado + '»' : '.')
+          + '\n\n' + ecoord
+      };
+    });
+  } catch (e) {
+    console.warn('[pases] no se han podido consultar:', e);
+  }
+
   // 24/9/2026 (Dani): ahora también la caducidad, para pintar cada icono
   // con el color de su estado. Si dos habilitaciones dan el mismo dibujo
   // (p. ej. toro y carretilla), se queda la PEOR: un icono azul no puede
@@ -2356,12 +2412,16 @@ async function cargarPresencia() {
         ? `<span class="pill ${estado} clicable" onclick="abrirMotivos('${t.trabajador.id}')" title="Ver motivos">${estado}</span>`
         : `<span class="pill ${estado}">${estado}</span>`;
       const marcaRP = idsRP.has(t.trabajador.id) ? ' <span title="Recurso Preventivo designado">🛡️</span>' : '';
+      const pase = pasesCache[t.trabajador.id];
+      const paseHtml = pase
+        ? `<span class="pase" onclick="verPase('${t.trabajador.id}')" title="${escAttrPase(pase.detalle)}">${esc(pase.etiqueta)}</span>`
+        : '';
       const iconosHabHtml = htmlIconosHab(habIconosPorTrabajador[t.trabajador.id], 'iconos-hab-tabla');
       filas += `<tr>
         <td><div class="celda-nombre">${pintarCara(t.trabajador)}<div><strong>${esc(t.trabajador.nombre)} ${esc(t.trabajador.apellidos)}</strong>${marcaRP}${iconosHabHtml}</div></div></td>
         <td>${esc(t.trabajador.dni)}</td>
         <td>${formatHora(ultimaEntrada.hora)}</td>
-        <td>${pillHtml}</td>
+        <td>${pillHtml}${paseHtml}</td>
       </tr>`;
     });
   });
@@ -2373,6 +2433,21 @@ async function cargarPresencia() {
       </tr></thead>
       <tbody>${filas}</tbody>
     </table>`;
+}
+
+// 29/9/2026 · Pase temporal: «sáb 3/10».
+function fechaCortaPase(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  return d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'numeric', timeZone: 'Europe/Madrid' })
+    .replace(',', '');
+}
+function escAttrPase(txt) {
+  return esc(txt).replace(/"/g, '&quot;');
+}
+// En el móvil no hay «pasar el ratón»: al tocar la etiqueta se explica.
+function verPase(trabajadorId) {
+  const p = pasesCache[trabajadorId];
+  if (p) alert(p.detalle);
 }
 
 function limpiarMotivo(texto) {
