@@ -11,15 +11,22 @@
        del encargado (jefe/index.html y encargado/index.html) y en el
        admin (ver abajo). NUNCA a pantalla completa en la valla: el
        trabajador tiene que fichar rápido (allí va el modo espera).
-     · Una sola vez por apertura de la app: se apunta en
-       sessionStorage al TERMINAR. Si el móvil cierra la app y se
-       vuelve a abrir, sale otra vez; al ir y volver entre pantallas
-       del panel, no.
+     · 29/9/2026 (Dani: «solo la veo por las mañanas»): sale cuando
+       llevas MÁS DE 1 HORA sin mirar la app. Antes salía una vez por
+       sesión, y ni el ordenador ni el móvil cierran nunca la app: la
+       pestaña se queda abierta todo el día. Ahora:
+         - al cargar el panel, si la última vez que se vio la app fue
+           hace más de 1 hora;
+         - al VOLVER a la app (desbloquear el móvil, volver a la
+           pestaña) tras más de 1 hora oculta.
+       Al ir de una pantalla a otra del panel no sale: al salir de una
+       pantalla se apunta la hora en localStorage (CLAVE_VISTA) y la
+       siguiente la encuentra reciente.
      · Si se corta a medias (p. ej. guardian.js manda a la portada
-       porque no hay sesión), no se apunta: saldrá tras entrar.
+       porque no hay sesión), no se apunta la hora: saldrá tras entrar.
      · No sale si el móvil pide «reducir movimiento» ni si el
-       navegador no deja usar sessionStorage (mejor no salir que
-       salir en cada recarga).
+       navegador no deja usar localStorage (mejor no salir que salir
+       en cada recarga).
      · Un toque en cualquier sitio la salta.
 
    SEGURIDAD: nunca puede dejar la pantalla tapada. Hay un
@@ -62,7 +69,8 @@
 (function () {
   'use strict';
 
-  var CLAVE = 'portium-apertura-vista';
+  var CLAVE_VISTA = 'portium-app-vista-en';   // ms de la última vez que se vio la app
+  var AUSENCIA_MS = 60 * 60 * 1000;            // 1 hora sin mirarla (Dani, 29/9/2026)
   var FONDO_INICIO = '#5a2b0c';   // background_color del manifest
   var FONDO_FIN = '#111318';      // fondo del panel del jefe
   var ARENA = '#d6b67c';
@@ -87,15 +95,24 @@
   }
   if (MODO !== 'apertura') return;
 
-  // ¿Ya se vio en esta apertura? ¿Se puede apuntar?
+  if (movimientoReducido) return;
+
+  // ¿Se puede apuntar la hora? Si no, no sale nunca (mejor que en cada recarga).
+  function leerVista() {
+    var v = parseInt(localStorage.getItem(CLAVE_VISTA) || '0', 10);
+    return isNaN(v) ? 0 : v;
+  }
+  function apuntarVista() {
+    try { localStorage.setItem(CLAVE_VISTA, String(Date.now())); } catch (_) {}
+  }
+  var ultimaVista;
   try {
-    if (sessionStorage.getItem(CLAVE) === '1') return;
-    sessionStorage.setItem(CLAVE + '-prueba', '1');
-    sessionStorage.removeItem(CLAVE + '-prueba');
+    ultimaVista = leerVista();
+    localStorage.setItem(CLAVE_VISTA + '-prueba', '1');
+    localStorage.removeItem(CLAVE_VISTA + '-prueba');
   } catch (_) {
     return;
   }
-  if (movimientoReducido) return;
 
   // Ruta del icono a partir de la ruta de este mismo archivo.
   var ICONO = '../assets/icons/portium-192.png';
@@ -104,26 +121,16 @@
   } catch (_) {}
 
   var capa = null;
-  var terminado = false;
+  var enCurso = false;
+  var ocultaDesde = null;
 
   function quitar() {
     try { if (capa && capa.parentNode) capa.parentNode.removeChild(capa); } catch (_) {}
     capa = null;
   }
 
-  function terminar(apuntar) {
-    if (terminado) return;
-    terminado = true;
-    if (apuntar) {
-      try { sessionStorage.setItem(CLAVE, '1'); } catch (_) {}
-    }
-    if (!capa) return;
-    capa.classList.add('pa-fuera');
-    setTimeout(quitar, 400);
-  }
-
-  try {
-    var N = 12;
+  function ponerEstilos() {
+    if (document.getElementById('portium-apertura-css')) return;
     var CSS =
       '#portium-apertura{position:fixed;inset:0;z-index:2147483000;background:' + FONDO_INICIO + ';overflow:hidden;opacity:1;transition:opacity .35s ease-out;-webkit-tap-highlight-color:transparent}'
     + '#portium-apertura.pa-fuera{opacity:0;pointer-events:none}'
@@ -140,43 +147,95 @@
     + '#portium-apertura .pa-ium{color:' + ARENA + ';font-style:italic}'
     + '#portium-apertura .pa-linea{width:0;height:3px;background:' + LINEA + ';margin:10px auto 0;animation:pa-ancho .35s ease-out 1.2s forwards}'
     + '@keyframes pa-ancho{to{width:140px}}';
-
     var estilo = document.createElement('style');
     estilo.id = 'portium-apertura-css';
     estilo.textContent = CSS;
     (document.head || document.documentElement).appendChild(estilo);
+  }
 
-    var rayas = '';
-    for (var i = 0; i < N; i++) {
-      var retraso = (0.3 + (i % 3) * 0.1 + Math.abs(i - N / 2) * 0.012).toFixed(3);
-      rayas += '<div class="pa-raya" style="top:' + (i * 100 / N) + '%;height:calc(' + (100 / N)
-        + '% + 1px);transform-origin:' + (i % 2 ? 'top' : 'bottom') + ';animation-delay:' + retraso + 's"></div>';
+  // Se puede llamar más de una vez (al abrir y al volver a la app).
+  function mostrar() {
+    if (enCurso) return;
+    enCurso = true;
+    var terminado = false;
+
+    function terminar() {
+      if (terminado) return;
+      terminado = true;
+      enCurso = false;
+      apuntarVista();
+      if (!capa) return;
+      capa.classList.add('pa-fuera');
+      var esta = capa;
+      setTimeout(function () {
+        try { if (esta.parentNode) esta.parentNode.removeChild(esta); } catch (_) {}
+        if (capa === esta) capa = null;
+      }, 400);
     }
 
-    capa = document.createElement('div');
-    capa.id = 'portium-apertura';
-    capa.setAttribute('aria-hidden', 'true');
-    capa.innerHTML =
-      '<div class="pa-capa pa-centro"><img class="pa-icono" alt="" src="' + ICONO + '"></div>'
-    + '<div class="pa-capa">' + rayas + '</div>'
-    + '<div class="pa-capa pa-centro">'
-    +   '<svg width="84" height="74" viewBox="0 0 90 80" aria-hidden="true">'
-    +     '<path class="pa-arco" d="M18 78 V40 A27 27 0 0 1 72 40 V78" fill="none" stroke="' + ARENA + '" stroke-width="5" stroke-linecap="round"/>'
-    +   '</svg>'
-    +   '<div class="pa-marco"><span class="pa-palabra">Port<span class="pa-ium">ium</span></span></div>'
-    +   '<div class="pa-linea"></div>'
-    + '</div>';
+    try {
+      quitar();
+      ponerEstilos();
+      var N = 12;
+      var rayas = '';
+      for (var i = 0; i < N; i++) {
+        var retraso = (0.3 + (i % 3) * 0.1 + Math.abs(i - N / 2) * 0.012).toFixed(3);
+        rayas += '<div class="pa-raya" style="top:' + (i * 100 / N) + '%;height:calc(' + (100 / N)
+          + '% + 1px);transform-origin:' + (i % 2 ? 'top' : 'bottom') + ';animation-delay:' + retraso + 's"></div>';
+      }
 
-    // En el head aún no hay body: la capa cuelga directamente del html.
-    document.documentElement.appendChild(capa);
+      capa = document.createElement('div');
+      capa.id = 'portium-apertura';
+      capa.setAttribute('aria-hidden', 'true');
+      capa.innerHTML =
+        '<div class="pa-capa pa-centro"><img class="pa-icono" alt="" src="' + ICONO + '"></div>'
+      + '<div class="pa-capa">' + rayas + '</div>'
+      + '<div class="pa-capa pa-centro">'
+      +   '<svg width="84" height="74" viewBox="0 0 90 80" aria-hidden="true">'
+      +     '<path class="pa-arco" d="M18 78 V40 A27 27 0 0 1 72 40 V78" fill="none" stroke="' + ARENA + '" stroke-width="5" stroke-linecap="round"/>'
+      +   '</svg>'
+      +   '<div class="pa-marco"><span class="pa-palabra">Port<span class="pa-ium">ium</span></span></div>'
+      +   '<div class="pa-linea"></div>'
+      + '</div>';
 
-    capa.addEventListener('click', function () { terminar(true); });
-    setTimeout(function () { terminar(true); }, DURACION_MS);
-    setTimeout(function () { terminado = true; quitar(); }, RETIRADA_MS);
-  } catch (e) {
-    try { console.warn('[apertura] no se pudo mostrar la animación:', e); } catch (_) {}
-    quitar();
+      // En el head aún no hay body: la capa cuelga directamente del html.
+      document.documentElement.appendChild(capa);
+
+      var mia = capa;
+      capa.addEventListener('click', terminar);
+      setTimeout(terminar, DURACION_MS);
+      // Red de seguridad: pase lo que pase, a los 5 s no queda nada tapando.
+      setTimeout(function () {
+        terminado = true; enCurso = false;
+        try { if (mia.parentNode) mia.parentNode.removeChild(mia); } catch (_) {}
+        if (capa === mia) capa = null;
+      }, RETIRADA_MS);
+    } catch (e) {
+      try { console.warn('[apertura] no se pudo mostrar la animación:', e); } catch (_) {}
+      enCurso = false;
+      quitar();
+    }
   }
+
+  // Al abrir: solo si hace más de 1 hora que no se mira la app.
+  if (!ultimaVista || Date.now() - ultimaVista > AUSENCIA_MS) mostrar();
+  else apuntarVista();
+
+  // Al ocultarse (otra pestaña, móvil bloqueado, cambio de pantalla) se
+  // apunta la hora. Si se corta a medias, no: así sale tras volver a entrar.
+  try {
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden') {
+        ocultaDesde = Date.now();
+        if (!enCurso) apuntarVista();
+      } else if (document.visibilityState === 'visible') {
+        var desde = ocultaDesde;
+        ocultaDesde = null;
+        if (desde && Date.now() - desde > AUSENCIA_MS) mostrar();
+      }
+    });
+    window.addEventListener('pagehide', function () { if (!enCurso) apuntarVista(); });
+  } catch (_) {}
 
   // ---------- Modo espera (valla): caja pequeña dentro de la tarjeta ----------
   function modoEspera() {
