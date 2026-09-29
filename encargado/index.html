@@ -852,6 +852,11 @@
   let empresasPropias = new Set();
   let intervalRelativo = null;
   let intervalPresencia = null;
+  // 29/9/2026 · Refresco silencioso (Dani: «se actualiza y pierde lo que
+  // estaba mirando»). Huella de lo último pintado en la lista y en el panel
+  // amarillo: si no ha cambiado nada, no se toca la pantalla.
+  let firmaTarjetas = '';
+  let ultimoHtmlSolenc = '';
 
   // Iconos de habilitación: js/habilitaciones.js (window.Hab).
   // El diccionario estaba copiado aquí y en otros siete archivos.
@@ -1141,6 +1146,11 @@
     DeclSabado.comprobar(sb, obraId);
   }
 
+  // 29/9/2026 (Dani): cada 2 minutos (antes 1) y EN SILENCIO: sin
+  // «Cargando…» y sin repintar si nada ha cambiado. Antes la lista se
+  // vaciaba cada minuto, la pantalla saltaba arriba y se cerraba lo que el
+  // encargado tuviera abierto; y el panel amarillo borraba a medio escribir
+  // el formulario «+ Pedir permiso para alguien no registrado».
   function iniciarRefrescoPresencia() {
     if (intervalPresencia) { clearInterval(intervalPresencia); intervalPresencia = null; }
     intervalPresencia = setInterval(async () => {
@@ -1149,19 +1159,19 @@
       // Solo auto-refrescar si estamos viendo hoy
       const fechaActual = document.getElementById('input-fecha-presencia').value || fechaHoyISO();
       if (!esHoy(fechaActual)) return;
-      await cargarPresencia(obraActualId, fechaActual);
+      await cargarPresencia(obraActualId, fechaActual, true);
       // Y con la presencia recién leída, recalcular quién sigue sin entrar.
       // Si no, el contador se queda congelado en el de las 7 de la mañana.
       await cargarBloqueos();
       await cargarSolicitudesEnc();
-    }, 60 * 1000);
+    }, 2 * 60 * 1000);
   }
 
   document.addEventListener('visibilitychange', async () => {
     if (!document.hidden && obraActualId) {
       const fechaActual = document.getElementById('input-fecha-presencia').value || fechaHoyISO();
       if (!esHoy(fechaActual)) return;
-      await cargarPresencia(obraActualId, fechaActual);
+      await cargarPresencia(obraActualId, fechaActual, true);
       await cargarBloqueos();
       await cargarSolicitudesEnc();
     }
@@ -1558,7 +1568,21 @@
     html += '<button class="btn-anadir-sf" onclick="abrirFormSinFichar()">+ Pedir permiso para alguien no registrado</button>';
     html += '<div id="form-sf-hueco"></div>';
 
+    // 29/9/2026 · Igual que antes: no se repinta. Y si hay que repintar con
+    // el formulario abierto, se conserva tal cual (nombre, DNI, foto).
+    // (Si hay un botón a medias —«Quitando…»—, se repinta igual para soltarlo.)
+    if (html === ultimoHtmlSolenc && panel.style.display === 'block' && !panel.querySelector('.solenc-item button[disabled]')) {
+      panel.classList.toggle('solo-boton', esperando.length === 0);
+      return;
+    }
+    const huecoViejo = document.getElementById('form-sf-hueco');
+    const conFormulario = !!(huecoViejo && huecoViejo.innerHTML);
     panel.innerHTML = html;
+    ultimoHtmlSolenc = html;
+    if (conFormulario) {
+      const huecoNuevo = document.getElementById('form-sf-hueco');
+      if (huecoNuevo) huecoNuevo.replaceWith(huecoViejo);
+    }
     panel.style.display = 'block';
     panel.classList.toggle('solo-boton', esperando.length === 0);
   }
@@ -2340,10 +2364,12 @@
   }
 
   // ── P-02: cargarPresencia acepta fecha opcional ──
-  async function cargarPresencia(obraId, fechaISO) {
+  // silencioso = refresco automático: sin «Cargando…», sin borrar la lista
+  // si falla la red y sin repintar si nada ha cambiado.
+  async function cargarPresencia(obraId, fechaISO, silencioso) {
     const fecha = fechaISO || fechaHoyISO();
     const lista = document.getElementById('lista-presencia');
-    lista.innerHTML = '<p class="loading">Cargando...</p>';
+    if (!silencioso) { lista.innerHTML = '<p class="loading">Cargando...</p>'; firmaTarjetas = ''; }
 
     const { desdeISO, hastaISO } = rangoFechaLocal(fecha);
 
@@ -2375,7 +2401,11 @@
     } catch (err) {
       if (esHoy(fecha)) fichajesHoyCache = null;
       marcarOffline();
+      // En silencio se deja la lista que había: el aviso de «sin conexión»
+      // ya dice que no está al día, y así no se pierde lo que se miraba.
+      if (silencioso && firmaTarjetas) return;
       lista.innerHTML = '<p class="loading">No se pudo cargar la presencia. Reintentando automáticamente…</p>';
+      firmaTarjetas = '';
       return;
     }
 
@@ -2516,7 +2546,19 @@
     if (statNaranjas) statNaranjas.textContent = naranjasActualesCache.length;
 
     pintarContador(presentes, fecha);
-    pintarTarjetas(presentes, fecha);
+    // La huella lleva TODO lo que se ve en cada tarjeta (color, RP,
+    // habilitaciones, foto, identidad…): si cambia cualquier cosa, se repinta.
+    const firma = JSON.stringify([fecha, avisoValidaciones, presentes.map(t => [
+      t.id, t.nombre, t.empresa, t.empresaId, t.categoria, t.horaISO, t.horaSalidaISO,
+      t.estado, t.motivos, idsRPCache.has(t.id), habIconosPorTrabajadorCache[t.id] || [],
+      conFotoCache.has(t.id), conVerifCache.has(t.id), fotoRutaCache[t.id] || ''
+    ])]);
+    if (!silencioso || firma !== firmaTarjetas) {
+      const y = window.scrollY;
+      pintarTarjetas(presentes, fecha);
+      firmaTarjetas = firma;
+      if (silencioso) window.scrollTo(0, y);
+    }
 
     // Solo actualizar botón de ronda si estamos viendo hoy
     if (esHoy(fecha)) actualizarBotonRonda(presentes.length);
