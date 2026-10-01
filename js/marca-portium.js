@@ -295,3 +295,59 @@
     console.warn('[marca-portium] carga de los módulos de menú:', e);
   }
 })();
+
+/* ============================================================
+   AÑADIDO 1/10/2026 (tarde) — módulos del panel del ENCARGADO
+   ------------------------------------------------------------
+   El bloque de arriba solo actúa en /jefe/ (y así debe seguir: allí
+   carga el menú del jefe). Este va APARTE y solo actúa en
+   /encargado/ index.html, para no tocar nada del jefe.
+
+   · js/accesos-ya-pueden.js — la ventana «Accesos denegados hoy»
+     separa a quien sigue fuera (arriba) de quien ya puede entrar
+     porque se le han arreglado los papeles o se le ha autorizado
+     (debajo, en verde). Ya estaba en el jefe desde esta mañana; Dani:
+     «la parte del encargado no lo refleja».
+
+   Mismo sello del día que arriba: el módulo nuevo llega como muy
+   tarde al día siguiente sin tocar encargado/index.html.
+   Si no carga, la ventana se queda como estaba.
+   PARA DESHACERLO: borrar este bloque. Nada más depende de él.
+   ============================================================ */
+(function () {
+  'use strict';
+  try {
+    var ruta = window.location.pathname;
+    var pagina = (ruta.split('/').pop() || '');
+    if (ruta.indexOf('/encargado/') === -1) return;
+    if (pagina !== 'index.html' && pagina !== '') return;
+
+    var yo = document.currentScript && document.currentScript.src;
+
+    function selloDelDia() {
+      try {
+        var d = new Date();
+        return d.getFullYear().toString()
+             + ('0' + (d.getMonth() + 1)).slice(-2)
+             + ('0' + d.getDate()).slice(-2);
+      } catch (_) { return '1'; }
+    }
+
+    function cargar(nombre) {
+      if (document.querySelector('script[src*="' + nombre + '"]')) return;
+      var src = '../js/' + nombre;
+      if (yo) src = yo.replace(/marca-portium\.js.*$/, nombre);
+      src += '?d=' + selloDelDia();
+      var s = document.createElement('script');
+      s.src = src;
+      s.onerror = function () {
+        console.warn('[marca-portium] no se ha podido cargar ' + nombre + ' en el encargado; la ventana se queda como está');
+      };
+      document.head.appendChild(s);
+    }
+
+    cargar('accesos-ya-pueden.js');
+  } catch (e) {
+    console.warn('[marca-portium] carga de los módulos del encargado:', e);
+  }
+})();
