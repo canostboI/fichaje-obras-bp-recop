@@ -121,13 +121,15 @@
     table.mes tr.fila-total td { background: #f6f6f6; font-weight: 700; border-top: 2px solid #ddd; cursor: default; }
     table.mes tr.fila-total td.col-nombre { background: #f6f6f6; }
     table.mes tr.fila-total td.col-total { background: #fff3e0; color: #e65100; }
-    /* DÍAS EN OBRA (1/10/2026): debajo de las horas, en pequeño, los días
-       que ha venido. Va DENTRO de la columna fija de Horas y no en una
-       columna propia: otra columna fija a la derecha se comería días en el
-       móvil (css/movil.css la deja en 54 px para ver la semana entera). */
-    table.mes .col-total .dias-obra { display: block; font-size: 0.62rem; font-weight: 500; color: #888; margin-top: 1px; letter-spacing: 0; }
-    table.mes thead th.col-total .dias-obra { font-size: 0.58rem; font-weight: 600; }
-    table.mes tr.fila-total td.col-total .dias-obra { color: #e65100; opacity: 0.85; }
+    /* DÍAS EN OBRA (1/10/2026, decisión de Dani): columna propia justo antes
+       de Horas, como en el Excel. Fija a la derecha, pegada a Horas (62 px;
+       en el móvil css/movil.css la deja en 54 px, ver la @media de abajo). */
+    table.mes th.col-dias, table.mes td.col-dias {
+      position: sticky; right: 62px; z-index: 2; background: #f6f6f6;
+      font-weight: 600; width: 44px; min-width: 44px; max-width: 44px; box-shadow: -2px 0 0 #ececec;
+    }
+    table.mes thead th.col-dias { z-index: 3; }
+    table.mes tr.fila-total td.col-dias { background: #fff3e0; color: #e65100; }
 
     .vacio    { padding: 1.6rem 1.2rem; text-align: center; color: #888; font-style: italic; font-size: 0.9rem; }
     .cargando { padding: 1.6rem 1.2rem; text-align: center; color: #888; font-style: italic; font-size: 0.9rem; }
@@ -181,6 +183,8 @@
       .header-right { width: 100%; }
       main { padding: 0 0.5rem; }
       table.mes th.col-nombre, table.mes td.col-nombre { width: 120px; min-width: 120px; max-width: 120px; }
+      /* css/movil.css estrecha Horas a 54 px: Días se pega a ese ancho. */
+      table.mes th.col-dias, table.mes td.col-dias { right: 54px; width: 38px; min-width: 38px; max-width: 38px; }
       .modal { padding: 18px; }
     }
     table.mes th.intensiva { box-shadow: inset 0 -3px 0 #ff9800; }
@@ -844,7 +848,8 @@
             <tr>
               <th class="col-nombre">Trabajador</th>
               ${thDias}
-              <th class="col-total" title="Horas del mes y, debajo, días que ha venido a la obra (aunque valgan 0 h)">Horas<span class="dias-obra">días</span></th>
+              <th class="col-dias" title="Días que ha venido a la obra este mes, aunque valgan 0 horas">Días</th>
+              <th class="col-total">Horas</th>
             </tr>
           </thead>
         </table>
@@ -854,14 +859,14 @@
     </div>`;
   }
 
-  // DÍAS EN OBRA (1/10/2026). Línea pequeña bajo las horas: «12 días».
-  // El número lo calcula js/excel-proforma.js (`dias_en_obra`); aquí solo
-  // se pinta. Si el navegador tiene el motor viejo en caché, el dato no
-  // existe y no se pinta nada, en vez de un «0 días» falso.
-  function htmlDiasObra(n, trabajadores) {
-    if (trabajadores && trabajadores.some(t => t.dias_en_obra == null)) return '';
-    if (n == null) return '';
-    return `<span class="dias-obra">${n} día${n === 1 ? '' : 's'}</span>`;
+  // DÍAS EN OBRA (1/10/2026). Columna «Días» antes de «Horas», como en el
+  // Excel. El número lo calcula js/excel-proforma.js (`dias_en_obra`); aquí
+  // solo se pinta. Si el navegador tiene el motor viejo en caché, el dato
+  // no existe y sale «—», en vez de un «0» falso.
+  function textoDiasObra(n, trabajadores) {
+    if (trabajadores && trabajadores.some(t => t.dias_en_obra == null)) return '—';
+    if (n == null) return '—';
+    return String(n);
   }
 
   function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
@@ -905,7 +910,8 @@
           <div class="sub">${esc(t.dni || '')}</div>
         </td>
         ${celdas}
-        <td class="col-total">${formatHoras(t.horas_mes)}${htmlDiasObra(t.dias_en_obra)}</td>
+        <td class="col-dias">${textoDiasObra(t.dias_en_obra)}</td>
+        <td class="col-total">${formatHoras(t.horas_mes)}</td>
       </tr>`;
     });
 
@@ -927,7 +933,8 @@
             <tr>
               <th class="col-nombre">Trabajador</th>
               ${thDias}
-              <th class="col-total" title="Horas del mes y, debajo, días que ha venido a la obra (aunque valgan 0 h)">Horas<span class="dias-obra">días</span></th>
+              <th class="col-dias" title="Días que ha venido a la obra este mes, aunque valgan 0 horas">Días</th>
+              <th class="col-total">Horas</th>
             </tr>
           </thead>
           <tbody>
@@ -935,7 +942,8 @@
             <tr class="fila-total">
               <td class="col-nombre">TOTAL</td>
               ${celdasTotal}
-              <td class="col-total">${formatHoras(redondear2(totalEmpresa))}${htmlDiasObra(totalDiasObra, trabajadores)}</td>
+              <td class="col-dias">${textoDiasObra(totalDiasObra, trabajadores)}</td>
+              <td class="col-total">${formatHoras(redondear2(totalEmpresa))}</td>
             </tr>
           </tbody>
         </table>
