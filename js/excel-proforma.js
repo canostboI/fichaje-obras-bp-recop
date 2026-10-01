@@ -23,6 +23,14 @@
  *                        empresa: { nombre } } }
  *
  *   3) Devuelve { buffer, autocierres }. No descarga el archivo.
+ *
+ *   DÍAS EN OBRA (1/10/2026). Cada trabajador trae además `dias_en_obra`:
+ *   cuántos días del mes ha VENIDO, sin mirar cuántas horas valen. Un día
+ *   cuenta si fichó entrada ese día (aunque valga 0 h: salida automática,
+ *   entró y se fue, hoy con la jornada abierta) o si tiene horas fijadas a
+ *   mano > 0 sin fichajes (p. ej. un sábado declarado). Dos jornadas el
+ *   mismo día cuentan UN día. Se enseña en Resumen · Proforma (jefe y
+ *   encargado) y en la columna DÍAS del Excel.
  */
 
 (function () {
@@ -510,6 +518,23 @@
       }
 
       t.horas_mes = redondear2(Object.values(t.dias).reduce((a, b) => a + b, 0));
+
+      // DÍAS EN OBRA (1/10/2026) — cuántos días ha VENIDO, independiente de
+      // las horas. Cuenta el día si hay jornada que EMPEZÓ ese día (fichó
+      // entrada, valga lo que valga) o si tiene horas fijadas a mano > 0
+      // sin fichajes. `dias_detalle` ya tiene una sola entrada por día, así
+      // que dos jornadas el mismo día cuentan una vez. Una salida suelta sin
+      // entrada no crea día (la jornada es del día en que empezó).
+      // `dias_presencia[d] = true` lo usa el Excel para escribir un 0
+      // (invisible) en los días a cero horas: así la fórmula COUNT de la
+      // columna DÍAS los cuenta y sigue viva si alguien corrige la hoja.
+      t.dias_presencia = {};
+      Object.keys(t.dias_detalle).forEach(diaStr => {
+        const d = Number(diaStr);
+        const det = t.dias_detalle[diaStr];
+        if ((det && det.hora_entrada) || (t.dias[d] || 0) > 0) t.dias_presencia[d] = true;
+      });
+      t.dias_en_obra = Object.keys(t.dias_presencia).length;
       // ⚠️ AQUÍ NO SE CALCULA NINGÚN IMPORTE, Y ES A PROPÓSITO.
       // Hubo un `t.total = horas_mes * precio_hora` que no leía nadie: se
       // calculaba y se tiraba. Retirado (33ª) por el mismo motivo por el que
@@ -537,9 +562,11 @@
     });
 
     const COL_DIAS_INI = 4;
-    const colHoras  = 3 + diasMes + 1;
-    const colPrecio = 3 + diasMes + 2;
-    const colTotal  = 3 + diasMes + 3;
+    // DÍAS EN OBRA (1/10/2026): columna nueva justo antes de HORAS MES.
+    const colDiasObra = 3 + diasMes + 1;
+    const colHoras  = 3 + diasMes + 2;
+    const colPrecio = 3 + diasMes + 3;
+    const colTotal  = 3 + diasMes + 4;
     const totalCols = colTotal;
 
     ws.columns = construirColumnas(diasMes);
@@ -654,6 +681,7 @@
       cell.value = letraDiaSemana(year, month, d);
       pintarHeader(cell, undefined, paleta.oscuro);
     }
+    pintarHeader(ws.getCell(5, colDiasObra), 'DÍAS', paleta.oscuro);
     pintarHeader(ws.getCell(5, colHoras),  'HORAS MES',   paleta.oscuro);
     pintarHeader(ws.getCell(5, colPrecio), 'PRECIO HORA', paleta.oscuro);
     pintarHeader(ws.getCell(5, colTotal),  '€',           paleta.oscuro);
@@ -664,7 +692,7 @@
       cell.value = d;
       pintarHeader(cell, undefined, paleta.oscuro);
     }
-    [1, 2, 3, colHoras, colPrecio, colTotal].forEach(c => {
+    [1, 2, 3, colDiasObra, colHoras, colPrecio, colTotal].forEach(c => {
       ws.getCell(6, c).fill = fillSolid(paleta.oscuro);
       ws.getCell(6, c).border = borderThinGris();
     });
@@ -713,7 +741,9 @@
           const autocierre = t.dias_autocierre[d] > 0;
           const ajuste = t.dias_ajuste && t.dias_ajuste[d];
           const cell = row.getCell(col);
-          cell.value = v ? v : null;
+          // Vino pero a cero horas → 0 (el formato lo deja en blanco) para
+          // que la columna DÍAS lo cuente. No vino → celda vacía.
+          cell.value = v ? v : ((t.dias_presencia && t.dias_presencia[d]) ? 0 : null);
           cell.numFmt = '0.00;-0.00;';
           cell.font = { name: FUENTE_EXCEL, size: 8 };
           cell.fill = fillSolid(ajuste ? COLOR_AJUSTE : autocierre ? COLOR_ALERTA : dasFinde.has(d) ? COLOR_FINDE : bandColor);
@@ -743,6 +773,17 @@
 
         const dIni = letraExcel(COL_DIAS_INI);
         const dFin = letraExcel(COL_DIAS_INI - 1 + diasMes);
+
+        // DÍAS EN OBRA: COUNT cuenta las celdas con número (también el 0 de
+        // los días a cero horas) y no las vacías. Fórmula viva, como HORAS.
+        const cDO = row.getCell(colDiasObra);
+        cDO.value = { formula: `COUNT(${dIni}${rowIndex}:${dFin}${rowIndex})` };
+        cDO.numFmt = '0;-0;-';
+        cDO.font = { name: FUENTE_EXCEL, size: 10, bold: true };
+        cDO.fill = fillSolid(COLOR_TOTAL);
+        cDO.alignment = { horizontal: 'center', vertical: 'middle' };
+        cDO.border = borderThinGris();
+
         const cH = row.getCell(colHoras);
         cH.value = { formula: `SUM(${dIni}${rowIndex}:${dFin}${rowIndex})` };
         cH.numFmt = '0.00;-0.00;-';
@@ -801,6 +842,14 @@
         cell.border = borderThinGris();
       }
 
+      const cSD = ws.getCell(rowIndex, colDiasObra);
+      cSD.value = { formula: `SUM(${letraExcel(colDiasObra)}${filaInicio}:${letraExcel(colDiasObra)}${filaFin})` };
+      cSD.numFmt = '0';
+      cSD.font = { name: FUENTE_EXCEL, bold: true, size: 10, color: { argb: paleta.textoSub } };
+      cSD.fill = fillSolid(paleta.acento);
+      cSD.alignment = { horizontal: 'center', vertical: 'middle' };
+      cSD.border = borderThinGris();
+
       const cSH = ws.getCell(rowIndex, colHoras);
       cSH.value = { formula: `SUM(${letraExcel(colHoras)}${filaInicio}:${letraExcel(colHoras)}${filaFin})` };
       cSH.numFmt = '0.00';
@@ -849,6 +898,14 @@
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
         cell.border = borderThinGris();
       }
+
+      const cTD = ws.getCell(rowIndex, colDiasObra);
+      cTD.value = { formula: `SUM(${letraExcel(colDiasObra)}${filaInicio}:${letraExcel(colDiasObra)}${filaFin})` };
+      cTD.numFmt = '0';
+      cTD.font = { name: FUENTE_EXCEL, bold: true, size: 11 };
+      cTD.fill = fillSolid(COLOR_FOOTER);
+      cTD.alignment = { horizontal: 'center', vertical: 'middle' };
+      cTD.border = borderThinGris();
 
       const cTH = ws.getCell(rowIndex, colHoras);
       cTH.value = { formula: `SUM(${letraExcel(colHoras)}${filaInicio}:${letraExcel(colHoras)}${filaFin})` };
@@ -1105,6 +1162,7 @@
     // 4 era corto: "7,75" salía como ##### . La hoja se imprime con
     // fitToWidth: 1, así que ensanchar no rompe el papel.
     for (let d = 1; d <= diasMes; d++) cols.push({ width: 5.4 });
+    cols.push({ width: 8 });    // DÍAS (en obra)
     cols.push({ width: 13 });
     cols.push({ width: 14 });
     cols.push({ width: 17 });   // aquí cae "AGOSTO DE 2026"
