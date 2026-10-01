@@ -9,7 +9,9 @@
 //    - subsunción Formación 60h -> 20h
 //    - reglas de reglas_documentales (con comodín '*')
 //    - no hereda docs de Recurso Preventivo a subcontratas
-//    - subcontrata sin contrato vigente -> rojo
+//    - subcontrata sin contrato o sin libro -> rojo SOLO cuando se le acaba
+//      el plazo (1/10/2026: misma receta que el cron cerrar_empresas_sin_papeles,
+//      leída con la RPC papeles_subcontratas_obra)
 //    - escribe vía las RPCs crear_o_actualizar_trabajador_para_import
 //      y aplicar_resultado_ecoordina
 //
@@ -293,6 +295,16 @@ let contratosVigentes = new Set();
 // identificar. Se rellena en calcularResultadoObra y se lee al hacer el resumen.
 let filasSinIdentificar = [];
 let librosVigentes = new Set();
+// 1/10/2026 · PLAZO DE LOS PAPELES DE EMPRESA (pedido por Dani, «arréglalo»).
+// Empresas de la obra en curso a las que YA se les ha acabado el plazo de 5
+// días laborables para el contrato entre empresas o el libro de
+// subcontratación. Lo dice la BD (`papeles_subcontratas_obra`, que usa la
+// MISMA receta `_subcontratas_sin_papeles` que el cron de las 06:10).
+// Antes el robot ponía rojo el primer día que faltaba el papel, mientras el
+// banner del jefe prometía «su gente pasa con normalidad hasta el viernes»:
+// pasó con BAMSA el 1/10, 24 personas en la puerta con el plazo sin vencer.
+let plazoAgotadoContrato = new Set();
+let plazoAgotadoLibro = new Set();
 
 // M-05: día de "hoy" en España (DST correcto). El runner de GitHub Actions
 // va en UTC, así que toISOString() daría el día UTC, no el español.
@@ -371,6 +383,29 @@ function tieneLibroVigente(empresaRaw) {
   if (nNombre && nCif && librosVigentes.has(`${nNombre}|${nCif}`)) return true;
   if (nNombre && librosVigentes.has(nCif ? `NOMBRESINCIF:${nNombre}` : `NOMBRE:${nNombre}`)) return true;
   if (nCif && librosVigentes.has(`CIF:${nCif}`)) return true;
+  return false;
+}
+// 1/10/2026 · Claves de una empresa de la app, con la misma receta que se usa
+// al cargar contratos y libros (nombre|CIF, NOMBRE:, NOMBRESINCIF:, CIF:).
+function clavesEmpresaApp(nombre, cif) {
+  const nNombre = normalizar(nombre), nCif = normalizarCif(cif);
+  const claves = [];
+  if (nNombre && nCif) claves.push(`${nNombre}|${nCif}`);
+  if (nNombre) claves.push(`NOMBRE:${nNombre}`);
+  if (nNombre && !nCif) claves.push(`NOMBRESINCIF:${nNombre}`);
+  if (nCif) claves.push(`CIF:${nCif}`);
+  return claves;
+}
+// 1/10/2026 · ¿La empresa del Excel está en el conjunto? Mismo casado que
+// tieneContratoVigente / tieneLibroVigente.
+function empresaEnConjunto(conjunto, empresaRaw) {
+  if (!empresaRaw || !conjunto.size) return false;
+  const { nombre, cif } = extraerEmpresa(empresaRaw);
+  const nNombre = normalizar(nombre);
+  const nCif = normalizarCif(cif);
+  if (nNombre && nCif && conjunto.has(`${nNombre}|${nCif}`)) return true;
+  if (nNombre && conjunto.has(nCif ? `NOMBRESINCIF:${nNombre}` : `NOMBRE:${nNombre}`)) return true;
+  if (nCif && conjunto.has(`CIF:${nCif}`)) return true;
   return false;
 }
 
@@ -504,7 +539,12 @@ function calcularResultadoObra(filasObra, trabajadoresApp) {
     const empresaEsPropia = esEmpresaPropia(info.empresaRaw);
     const empresaEsAutonomoSolo = esAutonomoSinAsalariados(info.empresaRaw);
 
-    if (!empresaEsPropia && !tieneContratoVigente(info.empresaRaw)) {
+    // 1/10/2026 · Contrato entre empresas: el rojo llega cuando se ACABA EL
+    // PLAZO (lo dice la BD, la misma receta que el cron), no el primer día que
+    // falta el papel. Mientras dura el plazo su gente pasa con normalidad y el
+    // aviso lo da el banner de Presencia del jefe (js/papeles-subcontratas.js).
+    if (!empresaEsPropia && !tieneContratoVigente(info.empresaRaw)
+        && empresaEnConjunto(plazoAgotadoContrato, info.empresaRaw)) {
       estadoFinal = 'rojo';
       motivos.push('Sin contrato entre empresas → rojo');
     }
@@ -513,7 +553,9 @@ function calcularResultadoObra(filasObra, trabajadoresApp) {
     // Reactivado el 16/6/2026 tras cargar las firmas reales en la app
     // (firma registrada = fila vigente en libros_subcontratacion). Empresas
     // propias exentas. Ver ESTADO.md.
-    if (!empresaEsPropia && !tieneLibroVigente(info.empresaRaw)) {
+    // 1/10/2026 · Igual que el contrato: solo con el plazo agotado.
+    if (!empresaEsPropia && !tieneLibroVigente(info.empresaRaw)
+        && empresaEnConjunto(plazoAgotadoLibro, info.empresaRaw)) {
       estadoFinal = 'rojo';
       motivos.push('No ha firmado el libro de subcontratación → rojo');
     }
@@ -837,6 +879,53 @@ async function main() {
       if (nNombre) librosVigentes.add(`NOMBRE:${nNombre}`);
       if (nNombre && !nCif) librosVigentes.add(`NOMBRESINCIF:${nNombre}`);
       if (nCif) librosVigentes.add(`CIF:${nCif}`);
+    }
+
+    // 1/10/2026 · Empresas de esta obra con el PLAZO de papeles agotado, según
+    // la BD (papeles_subcontratas_obra → _subcontratas_sin_papeles, la misma
+    // receta que el cron de las 06:10). OPS-024 otra vez: si no se puede leer,
+    // la obra se SALTA y se conservan los semáforos de ayer. No saber si el
+    // plazo se ha acabado no autoriza ni a bloquear ni a abrir.
+    // ⚠️ El robot necesita ser admin o jefe de esta obra (es_mi_obra): es el
+    // mismo permiso que ya exige aplicar_resultado_ecoordina.
+    plazoAgotadoContrato = new Set();
+    plazoAgotadoLibro = new Set();
+    {
+      let pData = null, pErr = null;
+      try {
+        ({ data: pData, error: pErr } = await sb.rpc('papeles_subcontratas_obra', { p_obra_id: obra.id }));
+      } catch (e) {
+        pErr = { message: 'excepción: ' + (e && e.message ? e.message : String(e)) };
+      }
+      if (pErr || !pData || !pData.ok) {
+        const msg = (pErr && pErr.message) || 'respuesta vacía';
+        log(`— ${obra.nombre}: SALTADA (no se ha podido leer el plazo de papeles de las subcontratas: ${msg})`);
+        resumen.push({ obra: obra.nombre, estado: 'saltada (error leyendo plazo de papeles)', rpc: 'ERROR' });
+        huboFalloGrave = true;
+        continue;
+      }
+      const cerradas = (pData.empresas || []).filter(e => e && e.cerrada && e.empresa_id);
+      if (cerradas.length) {
+        const { data: emps, error: eErr } = await sb.from('empresas')
+          .select('id, nombre, cif')
+          .in('id', cerradas.map(e => e.empresa_id));
+        if (eErr) {
+          log(`— ${obra.nombre}: SALTADA (no se han podido leer las empresas con el plazo agotado: ${eErr.message})`);
+          resumen.push({ obra: obra.nombre, estado: 'saltada (error leyendo plazo de papeles)', rpc: 'ERROR' });
+          huboFalloGrave = true;
+          continue;
+        }
+        const porId = new Map((emps || []).map(e => [e.id, e]));
+        for (const c of cerradas) {
+          const emp = porId.get(c.empresa_id);
+          if (!emp) continue;
+          for (const clave of clavesEmpresaApp(emp.nombre, emp.cif)) {
+            if (c.falta_contrato) plazoAgotadoContrato.add(clave);
+            if (c.falta_libro) plazoAgotadoLibro.add(clave);
+          }
+        }
+        log(`   plazo de papeles agotado: ${cerradas.map(c => c.empresa).join(', ')}`);
+      }
     }
 
     const resultado = calcularResultadoObra(filasObra, trabajadoresApp);
