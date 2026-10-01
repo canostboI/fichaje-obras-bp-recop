@@ -32,12 +32,26 @@
    fallo de lectura NO se pinta como «ya puede entrar».
 
    CÓMO SE ENGANCHA
-   Envuelve pintarDetalleAccesos de jefe/index.html. Llama primero a la
+   Envuelve pintarDetalleAccesos de jefe/index.html (y de
+   encargado/index.html, que tiene una gemela). Llama primero a la
    original: si este archivo falla, la ventana funciona como antes.
 
-   CANDADO: solo en /jefe/ index.html (Presencia).
+   CANDADO: solo en Presencia del jefe (/jefe/ index.html) y en el
+   panel del encargado (/encargado/ index.html).
    PARA DESHACERLO: quitar `cargar('accesos-ya-pueden.js')` de
-   js/marca-portium.js. Nada más depende de este archivo.
+   js/marca-portium.js (hay una línea para el jefe y otra para el
+   encargado). Nada más depende de este archivo.
+
+   AÑADIDO 1/10/2026 (tarde) — TAMBIÉN EN EL ENCARGADO
+   Dani: «la parte del encargado no lo refleja». Su ventana «Accesos
+   denegados hoy» es gemela de la del jefe (mismas funciones
+   pintarDetalleAccesos y tarjetaAcceso, mismos id), pero la obra se
+   guarda con otro nombre: `obraActual` en el jefe, `obraActualId` en
+   el encargado. Se lee la que exista. El encargado ya podía leer
+   validaciones_obra y excepciones_acceso de sus obras (es_mi_obra).
+   Única diferencia de texto: la autorización la suele dar el jefe, así
+   que en el encargado no se dice «Le has autorizado» sino «Autorizado
+   para hoy».
    ============================================================ */
 (function () {
   'use strict';
@@ -71,13 +85,18 @@
     }).format(new Date());
   }
 
-  // Variables de jefe/index.html (script clásico: se ven desde aquí).
+  var enEncargado = window.location.pathname.indexOf('/encargado/') !== -1;
+
+  // Variables de la página (script clásico: se ven desde aquí).
   function cliente() {
     try { /* eslint-disable-next-line no-undef */ if (typeof sb !== 'undefined' && sb) return sb; } catch (_) {}
     return null;
   }
+  // La obra: `obraActual` en jefe/index.html, `obraActualId` en
+  // encargado/index.html.
   function obra() {
     try { /* eslint-disable-next-line no-undef */ if (typeof obraActual !== 'undefined' && obraActual) return obraActual; } catch (_) {}
+    try { /* eslint-disable-next-line no-undef */ if (typeof obraActualId !== 'undefined' && obraActualId) return obraActualId; } catch (_) {}
     return null;
   }
 
@@ -129,7 +148,7 @@
 
   function razon(a) {
     if (!a) return null;
-    if (a.excepcion) return 'Le has autorizado hoy';
+    if (a.excepcion) return enEncargado ? 'Autorizado para hoy' : 'Le has autorizado hoy';
     if (a.estado === 'verde') return 'Su documentación ya está en verde';
     if (a.estado === 'naranja') return 'Ya no está en rojo (ahora naranja)';
     return null;   // sigue en rojo
@@ -221,7 +240,8 @@
     try {
       var ruta = window.location.pathname;
       var pagina = ruta.split('/').pop() || '';
-      if (ruta.indexOf('/jefe/') === -1 || (pagina !== 'index.html' && pagina !== '')) return;
+      var panel = ruta.indexOf('/jefe/') !== -1 || ruta.indexOf('/encargado/') !== -1;
+      if (!panel || (pagina !== 'index.html' && pagina !== '')) return;
       var original = window.pintarDetalleAccesos;
       if (typeof original !== 'function' || original.__ayp) return;
       var envuelta = function (clas) {
