@@ -31,6 +31,13 @@
  *   mano > 0 sin fichajes (p. ej. un sábado declarado). Dos jornadas el
  *   mismo día cuentan UN día. Se enseña en Resumen · Proforma (jefe y
  *   encargado) y en la columna DÍAS del Excel.
+ *
+ *   AGRUPADO POR CATEGORÍA (1/10/2026). Dentro de cada hoja (empresa) los
+ *   operarios salen agrupados por categoría (orden fijo: ORDEN_CATEGORIAS)
+ *   y, al final de cada grupo, una fila «Total <categoría>» con días, horas
+ *   y € del grupo. Esas filas usan SUBTOTAL(9,…) y el SUBTOTAL/TOTALES de
+ *   la empresa también: SUBTOTAL se salta los otros SUBTOTAL, así que nada
+ *   se cuenta dos veces.
  */
 
 (function () {
@@ -92,6 +99,33 @@
     'electricista': 'Electricista',
     'restaurador':  'Restaurador',
   };
+
+  // AGRUPADO POR CATEGORÍA (1/10/2026). Orden en que salen los grupos en
+  // cada hoja: de más responsabilidad a menos, luego los oficios. Las «otra»
+  // (texto libre) van detrás, por orden alfabético; sin categoría, al final.
+  const ORDEN_CATEGORIAS = ['encargado', 'capataz', 'oficial', 'peon', 'peón',
+    'gruista', 'electricista', 'restaurador', 'tecnico', 'técnico'];
+
+  function agruparPorCategoria(trabajadores) {
+    const grupos = new Map();
+    trabajadores.forEach(t => {
+      const etq = etiquetaCategoria(t) || 'Sin categoría';
+      if (!grupos.has(etq)) {
+        const clave = (t.categoria || '').toLowerCase().trim();
+        const pos = ORDEN_CATEGORIAS.indexOf(clave);
+        grupos.set(etq, {
+          etq, clave,
+          rango: pos >= 0 ? pos : (clave ? ORDEN_CATEGORIAS.length : ORDEN_CATEGORIAS.length + 1),
+          trabajadores: []
+        });
+      }
+      grupos.get(etq).trabajadores.push(t);
+    });
+    const lista = [...grupos.values()].sort((a, b) =>
+      a.rango - b.rango || a.etq.localeCompare(b.etq, 'es'));
+    lista.forEach(g => g.trabajadores.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')));
+    return lista;
+  }
 
   // Con la categoría "otra" manda el texto libre que escribió el jefe.
   // Si estuviera vacío (no debería: la BD lo impide), cae en "Otra".
@@ -707,7 +741,12 @@
       ws.getCell(rowIndex, 1).font = { name: FUENTE_EXCEL, italic: true, color: { argb: '808080' } };
       rowIndex++;
     } else {
-      trabajadores.forEach((t, idx) => {
+      // AGRUPADO POR CATEGORÍA (1/10/2026): peones juntos, oficiales
+      // juntos… y una fila «Total <categoría>» detrás de cada grupo.
+      const gruposCat = agruparPorCategoria(trabajadores);
+      gruposCat.forEach(grupo => {
+      const filaGrupoIni = rowIndex;
+      grupo.trabajadores.forEach((t, idx) => {
         const bandColor = idx % 2 === 0 ? COLOR_BLANCO : COLOR_BAND;
         const row = ws.getRow(rowIndex);
         row.height = 22;
@@ -811,11 +850,49 @@
 
         rowIndex++;
       });
+
+      // ----- Fila «Total <categoría>» -----
+      // SUBTOTAL(9,…) y no SUM: así el SUBTOTAL y los TOTALES de la empresa
+      // (que también usan SUBTOTAL) se saltan esta fila y no suman dos veces.
+      // La columna CATEGORÍA (C) queda vacía a propósito: el RESUMEN POR
+      // CATEGORÍA de abajo cuenta personas por esa columna.
+      const filaGrupoFin = rowIndex - 1;
+      const colorGrupo = CATEGORIA_COLORES[grupo.clave] || paleta.acento;
+      const rangoCol = (c) => `${letraExcel(c)}${filaGrupoIni}:${letraExcel(c)}${filaGrupoFin}`;
+      ws.getRow(rowIndex).height = 20;
+      ws.mergeCells(rowIndex, 1, rowIndex, 3);
+      const cGL = ws.getCell(rowIndex, 1);
+      cGL.value = `Total ${grupo.etq} (${grupo.trabajadores.length})`;
+      cGL.font = { name: FUENTE_EXCEL, bold: true, size: 9 };
+      cGL.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+      for (let c = 1; c <= totalCols; c++) {
+        ws.getCell(rowIndex, c).fill = fillSolid(colorGrupo);
+        ws.getCell(rowIndex, c).border = borderThinGris();
+      }
+      for (let d = 1; d <= diasMes; d++) {
+        const col = COL_DIAS_INI - 1 + d;
+        const cell = ws.getCell(rowIndex, col);
+        cell.value = { formula: `SUBTOTAL(9,${rangoCol(col)})` };
+        cell.numFmt = '0.00;-0.00;';
+        cell.font = { name: FUENTE_EXCEL, size: 8 };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      }
+      [[colDiasObra, '0;-0;-'], [colHoras, '0.00;-0.00;-'], [colTotal, '#,##0.00 €;-#,##0.00 €;-']].forEach(([c, fmt]) => {
+        const cell = ws.getCell(rowIndex, c);
+        cell.value = { formula: `SUBTOTAL(9,${rangoCol(c)})` };
+        cell.numFmt = fmt;
+        cell.font = { name: FUENTE_EXCEL, bold: true, size: 9 };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+      rowIndex++;
+      });
     }
 
     const filaFin = rowIndex - 1;
 
     // ===== FILA SUBTOTAL empresa =====
+    // 1/10/2026: SUBTOTAL(9,…) en vez de SUM: entre las filas hay ahora
+    // filas «Total <categoría>» (también SUBTOTAL) y así no se suman dos veces.
     if (trabajadores.length > 0) {
       ws.getRow(rowIndex).height = 22;
 
@@ -834,7 +911,7 @@
       for (let d = 1; d <= diasMes; d++) {
         const col = COL_DIAS_INI - 1 + d;
         const cell = ws.getCell(rowIndex, col);
-        cell.value = { formula: `SUM(${letraExcel(col)}${filaInicio}:${letraExcel(col)}${filaFin})` };
+        cell.value = { formula: `SUBTOTAL(9,${letraExcel(col)}${filaInicio}:${letraExcel(col)}${filaFin})` };
         cell.numFmt = '0.00;-0.00;';
         cell.font = { name: FUENTE_EXCEL, size: 8, color: { argb: paleta.textoSub } };
         cell.fill = fillSolid(paleta.acento);
@@ -843,7 +920,7 @@
       }
 
       const cSD = ws.getCell(rowIndex, colDiasObra);
-      cSD.value = { formula: `SUM(${letraExcel(colDiasObra)}${filaInicio}:${letraExcel(colDiasObra)}${filaFin})` };
+      cSD.value = { formula: `SUBTOTAL(9,${letraExcel(colDiasObra)}${filaInicio}:${letraExcel(colDiasObra)}${filaFin})` };
       cSD.numFmt = '0';
       cSD.font = { name: FUENTE_EXCEL, bold: true, size: 10, color: { argb: paleta.textoSub } };
       cSD.fill = fillSolid(paleta.acento);
@@ -851,7 +928,7 @@
       cSD.border = borderThinGris();
 
       const cSH = ws.getCell(rowIndex, colHoras);
-      cSH.value = { formula: `SUM(${letraExcel(colHoras)}${filaInicio}:${letraExcel(colHoras)}${filaFin})` };
+      cSH.value = { formula: `SUBTOTAL(9,${letraExcel(colHoras)}${filaInicio}:${letraExcel(colHoras)}${filaFin})` };
       cSH.numFmt = '0.00';
       cSH.font = { name: FUENTE_EXCEL, bold: true, size: 10, color: { argb: paleta.textoSub } };
       cSH.fill = fillSolid(paleta.acento);
@@ -862,7 +939,7 @@
       ws.getCell(rowIndex, colPrecio).border = borderThinGris();
 
       const cST = ws.getCell(rowIndex, colTotal);
-      cST.value = { formula: `SUM(${letraExcel(colTotal)}${filaInicio}:${letraExcel(colTotal)}${filaFin})` };
+      cST.value = { formula: `SUBTOTAL(9,${letraExcel(colTotal)}${filaInicio}:${letraExcel(colTotal)}${filaFin})` };
       cST.numFmt = '#,##0.00 €';
       cST.font = { name: FUENTE_EXCEL, bold: true, size: 10, color: { argb: paleta.textoSub } };
       cST.fill = fillSolid(paleta.acento);
@@ -891,7 +968,7 @@
       for (let d = 1; d <= diasMes; d++) {
         const col = COL_DIAS_INI - 1 + d;
         const cell = ws.getCell(rowIndex, col);
-        cell.value = { formula: `SUM(${letraExcel(col)}${filaInicio}:${letraExcel(col)}${filaFin})` };
+        cell.value = { formula: `SUBTOTAL(9,${letraExcel(col)}${filaInicio}:${letraExcel(col)}${filaFin})` };
         cell.numFmt = '0.00;-0.00;';
         cell.font = { name: FUENTE_EXCEL, bold: true, size: 8 };
         cell.fill = fillSolid(COLOR_FOOTER);
@@ -900,7 +977,7 @@
       }
 
       const cTD = ws.getCell(rowIndex, colDiasObra);
-      cTD.value = { formula: `SUM(${letraExcel(colDiasObra)}${filaInicio}:${letraExcel(colDiasObra)}${filaFin})` };
+      cTD.value = { formula: `SUBTOTAL(9,${letraExcel(colDiasObra)}${filaInicio}:${letraExcel(colDiasObra)}${filaFin})` };
       cTD.numFmt = '0';
       cTD.font = { name: FUENTE_EXCEL, bold: true, size: 11 };
       cTD.fill = fillSolid(COLOR_FOOTER);
@@ -908,7 +985,7 @@
       cTD.border = borderThinGris();
 
       const cTH = ws.getCell(rowIndex, colHoras);
-      cTH.value = { formula: `SUM(${letraExcel(colHoras)}${filaInicio}:${letraExcel(colHoras)}${filaFin})` };
+      cTH.value = { formula: `SUBTOTAL(9,${letraExcel(colHoras)}${filaInicio}:${letraExcel(colHoras)}${filaFin})` };
       cTH.numFmt = '0.00';
       cTH.font = { name: FUENTE_EXCEL, bold: true, size: 11 };
       cTH.fill = fillSolid(COLOR_FOOTER);
@@ -919,7 +996,7 @@
       ws.getCell(rowIndex, colPrecio).border = borderThinGris();
 
       const cTT = ws.getCell(rowIndex, colTotal);
-      cTT.value = { formula: `SUM(${letraExcel(colTotal)}${filaInicio}:${letraExcel(colTotal)}${filaFin})` };
+      cTT.value = { formula: `SUBTOTAL(9,${letraExcel(colTotal)}${filaInicio}:${letraExcel(colTotal)}${filaFin})` };
       cTT.numFmt = '#,##0.00 €';
       cTT.font = { name: FUENTE_EXCEL, bold: true, size: 11 };
       cTT.fill = fillSolid(COLOR_FOOTER);
@@ -937,20 +1014,21 @@
     if (trabajadores.length > 0) {
       rowIndex += 1;
 
-      const catsOrdenadas = [...new Set(trabajadores.map(etiquetaCategoria).filter(Boolean))]
-        .map(etq => ({
-          etq,
-          horas: trabajadores
-            .filter(t => etiquetaCategoria(t) === etq)
-            .reduce((suma, t) => suma + Object.values(t.dias || {}).reduce((a, b) => a + (b || 0), 0), 0)
-        }))
-        .sort((a, b) => b.horas - a.horas || a.etq.localeCompare(b.etq, 'es'));
+      // 1/10/2026: mismo orden que los grupos de arriba (antes, por horas).
+      // Las personas «Sin categoría» no salen aquí (como antes): su columna
+      // C va vacía y no hay criterio con que contarlas.
+      const catsOrdenadas = agruparPorCategoria(trabajadores)
+        .filter(g => etiquetaCategoria(g.trabajadores[0]))
+        .map(g => ({ etq: g.etq }));
 
       const colResPersonas = 2;
-      const colResHoras    = 3;
-      const colResImporteI = 4;
-      const colResImporteF = Math.min(totalCols, 8);
+      const colResDias     = 3;   // 1/10/2026
+      const colResHoras    = 4;
+      const colResHorasF   = 6;
+      const colResImporteI = 7;
+      const colResImporteF = Math.min(totalCols, 11);
       const refCats  = `$${letraExcel(3)}$${filaInicio}:$${letraExcel(3)}$${filaFin}`;
+      const refDias  = `$${letraExcel(colDiasObra)}$${filaInicio}:$${letraExcel(colDiasObra)}$${filaFin}`;
       const refHoras = `$${letraExcel(colHoras)}$${filaInicio}:$${letraExcel(colHoras)}$${filaFin}`;
       const refTotal = `$${letraExcel(colTotal)}$${filaInicio}:$${letraExcel(colTotal)}$${filaFin}`;
 
@@ -966,7 +1044,8 @@
 
       const cabeceras = [
         [colResPersonas, colResPersonas, 'PERSONAS'],
-        [colResHoras,    colResHoras,    'HORAS'],
+        [colResDias,     colResDias,     'DÍAS'],
+        [colResHoras,    colResHorasF,   'HORAS'],
         [colResImporteI, colResImporteF, 'IMPORTE']
       ];
       cabeceras.forEach(([ini, fin, texto]) => {
@@ -1003,13 +1082,24 @@
         cN.alignment = { horizontal: 'center', vertical: 'middle' };
         cN.border = borderThinGris();
 
+        const cDi = ws.getCell(rowIndex, colResDias);
+        cDi.value = { formula: `SUMIF(${refCats},${criterio},${refDias})` };
+        cDi.numFmt = '0';
+        cDi.font = { name: FUENTE_EXCEL, bold: true, size: 10 };
+        cDi.fill = fillSolid(COLOR_TOTAL);
+        cDi.alignment = { horizontal: 'center', vertical: 'middle' };
+        cDi.border = borderThinGris();
+
+        ws.mergeCells(rowIndex, colResHoras, rowIndex, colResHorasF);
         const cHo = ws.getCell(rowIndex, colResHoras);
         cHo.value = { formula: `SUMIF(${refCats},${criterio},${refHoras})` };
         cHo.numFmt = '0.00';
         cHo.font = { name: FUENTE_EXCEL, bold: true, size: 10 };
-        cHo.fill = fillSolid(COLOR_TOTAL);
         cHo.alignment = { horizontal: 'center', vertical: 'middle' };
-        cHo.border = borderThinGris();
+        for (let x = colResHoras; x <= colResHorasF; x++) {
+          ws.getCell(rowIndex, x).fill = fillSolid(COLOR_TOTAL);
+          ws.getCell(rowIndex, x).border = borderThinGris();
+        }
 
         if (colResImporteF > colResImporteI) ws.mergeCells(rowIndex, colResImporteI, rowIndex, colResImporteF);
         const cIm = ws.getCell(rowIndex, colResImporteI);
