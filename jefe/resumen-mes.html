@@ -158,12 +158,23 @@ function etiquetaCat(t) {  const ETQ = { peon:'Peón', oficial:'Oficial', encarg
   table.mes tr.fila-total td { background: var(--bg3); font-weight: 700; border-top: 2px solid var(--borde); cursor: default; }
   table.mes tr.fila-total td.col-nombre { background: var(--bg3); }
   table.mes tr.fila-total td.col-total { background: rgba(255,152,0,0.18); color: var(--color-acento); }
-  /* DÍAS EN OBRA (1/10/2026): debajo de las horas, en pequeño, los días que
-     ha venido. Va DENTRO de la columna fija de Horas y no en una columna
-     propia: otra columna fija a la derecha se comería días en el móvil. */
-  table.mes .col-total .dias-obra { display: block; font-size: 10px; font-weight: 500; color: var(--texto2); margin-top: 1px; letter-spacing: 0; }
-  table.mes thead th.col-total .dias-obra { font-size: 9px; font-weight: 600; }
-  table.mes tr.fila-total td.col-total .dias-obra { color: var(--color-acento); opacity: 0.85; }
+  /* DÍAS EN OBRA (1/10/2026, decisión de Dani): columna propia justo antes
+     de Horas, como en el Excel. Fija a la derecha, pegada a Horas (66 px),
+     para que se vea siempre al deslizar los días. */
+  table.mes th.col-dias, table.mes td.col-dias {
+    position: sticky; right: 66px; z-index: 2; background: var(--bg3);
+    font-weight: 600; width: 46px; min-width: 46px; max-width: 46px; box-shadow: -2px 0 0 var(--borde);
+  }
+  table.mes thead th.col-dias { z-index: 3; }
+  /* Fondo OPACO en la fila TOTAL: con el naranja translúcido de antes, al
+     deslizar se transparentaban por debajo las cifras de los días. */
+  table.mes tr.fila-total td.col-dias,
+  table.mes tr.fila-total td.col-total { background: linear-gradient(rgba(255,152,0,0.18), rgba(255,152,0,0.18)), var(--bg3); color: var(--color-acento); }
+  /* CATEGORÍA PULSABLE (1/10/2026): misma pinta que la etiqueta del tipo de
+     jornada. Abre el modal para cambiarla. */
+  .btn-cat { display: inline-block; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--borde); background: var(--bg3); color: var(--texto2); font-size: 10.5px; letter-spacing: .3px; margin-left: 2px; cursor: pointer; font-family: inherit; }
+  .btn-cat:hover { color: var(--texto); border-color: var(--naranja); }
+  .btn-cat.vacia { opacity: .75; font-style: italic; }
 
   .vacio    { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
@@ -599,6 +610,33 @@ function etiquetaCat(t) {  const ETQ = { peon:'Peón', oficial:'Oficial', encarg
   </div>
 </div>
 
+<!-- Modal Cambiar categoría (1/10/2026) -->
+<div class="modal-overlay" id="modal-categoria">
+  <div class="modal">
+    <h2>Categoría</h2>
+    <div class="subtitulo" id="cat-subtitulo"></div>
+    <div class="error-modal" id="error-cat"></div>
+    <div class="campo">
+      <label>Categoría</label>
+      <select id="cat-select">
+        <option value="peon">Peón</option>
+        <option value="oficial">Oficial</option>
+        <option value="encargado">Encargado</option>
+        <option value="gruista">Gruista</option>
+        <option value="electricista">Electricista</option>
+        <option value="restaurador">Restaurador</option>
+        <option value="otra">Otra…</option>
+      </select>
+      <input type="text" id="cat-otra" maxlength="40" placeholder="Escribe la categoría (p. ej. Encofrador)" style="display:none;margin-top:6px;">
+    </div>
+    <div class="info-ajuste">Es la categoría de la persona, no del mes: cambia en todas sus obras, en esta pantalla y en el Excel.</div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btn-cancelar-cat">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar-cat">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Eliminar fichaje manual -->
 <div class="modal-overlay" id="modal-eliminar">
   <div class="modal">
@@ -755,7 +793,7 @@ let miNombreUsuario = '';         // para el pie del listado diario
 // Cache del mes cargado (para el detalle del día sin re-consultar)
 let fichajesMesCache = [];
 let mesCargado = null;            // 'YYYY-MM'
-let resumenTrabajadores = {};     // trabajador_id -> { nombre, dni, dias, dias_ajuste }
+let resumenTrabajadores = {};     // trabajador_id -> { nombre, dni, dias, dias_ajuste, categoria, categoria_otra }
 let ajustesMesMap = {};           // trabajador_id -> { dia: { horas, motivo } }
 
 // Estado de los modales
@@ -2248,7 +2286,8 @@ async function cargarResumen() {
     );
     trabajadores.forEach(t => {
       totalAutocierres += (t.autocierres_mes || 0);
-      resumenTrabajadores[t.id] = { nombre: t.nombre, dni: t.dni, dias: t.dias, dias_ajuste: t.dias_ajuste || {} };
+      resumenTrabajadores[t.id] = { nombre: t.nombre, dni: t.dni, dias: t.dias, dias_ajuste: t.dias_ajuste || {},
+                                   categoria: t.categoria, categoria_otra: t.categoria_otra };  // 1/10/2026: para el modal de categoría
     });
     html += renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes);
   });
@@ -3464,7 +3503,8 @@ function renderMesSinFichajes(year, month, diasMes) {
           <tr>
             <th class="col-nombre">Trabajador</th>
             ${thDias}
-            <th class="col-total" title="Horas del mes y, debajo, días que ha venido a la obra (aunque valgan 0 h)">Horas<span class="dias-obra">días</span></th>
+            <th class="col-dias" title="Días que ha venido a la obra este mes, aunque valgan 0 horas">Días</th>
+            <th class="col-total">Horas</th>
           </tr>
         </thead>
       </table>
@@ -3474,15 +3514,77 @@ function renderMesSinFichajes(year, month, diasMes) {
   </div>`;
 }
 
-// DÍAS EN OBRA (1/10/2026). Línea pequeña bajo las horas: «12 días».
-// El número lo calcula js/excel-proforma.js (`dias_en_obra`); aquí solo se
-// pinta. Si el motor que ha cargado el navegador es el viejo (caché), el
-// dato no existe y no se pinta nada, en vez de un «0 días» falso.
-function htmlDiasObra(n, trabajadores) {
-  if (trabajadores && trabajadores.some(t => t.dias_en_obra == null)) return '';
-  if (n == null) return '';
-  return `<span class="dias-obra">${n} día${n === 1 ? '' : 's'}</span>`;
+// DÍAS EN OBRA (1/10/2026). Columna «Días» antes de «Horas», como en el
+// Excel. El número lo calcula js/excel-proforma.js (`dias_en_obra`); aquí
+// solo se pinta. Si el navegador tiene el motor viejo en caché, el dato no
+// existe y sale «—», en vez de un «0» falso.
+function textoDiasObra(n, trabajadores) {
+  if (trabajadores && trabajadores.some(t => t.dias_en_obra == null)) return '—';
+  if (n == null) return '—';
+  return String(n);
 }
+
+// =====================================================================
+// CAMBIAR CATEGORÍA (1/10/2026)
+// La etiqueta de categoría junto al DNI es un botón. Escribe SOLO por la
+// RPC cambiar_categoria_trabajador (admin o jefe de ESTA obra; la persona
+// tiene que tener relación con la obra). Al guardar se recarga el resumen
+// entero: la categoría sale también en el Excel y en el resumen por
+// categoría, y así todo cuadra con lo que hay en la base de datos.
+// =====================================================================
+let catTrabajadorId = null;
+
+function sincronizarCatOtra() {
+  const otra = document.getElementById('cat-select').value === 'otra';
+  const txt = document.getElementById('cat-otra');
+  txt.style.display = otra ? 'block' : 'none';
+  if (otra) txt.focus();
+}
+document.getElementById('cat-select').addEventListener('change', sincronizarCatOtra);
+
+function abrirCambioCategoria(trabajadorId) {
+  if (!obraActual) return;
+  const t = resumenTrabajadores[trabajadorId];
+  if (!t) return;
+  catTrabajadorId = trabajadorId;
+  document.getElementById('cat-subtitulo').textContent =
+    String(t.nombre || '') + (t.dni ? ' · ' + t.dni : '');
+  const clave = String(t.categoria || '').toLowerCase().trim();
+  const sel = document.getElementById('cat-select');
+  sel.value = [...sel.options].some(o => o.value === clave) ? clave : 'peon';
+  document.getElementById('cat-otra').value = (clave === 'otra') ? (t.categoria_otra || '') : '';
+  document.getElementById('cat-otra').style.display = (sel.value === 'otra') ? 'block' : 'none';
+  document.getElementById('error-cat').style.display = 'none';
+  document.getElementById('btn-guardar-cat').disabled = false;
+  document.getElementById('modal-categoria').classList.add('visible');
+}
+
+document.getElementById('btn-cancelar-cat').addEventListener('click', () => {
+  document.getElementById('modal-categoria').classList.remove('visible');
+  catTrabajadorId = null;
+});
+
+document.getElementById('btn-guardar-cat').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-guardar-cat');
+  const err = document.getElementById('error-cat');
+  const mostrarError = (txt) => { err.textContent = txt; err.style.display = 'block'; btn.disabled = false; };
+  if (!catTrabajadorId || !obraActual) return;
+  const categoria = document.getElementById('cat-select').value;
+  const otra = document.getElementById('cat-otra').value.trim();
+  if (categoria === 'otra' && !otra) { mostrarError('Has elegido «Otra»: escribe el nombre de la categoría.'); return; }
+  btn.disabled = true; err.style.display = 'none';
+  const { data, error } = await sb.rpc('cambiar_categoria_trabajador', {
+    p_trabajador_id: catTrabajadorId,
+    p_obra_id: obraActual,
+    p_categoria: categoria,
+    p_categoria_otra: categoria === 'otra' ? otra : null
+  });
+  if (error) { console.error('cambiar_categoria_trabajador:', error); mostrarError('No se ha podido guardar: ' + error.message); return; }
+  if (!data || data.ok !== true) { mostrarError((data && data.error) || 'No se ha podido guardar.'); return; }
+  document.getElementById('modal-categoria').classList.remove('visible');
+  catTrabajadorId = null;
+  await cargarResumen();
+});
 
 function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
   const { findes, thDias } = construirDiasMes(year, month, diasMes);
@@ -3551,10 +3653,11 @@ function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
     filas += `<tr>
       <td class="col-nombre">
         <div class="nombre">${escapeHtml(t.nombre)}</div>
-        <div class="sub">${escapeHtml(t.dni || '')}${etiquetaCat(t) ? ' · ' + escapeHtml(etiquetaCat(t)) : ''}${(() => { if (!ctxJornadas || !ctxJornadas.asignaciones) return ''; const tj = etiquetaTipoJornada(t.id, year, month); const esGeneral = (tj === null); const texto = esGeneral ? 'General' : tj; return ' <button type="button" onclick="abrirCambioJornada(\'' + t.id + '\')" style="display:inline-block;padding:1px 6px;border-radius:4px;border:1px solid var(--borde);background:var(--bg3);color:var(--texto2);font-size:10.5px;letter-spacing:.3px;margin-left:2px;cursor:pointer;font-weight:' + (esGeneral ? '400;opacity:.75' : '700') + '" title="Tipo de jornada de esta persona este mes. Pulsa para cambiarlo.">' + escapeHtml(texto) + '</button>'; })()}</div>
+        <div class="sub">${escapeHtml(t.dni || '')} <button type="button" class="btn-cat${etiquetaCat(t) ? '' : ' vacia'}" onclick="abrirCambioCategoria('${t.id}')" title="Categoría de esta persona. Pulsa para cambiarla.">${escapeHtml(etiquetaCat(t) || 'Sin categoría')}</button>${(() => { if (!ctxJornadas || !ctxJornadas.asignaciones) return ''; const tj = etiquetaTipoJornada(t.id, year, month); const esGeneral = (tj === null); const texto = esGeneral ? 'General' : tj; return ' <button type="button" onclick="abrirCambioJornada(\'' + t.id + '\')" style="display:inline-block;padding:1px 6px;border-radius:4px;border:1px solid var(--borde);background:var(--bg3);color:var(--texto2);font-size:10.5px;letter-spacing:.3px;margin-left:2px;cursor:pointer;font-weight:' + (esGeneral ? '400;opacity:.75' : '700') + '" title="Tipo de jornada de esta persona este mes. Pulsa para cambiarlo.">' + escapeHtml(texto) + '</button>'; })()}</div>
       </td>
       ${celdas}
-      <td class="col-total">${formatHoras(t.horas_mes)}${htmlDiasObra(t.dias_en_obra)}</td>
+      <td class="col-dias">${textoDiasObra(t.dias_en_obra)}</td>
+      <td class="col-total">${formatHoras(t.horas_mes)}</td>
     </tr>`;
   });
 
@@ -3576,7 +3679,8 @@ function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
           <tr>
             <th class="col-nombre">Trabajador</th>
             ${thDias}
-            <th class="col-total" title="Horas del mes y, debajo, días que ha venido a la obra (aunque valgan 0 h)">Horas<span class="dias-obra">días</span></th>
+            <th class="col-dias" title="Días que ha venido a la obra este mes, aunque valgan 0 horas">Días</th>
+            <th class="col-total">Horas</th>
           </tr>
         </thead>
         <tbody>
@@ -3584,7 +3688,8 @@ function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
           <tr class="fila-total">
             <td class="col-nombre">TOTAL</td>
             ${celdasTotal}
-            <td class="col-total">${formatHoras(redondear2(totalEmpresa))}${htmlDiasObra(totalDiasObra, trabajadores)}</td>
+            <td class="col-dias">${textoDiasObra(totalDiasObra, trabajadores)}</td>
+            <td class="col-total">${formatHoras(redondear2(totalEmpresa))}</td>
           </tr>
         </tbody>
       </table>
