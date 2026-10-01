@@ -274,6 +274,10 @@
     // por EMPRESA (decisión de Dani, 124ª). No se duplican: se midió antes de
     // escribirlo y solo una persona de toda la base entraría en los dos.
     if (pagina === 'index.html' || pagina === '') cargar('papeles-subcontratas.js');
+    // 1/10/2026 — y en Trabajadores, el modal de contrato y de libro dice
+    // «caducó el …» en vez de «no tiene contrato» cuando hay uno vencido
+    // (caso BAMSA). Solo cambia el texto del modal.
+    if (pagina === 'trabajadores.html') cargar('papeles-caducados.js');
     // 21/9/2026 — APAGADO: `aviso-sin-comprobar.js` decía lo mismo que
     // `ausentes-ecoordina.js` de las mismas personas. El lunes 21 los dos
     // banners enseñaron LOS MISMOS SIETE NOMBRES en la misma pantalla, y eso
