@@ -278,6 +278,10 @@
     // «caducó el …» en vez de «no tiene contrato» cuando hay uno vencido
     // (caso BAMSA). Solo cambia el texto del modal.
     if (pagina === 'trabajadores.html') cargar('papeles-caducados.js');
+    // 1/10/2026 — y en Presencia, la ventana «Accesos denegados hoy» separa
+    // a quien sigue fuera (arriba) de quien ya puede entrar porque le has
+    // arreglado los papeles o le has autorizado (debajo, en verde).
+    if (pagina === 'index.html' || pagina === '') cargar('accesos-ya-pueden.js');
     // 21/9/2026 — APAGADO: `aviso-sin-comprobar.js` decía lo mismo que
     // `ausentes-ecoordina.js` de las mismas personas. El lunes 21 los dos
     // banners enseñaron LOS MISMOS SIETE NOMBRES en la misma pantalla, y eso
