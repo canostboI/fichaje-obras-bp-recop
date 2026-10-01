@@ -63,6 +63,30 @@ if (!USER || !PASS) {
 
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ acceptDownloads: true, locale: 'es-ES' });
+
+// 1/10/2026 · El banner de Twind puede llegar TARDE: el 1/10 el robot lo buscó
+// con la página aún en blanco, no estaba, y apareció un segundo después
+// tapando «Solicitudes de documentación» (timeout 30 s, run #138). Buscarlo en
+// momentos concretos no basta. Desde el arranque de CADA página se mete una
+// regla de estilo que lo oculta siempre, aparezca cuando aparezca (su
+// display:flex va en línea sin !important, así que esta regla gana).
+// quitarBannerMigracion() se queda como segunda red.
+await context.addInitScript(() => {
+  const ID = 'portium-oculta-twind';
+  const CSS = '#twindMigracionBanner{display:none!important;pointer-events:none!important;}';
+  const poner = () => {
+    if (document.getElementById(ID)) return;
+    const raiz = document.head || document.documentElement;
+    if (!raiz) return;
+    const st = document.createElement('style');
+    st.id = ID;
+    st.textContent = CSS;
+    raiz.appendChild(st);
+  };
+  poner();
+  document.addEventListener('DOMContentLoaded', poner);
+});
+
 const page = await context.newPage();
 page.setDefaultTimeout(30000);
 
@@ -171,6 +195,9 @@ try {
 
 } catch (err) {
   log('ERROR:', err.message);
+  // 1/10/2026 · Motivo corto para que el paso «Apuntar el fallo en la app»
+  // del workflow lo guarde en ecoordina_sync y lo vea el jefe en la pantalla.
+  try { fs.writeFileSync(path.join(DBG_DIR, 'motivo.txt'), String(err.message || err).split('\n')[0].slice(0, 300)); } catch (e) {}
   await shot(page, '99-error');
   await dumpHtml(page, 'page');
   process.exitCode = 1;
