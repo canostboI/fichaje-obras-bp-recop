@@ -612,7 +612,7 @@
     title.font = { name: FUENTE_EXCEL, bold: true, size: 16, color: { argb: COLOR_BLANCO } };
     title.alignment = { horizontal: 'center', vertical: 'middle' };
     title.fill = fillSolid(paleta.oscuro);
-    ws.getRow(1).height = 40;
+    ws.getRow(1).height = 46;   // 1/10/2026: 40 → 46, con margen para el logo
 
     // Logo PNG: tamaño fijo respetando aspect ratio
     if (logoBase64) {
@@ -622,8 +622,10 @@
         const imageId = workbook.addImage({ base64: base64Data, extension: ext });
 
         // Calcular tamaño en píxeles manteniendo aspect ratio.
-        // La fila 1 mide 40 puntos (~53 px); 44 px de logo caben con margen.
-        const ALTURA_PX = 44;
+        // La fila 1 mide 46 puntos (~61 px). 1/10/2026: el logo baja a 40 px
+        // y se separa 10 px del borde de arriba: con 44 px y 4 px de
+        // separación, al imprimir asomaba un poco por encima de la franja.
+        const ALTURA_PX = 40;
         const dims = dimensionesPng(base64Data);
         let widthPx = 130; // valor por defecto si no se pudo leer la cabecera
         if (dims && dims.h > 0) {
@@ -651,8 +653,15 @@
           colIni = c - 1;
         }
 
+        // 1/10/2026 · ExcelJS IGNORA nativeRowOff si se le pasa `col`/`row`
+        // (solo lo lee en la forma nativa). Por eso el logo quedaba pegado
+        // al borde de arriba (rowOff = 0) y al imprimir asomaba por encima.
+        // Ahora se le da todo en forma nativa, en EMU (1 px = 9525 EMU).
+        const colNat = Math.floor(colIni);
+        const colOffPx = (colIni - colNat) * anchoPxDeColumna(colNat + 1);
         ws.addImage(imageId, {
-          tl: { col: colIni, row: 0, nativeRowOff: 4 * 9525 },
+          tl: { nativeCol: colNat, nativeColOff: Math.round(colOffPx * 9525),
+                nativeRow: 0, nativeRowOff: 10 * 9525 },
           ext: { width: widthPx, height: ALTURA_PX },
           editAs: 'absolute'
         });
@@ -680,7 +689,7 @@
     const colEmpresaLabel    = colDenomFin + 1;
     const colEmpresaLabelFin = Math.min(totalCols - 3, colEmpresaLabel + 1);
     const colEmpresaVal      = colEmpresaLabelFin + 1;
-    const colEmpresaFin      = Math.min(totalCols - 2, colEmpresaVal + 6);
+    const colEmpresaFin      = Math.min(totalCols - 3, colEmpresaVal + 6);
     pintarLabel(ws.getCell(3, colEmpresaLabel), 'EMPRESA', paleta.medio);
     if (colEmpresaLabelFin > colEmpresaLabel) {
       ws.mergeCells(3, colEmpresaLabel, 3, colEmpresaLabelFin);
@@ -696,8 +705,15 @@
       ws.getCell(3, c).fill = fillSolid(COLOR_BLANCO);
     }
 
-    pintarLabel(ws.getCell(3, totalCols - 1), 'MES', paleta.medio);
-    pintarValor(ws.getCell(3, totalCols), nombreMes(mes));
+    // 1/10/2026: «MES» sobre HORAS MES y el mes ocupando PRECIO HORA + €.
+    // Antes el mes iba en una sola columna y al imprimir salía cortado.
+    pintarLabel(ws.getCell(3, colHoras), 'MES', paleta.medio);
+    ws.mergeCells(3, colPrecio, 3, colTotal);
+    pintarValor(ws.getCell(3, colPrecio), nombreMes(mes));
+    for (let c = colPrecio; c <= colTotal; c++) {
+      ws.getCell(3, c).border = borderThinGris();
+      ws.getCell(3, c).fill = fillSolid(COLOR_BLANCO);
+    }
     ws.getRow(3).height = 22;
 
     // ===== Filas 5-6: CABECERA TABLA =====
@@ -1061,6 +1077,7 @@
       });
       rowIndex++;
 
+      const filaResIni = rowIndex;   // 1/10/2026: para la fila TOTAL
       catsOrdenadas.forEach(({ etq }) => {
         // Las comillas dentro de un criterio de fórmula se escriben dobladas.
         const criterio = '"' + etq.replace(/"/g, '""') + '"';
@@ -1113,6 +1130,33 @@
         }
         rowIndex++;
       });
+
+      // ----- Fila TOTAL del resumen (1/10/2026) -----
+      // Suma de todas las categorías de la lista, sean las que sean.
+      if (catsOrdenadas.length > 0) {
+        const filaResFin = rowIndex - 1;
+        const sumaRes = (c) => ({ formula: `SUM(${letraExcel(c)}${filaResIni}:${letraExcel(c)}${filaResFin})` });
+        ws.getRow(rowIndex).height = 22;
+        const cTl = ws.getCell(rowIndex, 1);
+        cTl.value = 'TOTAL';
+        cTl.font = { name: FUENTE_EXCEL, bold: true, size: 10, color: { argb: COLOR_BLANCO } };
+        cTl.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+        ws.mergeCells(rowIndex, colResHoras, rowIndex, colResHorasF);
+        if (colResImporteF > colResImporteI) ws.mergeCells(rowIndex, colResImporteI, rowIndex, colResImporteF);
+        [[colResPersonas, '0'], [colResDias, '0'], [colResHoras, '0.00'],
+         [colResImporteI, '#,##0.00 €;-#,##0.00 €;-']].forEach(([c, fmt]) => {
+          const cell = ws.getCell(rowIndex, c);
+          cell.value = sumaRes(c);
+          cell.numFmt = fmt;
+          cell.font = { name: FUENTE_EXCEL, bold: true, size: 10, color: { argb: COLOR_BLANCO } };
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        });
+        for (let x = 1; x <= colResImporteF; x++) {
+          ws.getCell(rowIndex, x).fill = fillSolid(paleta.oscuro);
+          ws.getCell(rowIndex, x).border = borderThinGris();
+        }
+        rowIndex++;
+      }
     }
 
     rowIndex += 1;
