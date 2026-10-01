@@ -1124,9 +1124,25 @@ async function pintarSyncAhora() {
   if (e.ultima_sync) {
     const u = e.ultima_sync;
     const bien = u.estado === 'ok' && !u.obras_error;
-    html += 'Última actualización: <span class="dato">' + escHtml(syncCuando(u.en)) + '</span> '
-      + (bien ? '<span style="color:var(--verde);">✓</span>'
-              : '<span style="color:#ffb74d;">⚠️ con errores (' + escHtml(u.obras_error) + ' obra/s)</span>');
+    if (bien) {
+      html += 'Última actualización: <span class="dato">' + escHtml(syncCuando(u.en)) + '</span> '
+        + '<span style="color:var(--verde);">✓</span>';
+    } else if (u.estado === 'error' && !Number(u.obras_error)) {
+      // 1/10/2026 · Falló entera (p. ej. la descarga de e-Coordina, run #138):
+      // no se ha cambiado ningún color. Se dice cuál es la última buena.
+      html += 'Última actualización buena: <span class="dato">'
+        + (e.ultima_ok ? escHtml(syncCuando(e.ultima_ok)) : '—') + '</span> '
+        + '<span style="color:var(--verde);">✓</span>'
+        + '<br><span style="color:#ef9a9a;">❌ El intento de ' + escHtml(syncCuando(u.en)) + ' falló'
+        + (u.motivo ? ' (no se pudo descargar de e-Coordina)' : '')
+        + '. Los colores siguen siendo los de la última buena.</span>';
+      if (u.motivo) {
+        html += '<br><span style="font-size:12px;opacity:.75;">Detalle técnico: ' + escHtml(u.motivo) + '</span>';
+      }
+    } else {
+      html += 'Última actualización: <span class="dato">' + escHtml(syncCuando(u.en)) + '</span> '
+        + '<span style="color:#ffb74d;">⚠️ con errores (' + escHtml(u.obras_error) + ' obra/s)</span>';
+    }
   } else {
     html += 'Última actualización: <span class="dato">—</span>';
   }
@@ -1143,7 +1159,8 @@ async function pintarSyncAhora() {
     } else if (p.terminada) {
       html += '<br>Pedida por <span class="dato">' + quien + '</span> a las ' + hora + ' · '
         + (p.sync_estado === 'ok' ? '<span style="color:var(--verde);">terminada ✓</span>'
-                                  : '<span style="color:#ffb74d;">terminada con errores</span>');
+                                  : '<span style="color:#ef9a9a;">❌ ha fallado</span>'
+                                    + (e.puede_pedir ? ' · puedes volver a intentarlo' : ' · si se repite, avisa al administrador'));
     } else if (p.minutos < 10) {
       enMarcha = true;
       html += '<br><span style="color:#90caf9;"><span class="spinner"></span> En marcha · pedida por '
