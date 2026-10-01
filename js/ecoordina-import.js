@@ -385,6 +385,51 @@ window.EcoordinaImport = (function () {
     return false;
   }
 
+  // 1/10/2026 · PLAZO DE LOS PAPELES DE EMPRESA (pedido por Dani). GEMELO del
+  // mismo arreglo en scripts/ecoordina-sync.mjs: si cambia uno, cambia el otro.
+  // Empresas de la obra a las que YA se les ha acabado el plazo de 5 días
+  // laborables para el contrato o el libro, según la BD
+  // (`papeles_subcontratas_obra` → `_subcontratas_sin_papeles`, la MISMA receta
+  // que el cron de las 06:10). Antes aquí se ponía rojo el primer día que
+  // faltaba el papel, mientras el banner del jefe prometía un plazo: pasó con
+  // BAMSA el 1/10, 24 personas en la puerta con el plazo sin vencer.
+  // Si no se puede leer, LANZA: no saber si el plazo se ha acabado no autoriza
+  // ni a bloquear ni a abrir (el catch de la página avisa con un alert).
+  async function cargarPlazoAgotado(sb, obraId) {
+    const res = { contrato: new Set(), libro: new Set() };
+    if (!obraId) return res;
+    const { data, error } = await sb.rpc('papeles_subcontratas_obra', { p_obra_id: obraId });
+    if (error || !data || !data.ok) {
+      throw new Error('no se ha podido comprobar el plazo de contrato y libro de las subcontratas ('
+        + ((error && error.message) || 'respuesta vacía') + '). Vuelve a intentarlo.');
+    }
+    const cerradas = (data.empresas || []).filter(e => e && e.cerrada && e.empresa_id);
+    if (!cerradas.length) return res;
+    const { data: emps, error: eErr } = await sb.from('empresas')
+      .select('id, nombre, cif')
+      .in('id', cerradas.map(e => e.empresa_id));
+    if (eErr) {
+      throw new Error('no se han podido leer las empresas con el plazo de papeles agotado ('
+        + eErr.message + '). Vuelve a intentarlo.');
+    }
+    const porId = new Map((emps || []).map(e => [e.id, e]));
+    for (const c of cerradas) {
+      const emp = porId.get(c.empresa_id);
+      if (!emp) continue;
+      const nNombre = normalizar(emp.nombre), nCif = normalizarCif(emp.cif);
+      const claves = [];
+      if (nNombre && nCif) claves.push(`${nNombre}|${nCif}`);
+      if (nNombre) claves.push(`NOMBRE:${nNombre}`);
+      if (nNombre && !nCif) claves.push(`NOMBRESINCIF:${nNombre}`);
+      if (nCif) claves.push(`CIF:${nCif}`);
+      for (const k of claves) {
+        if (c.falta_contrato) res.contrato.add(k);
+        if (c.falta_libro) res.libro.add(k);
+      }
+    }
+    return res;
+  }
+
   // ── Parseo de archivo (usa XLSX global) ───────────────────────────────────
   function convertirWorkbookAFilas(wb) {
     const ws = wb.Sheets[wb.SheetNames[0]];
@@ -550,6 +595,10 @@ window.EcoordinaImport = (function () {
       if (nNombre && !nCif) set.add(`NOMBRESINCIF:${nNombre}`);
       if (nCif) set.add(`CIF:${nCif}`);
     }
+    // 1/10/2026 · El plazo viaja PEGADO al conjunto de contratos para no tener
+    // que tocar jefe/documentos-ecoordina.html (la página ya llama a esta
+    // función cada vez que procesa). Lo lee calcularResultado.
+    set.plazoAgotado = (await cargarPlazoAgotado(sb, obraId)).contrato;
     return set;
   }
 
@@ -571,6 +620,8 @@ window.EcoordinaImport = (function () {
       if (nNombre && !nCif) set.add(`NOMBRESINCIF:${nNombre}`);
       if (nCif) set.add(`CIF:${nCif}`);
     }
+    // 1/10/2026 · Igual que en cargarContratosVigentes.
+    set.plazoAgotado = (await cargarPlazoAgotado(sb, obraId)).libro;
     return set;
   }
 
@@ -613,6 +664,11 @@ window.EcoordinaImport = (function () {
     const exenciones = ctx.exenciones || new Map();
     const contratosVigentes = ctx.contratosVigentes || new Set();
     const librosVigentes = ctx.librosVigentes || new Set();
+    // 1/10/2026 · Empresas con el plazo de papeles agotado (ver cargarPlazoAgotado).
+    // tieneContratoVigente/tieneLibroVigente sirven para mirar en ellos: es el
+    // mismo casado por nombre y CIF.
+    const plazoContrato = contratosVigentes.plazoAgotado || new Set();
+    const plazoLibro = librosVigentes.plazoAgotado || new Set();
     const trabajadoresApp = ctx.trabajadoresApp || {};
     const sinRegla = new Set();
     // Día de hoy en España (M-05). Lo usa el margen de cortesía de
@@ -729,8 +785,11 @@ window.EcoordinaImport = (function () {
       // empresa de PRL que solo aplican a empresas con plantilla.
       const empresaEsAutonomoSolo = esAutonomoSinAsalariados(autonomosSolos, info.empresaRaw);
 
-      // Subcontratas sin contrato vigente → rojo directo.
-      if (!empresaEsPropia && !tieneContratoVigente(contratosVigentes, info.empresaRaw)) {
+      // 1/10/2026 · Subcontratas sin contrato vigente → rojo SOLO cuando se
+      // les ha acabado el plazo (misma receta que el robot y el cron). Mientras
+      // dura el plazo su gente pasa y el aviso lo da el banner de Presencia.
+      if (!empresaEsPropia && !tieneContratoVigente(contratosVigentes, info.empresaRaw)
+          && tieneContratoVigente(plazoContrato, info.empresaRaw)) {
         estadoFinal = 'rojo';
         motivos.push('Sin contrato entre empresas → rojo');
       }
@@ -739,7 +798,9 @@ window.EcoordinaImport = (function () {
       // Reactivado el 16/6/2026 tras cargar las firmas reales en la app
       // (firma registrada = fila vigente en libros_subcontratacion). Empresas
       // propias exentas. Ver ESTADO.md.
-      if (!empresaEsPropia && !tieneLibroVigente(librosVigentes, info.empresaRaw)) {
+      // 1/10/2026 · Igual que el contrato: solo con el plazo agotado.
+      if (!empresaEsPropia && !tieneLibroVigente(librosVigentes, info.empresaRaw)
+          && tieneLibroVigente(plazoLibro, info.empresaRaw)) {
         estadoFinal = 'rojo';
         motivos.push('No ha firmado el libro de subcontratación → rojo');
       }
@@ -950,6 +1011,7 @@ window.EcoordinaImport = (function () {
     esDocExento,
     tieneContratoVigente,
     tieneLibroVigente,
+    cargarPlazoAgotado,
     convertirWorkbookAFilas,
     parsearContenido,
     leerArchivo,
