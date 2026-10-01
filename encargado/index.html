@@ -133,29 +133,34 @@
 
     /* 108a (18/9/2026) - El contador ocupaba media pantalla. Ahora tiene la
        misma forma que las tarjetas de denegados y naranjas: texto a la
-       izquierda, numero a la derecha del mismo tamano (2.6rem). */
+       izquierda, numero a la derecha del mismo tamano (2.6rem).
+       1/10/2026 - Dani: «podria ser mas pequena, que simplemente dijera 4
+       propios y 12 externos; lo de la ultima entrada no aporta nada». Ahora
+       es una franja de una sola linea: «👷 16 en obra · 4 propios ·
+       12 externos». Fuera «Ultima entrada». */
     .contador-presencia {
-      border-radius: 14px;
-      padding: 1.1rem 1.2rem;
-      margin-bottom: 1.5rem;
+      border-radius: 12px;
+      padding: 0.6rem 1rem;
+      margin-bottom: 1rem;
       box-shadow: 0 2px 10px rgba(0,0,0,0.10);
       color: white;
       text-align: left;
       transition: background 0.3s ease;
     }
     .contador-cabecera {
-      display: flex; justify-content: space-between; align-items: center; gap: 14px;
+      display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem 0.5rem;
     }
+    .contador-icono { font-size: 1.15rem; line-height: 1; }
     .contador-presencia.estado-ok      { background: linear-gradient(135deg, #2e7d32, #43a047); }
     .contador-presencia.estado-vacio   { background: linear-gradient(135deg, #555, #777); }
     .contador-presencia.estado-aviso   { background: linear-gradient(135deg, #ef6c00, #fb8c00); }
     .contador-presencia.estado-historico { background: linear-gradient(135deg, #37474f, #546e7a); }
 
     .contador-numero {
-      font-size: 2.6rem;
+      font-size: 1.6rem;
       font-weight: 800;
       line-height: 1;
-      letter-spacing: -1px;
+      letter-spacing: -0.5px;
       margin-bottom: 0;
     }
     .contador-texto {
@@ -165,28 +170,18 @@
       margin-bottom: 0;
     }
     .contador-desglose {
-      margin-top: 0.6rem;
-      font-size: 0.88rem;
-      opacity: 0.9;
+      margin-left: auto;
+      font-size: 0.84rem;
+      opacity: 0.95;
       background: rgba(255,255,255,0.15);
       border-radius: 8px;
-      padding: 0.4rem 0.8rem;
+      padding: 0.25rem 0.65rem;
       display: inline-block;
-      margin-bottom: 0.6rem;
+      white-space: nowrap;
     }
     .contador-desglose .externos-num {
       font-weight: 800;
     }
-    .contador-ultima {
-      font-size: 0.9rem;
-      opacity: 0.95;
-      background: rgba(255,255,255,0.15);
-      border-radius: 8px;
-      padding: 0.55rem 0.8rem;
-      display: inline-block;
-      max-width: 100%;
-    }
-    .contador-ultima strong { font-weight: 700; }
 
     /* ── P-02: barra de fecha + actualizar ── */
     /* 86ª (15/9/2026) — Cabecera de obra sin tarjeta: solo texto. */
@@ -538,7 +533,6 @@
       .panel-avisos .aviso-botones { align-self: flex-end; }
       .panel-bloqueos .bloqueo-item { flex-direction: column; align-items: flex-start; }
       .panel-bloqueos .btn-visto-rojo { align-self: flex-end; }
-      .contador-numero { font-size: 2.6rem; }
       .lista-tarjetas { grid-template-columns: 1fr; }
 
     }
@@ -629,11 +623,11 @@
 
     <div id="contador-presencia" class="contador-presencia estado-vacio" style="display:none">
       <div class="contador-cabecera">
-        <div class="contador-texto" id="contador-texto">Personas en obra ahora</div>
-        <div class="contador-numero" id="contador-numero">0</div>
+        <span class="contador-icono">👷</span>
+        <span class="contador-numero" id="contador-numero">0</span>
+        <span class="contador-texto" id="contador-texto">en obra</span>
+        <span class="contador-desglose" id="contador-desglose" style="display:none"></span>
       </div>
-      <div class="contador-desglose" id="contador-desglose" style="display:none"></div>
-      <div class="contador-ultima" id="contador-ultima" style="display:none"></div>
     </div>
 
     <div class="card card-rojos" id="card-rojos" role="button" tabindex="0" title="Ver detalle de accesos denegados">
@@ -646,6 +640,10 @@
       </div>
     </div>
 
+    <!-- 1/10/2026 · Justo debajo de los denegados: de esos, quién ya puede
+         entrar. Se ve sin pulsar nada (Dani: «si no, no te enteras»). -->
+    <div id="panel-yapueden" class="panel-yapueden" style="display:none"></div>
+
     <div class="card card-naranjas" id="card-naranjas" role="button" tabindex="0" title="Ver trabajadores presentes con documentación naranja">
       <div class="card-rojos-contenido">
         <div>
@@ -657,7 +655,6 @@
     </div>
 
     <div id="panel-bloqueos" class="panel-bloqueos" style="display:none"></div>
-    <div id="panel-yapueden" class="panel-yapueden" style="display:none"></div>
     <div id="panel-solenc" class="panel-solenc" style="display:none"></div>
     <div id="panel-avisos" class="panel-avisos" style="display:none"></div>
 
@@ -1291,15 +1288,40 @@
     // situacion salia en el verde.
     // Un fallo de lectura no se pinta como «sigue en rojo»: se calla, y el
     // panel se comporta como antes.
+    //
+    // 1/10/2026 · DOS AGUJEROS QUE ESCONDÍAN EL PANEL VERDE (caso Muralla):
+    //  1) Solo miraba a quien NADIE había marcado «✓ Visto». Pero «Visto»
+    //     quiere decir «me he enterado del bloqueo», no «está resuelto». Ese
+    //     día los 6 bloqueos estaban vistos y el panel no salía, con Zroude y
+    //     Boulmani ya en verde esperando en la puerta. Ahora se mira a TODO
+    //     el que sigue sin fichar. El panel ROJO no cambia: sigue sacando
+    //     solo lo no visto.
+    //  2) Solo contaba la autorización que nace de una PETICIÓN del
+    //     encargado. Si el jefe autoriza directamente (excepciones_acceso,
+    //     caso Gasull), no salía. Ahora se mira también la excepción activa
+    //     de hoy, que es lo mismo que mira la valla para dejarle pasar.
+    const candidatos = clas.pendientes;
     const yaNoEnRojo = {};
-    const idsRevisar = porRevisar.map(g => g.trabajador_id).filter(Boolean);
+    const autorizadoHoy = {};
+    const idsRevisar = candidatos.map(g => g.trabajador_id).filter(Boolean);
     if (idsRevisar.length) {
-      const rEst = await sb.from('validaciones_obra')
-        .select('trabajador_id, estado')
-        .eq('obra_id', obraActualId).in('trabajador_id', idsRevisar);
+      const [rEst, rExc] = await Promise.all([
+        sb.from('validaciones_obra')
+          .select('trabajador_id, estado')
+          .eq('obra_id', obraActualId).in('trabajador_id', idsRevisar),
+        sb.from('excepciones_acceso')
+          .select('trabajador_id, estado')
+          .eq('obra_id', obraActualId).eq('fecha', fechaHoyISO())
+          .in('trabajador_id', idsRevisar)
+      ]);
       if (!rEst.error) {
         (rEst.data || []).forEach(v => {
           if (v.estado && v.estado !== 'rojo') yaNoEnRojo[v.trabajador_id] = v.estado;
+        });
+      }
+      if (!rExc.error) {
+        (rExc.data || []).forEach(e => {
+          if (e.estado === 'activa') autorizadoHoy[e.trabajador_id] = true;
         });
       }
     }
@@ -1309,9 +1331,10 @@
     // levantar por varias vias, y para el encargado, que esta en la puerta,
     // la unica que importa es la primera. Se guarda POR QUE puede entrar,
     // porque no es lo mismo un permiso de hoy que tener los papeles en regla.
-    const yaPueden = porRevisar.filter(g => {
+    const yaPueden = candidatos.filter(g => {
       const q = solicitudDe(g.dni, g.trabajador_id);
       if (q && q.estado === 'autorizada') { g.motivo_paso = 'autorizado'; return true; }
+      if (g.trabajador_id && autorizadoHoy[g.trabajador_id]) { g.motivo_paso = 'autorizado'; return true; }
       if (g.trabajador_id && yaNoEnRojo[g.trabajador_id]) {
         g.motivo_paso = 'ya_no_rojo';
         g.color_ahora = yaNoEnRojo[g.trabajador_id];
@@ -1407,16 +1430,17 @@
     // 21/9/2026 · Aqui cabe gente que puede entrar por motivos DISTINTOS, y
     // decirselos todos como «paso solo por hoy» seria mentir sobre la mitad.
     // El subtitulo dice lo comun; cada linea dice lo suyo.
-    let h = `<h2>✅ Ya pueden fichar (${lista.length})</h2>`
-          + `<p class="yapueden-sub">Diles que fichen en la valla; en cuanto lo hagan desaparecen de aquí.</p>`;
+    let h = `<h2>🔓 Bloqueados hoy que ya pueden entrar (${lista.length})</h2>`
+          + `<p class="yapueden-sub">Dile a cada uno que vuelva a escanear el QR en la valla; en cuanto fiche, desaparece de aquí.</p>`;
     lista.forEach(g => {
       const l2 = (g.clase === 'sin_registrar')
         ? `${g.empresa ? esc(g.empresa) + ' · ' : ''}${g.dni ? esc(g.dni) : ''}`
         : (g.dni ? esc(g.dni) : '');
       const porque = (g.motivo_paso === 'ya_no_rojo')
-        ? 'Su documentación ya no está en rojo'
-          + (g.color_ahora === 'naranja' ? ' (ahora en naranja)' : '')
-        : 'El jefe de obra le ha dado paso solo por hoy';
+        ? (g.color_ahora === 'naranja'
+            ? 'Documentación ya fuera del rojo (ahora en naranja)'
+            : 'Documentación ya en verde')
+        : 'Autorizado para hoy por el jefe de obra';
       h += `<div class="yapueden-item"><strong>${esc(g.nombre || '—')}</strong>`
         +  (l2 ? `<div class="yapueden-meta">${l2}</div>` : '')
         +  `<div class="yapueden-meta">${esc(porque)}</div>`
@@ -2641,7 +2665,6 @@
     const numEl = document.getElementById('contador-numero');
     const txtEl = document.getElementById('contador-texto');
     const desglEl = document.getElementById('contador-desglose');
-    const ultEl = document.getElementById('contador-ultima');
     const num = presentes.length;
     const esHoyFlag = esHoy(fecha || fechaHoyISO());
 
@@ -2651,39 +2674,30 @@
     if (num === 0) {
       cont.classList.remove('estado-ok', 'estado-aviso', 'estado-historico');
       cont.classList.add('estado-vacio');
+      numEl.style.display = 'none';   // «0 Nadie en obra» se lee raro
       txtEl.textContent = esHoyFlag ? 'Nadie en obra ahora mismo' : 'Nadie en obra ese día';
       desglEl.style.display = 'none';
-      ultEl.style.display = 'none';
       return;
     }
+    numEl.style.display = '';
 
     cont.classList.remove('estado-vacio', 'estado-aviso');
     if (!esHoyFlag) {
       cont.classList.remove('estado-ok');
       cont.classList.add('estado-historico');
-      txtEl.textContent = num === 1 ? 'Persona estuvo en obra ese día' : 'Personas estuvieron en obra ese día';
+      txtEl.textContent = num === 1 ? 'estuvo en obra ese día' : 'estuvieron en obra ese día';
     } else {
       cont.classList.remove('estado-historico');
       cont.classList.add('estado-ok');
       if (num > 30) { cont.classList.remove('estado-ok'); cont.classList.add('estado-aviso'); }
-      txtEl.textContent = num === 1 ? 'Persona en obra ahora' : 'Personas en obra ahora';
+      txtEl.textContent = 'en obra';
     }
 
     const nPropios = presentes.filter(t => empresasPropias.has(t.empresaId)).length;
     const nExternos = num - nPropios;
     desglEl.style.display = 'inline-block';
-    desglEl.innerHTML = `${nPropios} propios · <span class="externos-num">${nExternos} externos</span>`;
-
-    const ultimo = presentes[0];
-    if (ultimo && esHoyFlag) {
-      ultEl.style.display = 'inline-block';
-      ultEl.innerHTML = `Última entrada: <strong>${esc(ultimo.nombre)}</strong> · ${esc(textoRelativo(ultimo.horaISO))}`;
-    } else if (ultimo) {
-      ultEl.style.display = 'inline-block';
-      ultEl.innerHTML = `Última entrada registrada: <strong>${esc(ultimo.nombre)}</strong> · ${esc(ultimo.horaTexto)}`;
-    } else {
-      ultEl.style.display = 'none';
-    }
+    desglEl.innerHTML = `${nPropios} ${nPropios === 1 ? 'propio' : 'propios'} · <span class="externos-num">${nExternos} ${nExternos === 1 ? 'externo' : 'externos'}</span>`;
+    // 1/10/2026 · Fuera «Última entrada» (Dani: no aporta nada).
   }
 
   function pintarTarjetas(presentes, fecha) {
@@ -2839,11 +2853,6 @@
     if (!presentesCache) return;
     const fecha = document.getElementById('input-fecha-presencia').value || fechaHoyISO();
     if (!esHoy(fecha)) return; // no actualizar tiempos relativos en histórico
-    const ultEl = document.getElementById('contador-ultima');
-    if (presentesCache.length > 0 && ultEl && ultEl.style.display !== 'none') {
-      const u = presentesCache[0];
-      ultEl.innerHTML = `Última entrada: <strong>${esc(u.nombre)}</strong> · ${esc(textoRelativo(u.horaISO))}`;
-    }
     document.querySelectorAll('.tarjeta-trab').forEach(card => {
       const iso = card.dataset.horaIso;
       const rel = card.querySelector('.tarjeta-hora-rel');
