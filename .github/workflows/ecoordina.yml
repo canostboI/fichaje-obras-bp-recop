@@ -71,6 +71,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: 1) Descargar CSV de e-Coordina
+        id: descarga
         env:
           ECOORDINA_USER: ${{ secrets.ECOORDINA_USER }}
           ECOORDINA_PASS: ${{ secrets.ECOORDINA_PASS }}
@@ -81,6 +82,19 @@ jobs:
           SUPABASE_EMAIL: ${{ secrets.SUPABASE_EMAIL }}
           SUPABASE_PASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
         run: npm run sync
+
+      # 1/10/2026 · Si muere la DESCARGA, el robot no llega a la base de datos
+      # y la app no se entera (run #138). Este paso apunta una fila 'error' en
+      # ecoordina_sync: el jefe lo ve en la pantalla del botón y el admin en el
+      # cuadro de mando. No toca colores. Si falla él también, no tumba nada.
+      - name: Apuntar el fallo en la app (si falló la descarga)
+        if: failure() && steps.descarga.outcome == 'failure'
+        continue-on-error: true
+        env:
+          SUPABASE_EMAIL: ${{ secrets.SUPABASE_EMAIL }}
+          SUPABASE_PASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/ecoordina-registrar-fallo.mjs
 
       # SEC-035 · Antes este paso subía `output/` —el CSV íntegro de
       # e-Coordina, con el padrón documental de TODAS las obras— en CADA
