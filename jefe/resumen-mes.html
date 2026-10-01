@@ -12,7 +12,7 @@
 <script src="../js/sb-paginado.js"></script>
 <script src="../js/fechas.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-<script src="../js/excel-proforma.js"></script>
+<script src="../js/excel-proforma.js?v=20261001"></script>
 <script src="../js/jornadas.js"></script>
 <script src="../js/modal-jornada.js"></script>
 <script>
@@ -158,6 +158,12 @@ function etiquetaCat(t) {  const ETQ = { peon:'Peón', oficial:'Oficial', encarg
   table.mes tr.fila-total td { background: var(--bg3); font-weight: 700; border-top: 2px solid var(--borde); cursor: default; }
   table.mes tr.fila-total td.col-nombre { background: var(--bg3); }
   table.mes tr.fila-total td.col-total { background: rgba(255,152,0,0.18); color: var(--color-acento); }
+  /* DÍAS EN OBRA (1/10/2026): debajo de las horas, en pequeño, los días que
+     ha venido. Va DENTRO de la columna fija de Horas y no en una columna
+     propia: otra columna fija a la derecha se comería días en el móvil. */
+  table.mes .col-total .dias-obra { display: block; font-size: 10px; font-weight: 500; color: var(--texto2); margin-top: 1px; letter-spacing: 0; }
+  table.mes thead th.col-total .dias-obra { font-size: 9px; font-weight: 600; }
+  table.mes tr.fila-total td.col-total .dias-obra { color: var(--color-acento); opacity: 0.85; }
 
   .vacio    { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
   .cargando { padding: 28px 20px; text-align: center; color: var(--texto2); font-size: 14px; }
@@ -3458,7 +3464,7 @@ function renderMesSinFichajes(year, month, diasMes) {
           <tr>
             <th class="col-nombre">Trabajador</th>
             ${thDias}
-            <th class="col-total">Horas</th>
+            <th class="col-total" title="Horas del mes y, debajo, días que ha venido a la obra (aunque valgan 0 h)">Horas<span class="dias-obra">días</span></th>
           </tr>
         </thead>
       </table>
@@ -3466,6 +3472,16 @@ function renderMesSinFichajes(year, month, diasMes) {
     <div class="vacio">No hay fichajes en ese mes para esta obra.<br>
     La fila de arriba enseña cómo está configurado el mes: ☀ y subrayado naranja = jornada intensiva.</div>
   </div>`;
+}
+
+// DÍAS EN OBRA (1/10/2026). Línea pequeña bajo las horas: «12 días».
+// El número lo calcula js/excel-proforma.js (`dias_en_obra`); aquí solo se
+// pinta. Si el motor que ha cargado el navegador es el viejo (caché), el
+// dato no existe y no se pinta nada, en vez de un «0 días» falso.
+function htmlDiasObra(n, trabajadores) {
+  if (trabajadores && trabajadores.some(t => t.dias_en_obra == null)) return '';
+  if (n == null) return '';
+  return `<span class="dias-obra">${n} día${n === 1 ? '' : 's'}</span>`;
 }
 
 function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
@@ -3485,6 +3501,7 @@ function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
   const totalDia = {};
   for (let d = 1; d <= diasMes; d++) totalDia[d] = 0;
   let totalEmpresa = 0;
+  let totalDiasObra = 0;
 
   trabajadores.forEach(t => {
     let celdas = '';
@@ -3530,13 +3547,14 @@ function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
       celdas += `<td class="${clases.join(' ')}" data-tid="${t.id}" data-dia="${d}"${tooltip}>${textoCelda}</td>`;
     }
     totalEmpresa += t.horas_mes;
+    totalDiasObra += t.dias_en_obra || 0;
     filas += `<tr>
       <td class="col-nombre">
         <div class="nombre">${escapeHtml(t.nombre)}</div>
         <div class="sub">${escapeHtml(t.dni || '')}${etiquetaCat(t) ? ' · ' + escapeHtml(etiquetaCat(t)) : ''}${(() => { if (!ctxJornadas || !ctxJornadas.asignaciones) return ''; const tj = etiquetaTipoJornada(t.id, year, month); const esGeneral = (tj === null); const texto = esGeneral ? 'General' : tj; return ' <button type="button" onclick="abrirCambioJornada(\'' + t.id + '\')" style="display:inline-block;padding:1px 6px;border-radius:4px;border:1px solid var(--borde);background:var(--bg3);color:var(--texto2);font-size:10.5px;letter-spacing:.3px;margin-left:2px;cursor:pointer;font-weight:' + (esGeneral ? '400;opacity:.75' : '700') + '" title="Tipo de jornada de esta persona este mes. Pulsa para cambiarlo.">' + escapeHtml(texto) + '</button>'; })()}</div>
       </td>
       ${celdas}
-      <td class="col-total">${formatHoras(t.horas_mes)}</td>
+      <td class="col-total">${formatHoras(t.horas_mes)}${htmlDiasObra(t.dias_en_obra)}</td>
     </tr>`;
   });
 
@@ -3558,7 +3576,7 @@ function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
           <tr>
             <th class="col-nombre">Trabajador</th>
             ${thDias}
-            <th class="col-total">Horas</th>
+            <th class="col-total" title="Horas del mes y, debajo, días que ha venido a la obra (aunque valgan 0 h)">Horas<span class="dias-obra">días</span></th>
           </tr>
         </thead>
         <tbody>
@@ -3566,7 +3584,7 @@ function renderTablaEmpresa(nombreEmpresa, trabajadores, year, month, diasMes) {
           <tr class="fila-total">
             <td class="col-nombre">TOTAL</td>
             ${celdasTotal}
-            <td class="col-total">${formatHoras(redondear2(totalEmpresa))}</td>
+            <td class="col-total">${formatHoras(redondear2(totalEmpresa))}${htmlDiasObra(totalDiasObra, trabajadores)}</td>
           </tr>
         </tbody>
       </table>
