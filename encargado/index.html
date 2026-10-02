@@ -337,7 +337,7 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     }
     .panel-avisos h2 { font-size: 1rem; color: #8a5a00; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 8px; }
-    .panel-avisos .aviso-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 0.6rem 0; border-bottom: 1px solid #ffe082; font-size: 0.92rem; }
+    .panel-avisos .aviso-item { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; padding: 0.6rem 0; border-bottom: 1px solid #ffe082; font-size: 0.92rem; }
     .panel-avisos .aviso-item:last-child { border-bottom: none; }
     .panel-avisos .aviso-info { flex: 1; min-width: 0; color: #5d4500; }
     .panel-avisos .aviso-info strong { color: #3d2f00; }
@@ -357,6 +357,7 @@
     .panel-avisos .caja-correccion input[type=time] { padding: 0.35rem 0.5rem; border: 1px solid #ffb74d; border-radius: 6px; font-size: 0.95rem; }
     .panel-avisos .caja-correccion input[type=text] { flex: 1; min-width: 180px; padding: 0.35rem 0.5rem; border: 1px solid #ffb74d; border-radius: 6px; font-size: 0.9rem; }
     .panel-avisos .caja-correccion .msg-err { color: #c62828; font-size: 0.85rem; margin-top: 0.3rem; }
+    .panel-avisos .caja-correccion .msg-info { color: #8a6d00; font-size: 0.82rem; margin-bottom: 0.4rem; }
     .panel-avisos .nota-plazo { font-size: 0.82rem; color: #8a6d00; margin-top: 0.6rem; font-style: italic; }
 
     .panel-bloqueos {
@@ -1997,7 +1998,7 @@
             el sistema cerró la jornada a las <strong>${hhmm}</strong> (no fichó salida)
           </div>
           <div class="aviso-botones">
-            <button class="btn-corregir-aviso" onclick="abrirCorreccion('${f.id}','${hhmm}')">✏ Se fue antes</button>
+            <button class="btn-corregir-aviso" onclick="abrirCorreccion('${f.id}','${hhmm}','${incId}')">✏ Corregir horas</button>
             <button class="btn-correctas" onclick="confirmarAutocierre('${f.id}','${incId}')">✓ Correctas</button>
           </div>
         </div>`;
@@ -2067,68 +2068,161 @@
     refrescarPanelAvisos();
   }
 
-  // "✏ Se fue antes": corrige la HORA de verdad. `corregir_fichaje` no
-  // deja cambiar el día, solo hh:mm, así que el campo se rellena con la
-  // hora inventada y el encargado la mueve.
-  function abrirCorreccion(fichajeId, hhmmActual) {
-    const item = document.querySelector(`.aviso-item[data-fichaje="${fichajeId}"]`);
+  // "✏ Corregir horas": corrige la HORA de verdad, de la entrada y/o de la
+  // salida. `corregir_fichaje` no deja cambiar el día, solo hh:mm, así que
+  // los campos se rellenan con las horas que constan y el encargado las
+  // mueve.
+  //
+  // Por qué dos campos (2/10/2026): hubo gente que, tras un rojo corregido,
+  // no volvió a fichar entrada; al fichar salida por la tarde se les quedó
+  // como ENTRADA y el autocierre puso la salida encima. El aviso solo traía
+  // el fichaje de salida; el de entrada hay que buscarlo (misma persona,
+  // misma obra, mismo día, la última entrada anterior a la salida).
+  function hhmmDe(iso) {
+    const d = new Date(iso);
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+
+  async function abrirCorreccion(salidaId, hhmmSalida, incidenciaId) {
+    const item = document.querySelector(`.aviso-item[data-fichaje="${salidaId}"]`);
     if (!item || item.querySelector('.caja-correccion')) return;
 
     const caja = document.createElement('div');
     caja.className = 'caja-correccion';
+    caja.innerHTML = '<div class="msg-info">Buscando los fichajes del día…</div>';
+    item.appendChild(caja);
+
+    // El DÍA sale del fichaje de salida, nunca de la pantalla.
+    const { data: salida, error: errSal } = await sb
+      .from('fichajes').select('id, hora, trabajador_id, obra_id').eq('id', salidaId).single();
+    if (errSal || !salida) {
+      caja.innerHTML = '<div class="msg-err">No se ha podido leer el fichaje. Inténtalo de nuevo.</div>';
+      return;
+    }
+
+    // Entradas de ese día (local): se coge la última anterior a la salida.
+    const dSal = new Date(salida.hora);
+    const ini = new Date(dSal); ini.setHours(0, 0, 0, 0);
+    const fin = new Date(ini);  fin.setDate(fin.getDate() + 1);
+    const { data: entradas, error: errEnt } = await sb
+      .from('fichajes')
+      .select('id, hora')
+      .eq('trabajador_id', salida.trabajador_id)
+      .eq('obra_id', salida.obra_id)
+      .eq('tipo', 'entrada')
+      .gte('hora', ini.toISOString())
+      .lt('hora', fin.toISOString())
+      .lte('hora', salida.hora)
+      .order('hora', { ascending: false })
+      .limit(1);
+    if (errEnt) {
+      caja.innerHTML = '<div class="msg-err">No se ha podido leer la entrada de ese día. Inténtalo de nuevo.</div>';
+      return;
+    }
+    const entrada = (entradas && entradas[0]) || null;
+
+    const ctx = {
+      salidaId, salidaHora: salida.hora, hhmmSalida,
+      entradaId: entrada ? entrada.id : null,
+      entradaHora: entrada ? entrada.hora : null,
+      hhmmEntrada: entrada ? hhmmDe(entrada.hora) : '',
+      incidenciaId: incidenciaId || ''
+    };
+
     caja.innerHTML = `
+      ${entrada ? '' : '<div class="msg-info">No consta entrada ese día: solo se puede corregir la salida.</div>'}
       <div class="fila">
+        <label>Entró a las</label>
+        <input type="time" class="corr-entrada" value="${ctx.hhmmEntrada}" ${entrada ? '' : 'disabled'}>
         <label>Salió a las</label>
-        <input type="time" class="corr-hora" value="${hhmmActual}">
-        <input type="text" class="corr-motivo" placeholder="Motivo (obligatorio): p. ej. se fue a comer y no volvió" maxlength="200">
+        <input type="time" class="corr-salida" value="${hhmmSalida}">
       </div>
       <div class="fila">
-        <button class="btn-correctas corr-guardar">Guardar hora</button>
+        <input type="text" class="corr-motivo" placeholder="Motivo (obligatorio): p. ej. fichó la salida como entrada" maxlength="200">
+      </div>
+      <div class="fila">
+        <button class="btn-correctas corr-guardar">Guardar</button>
         <button class="btn-corregir-aviso corr-cancelar">Cancelar</button>
       </div>
       <div class="msg-err" style="display:none"></div>`;
-    item.appendChild(caja);
 
     caja.querySelector('.corr-cancelar').onclick = () => caja.remove();
-    caja.querySelector('.corr-guardar').onclick  = () => guardarCorreccion(fichajeId, caja);
-    caja.querySelector('.corr-hora').focus();
+    caja.querySelector('.corr-guardar').onclick  = () => guardarCorreccion(ctx, caja);
+    (entrada ? caja.querySelector('.corr-entrada') : caja.querySelector('.corr-salida')).focus();
   }
 
-  async function guardarCorreccion(fichajeId, caja) {
-    const hora   = caja.querySelector('.corr-hora').value;
+  // Misma fecha que el fichaje original con otra hh:mm (la RPC lo exige igual).
+  function conHora(iso, hhmm) {
+    const d = new Date(iso);
+    const [hh, mm] = hhmm.split(':').map(Number);
+    d.setHours(hh, mm, 0, 0);
+    return d.toISOString();
+  }
+
+  async function guardarCorreccion(ctx, caja) {
+    const inEnt  = caja.querySelector('.corr-entrada');
+    const hEnt   = (ctx.entradaId && inEnt) ? inEnt.value : '';
+    const hSal   = caja.querySelector('.corr-salida').value;
     const motivo = caja.querySelector('.corr-motivo').value.trim();
     const err    = caja.querySelector('.msg-err');
     const mostrar = t => { err.textContent = t; err.style.display = 'block'; };
     err.style.display = 'none';
 
-    if (!hora)            return mostrar('Pon la hora a la que se fue.');
-    if (motivo.length < 3) return mostrar('El motivo es obligatorio (mínimo 3 caracteres).');
+    const cambiaEntrada = !!ctx.entradaId && hEnt !== '' && hEnt !== ctx.hhmmEntrada;
+    const cambiaSalida  = hSal !== '' && hSal !== ctx.hhmmSalida;
 
-    // El DÍA sale del fichaje original, nunca de la pantalla: corregir
-    // cambia la hora, no la fecha (la RPC lo hace cumplir igualmente).
-    const item = document.querySelector(`.aviso-item[data-fichaje="${fichajeId}"]`);
-    const { data: fila, error: errLee } = await sb
-      .from('fichajes').select('hora').eq('id', fichajeId).single();
-    if (errLee || !fila) return mostrar('No se ha podido leer el fichaje. Inténtalo de nuevo.');
-
-    const d = new Date(fila.hora);
-    const [hh, mm] = hora.split(':').map(Number);
-    d.setHours(hh, mm, 0, 0);
+    if (!hSal)                             return mostrar('Pon la hora de salida.');
+    if (ctx.entradaId && !hEnt)            return mostrar('Pon la hora de entrada.');
+    if (!cambiaEntrada && !cambiaSalida)   return mostrar('No has cambiado ninguna hora. Si las dos son correctas, pulsa "✓ Correctas".');
+    if (motivo.length < 3)                 return mostrar('El motivo es obligatorio (mínimo 3 caracteres).');
 
     const botones = caja.querySelectorAll('button');
     botones.forEach(b => b.disabled = true);
+    const fallo = t => { botones.forEach(b => b.disabled = false); return mostrar(t); };
 
-    const { data, error } = await sb.rpc('corregir_fichaje', {
-      p_fichaje_id: fichajeId,
-      p_nueva_hora: d.toISOString(),
-      p_motivo: motivo
-    });
-
-    if (error || (data && data.success === false)) {
-      botones.forEach(b => b.disabled = false);
-      return mostrar('No se ha podido corregir: ' + (error?.message || data?.error || 'error desconocido'));
+    // Primero la entrada, luego la salida: la RPC rechaza dejar la entrada
+    // por detrás de la salida, y un día "del revés" solo se endereza en
+    // ese orden.
+    if (cambiaEntrada) {
+      const { data, error } = await sb.rpc('corregir_fichaje', {
+        p_fichaje_id: ctx.entradaId,
+        p_nueva_hora: conHora(ctx.entradaHora, hEnt),
+        p_motivo: motivo
+      });
+      if (error || (data && data.success === false)) {
+        return fallo('No se ha podido corregir la entrada: ' + (error?.message || data?.error || 'error desconocido'));
+      }
     }
 
+    if (cambiaSalida) {
+      const { data, error } = await sb.rpc('corregir_fichaje', {
+        p_fichaje_id: ctx.salidaId,
+        p_nueva_hora: conHora(ctx.salidaHora, hSal),
+        p_motivo: motivo
+      });
+      if (error || (data && data.success === false)) {
+        return fallo((cambiaEntrada ? 'Entrada corregida, pero ' : '') +
+          'no se ha podido corregir la salida: ' + (error?.message || data?.error || 'error desconocido'));
+      }
+    } else {
+      // Solo se tocó la entrada: la hora del autocierre es la buena. Se
+      // confirma para que el aviso se apague aquí y en el panel del jefe.
+      const { data, error } = await sb.rpc('confirmar_autocierre', {
+        p_fichaje_id: ctx.salidaId, p_confirmar: true
+      });
+      if (error || (data && data.success === false)) {
+        return fallo('Entrada corregida, pero no se ha podido dar la salida por buena: ' +
+          (error?.message || data?.error || 'error desconocido'));
+      }
+    }
+
+    // La incidencia es rastro: si falla, el trabajo real ya está hecho.
+    if (ctx.incidenciaId) {
+      try { await sb.rpc('marcar_incidencia_vista', { p_incidencia_id: ctx.incidenciaId }); }
+      catch (_) {}
+    }
+
+    const item = document.querySelector(`.aviso-item[data-fichaje="${ctx.salidaId}"]`);
     if (item) item.remove();
     refrescarPanelAvisos();
   }
