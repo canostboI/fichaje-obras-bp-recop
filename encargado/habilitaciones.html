@@ -12,6 +12,7 @@
   <script src="../js/fechas.js"></script>
   <script src="../js/habilitaciones.js?v=20260915"></script>
   <script src="../js/titulo-habilitacion.js?v=20260917b"></script>
+  <script src="../js/foto-identidad.js?v=20260918"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -80,6 +81,15 @@
       background: var(--color-principal); color: white;
       display: flex; align-items: center; justify-content: center;
       font-weight: 700; font-size: 1rem; flex-shrink: 0;
+    }
+    /* 2/10/2026 - La cara sustituye a las iniciales cuando esa persona
+       tiene foto, igual que en el panel principal (108a). Mismo hueco de
+       44px: si no hay foto o no carga, se quedan las iniciales. */
+    .trab-foto {
+      width: 44px; height: 44px; border-radius: 50%;
+      object-fit: cover; flex-shrink: 0;
+      background: var(--color-principal);
+      cursor: pointer;
     }
     .trab-info { flex: 1; min-width: 0; }
     .trab-nombre { font-weight: 700; font-size: 0.98rem; color: #222; }
@@ -168,6 +178,7 @@
   const { createClient } = supabase;
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   AutoLogout.init(sb);
+  if (window.FI) FI.init(sb);   // js/foto-identidad.js (caras en la lista)
 
   let obraActualId = null;
   // Títulos por habilitación, para abrir la galería: id → { archivos, titulo }
@@ -412,7 +423,7 @@
 
       div.innerHTML = `
         <div class="trab-header">
-          <div class="trab-iniciales">${esc(iniciales(t.nombre))}</div>
+          <div class="trab-iniciales" data-trab="${esc(t.id)}">${esc(iniciales(t.nombre))}</div>
           <div class="trab-info">
             <div class="trab-nombre">${esc(t.nombre)}</div>
             <div class="trab-empresa">${esc(t.empresa || '—')}</div>
@@ -421,6 +432,55 @@
         <div class="hab-lista">${pillsHtml}</div>`;
       lista.appendChild(div);
     });
+
+    // Las caras van DESPUÉS de pintar la lista. Si tardan o fallan, la
+    // lista ya está en pantalla con las iniciales. No se espera.
+    ponerCaras(conHabs);
+  }
+
+  // 2/10/2026 - Sustituye las iniciales por la foto de identidad, igual
+  // que en el panel principal (108a): lee la ruta de cada foto y pide
+  // TODOS los enlaces en UNA sola llamada (FI.enlaces). No pasa por
+  // ver_foto_identidad: esa es para mirar una cara a propósito.
+  // Regla: la foto nunca puede romper la lista. Cualquier fallo = iniciales.
+  async function ponerCaras(trabajadores) {
+    if (!window.FI || typeof FI.enlaces !== 'function') return; // versión vieja en caché
+    try {
+      const ids = (trabajadores || []).map(t => t.id);
+      if (!ids.length) return;
+
+      const { data: fotos, error } = await sb
+        .from('fotos_identidad')
+        .select('trabajador_id, storage_path')
+        .in('trabajador_id', ids);
+      if (error || !fotos) return;
+
+      const rutas = [];
+      const porRuta = {};
+      fotos.forEach(f => {
+        if (!f.storage_path || porRuta[f.storage_path]) return;
+        porRuta[f.storage_path] = f.trabajador_id;
+        rutas.push(f.storage_path);
+      });
+      if (!rutas.length) return;
+
+      const urls = await FI.enlaces(rutas);
+      Object.keys(urls).forEach(ruta => {
+        const trabId = porRuta[ruta];
+        if (!trabId) return;
+        const hueco = document.querySelector('.trab-iniciales[data-trab="' + trabId + '"]');
+        if (!hueco) return; // la lista se ha repintado mientras tanto
+        const img = new Image();
+        img.className = 'trab-foto';
+        img.alt = '';
+        img.title = 'Tocar para ver la foto grande';
+        img.addEventListener('click', () => { try { FI.visor(urls[ruta]); } catch (_) {} });
+        // Solo se sustituye cuando la imagen ya está cargada: así no se ve
+        // un hueco vacío si el enlace falla.
+        img.onload = () => { if (hueco.parentNode) hueco.replaceWith(img); };
+        img.src = urls[ruta];
+      });
+    } catch (_) { /* se quedan las iniciales */ }
   }
 
   // Título de la habilitación (17/9): el encargado solo lo VE; lo guarda el
