@@ -26,6 +26,11 @@
    tiene notas, sale ya filtrado por ella. opts.panelRanking ya no
    hace nada (las pantallas lo pueden seguir pasando sin problema).
 
+   2/10/2026 · RANKING PRIMERO (Dani): en jefe y admin la pestaña que
+   sale por defecto es «Ranking por empresa» (se descarga nada más
+   abrir); «Valorar» es la segunda. El encargado no tiene ranking y
+   sigue igual.
+
    AUTÓNOMO: crea su HTML y su CSS. Los colores salen de variables
    con respaldo (--val-*), que cada pantalla define según su tema.
    Nunca `var(--x)` sin respaldo (trampa 86ª).
@@ -146,9 +151,9 @@
       + '<div id="val-lista"><p class="val-vacio">Cargando…</p></div>';
 
     H.innerHTML =
-        (opts.ranking ? '<div class="val-tabs"><button class="val-tab on" data-t="valorar">Valorar</button><button class="val-tab" data-t="ranking">Ranking por empresa</button></div>' : '')
-      + '<section id="val-v-valorar">' + valorar + '</section>'
-      + (opts.ranking ? '<section id="val-v-ranking" style="display:none">'
+        (opts.ranking ? '<div class="val-tabs"><button class="val-tab on" data-t="ranking">Ranking por empresa</button><button class="val-tab" data-t="valorar">Valorar</button></div>' : '')
+      + '<section id="val-v-valorar"' + (opts.ranking ? ' style="display:none"' : '') + '>' + valorar + '</section>'
+      + (opts.ranking ? '<section id="val-v-ranking">'
       +   '<div class="val-barra"><select id="val-sel-empresa"></select><input id="val-buscar-r" type="search" placeholder="Buscar por nombre"></div>'
       +   '<p class="val-info">Todas las obras. Solo sale quien tiene al menos una nota. Mira siempre cuántas notas tiene: una sola nota es una sola opinión.</p>'
       +   '<div id="val-ranking"><p class="val-vacio">Cargando…</p></div>'
@@ -178,6 +183,7 @@
         var t = listaRanking.find(function (x) { return x.trabajador_id === f.dataset.tid; });
         if (t) abrirFicha(t, false);
       });
+      cargarRanking('');   // es la pestaña de entrada: se pide ya, a la vez que las obras
     }
 
     var res;
