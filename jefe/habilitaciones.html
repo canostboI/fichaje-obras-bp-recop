@@ -63,6 +63,17 @@
   .tw-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 13px; border: 1px solid var(--borde); border-radius: 8px; cursor: pointer; transition: background 0.12s, border-color 0.12s; }
   .tw-item:hover { background: var(--bg3); }
   .tw-item.seleccionado { background: var(--bg3); border-color: var(--azul); }
+  /* 3/10/2026 - La cara junto al nombre, igual que en Presencia (jefe/index.html):
+     círculo de hueco FIJO con la foto o con las iniciales, para que la lista no
+     se mueva haya foto o no. Al pulsarla se ve en grande. */
+  .tw-item { gap: 10px; }
+  .cara { width: 34px; height: 34px; border-radius: 50%; flex: 0 0 auto; overflow: hidden;
+          background: var(--bg3); border: 1px solid var(--borde); display: flex;
+          align-items: center; justify-content: center; font-size: 12px; font-weight: 700;
+          color: var(--texto2); letter-spacing: 0.5px; }
+  .cara img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cara.clicable { cursor: pointer; }
+  .cara.clicable:hover { border-color: var(--naranja); }
   .tw-nombre { font-size: 14px; font-weight: 600; }
   .tw-sub { font-size: 12px; color: var(--texto2); margin-top: 2px; }
   .tw-habs-badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
@@ -145,6 +156,7 @@
 <script src="../js/fechas.js"></script>
 <script src="../js/habilitaciones.js?v=20260915"></script>
 <script src="../js/titulo-habilitacion.js?v=20260917b"></script>
+<script src="../js/foto-identidad.js?v=20260918"></script>
 <script src="../js/marca-portium.js?v=20260920"></script>
 </head>
 <body>
@@ -267,6 +279,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 AutoLogout.init(sb);
+if (window.FI) FI.init(sb);   // js/foto-identidad.js (caras en la lista)
 
 // Iconos, estado y umbral viven en js/habilitaciones.js (window.Hab).
 // Icono SVG con respaldo: si el navegador tiene en caché un
@@ -453,6 +466,7 @@ async function cargarHabilitados() {
     return `
       <div class="tw-item ${trabajadorActual?.id === t.id ? 'seleccionado' : ''}"
            onclick="seleccionar('${t.id}','${escAttr(t.nombre + ' ' + t.apellidos)}','${escAttr(t.dni)}','${escAttr(t.empresa?.nombre || '')}', event)">
+        <span class="cara" data-trab="${esc(t.id)}">${esc(inicialesDe(t.nombre + ' ' + t.apellidos))}</span>
         <div style="flex:1;min-width:0;">
           <div class="tw-nombre">${esc(t.nombre)} ${esc(t.apellidos)}</div>
           <div class="tw-sub">${esc(t.dni)} · ${esc(t.empresa?.nombre || 'Sin empresa')}</div>
@@ -460,6 +474,63 @@ async function cargarHabilitados() {
         </div>
       </div>`;
   }).join('');
+
+  // Las caras van DESPUÉS de pintar la lista. Si tardan o fallan, la
+  // lista ya está en pantalla con las iniciales. No se espera.
+  ponerCaras((twData || []).map(t => t.id));
+}
+
+function inicialesDe(nombreCompleto) {
+  const partes = String(nombreCompleto || '').replace(/,/g, ' ').trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return '·';
+  const a = partes[0][0] || '';
+  const b = partes.length > 1 ? (partes[partes.length - 1][0] || '') : '';
+  return (a + b).toUpperCase();
+}
+
+// 3/10/2026 - Sustituye las iniciales por la foto de identidad, igual que
+// en Presencia: UNA consulta a fotos_identidad y UNA sola firma para todas
+// (FI.enlaces). No pasa por ver_foto_identidad: esa es para mirar una cara
+// a propósito. Regla: la foto nunca puede romper la lista. Fallo = iniciales.
+async function ponerCaras(ids) {
+  if (!window.FI || typeof FI.enlaces !== 'function') return; // versión vieja en caché
+  try {
+    if (!ids || !ids.length) return;
+    const { data, error } = await sb
+      .from('fotos_identidad')
+      .select('trabajador_id, storage_path')
+      .in('trabajador_id', ids);
+    if (error || !data) return;
+
+    const rutas = [];
+    const porRuta = {};
+    data.forEach(r => {
+      if (!r.storage_path || porRuta[r.storage_path]) return;
+      porRuta[r.storage_path] = r.trabajador_id;
+      rutas.push(r.storage_path);
+    });
+    if (!rutas.length) return;
+
+    const urls = await FI.enlaces(rutas);
+    Object.keys(urls).forEach(ruta => {
+      const hueco = document.querySelector('.cara[data-trab="' + porRuta[ruta] + '"]');
+      if (!hueco) return; // la lista se ha repintado mientras tanto
+      const img = new Image();
+      img.alt = '';
+      // Solo se sustituye cuando la imagen ya está cargada: así no se ve
+      // un hueco vacío si el enlace falla.
+      img.onload = () => {
+        if (!hueco.parentNode) return;
+        hueco.innerHTML = '';
+        hueco.appendChild(img);
+        hueco.classList.add('clicable');
+        hueco.title = 'Ver la foto en grande';
+        // La cara abre el visor; el resto de la fila sigue seleccionando.
+        hueco.addEventListener('click', ev => { ev.stopPropagation(); try { FI.visor(urls[ruta]); } catch (_) {} });
+      };
+      img.src = urls[ruta];
+    });
+  } catch (_) { /* se quedan las iniciales */ }
 }
 
 // ── BÚSQUEDA ──────────────────────────────────────────────────────
