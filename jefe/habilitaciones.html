@@ -91,7 +91,9 @@
   .buscar-hint { font-size: 12px; color: var(--texto2); margin-bottom: 10px; }
 
   #panel-trabajador { display: none; }
-  .tw-encabezado { margin-bottom: 16px; }
+  .tw-encabezado { margin-bottom: 16px; display: flex; align-items: center; gap: 12px; }
+  /* 3/10/2026 - En la cabecera de la ficha la cara va más grande. */
+  .tw-encabezado .cara { width: 52px; height: 52px; font-size: 16px; }
   .tw-encabezado .nombre { font-size: 16px; font-weight: 800; }
   .tw-encabezado .sub { font-size: 13px; color: var(--texto2); margin-top: 3px; }
 
@@ -229,8 +231,11 @@
           </div>
           <div class="seccion-body">
             <div class="tw-encabezado">
-              <div class="nombre" id="tw-nombre"></div>
-              <div class="sub" id="tw-sub"></div>
+              <span class="cara" id="tw-cara"></span>
+              <div>
+                <div class="nombre" id="tw-nombre"></div>
+                <div class="sub" id="tw-sub"></div>
+              </div>
             </div>
             <div id="msg-hab" class="mensaje"></div>
             <div class="hab-lista" id="lista-habilitaciones">
@@ -513,22 +518,28 @@ async function ponerCaras(ids) {
 
     const urls = await FI.enlaces(rutas);
     Object.keys(urls).forEach(ruta => {
-      const hueco = document.querySelector('.cara[data-trab="' + porRuta[ruta] + '"]');
-      if (!hueco) return; // la lista se ha repintado mientras tanto
-      const img = new Image();
-      img.alt = '';
-      // Solo se sustituye cuando la imagen ya está cargada: así no se ve
-      // un hueco vacío si el enlace falla.
-      img.onload = () => {
-        if (!hueco.parentNode) return;
-        hueco.innerHTML = '';
-        hueco.appendChild(img);
-        hueco.classList.add('clicable');
-        hueco.title = 'Ver la foto en grande';
-        // La cara abre el visor; el resto de la fila sigue seleccionando.
-        hueco.addEventListener('click', ev => { ev.stopPropagation(); try { FI.visor(urls[ruta]); } catch (_) {} });
-      };
-      img.src = urls[ruta];
+      // La misma persona puede estar en la lista de arriba, en el buscador
+      // y en la cabecera de la ficha a la vez: se rellenan todos sus huecos.
+      const huecos = document.querySelectorAll('.cara[data-trab="' + porRuta[ruta] + '"]');
+      if (!huecos.length) return; // la lista se ha repintado mientras tanto
+      huecos.forEach(hueco => {
+        const img = new Image();
+        img.alt = '';
+        // Solo se sustituye cuando la imagen ya está cargada: así no se ve
+        // un hueco vacío si el enlace falla.
+        img.onload = () => {
+          if (!hueco.parentNode) return;
+          hueco.innerHTML = '';
+          hueco.appendChild(img);
+          hueco.classList.add('clicable');
+          hueco.title = 'Ver la foto en grande';
+          // La cara abre el visor; el resto de la fila sigue seleccionando.
+          // onclick (no addEventListener) para que al reutilizar el hueco de
+          // la cabecera no se acumulen clics de personas anteriores.
+          hueco.onclick = ev => { ev.stopPropagation(); try { FI.visor(urls[ruta]); } catch (_) {} };
+        };
+        img.src = urls[ruta];
+      });
     });
   } catch (_) { /* se quedan las iniciales */ }
 }
@@ -557,12 +568,14 @@ async function buscarTrabajadores() {
   el.innerHTML = filtrados.map(t => `
     <div class="tw-item ${trabajadorActual?.id === t.id ? 'seleccionado' : ''}"
          onclick="seleccionar('${t.id}','${escAttr(t.nombre + ' ' + t.apellidos)}','${escAttr(t.dni)}','${escAttr(t.empresa?.nombre || '')}', event)">
-      <div>
+      <span class="cara" data-trab="${esc(t.id)}">${esc(inicialesDe(t.nombre + ' ' + t.apellidos))}</span>
+      <div style="flex:1;min-width:0;">
         <div class="tw-nombre">${esc(t.nombre)} ${esc(t.apellidos)}</div>
         <div class="tw-sub">${esc(t.dni)} · ${esc(t.empresa?.nombre || 'Sin empresa')}</div>
       </div>
     </div>
   `).join('');
+  ponerCaras(filtrados.map(t => t.id));
 }
 
 // ── PANEL TRABAJADOR ──────────────────────────────────────────────
@@ -572,6 +585,17 @@ async function seleccionar(id, nombre, dni, empresa, evt) {
   document.getElementById('panel-titulo').textContent = nombre;
   document.getElementById('tw-nombre').textContent = nombre;
   document.getElementById('tw-sub').textContent = 'DNI: ' + dni + (empresa ? ' · ' + empresa : '');
+  // La cara de la cabecera vuelve a iniciales (es el hueco de la persona
+  // anterior) y se pide la foto nueva.
+  const caraCab = document.getElementById('tw-cara');
+  if (caraCab) {
+    caraCab.textContent = inicialesDe(nombre);
+    caraCab.classList.remove('clicable');
+    caraCab.title = '';
+    caraCab.onclick = null;
+    caraCab.dataset.trab = id;
+    ponerCaras([id]);
+  }
   document.getElementById('msg-hab').style.display = 'none';
   document.querySelectorAll('.tw-item').forEach(el => el.classList.remove('seleccionado'));
   if (evt && evt.currentTarget) evt.currentTarget.classList.add('seleccionado');
