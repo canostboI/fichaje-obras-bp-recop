@@ -3464,6 +3464,18 @@ async function ejecutarFichaje(tipo) {
     if (!data || !data.success) {
       irA(el.pasoResultado);
       el.btnEntrada.disabled = false; el.btnSalida.disabled = false;
+      // UNA-SOLA-CAUSA (5/10/2026, caso Boulmani): si el rechazo es por GPS,
+      // el cartel naranja «Acceso con aviso · documentación pendiente» que
+      // quedó de validar_acceso sigue en pantalla encima del error, y el
+      // trabajador (y el encargado que mira la foto) leen «no entra por
+      // papeles». Los papeles no tienen nada que ver: se esconden el cartel y
+      // los avisos y queda SOLO el mensaje del GPS con su instrucción. Se
+      // vuelven a pintar solos al validar el DNI otra vez
+      // (mostrarResultadoValidacion resetea estadoBox y pintarMotivos).
+      if (data && data.codigo === 'FUERA_DE_ZONA') {
+        el.estadoBox.classList.add('oculto');
+        el.motivosBox.classList.add('oculto');
+      }
       mostrarErrorResultado(textoErrorRpc(data),
                             data.codigo === 'SALIDA_DEMASIADO_PRONTO');
       if (data && Array.isArray(data.motivos) && data.motivos.length)
