@@ -58,7 +58,14 @@
       «¿le dejo pasar?», y solo la cierra verificar en persona o el
       rechazo). Pero no es lo mismo que alguien parado en la valla: esa
       fila va en NARANJA, al final, con «Está dentro desde las HH:MM», y
-      el título la cuenta aparte («· 3 dentro sin identificar»).
+      el título la cuenta aparte («· 3 dentro sin identificar»). Y el
+      bloque entero va en NARANJA cuando no hay nadie parado en la valla;
+      en rojo solo cuando sí lo hay.
+   5. «VISTO» A UNA IDENTIDAD PENDIENTE (8/10, Dani). Botón «✓ Visto» en
+      las filas de identidad: llama a marcar_identidad_vista (solo el jefe,
+      firmado) y la fila deja de salir aquí. La identidad sigue pendiente:
+      el recordatorio es la marca «🪪 Identificar» de los listados de
+      presentes (js/marca-identidad.js), que no se va con el visto.
 
    QUÉ NO HACE
    No toca la BD ni ninguna regla de fondo: el visto manda, «no se va al
@@ -124,6 +131,9 @@
       // El bloque
       '.puerta{background:rgba(244,67,54,.08);border:1px solid rgba(244,67,54,.45);border-radius:12px;padding:14px 16px 12px;margin-bottom:18px}',
       '.puerta.oculto{display:none}',
+      '.puerta.naranja{background:rgba(255,152,0,.07);border-color:rgba(255,152,0,.45)}',
+      '.puerta.naranja .puerta-cab h3{color:var(--naranja,#ff9800)}',
+      '.puerta.naranja .puerta-cab h3 .puerta-punto{background:var(--naranja,#ff9800)}',
       '.puerta-cab{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:6px 12px;margin-bottom:10px}',
       '.puerta-cab h3{margin:0;font-size:15px;font-weight:800;color:var(--rojo,#f44336);display:flex;align-items:center;gap:8px}',
       '.puerta-cab h3 .puerta-punto{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--rojo,#f44336);flex:0 0 auto}',
@@ -444,7 +454,18 @@
       acc.appendChild(b);
     }
     // 2) Identidad: su tarjeta entera (texto escondido por CSS), con sus dos botones y el hueco del rechazo
-    if (o.ident) acc.appendChild(o.ident.nodo);
+    if (o.ident) {
+      acc.appendChild(o.ident.nodo);
+      if (o.ident.ref) {
+        var vi = document.createElement('button');
+        vi.type = 'button';
+        vi.className = 'puerta-btn';
+        vi.textContent = '✓ Visto';
+        vi.title = 'Ya lo sé: deja de salir aquí. La identidad sigue pendiente y la marca 🪪 queda en los listados.';
+        vi.addEventListener('click', function () { vistoIdentidad(o.ident.ref, vi); });
+        acc.appendChild(vi);
+      }
+    }
     // 3) Bloqueos: sus enlaces, sin repetir; los «Visto» se sustituyen por uno solo para toda la persona
     var vistos = [];
     var hrefs = {};
@@ -472,6 +493,25 @@
       v.title = vistos.length > 1 ? 'Marca como vistas sus ' + vistos.length + ' anotaciones de hoy' : 'Marcar como visto';
       v.addEventListener('click', function () { marcarVistos(vistos, v); });
       acc.appendChild(v);
+    }
+  }
+
+  async function vistoIdentidad(ref, btn) {
+    var obra = obraDeAhora();
+    if (!obra) return;
+    btn.disabled = true;
+    btn.textContent = 'Marcando…';
+    try {
+      var r = await sb.rpc('marcar_identidad_vista', { p_trabajador_id: ref, p_obra_id: obra });
+      if (r.error || !r.data || r.data.ok !== true) {
+        throw new Error((r.error && r.error.message) || (r.data && r.data.error) || 'No se pudo marcar');
+      }
+      if (typeof window.cargarIdentidadesPendientes === 'function') await window.cargarIdentidadesPendientes();
+      try { if (window.MarcaIdentidad && typeof window.MarcaIdentidad.repintar === 'function') window.MarcaIdentidad.repintar(); } catch (_) {}
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = '✓ Visto';
+      alert('Error: ' + (e && e.message ? e.message : e));
     }
   }
 
@@ -727,6 +767,7 @@
       tit.textContent = 'En la puerta · nadie pendiente de ti';
       h3.classList.add('verde');
     }
+    b.classList.toggle('naranja', !pendientes);
     b.classList.toggle('oculto', !n && !fallosNodos.length);
     document.body.classList.add('puerta-activa');
   }
