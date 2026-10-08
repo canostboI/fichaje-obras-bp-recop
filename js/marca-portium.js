@@ -282,6 +282,16 @@
     // a quien sigue fuera (arriba) de quien ya puede entrar porque le has
     // arreglado los papeles o le has autorizado (debajo, en verde).
     if (pagina === 'index.html' || pagina === '') cargar('accesos-ya-pueden.js');
+    // 8/10/2026 — y en Presencia, UN SOLO bloque «En la puerta» en vez de los
+    // tres paneles rojos (sin identificar, piden autorización, sin poder
+    // entrar): una fila por persona, formulario plegado hasta pulsar
+    // «Resolver», la casilla del 5/10 («dar por buena su entrada de las
+    // HH:MM») y lo informativo (ronda, cierre de mes, RP, habilitaciones,
+    // autocierres, ausentes y papeles) en una franja fina bajo los números.
+    // Pedido por Dani («muy reiterativo… tantos banners me confunden»).
+    // Envuelve los tres cargadores; si falla, los paneles de siempre siguen.
+    // 🔴 Para volver atrás: quitar esta línea. El resto no depende de ella.
+    if (pagina === 'index.html' || pagina === '') cargar('en-la-puerta.js');
     // 21/9/2026 — APAGADO: `aviso-sin-comprobar.js` decía lo mismo que
     // `ausentes-ecoordina.js` de las mismas personas. El lunes 21 los dos
     // banners enseñaron LOS MISMOS SIETE NOMBRES en la misma pantalla, y eso
