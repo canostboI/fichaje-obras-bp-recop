@@ -52,6 +52,14 @@
    5/10, que llama a registrar_fichaje_manual SOLO si la autorización
    salió bien y la casilla estaba marcada.
 
+   4. QUIEN YA ESTÁ DENTRO (8/10, Dani: «¿por qué salen en el banner si
+      ya están trabajando dentro?»). Una identidad pendiente NO se cierra
+      al dejar pasar (regla del 23/9: «¿quién es?» es otra pregunta que
+      «¿le dejo pasar?», y solo la cierra verificar en persona o el
+      rechazo). Pero no es lo mismo que alguien parado en la valla: esa
+      fila va en NARANJA, al final, con «Está dentro desde las HH:MM», y
+      el título la cuenta aparte («· 3 dentro sin identificar»).
+
    QUÉ NO HACE
    No toca la BD ni ninguna regla de fondo: el visto manda, «no se va al
    autorizar», los fallos de consulta se dicen (salen arriba del bloque),
@@ -140,6 +148,8 @@
       '.puerta-etq.pide{background:rgba(255,152,0,.18);border-color:rgba(255,152,0,.6);color:var(--naranja,#ff9800)}',
       '.puerta-etq.roja{background:rgba(244,67,54,.18);border-color:rgba(244,67,54,.6);color:var(--rojo,#f44336)}',
       '.puerta-etq.verde{background:rgba(76,175,80,.18);border-color:rgba(76,175,80,.6);color:var(--verde,#4caf50)}',
+      '.puerta-etq.dentro{background:rgba(255,152,0,.14);border-color:rgba(255,152,0,.5);color:var(--naranja,#ff9800)}',
+      '.puerta-fila.dentro{border-color:rgba(255,152,0,.35)}',
       // Los botones de la derecha
       '.puerta-acciones{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end}',
       '.puerta-acciones .btn-visto-rojo,.puerta-acciones .puerta-btn{background:var(--bg2,#1a1d24);border:1px solid var(--borde,#2e3340);color:var(--texto,#e8eaf0);font-size:13px;padding:8px 14px;border-radius:8px;cursor:pointer;font-family:inherit;white-space:nowrap;min-height:38px;display:inline-flex;align-items:center;text-decoration:none;box-sizing:border-box}',
@@ -306,6 +316,31 @@
     };
   }
 
+  // Quién está DENTRO ahora mismo, por DNI y por id, a partir de los fichajes de
+  // hoy que la página ya tiene leídos (fichajesHoyCache). Sin dato → nadie.
+  function dentroAhora() {
+    var out = { dni: {}, ref: {} };
+    var fich = null;
+    try { fich = (typeof fichajesHoyCache !== 'undefined') ? fichajesHoyCache : null; } catch (_) { fich = null; }
+    if (!fich || !fich.length) return out;
+    var saldo = {}, entrada = {}, dniDe = {};
+    fich.forEach(function (f) {
+      var id = f.trabajador_id;
+      if (!id) return;
+      if (!(id in saldo)) saldo[id] = 0;
+      if (f.tipo === 'entrada') { saldo[id] += 1; entrada[id] = f.hora; }
+      else saldo[id] -= 1;
+      if (f.trabajador && f.trabajador.dni) dniDe[id] = normDni(f.trabajador.dni);
+    });
+    Object.keys(saldo).forEach(function (id) {
+      if (saldo[id] <= 0) return;
+      var h = hhmm(entrada[id]);
+      out.ref[id] = h;
+      if (dniDe[id]) out.dni[dniDe[id]] = h;
+    });
+    return out;
+  }
+
   // ── Fusión por persona ──
   function fusionar(sols, idents, bloqs) {
     var personas = {}, orden = [];
@@ -334,10 +369,14 @@
     return orden.map(function (k) { return personas[k]; });
   }
 
-  function clasificar(o) {
+  function clasificar(o, dentro) {
     var verde = o.bloqs.length && o.bloqs.every(function (b) { return !!b.verde; }) && !o.sol && !o.ident;
     if (o.sol) return { clase: 'pide', etq: 'PIDE PASO', peso: 0 };
-    if (o.ident) return { clase: 'roja', etq: 'SIN IDENTIFICAR', peso: 1 };
+    if (o.ident) {
+      var h = dentro.dni[normDni(o.dni)] || dentro.ref[o.ref] || '';
+      if (h) return { clase: 'dentro', etq: 'DENTRO · SIN IDENTIFICAR', peso: 2.5, desde: h };
+      return { clase: 'roja', etq: 'SIN IDENTIFICAR', peso: 1 };
+    }
     if (verde) return { clase: 'verde', etq: 'YA PUEDE ENTRAR', peso: 3 };
     if (o.bloqs.some(function (b) { return b.sinRegistrar; }) && !o.ref) return { clase: 'roja', etq: 'SIN REGISTRAR', peso: 2 };
     return { clase: 'roja', etq: 'SIN PODER ENTRAR', peso: 2 };
@@ -366,6 +405,12 @@
     }
     if (o.ident) {
       var i = o.ident;
+      if (cl.clase === 'dentro') {
+        partes.push('Está dentro desde las <strong>' + esc(cl.desde) + '</strong>, pero nadie le ha visto el documento todavía');
+        partes.push(esc(i.cuando || 'Registrado en la puerta') +
+          (i.registradoPor ? ' por <strong>' + esc(i.registradoPor) + '</strong>' : ''));
+        return partes.join(' · ');
+      }
       partes.push(esc(i.cuando || 'Registrado en la puerta') +
         (i.registradoPor ? ' por <strong>' + esc(i.registradoPor) + '</strong>' : '') +
         ', nadie le ha visto el documento');
@@ -602,8 +647,10 @@
     fallosNodos.forEach(function (n) { cajaFallos.appendChild(n); });
     cajaFallos.style.display = fallosNodos.length ? '' : 'none';
 
-    // Orden: pide paso · sin identificar · sin poder entrar / sin registrar · ya puede entrar
-    var filasDatos = personas.map(function (o) { return { o: o, cl: clasificar(o) }; });
+    // Orden: pide paso · sin identificar · sin poder entrar / sin registrar ·
+    // dentro sin identificar · ya puede entrar
+    var dentro = dentroAhora();
+    var filasDatos = personas.map(function (o) { return { o: o, cl: clasificar(o, dentro) }; });
     filasDatos.sort(function (a, b2) {
       if (a.cl.peso !== b2.cl.peso) return a.cl.peso - b2.cl.peso;
       return String(a.o.nombre).localeCompare(String(b2.o.nombre), 'es');
@@ -611,12 +658,13 @@
 
     var cont = b.querySelector('.puerta-filas');
     cont.innerHTML = '';
-    var pendientes = 0;
+    var pendientes = 0, dentroSinId = 0;
     filasDatos.forEach(function (fd) {
       var o = fd.o, cl = fd.cl;
-      if (cl.clase !== 'verde') pendientes++;
+      if (cl.clase === 'dentro') dentroSinId++;
+      else if (cl.clase !== 'verde') pendientes++;
       var fila = document.createElement('article');
-      fila.className = 'puerta-fila' + (cl.clase === 'verde' ? ' verde' : '');
+      fila.className = 'puerta-fila' + (cl.clase === 'verde' ? ' verde' : '') + (cl.clase === 'dentro' ? ' dentro' : '');
       fila.setAttribute('data-clave', o.clave);
       if (o.sol) fila.setAttribute('data-sol', o.sol.id);
       fila.innerHTML =
@@ -668,8 +716,12 @@
     var h3 = b.querySelector('.puerta-cab h3');
     var tit = b.querySelector('.puerta-titulo');
     var n = filasDatos.length;
+    var cola = dentroSinId ? ' · ' + dentroSinId + ' dentro sin identificar' : '';
     if (pendientes) {
-      tit.textContent = 'En la puerta · ' + pendientes + (pendientes === 1 ? ' persona espera tu decisión' : ' personas esperan tu decisión');
+      tit.textContent = 'En la puerta · ' + pendientes + (pendientes === 1 ? ' persona espera tu decisión' : ' personas esperan tu decisión') + cola;
+      h3.classList.remove('verde');
+    } else if (dentroSinId) {
+      tit.textContent = 'En la puerta · nadie parado' + cola;
       h3.classList.remove('verde');
     } else if (n) {
       tit.textContent = 'En la puerta · nadie pendiente de ti';
