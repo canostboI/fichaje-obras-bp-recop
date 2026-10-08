@@ -562,6 +562,7 @@ function etiquetaCat(t) {  const ETQ = { peon:'Peón', oficial:'Oficial', encarg
       <button class="btn-secundario" id="btn-cerrar-dia">Cerrar</button>
       <button class="btn-secundario" id="btn-abrir-manual">➕ Fichaje suelto</button>
       <button class="btn-secundario" id="btn-abrir-fijar">✔ Fijar horas</button>
+      <button class="btn-rojo" id="btn-quitar-fijar-dia" style="display:none;padding:8px 14px;font-size:13px;border-radius:8px">↩ Quitar y volver al cálculo</button>
       <button class="btn-primario" id="btn-abrir-ajuste">⚡ Ajustar día</button>
     </div>
   </div>
@@ -3762,6 +3763,11 @@ function renderListaDia(trabajadorId, dia) {
       + ` <span style="font-size:11px;opacity:.7">(con horario de obra, descanso y redondeo aplicados)</span>`;
   }
   document.getElementById('dia-horas').innerHTML = lineaHoras;
+  // 8/10/2026 · Si el día ya tiene horas fijadas, el modal ofrece lo contrario
+  // sin pasar por otra ventana: «Cambiar» abre la de siempre y el rojo quita
+  // el ajuste aquí mismo (misma vía de escritura: guardarHorasDia).
+  document.getElementById('btn-abrir-fijar').textContent = ajDia ? '✎ Cambiar horas fijadas' : '✔ Fijar horas';
+  document.getElementById('btn-quitar-fijar-dia').style.display = ajDia ? '' : 'none';
 
   if (fichajes.length === 0) {
     lista.innerHTML = '<div class="dia-vacio">No hay fichajes este día.<br>Puedes añadir uno manual con el botón de abajo.</div>';
@@ -3772,7 +3778,6 @@ function renderListaDia(trabajadorId, dia) {
   // (escaneó dos veces seguidas). No se borra nada (los fichajes reales nunca se
   // borran) y no hace falta: el motor coge la primera entrada y la última salida
   // del día. Aquí solo se enseña para que el jefe no lo tome por un error.
-  const hhmmDe = (iso) => { const d = new Date(iso); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; };
   const doblePase = new Set();        // índices de fichajes que forman un doble pase
   const avisoDoble = {};              // índice de la ENTRADA del par → texto del aviso
   const primeraEntrada = fichajes.find(f => f.tipo === 'entrada') || null;
@@ -4068,6 +4073,26 @@ document.getElementById('btn-guardar-fijar').addEventListener('click', async () 
 document.getElementById('btn-quitar-fijar').addEventListener('click', async () => {
   if (!diaAbierto) return;
   await llamarFijarHoras(null, null, 'Ajuste quitado: el día vuelve al cálculo automático.');
+});
+
+// 8/10/2026 · Quitar el ajuste desde el propio modal del día (un clic menos).
+// Pide confirmación con las dos cifras y, al terminar, vuelve a abrir el día
+// para que se vea que ha vuelto a las horas calculadas.
+document.getElementById('btn-quitar-fijar-dia').addEventListener('click', async () => {
+  if (!diaAbierto) return;
+  const t = resumenTrabajadores[diaAbierto.trabajadorId] || {};
+  const ajDia = (t.dias_ajuste && t.dias_ajuste[diaAbierto.dia]) || null;
+  if (!ajDia) return;
+  if (!confirm(`¿Quitar las ${formatHoras(ajDia.fijadas)} h fijadas y volver a las ${formatHoras(ajDia.calculadas)} h calculadas?`)) return;
+  const btn = document.getElementById('btn-quitar-fijar-dia');
+  btn.disabled = true;
+  btn.textContent = 'Quitando…';
+  const fechaStr = mesCargado + '-' + String(diaAbierto.dia).padStart(2, '0');
+  const res = await guardarHorasDia(diaAbierto.trabajadorId, fechaStr, null, null);
+  btn.disabled = false;
+  btn.textContent = '↩ Quitar y volver al cálculo';
+  if (!res.ok) { alert('No se ha podido quitar el ajuste: ' + res.error); return; }
+  await recargarYReabrirDia();
 });
 
 // Recarga el resumen y, si había un día abierto, vuelve a mostrarlo actualizado
