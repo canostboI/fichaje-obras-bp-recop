@@ -218,6 +218,14 @@ function etiquetaCat(t) {  const ETQ = { peon:'Peón', oficial:'Oficial', encarg
   .marca.autocierre { background: rgba(255,152,0,0.18);  color: var(--naranja); }
   .marca.corregido  { background: rgba(139,144,158,0.18); color: var(--texto2); }
   .marca.confirmado { background: rgba(76,175,80,0.15);  color: var(--verde); }
+  /* 8/10/2026 · Doble pase del QR (salida y entrada seguidas, ≤15 min): las dos
+     filas se apagan y entre ellas se explica que no cambian las horas. Solo
+     pantalla: el motor (js/excel-proforma.js) ya coge la primera entrada y la
+     última salida del día. Los botones siguen ahí por si hay que corregir. */
+  .fila-fichaje.doble-pase { opacity: .55; }
+  .fila-doble-pase { padding: 7px 14px; border-bottom: 1px solid var(--borde);
+    background: rgba(255,152,0,0.07); color: var(--naranja); font-size: 12px; font-weight: 600; line-height: 1.35; }
+  .fila-doble-pase small { display: block; color: var(--texto2); font-weight: 400; font-size: 11px; }
   .btn-verde { background: transparent; border: 1px solid var(--verde); color: var(--verde); padding: 5px 10px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
   .btn-verde:hover { background: var(--verde); color: #111; }
   .btn-verde:disabled { opacity: 0.6; cursor: default; }
@@ -3729,6 +3737,9 @@ function abrirDetalleDia(trabajadorId, dia) {
   document.getElementById('modal-dia').classList.add('visible');
 }
 
+// 8/10/2026 · margen para considerar «doble pase» una salida y la entrada siguiente.
+const DOBLE_PASE_MS = 15 * 60 * 1000;
+
 function renderListaDia(trabajadorId, dia) {
   const lista = document.getElementById('dia-lista');
   const fichajes = fichajesDelDia(trabajadorId, dia);
@@ -3757,9 +3768,33 @@ function renderListaDia(trabajadorId, dia) {
     return;
   }
 
-  lista.innerHTML = fichajes.map(f => {
+  // 8/10/2026 · DOBLE PASE: una salida y la entrada siguiente a 15 min o menos
+  // (escaneó dos veces seguidas). No se borra nada (los fichajes reales nunca se
+  // borran) y no hace falta: el motor coge la primera entrada y la última salida
+  // del día. Aquí solo se enseña para que el jefe no lo tome por un error.
+  const hhmmDe = (iso) => { const d = new Date(iso); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; };
+  const doblePase = new Set();        // índices de fichajes que forman un doble pase
+  const avisoDoble = {};              // índice de la ENTRADA del par → texto del aviso
+  const primeraEntrada = fichajes.find(f => f.tipo === 'entrada') || null;
+  const ultimaSalida = [...fichajes].reverse().find(f => f.tipo === 'salida') || null;
+  const rangoDia = (primeraEntrada && ultimaSalida && new Date(ultimaSalida.hora) > new Date(primeraEntrada.hora))
+    ? ` · el día cuenta ${hhmmDe(primeraEntrada.hora)} → ${hhmmDe(ultimaSalida.hora)}` : '';
+  for (let i = 0; i + 1 < fichajes.length; i++) {
+    const a = fichajes[i], b = fichajes[i + 1];
+    if (a.tipo !== 'salida' || b.tipo !== 'entrada') continue;
+    const ms = new Date(b.hora) - new Date(a.hora);
+    if (!(ms >= 0 && ms <= DOBLE_PASE_MS)) continue;
+    doblePase.add(i); doblePase.add(i + 1);
+    const min = Math.round(ms / 60000);
+    avisoDoble[i + 1] = `⏱ Doble pase (${min < 1 ? 'menos de 1 min' : min + ' min'})${rangoDia}`;
+  }
+
+  lista.innerHTML = fichajes.map((f, idx) => {
     const d = new Date(f.hora);
     const hhmm = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const avisoHtml = avisoDoble[idx]
+      ? `<div class="fila-doble-pase">${escapeHtml(avisoDoble[idx])}<small>Estos dos fichajes no cambian las horas: la app coge la primera entrada y la última salida del día.</small></div>`
+      : '';
     const marcas = [];
     if (f.es_manual) marcas.push('<span class="marca manual">manual</span>');
     if (f.cierre_automatico) marcas.push('<span class="marca autocierre">autocierre</span>');
@@ -3767,7 +3802,7 @@ function renderListaDia(trabajadorId, dia) {
     if (f.confirmado_por) marcas.push('<span class="marca confirmado">✔ confirmada</span>');
     const motivoTxt = f.motivo_correccion
       ? `<span class="motivo-mini">📝 ${escapeHtml(f.motivo_correccion)}</span>` : '';
-    return `<div class="fila-fichaje">
+    return `${avisoHtml}<div class="fila-fichaje${doblePase.has(idx) ? ' doble-pase' : ''}">
       <div class="izq">
         <span class="tipo ${f.tipo === 'entrada' ? 'entrada' : 'salida'}">${f.tipo === 'entrada' ? '📥 Entrada' : '📤 Salida'}</span>
         <div class="marcas">${marcas.join('')}</div>
