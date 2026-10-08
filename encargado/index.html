@@ -86,6 +86,11 @@
     .card-rojos-numero { font-size: 2.6rem; font-weight: 800; color: #e53935; line-height: 1; }
     .card-rojos-label { font-size: 0.95rem; font-weight: 700; color: #333; }
     .card-rojos-ayuda { font-size: 0.82rem; color: #777; margin-top: 4px; }
+    /* 8/10/2026 (Dani): «¿cómo es que es cero si hoy ha pasado de todo?».
+       El número cuenta solo a quien SIGUE fuera; quien acabó entrando no
+       suma. Sin esta línea, un 0 parecía «no ha pasado nada». Misma línea
+       que ya tenía el panel del jefe bajo su contador. */
+    .card-rojos-desglose { font-size: 0.82rem; color: #2e7d32; font-weight: 700; margin-top: 6px; display: none; }
 
     .card-naranjas {
       border-left: 5px solid #ff9800;
@@ -636,6 +641,7 @@
         <div>
           <div class="card-rojos-label">🚫 Accesos denegados hoy</div>
           <div class="card-rojos-ayuda">Pulsa para ver quién lo ha intentado</div>
+          <div class="card-rojos-desglose" id="stat-rojos-desglose"></div>
         </div>
         <div class="card-rojos-numero" id="stat-rojos">0</div>
       </div>
@@ -1223,6 +1229,8 @@
       rojosHoyCache = null;
       const statErr = document.getElementById('stat-rojos');
       if (statErr) statErr.textContent = '?';
+      const desgErr = document.getElementById('stat-rojos-desglose');
+      if (desgErr) { desgErr.style.display = 'none'; desgErr.textContent = ''; }
       panel.style.display = 'block';
       panel.innerHTML = '<h2>⚠️ No se ha podido comprobar quién se ha quedado fuera</h2>'
         + '<p class="bloqueo-subtitulo">La consulta de accesos denegados ha fallado, '
@@ -1273,6 +1281,21 @@
     // Número visible de la tarjeta: los que siguen sin poder entrar.
     const statRojos = document.getElementById('stat-rojos');
     if (statRojos) statRojos.textContent = clas.totales.personasPendientes;
+
+    // 8/10/2026 · Debajo del número, cuántos se han resuelto solos hoy
+    // (denegados que después ficharon). Igual que en el panel del jefe:
+    // un 0 con «3 resueltos» cuenta la mañana; un 0 a secas la esconde.
+    const desgRojos = document.getElementById('stat-rojos-desglose');
+    if (desgRojos) {
+      const nRes = clas.totales.personasResueltas;
+      if (nRes > 0) {
+        desgRojos.textContent = `✅ ${nRes} ${nRes === 1 ? 'resuelto' : 'resueltos'} solo${nRes === 1 ? '' : 's'} hoy · entraron más tarde`;
+        desgRojos.style.display = 'block';
+      } else {
+        desgRojos.textContent = '';
+        desgRojos.style.display = 'none';
+      }
+    }
 
     // El panel rojo solo saca a quien SIGUE fuera y no se ha marcado visto.
     window.__gruposSol = {};
