@@ -292,6 +292,11 @@
     // Envuelve los tres cargadores; si falla, los paneles de siempre siguen.
     // 🔴 Para volver atrás: quitar esta línea. El resto no depende de ella.
     if (pagina === 'index.html' || pagina === '') cargar('en-la-puerta.js');
+    // 8/10/2026 — y en Presencia, la marca «🪪 Identificar» junto al nombre
+    // en la tabla de presentes para quien sigue con la identidad pendiente
+    // (registrado en la puerta y nadie le ha visto el documento). También
+    // en el panel del encargado (bloque de abajo). Pedido por Dani.
+    if (pagina === 'index.html' || pagina === '') cargar('marca-identidad.js');
     // 21/9/2026 — APAGADO: `aviso-sin-comprobar.js` decía lo mismo que
     // `ausentes-ecoordina.js` de las mismas personas. El lunes 21 los dos
     // banners enseñaron LOS MISMOS SIETE NOMBRES en la misma pantalla, y eso
@@ -357,6 +362,9 @@
     }
 
     cargar('accesos-ya-pueden.js');
+    // 8/10/2026 — la marca «🪪 Identificar» en las tarjetas de presentes
+    // (identidad pendiente). Misma pieza que en el jefe: js/marca-identidad.js.
+    cargar('marca-identidad.js');
   } catch (e) {
     console.warn('[marca-portium] carga de los módulos del encargado:', e);
   }
