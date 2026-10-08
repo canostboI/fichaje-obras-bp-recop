@@ -460,8 +460,8 @@
     <label class="resumen-toggle-presencia" id="resumen-toggle-presencia" for="resumen-chk-presencia">
       <input type="checkbox" id="resumen-chk-presencia">
       <div>
-        <div class="resumen-toggle-presencia-texto">👷 Solo trabajadores presentes ahora en obra</div>
-        <div class="resumen-toggle-presencia-sub">Filtra el resumen a los que tienen entrada abierta en este momento</div>
+        <div class="resumen-toggle-presencia-texto">👷 Solo trabajadores presentes ahora en obra o parados en la puerta</div>
+        <div class="resumen-toggle-presencia-sub">Filtra el resumen a los que tienen entrada abierta ahora mismo y a los que han intentado entrar hoy y siguen fuera</div>
       </div>
       <span class="resumen-toggle-cargando" id="resumen-toggle-cargando" style="display:none">Consultando…</span>
     </label>
@@ -844,6 +844,40 @@ async function cargarPresentesAhora() {
     contadores[f.trabajador_id] += f.tipo === 'entrada' ? 1 : -1;
   });
   presentesAhoraCache = new Set(Object.entries(contadores).filter(([, v]) => v > 0).map(([id]) => id));
+
+  // 8/10/2026 · Pedido por Dani. Los que se han quedado en la PUERTA no tienen
+  // entrada abierta (no han podido fichar), así que este filtro los dejaba
+  // fuera justo cuando se llegaba desde el banner rojo para avisar a su
+  // empresa por ellos. Ahora cuentan como «en obra» quienes han intentado
+  // entrar hoy en esta obra: los denegados con ficha (`bloqueo_rojo`) y los
+  // «presentes sin registrar» a los que ya se les ha hecho ficha (se buscan
+  // por DNI, lo único fiable de esa anotación). Si estas lecturas fallan, el
+  // filtro sigue con los que sí han fichado y se avisa: no se calla un error.
+  const [rRojo, rSR] = await Promise.all([
+    sb.from('incidencias').select('trabajador_id')
+      .eq('obra_id', obraId).eq('tipo', 'bloqueo_rojo')
+      .gte('created_at', desdeISO).lte('created_at', hastaISO),
+    sb.from('incidencias').select('detalle')
+      .eq('obra_id', obraId).eq('tipo', 'presente_sin_registrar')
+      .gte('created_at', desdeISO).lte('created_at', hastaISO)
+  ]);
+  if (rRojo.error || rSR.error) {
+    console.error('incidencias (parados en la puerta):', rRojo.error || rSR.error);
+    if (cargando) { cargando.textContent = '⚠️ No se ha podido consultar quién se ha quedado en la puerta; solo salen los que han fichado.'; cargando.style.display = 'inline'; }
+    return;
+  }
+  (rRojo.data || []).forEach(i => { if (i.trabajador_id) presentesAhoraCache.add(i.trabajador_id); });
+  const dnisPuerta = new Set();
+  (rSR.data || []).forEach(i => {
+    let d = null;
+    try { d = JSON.parse(i.detalle); } catch (e) { d = null; }
+    if (d && d.dni) dnisPuerta.add(String(d.dni).trim().toUpperCase());
+  });
+  if (dnisPuerta.size) {
+    todosTrabajadores.forEach(t => {
+      if (t.dni && dnisPuerta.has(String(t.dni).trim().toUpperCase())) presentesAhoraCache.add(t.id);
+    });
+  }
   if (cargando) cargando.style.display = 'none';
 }
 
