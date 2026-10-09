@@ -34,6 +34,14 @@
    como mucho una vez por minuto y por obra. Si la consulta falla, no se
    pinta nada y se dice en consola: una marca falsa es peor que ninguna.
 
+   9/10/2026 — EN EL ENCARGADO, LA MARCA VA EN SU PROPIA LÍNEA
+   El nombre de la tarjeta del encargado se recorta a 2 líneas («…»).
+   Antes la marca iba DENTRO de esa caja, al final del nombre: con un
+   nombre largo (caso «EL KADAOUI, MOUSSA el kadaoui») quedaba en la 3ª
+   línea y se cortaba, y parecía que el encargado no tenía el aviso.
+   Ahora va en una línea aparte justo DEBAJO del nombre (fuera del
+   recorte), así se ve siempre. El jefe no cambia (su tabla no recorta).
+
    CANDADO: solo en /jefe/ index.html y /encargado/ index.html.
    PARA DESHACERLO: quitar `cargar('marca-identidad.js')` de
    js/marca-portium.js (una línea en el bloque del jefe y otra en el del
@@ -71,8 +79,10 @@
       '.mi-marca:disabled{opacity:.5;cursor:default}',
       // Fondo oscuro del jefe: el naranja de la casa.
       '#tabla-presencia .mi-marca{color:var(--naranja,#ff9800)}',
-      // Tarjeta del encargado: el nombre recorta a dos líneas; la marca va debajo del nombre.
-      '.tarjeta-nombre .mi-marca{margin-left:0;margin-top:3px;display:inline-flex}'
+      // Tarjeta del encargado: el nombre recorta a dos líneas, así que la
+      // marca va en su propia línea DEBAJO del nombre, fuera del recorte.
+      '.mi-linea-enc{margin-top:3px;line-height:1}',
+      '.mi-linea-enc .mi-marca{margin-left:0;display:inline-flex}'
     ].join('');
     document.head.appendChild(s);
   }
@@ -167,11 +177,17 @@
         var ini = card.querySelector('[data-trab]');
         var id = ini ? ini.getAttribute('data-trab') : '';
         var p = id ? porId[id] : null;
-        var ya = card.querySelector('.mi-marca');
+        var ya = card.querySelector('.mi-linea-enc') || card.querySelector('.mi-marca');
         if (!p) { if (ya) ya.remove(); return; }
         if (ya) return;
-        var hueco = card.querySelector('.tarjeta-nombre') || card;
-        hueco.appendChild(marca(p));
+        // Línea propia debajo del nombre (el nombre se recorta a 2 líneas y
+        // la marca, dentro de él, quedaba escondida con nombres largos).
+        var linea = document.createElement('div');
+        linea.className = 'mi-linea-enc';
+        linea.appendChild(marca(p));
+        var nombre = card.querySelector('.tarjeta-nombre');
+        if (nombre && nombre.parentNode) nombre.parentNode.insertBefore(linea, nombre.nextSibling);
+        else card.appendChild(linea);
       });
     }
   }
@@ -200,7 +216,8 @@
         // Lo que añade este mismo módulo no cuenta.
         var ajeno = muts.some(function (m) {
           return Array.prototype.some.call(m.addedNodes, function (n) {
-            return !(n.nodeType === 1 && n.classList && n.classList.contains('mi-marca'));
+            return !(n.nodeType === 1 && n.classList &&
+              (n.classList.contains('mi-marca') || n.classList.contains('mi-linea-enc')));
           }) || m.removedNodes.length;
         });
         if (ajeno) programar(false);
