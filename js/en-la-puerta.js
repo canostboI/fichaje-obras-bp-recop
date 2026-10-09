@@ -67,6 +67,17 @@
       el recordatorio es la marca «🪪 Identificar» de los listados de
       presentes (js/marca-identidad.js), que no se va con el visto.
 
+   6. «ES EL MISMO» (9/10/2026, Dani, caso Moussa el Kadaoui: ayer tenía
+      ficha con su NIE Y9164508B; hoy tecleó Y9164508, sin la letra, y salió
+      como «SIN REGISTRAR»). En las filas SIN REGISTRAR se pregunta a la BD
+      (candidatos_es_el_mismo) si hay alguien con ficha en esta obra con el
+      mismo DNI salvo la letra o con el mismo nombre. Si lo hay, sale un botón
+      con su nombre, DNI y empresa; al pulsarlo (con confirmación) se llama a
+      unir_es_el_mismo: la anotación queda enganchada a su ficha, con el DNI
+      corregido, resuelta y firmada. Si no hay nadie parecido, no sale nada.
+      La regla de quién se parece vive SOLO en la BD (_candidatos_es_el_mismo)
+      y la unión solo acepta a alguien que esa regla haya propuesto.
+
    QUÉ NO HACE
    No toca la BD ni ninguna regla de fondo: el visto manda, «no se va al
    autorizar», los fallos de consulta se dicen (salen arriba del bloque),
@@ -90,6 +101,8 @@
   var intentosPorDni = {};       // DNI → { ref, iso, hora } del PRIMER intento denegado de hoy
   var temporizador = null;
   var obsAvisos = null;
+  var mismos = {};               // incidencia SIN REGISTRAR → { lista, en, pidiendo } (candidatos «Es el mismo»)
+  var MISMOS_VIGENCIA = 60000;   // se vuelve a preguntar como mucho una vez por minuto
 
   // ───────────────────────────── utilidades ─────────────────────────────
   function esc(t) {
@@ -208,6 +221,11 @@
       '#puerta-avisos>.banner-cierres{color:var(--texto,#e8eaf0)}',
       '#puerta-avisos>.panel-avisos h3,#puerta-avisos h3,#puerta-avisos h4{font-size:12px;margin:0 0 6px}',
       '#puerta-avisos .banner-ronda button,#puerta-avisos button{min-height:30px;padding:5px 11px;font-size:12.5px}',
+      // «Es el mismo» (9/10)
+      '.puerta-mismo{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:6px;font-size:12.5px;color:var(--texto2,#8b909e)}',
+      '.puerta-btn.mismo{background:rgba(76,175,80,.12);border:1px solid rgba(76,175,80,.55);color:var(--verde,#4caf50);font-size:12.5px;padding:6px 12px;border-radius:8px;cursor:pointer;font-family:inherit;min-height:34px;font-weight:700;text-align:left;white-space:normal}',
+      '.puerta-btn.mismo:hover{background:rgba(76,175,80,.22)}',
+      '.puerta-btn.mismo small{font-weight:400;color:var(--texto2,#8b909e);margin-left:4px}',
       '@media (max-width:600px){.puerta{padding:12px 12px 10px}.puerta-acciones{justify-content:flex-start}}'
     ].join('\n');
     document.head.appendChild(s);
@@ -496,6 +514,88 @@
     }
   }
 
+  // ── «Es el mismo» (9/10) ──
+  // La anotación SIN REGISTRAR de una fila (la del intento en la valla).
+  function incidenciaSinRegistrar(o) {
+    for (var i = 0; i < o.bloqs.length; i++) {
+      if (o.bloqs[i].sinRegistrar && o.bloqs[i].incidencia) return o.bloqs[i].incidencia;
+    }
+    return '';
+  }
+
+  // Pide los candidatos a la BD. Mientras llegan se pinta lo que hubiera
+  // (o nada); al llegar se repinta. Un fallo no se pinta como «no hay nadie»:
+  // simplemente no sale el botón, y se intenta otra vez al minuto.
+  function pedirMismos(idInc) {
+    var m = mismos[idInc];
+    if (m && (m.pidiendo || (Date.now() - m.en) < MISMOS_VIGENCIA)) return;
+    if (typeof sb === 'undefined') return;
+    if (!m) m = mismos[idInc] = { lista: null, en: 0, pidiendo: false };
+    m.pidiendo = true;
+    Promise.resolve(sb.rpc('candidatos_es_el_mismo', { p_incidencia_id: idInc })).then(function (r) {
+      m.pidiendo = false;
+      m.en = Date.now();
+      if (r && !r.error && r.data && r.data.ok === true) {
+        m.lista = Array.isArray(r.data.candidatos) ? r.data.candidatos : [];
+      } else {
+        console.warn(TAG, 'candidatos_es_el_mismo:', (r && (r.error || r.data)) || r);
+      }
+      programar();
+    }, function (e) {
+      m.pidiendo = false;
+      m.en = Date.now();
+      console.warn(TAG, 'candidatos_es_el_mismo:', e);
+    });
+  }
+
+  function pintarMismos(o, fila) {
+    var idInc = incidenciaSinRegistrar(o);
+    if (!idInc) return;
+    pedirMismos(idInc);
+    var m = mismos[idInc];
+    if (!m || !m.lista || !m.lista.length) return;
+    var quien = fila.querySelector('.puerta-quien');
+    if (!quien) return;
+    var caja = document.createElement('div');
+    caja.className = 'puerta-mismo';
+    var lbl = document.createElement('span');
+    lbl.textContent = m.lista.length === 1 ? '¿Es alguien que ya tiene ficha?' : '¿Es alguno de estos, que ya tienen ficha?';
+    caja.appendChild(lbl);
+    m.lista.forEach(function (c) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'puerta-btn mismo';
+      var porQue = c.motivo === 'dni' ? 'mismo DNI salvo la letra' : 'mismo nombre';
+      b.innerHTML = 'Es ' + esc(c.nombre || '—') + ' · ' + esc(c.dni || 'sin DNI') +
+        (c.empresa ? ' · ' + esc(c.empresa) : '') + '<small>(' + esc(porQue) + ')</small>';
+      b.title = 'Une esta anotación a su ficha: queda resuelta y firmada por ti.';
+      b.addEventListener('click', function () { unirMismo(idInc, c, b); });
+      caja.appendChild(b);
+    });
+    quien.appendChild(caja);
+  }
+
+  async function unirMismo(idInc, c, btn) {
+    var txt = '¿Unir esta anotación a la ficha de ' + (c.nombre || '—') + ' (' + (c.dni || 'sin DNI') + ')?\n\n' +
+      'Quedará resuelta, con su DNI corregido y firmada por ti.';
+    if (!window.confirm(txt)) return;
+    btn.disabled = true;
+    var antes = btn.innerHTML;
+    btn.textContent = 'Uniendo…';
+    try {
+      var r = await sb.rpc('unir_es_el_mismo', { p_incidencia_id: idInc, p_trabajador_id: c.trabajador_id });
+      if (r.error || !r.data || r.data.ok !== true) {
+        throw new Error((r.data && r.data.error) || (r.error && r.error.message) || 'No se pudo unir');
+      }
+      delete mismos[idInc];
+      if (typeof window.cargarBloqueos === 'function') await window.cargarBloqueos();
+    } catch (e) {
+      btn.disabled = false;
+      btn.innerHTML = antes;
+      alert('Error: ' + (e && e.message ? e.message : e));
+    }
+  }
+
   async function vistoIdentidad(ref, btn) {
     var obra = obraDeAhora();
     if (!obra) return;
@@ -718,6 +818,7 @@
           '<div class="puerta-acciones"></div>' +
         '</div>';
       botonesDe(o, fila);
+      if (cl.etq === 'SIN REGISTRAR') pintarMismos(o, fila);
       if (o.sol) {
         var d = document.createElement('div');
         d.className = 'puerta-desplegable';
