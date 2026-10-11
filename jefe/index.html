@@ -1000,11 +1000,35 @@ async function cargarCierresPendientes(misObras) {
 
   el.classList.remove('oculto');
   if (!pendientes.length) {
+    // Aviso verde con «✓ Visto»: se oculta en este navegador hasta que haya un
+    // mes facturable nuevo (cambia meses[0]). El rojo nunca se puede ocultar.
+    const CLAVE_VISTO = 'jefe_cierre_verde_visto';
+    let visto = null;
+    try { visto = localStorage.getItem(CLAVE_VISTO); } catch (_) {}
+    if (visto === meses[0]) { el.classList.add('oculto'); return; }
     el.style.background = 'rgba(76,175,80,0.15)'; el.style.color = '#4caf50';
-    el.textContent = '✅ Cierre de mes: todo lo facturable de tus obras está cerrado (' +
+    el.style.display = 'flex'; el.style.alignItems = 'center'; el.style.gap = '12px';
+    el.textContent = '';
+    const txt = document.createElement('span');
+    txt.style.flex = '1';
+    txt.textContent = '✅ Cierre de mes: todo lo facturable de tus obras está cerrado (' +
       nombreMesJefe(meses[0]) + (meses.length > 1 ? ' y ' + (meses.length - 1) + ' mes(es) anterior(es)' : '') + ').';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = '✓ Visto';
+    btn.title = 'Ocultar hasta el próximo mes';
+    btn.style.cssText = 'background:transparent;border:1px solid currentColor;color:inherit;' +
+      'border-radius:6px;padding:4px 12px;font-size:13px;cursor:pointer;white-space:nowrap;';
+    btn.addEventListener('click', function () {
+      try { localStorage.setItem(CLAVE_VISTO, meses[0]); } catch (_) {}
+      el.style.display = '';   // quitar el flex en línea para que .oculto mande
+      el.classList.add('oculto');
+    });
+    el.appendChild(txt);
+    el.appendChild(btn);
     return;
   }
+  el.style.display = '';
   el.style.background = 'rgba(244,67,54,0.15)'; el.style.color = '#f44336';
   const lista = pendientes.map(p => nombreMesJefe(p.mes) + ' · ' + p.obra).join(' · ');
   el.innerHTML = '🔒 <b>' + pendientes.length + ' mes(es) sin cerrar:</b> ' +
