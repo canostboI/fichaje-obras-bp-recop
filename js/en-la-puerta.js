@@ -97,6 +97,16 @@
       solo uno, la fila no se iba. Ahora hay uno: marca la identidad y
       después las anotaciones (vistoTodo). Si la segunda parte falla, se
       dice qué quedó hecho y la pantalla se recarga.
+   9. «🕐 DAR POR BUENA SU ENTRADA DE LAS HH:MM» EN LAS FILAS VERDES
+      (14/10/2026, Dani: «creí que habíamos hablado de que hubiera un botón
+      de dar por bueno el intento de fichaje»). La casilla del punto 2 solo
+      sale dentro de «Resolver»; quien se pone en verde solo o a quien se
+      autoriza desde la ficha nunca pasa por ahí. En las filas YA PUEDE
+      ENTRAR (con o sin identidad pendiente) sale este botón: con
+      confirmación, apunta la entrada a la hora del PRIMER intento denegado
+      de hoy (registrar_fichaje_manual, firmado, con motivo). Solo con ficha,
+      con intento de hoy y si no está dentro; sin hora segura no hay botón.
+      Al apuntarla, la fila se va (o pasa a DENTRO · SIN IDENTIFICAR).
 
    QUÉ NO HACE
    No toca la BD ni ninguna regla de fondo: el visto manda, «no se va al
@@ -123,6 +133,7 @@
   var obsAvisos = null;
   var mismos = {};               // incidencia SIN REGISTRAR → { lista, en, pidiendo } (candidatos «Es el mismo»)
   var MISMOS_VIGENCIA = 60000;   // se vuelve a preguntar como mucho una vez por minuto
+  var horaInc = {};              // 14/10 · incidencia → { iso, en, pidiendo } (cuándo se anotó: su primer intento)
 
   // ───────────────────────────── utilidades ─────────────────────────────
   function esc(t) {
@@ -201,6 +212,9 @@
       '.puerta-acciones .btn-visto-rojo:hover,.puerta-acciones .puerta-btn:hover{background:var(--bg3,#22262f)}',
       '.puerta-btn.resolver{background:rgba(255,152,0,.15);border-color:rgba(255,152,0,.6);color:var(--naranja,#ff9800);font-weight:700}',
       '.puerta-btn.resolver:hover{background:rgba(255,152,0,.25)}',
+      // 14/10: «🕐 Dar por buena su entrada»
+      '.puerta-acciones .puerta-btn.hora{background:rgba(76,175,80,.14);border-color:rgba(76,175,80,.6);color:var(--verde,#4caf50);font-weight:700}',
+      '.puerta-acciones .puerta-btn.hora:hover{background:rgba(76,175,80,.24)}',
       '.puerta-btn:disabled{opacity:.5;cursor:default}',
       // Tarjeta de bloqueo movida a la fila: solo sus botones
       '.puerta-acciones .bloqueo-item{display:contents}',
@@ -552,6 +566,104 @@
     }
   }
 
+  // ── «🕐 Dar por buena su entrada» en las filas YA PUEDE ENTRAR (14/10/2026) ──
+  // La casilla del 5/10 solo existe dentro de «Resolver». Quien se pone en
+  // verde solo (e-Coordina) o a quien se autoriza desde la ficha nunca pasa
+  // por ahí, y para que conste su entrada tenía que bajar a escanear. Este
+  // botón hace lo mismo que la casilla: con confirmación, apunta la entrada a
+  // la hora de su PRIMER intento denegado de hoy, como fichaje manual firmado.
+  // Solo con ficha, con intento de hoy y si no está dentro. Sin hora segura,
+  // no hay botón: no se inventa una hora.
+
+  // Cuándo se anotó cada incidencia (para un «sin registrar», su primer intento).
+  function pedirHorasInc(ids) {
+    var faltan = ids.filter(function (id) {
+      var h = horaInc[id];
+      return !h || (!h.iso && !h.pidiendo && (Date.now() - h.en) > MISMOS_VIGENCIA);
+    });
+    if (!faltan.length || typeof sb === 'undefined') return;
+    faltan.forEach(function (id) { horaInc[id] = { iso: '', en: Date.now(), pidiendo: true }; });
+    Promise.resolve(sb.from('incidencias').select('id, created_at').in('id', faltan)).then(function (r) {
+      faltan.forEach(function (id) { horaInc[id].pidiendo = false; horaInc[id].en = Date.now(); });
+      if (!r || r.error || !r.data) { console.warn(TAG, 'hora de los intentos:', r && r.error); return; }
+      r.data.forEach(function (x) { if (horaInc[x.id] && x.created_at) horaInc[x.id].iso = x.created_at; });
+      programar();
+    }, function (e) {
+      faltan.forEach(function (id) { horaInc[id].pidiendo = false; horaInc[id].en = Date.now(); });
+      console.warn(TAG, 'hora de los intentos:', e);
+    });
+  }
+
+  // El primer intento de hoy de la persona: el más temprano entre sus
+  // anotaciones de la valla y su primer bloqueo_rojo de hoy (cargarIntentosHoy).
+  function primerIntento(o) {
+    var mejor = '';
+    var ids = o.bloqs.map(function (b) { return b.incidencia; }).filter(Boolean);
+    pedirHorasInc(ids);
+    ids.forEach(function (id) {
+      var h = horaInc[id];
+      if (h && h.iso && (!mejor || new Date(h.iso) < new Date(mejor))) mejor = h.iso;
+    });
+    var it = o.dni ? intentosPorDni[normDni(o.dni)] : null;
+    if (it && it.iso && (!mejor || new Date(it.iso) < new Date(mejor))) mejor = it.iso;
+    return mejor;
+  }
+
+  function pintarDarPorBuena(o, cl, fila, dentro) {
+    var ref = (o.ident && o.ident.ref) || o.ref || '';
+    if (!ref || !o.bloqs.length) return;
+    if (dentro.ref[ref] || dentro.dni[normDni(o.dni)]) return;   // ya está dentro
+    var iso = primerIntento(o);
+    if (!iso) return;
+    var h = hhmm(iso);
+    if (!h) return;
+    var acc = fila.querySelector('.puerta-acciones');
+    if (!acc) return;
+    var razon = '';
+    var vb = o.bloqs.filter(function (b) { return b.verde; })[0];
+    if (vb) razon = vb.verde.replace(/^✅\s*/, '').replace(/\s*—.*$/, '').trim();
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'puerta-btn hora';
+    b.textContent = '🕐 Dar por buena su entrada de las ' + h;
+    b.title = 'Si ya está trabajando: apunta su entrada a la hora a la que lo intentó en la valla, ' +
+      'como fichaje manual con tu nombre, y no tendrá que bajar a escanear.';
+    b.addEventListener('click', function () { darPorBuena(ref, o.nombre, iso, h, razon, b); });
+    acc.insertBefore(b, acc.firstChild);
+  }
+
+  async function darPorBuena(ref, nombre, iso, h, razon, btn) {
+    var obra = obraDeAhora();
+    if (!obra) return;
+    var ok = window.confirm('¿Dar por buena la entrada de ' + (nombre || 'esta persona') + ' a las ' + h + '?\n\n' +
+      'A esa hora se le denegó el acceso en la valla' + (razon ? '; ahora: ' + razon.toLowerCase() : '') + '.\n' +
+      'Se apunta como fichaje manual con tu nombre. Hazlo solo si ya está trabajando desde esa hora.');
+    if (!ok) return;
+    btn.disabled = true;
+    btn.textContent = 'Registrando…';
+    try {
+      var r = await sb.rpc('registrar_fichaje_manual', {
+        p_trabajador_id: ref, p_obra_id: obra, p_tipo: 'entrada', p_hora: iso,
+        p_motivo: 'Entrada dada por buena por el jefe de obra desde «En la puerta»: intentó fichar en la valla a las ' +
+                  h + ' y se le denegó' + (razon ? '; después: ' + razon.toLowerCase() : '') + '.'
+      });
+      if (r.error || !r.data || r.data.success !== true) {
+        throw new Error((r.data && r.data.error) || (r.error && r.error.message) || 'error desconocido');
+      }
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = '🕐 Dar por buena su entrada de las ' + h;
+      alert('No se ha registrado la entrada: ' + (e && e.message ? e.message : e) + '\nPuedes hacerlo desde Fichajes.');
+      return;
+    }
+    // Con la entrada ya apuntada: presencia primero (quién está dentro), luego el bloque.
+    try {
+      if (typeof window.cargarPresencia === 'function') await window.cargarPresencia();
+      if (typeof window.cargarBloqueos === 'function') await window.cargarBloqueos();
+      if (typeof window.cargarIdentidadesPendientes === 'function') await window.cargarIdentidadesPendientes();
+    } catch (_) {}
+  }
+
   // ── «Es el mismo» (9/10) ──
   // La anotación SIN REGISTRAR de una fila (la del intento en la valla).
   function incidenciaSinRegistrar(o) {
@@ -893,6 +1005,7 @@
           '<div class="puerta-acciones"></div>' +
         '</div>';
       botonesDe(o, fila);
+      if (cl.clase === 'verde') pintarDarPorBuena(o, cl, fila, dentro);
       if (cl.etq === 'SIN REGISTRAR') pintarMismos(o, fila);
       if (o.sol) {
         var d = document.createElement('div');
