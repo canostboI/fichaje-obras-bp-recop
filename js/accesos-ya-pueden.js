@@ -25,11 +25,11 @@
    naranja. El motivo del bloqueo se sigue viendo, apagado.
 
    QUÉ NO HACE
-   No toca la BD ni `incidencias`. No cambia el contador de la tarjeta
-   «Denegados sin resolver» ni el banner rojo (el banner ya dice «dile
-   que vuelva a escanear el QR» persona a persona). Si la consulta del
-   estado falla, la ventana se queda tal cual la pintó la página: un
-   fallo de lectura NO se pinta como «ya puede entrar».
+   No toca la BD ni `incidencias`. No cambia el banner rojo (el banner ya
+   dice «dile que vuelva a escanear el QR» persona a persona). Si la
+   consulta del estado falla, la ventana se queda tal cual la pintó la
+   página: un fallo de lectura NO se pinta como «ya puede entrar».
+   (El contador de la tarjeta sí cambia desde el 14/10: ver abajo.)
 
    CÓMO SE ENGANCHA
    Envuelve pintarDetalleAccesos de jefe/index.html (y de
@@ -52,6 +52,24 @@
    Única diferencia de texto: la autorización la suele dar el jefe, así
    que en el encargado no se dice «Le has autorizado» sino «Autorizado
    para hoy».
+
+   AÑADIDO 14/10/2026 — EL NÚMERO DE LA TARJETA (solo el jefe)
+   Dani, con Daniel y Antonio ya en verde: «¿porque no lo marca sin tener
+   que clicar en el 4? así no se ve». La tarjeta «Denegados sin resolver»
+   decía 4 y la ventana, al abrirla, «2 sin poder entrar · 2 ya pueden
+   entrar». Ahora la tarjeta dice lo mismo que la ventana: el número
+   grande son los que SIGUEN sin poder entrar y debajo sale «🔓 N ya
+   pueden entrar · falta que vuelvan a escanear el QR». Mismo reparto,
+   misma función (estadoAhora + razon), así que los dos sitios no pueden
+   decir cosas distintas.
+   Cómo: la página calcula el número con AccesosResueltos.clasificar y
+   lo escribe en #stat-rojo en el mismo instante. Este archivo recuerda
+   el último reparto calculado, vigila #stat-rojo y, cuando la página lo
+   escribe, consulta el estado de ahora y lo corrige. Si el reparto
+   recordado no casa con el número escrito, o la consulta falla, NO toca
+   nada: se queda el número de la página (uno de más, nunca uno de menos).
+   En el encargado NO se toca: su número es el que prellena la ronda que
+   se firma, y ese ya tiene su propia sección «ya pueden entrar».
    ============================================================ */
 (function () {
   'use strict';
@@ -236,6 +254,86 @@
     }
   }
 
+  // ── 14/10/2026 · el número de la tarjeta «Denegados sin resolver» ──
+  var ultimaClas = null;     // el último reparto que calculó la página
+  var turnoContador = 0;     // si la página repinta mientras se consulta, gana la última
+  var obsContador = null;
+
+  function lineaYaPueden() {
+    var l = document.getElementById('stat-rojo-yapueden');
+    if (l) return l;
+    var desg = document.getElementById('stat-rojo-desglose');
+    var stat = document.getElementById('stat-rojo');
+    var ancla = desg || stat;
+    if (!ancla || !ancla.parentNode) return null;
+    l = document.createElement('div');
+    l.id = 'stat-rojo-yapueden';
+    l.className = 'desglose';
+    l.style.display = 'none';
+    l.style.color = 'var(--verde,#4caf50)';
+    ancla.parentNode.insertBefore(l, ancla.nextSibling);
+    return l;
+  }
+
+  function escribirContador(stat, texto) {
+    // Sin vigilar mientras se escribe: si no, nos oiríamos a nosotros mismos.
+    if (obsContador) obsContador.disconnect();
+    stat.textContent = texto;
+    if (obsContador) obsContador.observe(stat, { childList: true, characterData: true, subtree: true });
+  }
+
+  function alCambiarContador() {
+    var stat = document.getElementById('stat-rojo');
+    var linea = lineaYaPueden();
+    if (!stat || !linea) return;
+    linea.style.display = 'none';
+    linea.textContent = '';
+    var escrito = (stat.textContent || '').trim();
+    var clas = ultimaClas;
+    // Solo si lo recordado es exactamente lo que la página acaba de escribir.
+    if (!clas || !clas.pendientes || !clas.totales ||
+        String(clas.totales.personasPendientes) !== escrito || !clas.pendientes.length) return;
+    var miTurno = ++turnoContador;
+    estadoAhora(clas.pendientes).then(function (info) {
+      if (!info || miTurno !== turnoContador) return;
+      if ((stat.textContent || '').trim() !== escrito) return;   // la página repintó entre medias
+      var n = clas.pendientes.filter(function (g) { return !!razon(info.porId[info.idDe(g)]); }).length;
+      if (!n) return;
+      escribirContador(stat, String(clas.pendientes.length - n));
+      linea.textContent = '🔓 ' + n + (n === 1 ? ' ya puede entrar · falta que vuelva' : ' ya pueden entrar · falta que vuelvan') +
+        ' a escanear el QR';
+      linea.style.display = 'block';
+    }).catch(function (e) { console.warn('[accesos-ya-pueden] contador:', e); });
+  }
+
+  function vigilarContador() {
+    if (enEncargado) return;
+    var AR = window.AccesosResueltos;
+    var stat = document.getElementById('stat-rojo');
+    if (!AR || typeof AR.clasificar !== 'function' || !stat || !window.MutationObserver) return;
+    if (!AR.clasificar.__ayp) {
+      var orig = AR.clasificar;
+      var env = function () {
+        var r = orig.apply(this, arguments);
+        ultimaClas = r;
+        return r;
+      };
+      env.__ayp = true;
+      AR.clasificar = env;
+    }
+    if (obsContador) return;
+    obsContador = new MutationObserver(alCambiarContador);
+    obsContador.observe(stat, { childList: true, characterData: true, subtree: true });
+    // Si la página ya había pintado el número antes de que llegáramos, se le
+    // pide que lo vuelva a calcular (es lo mismo que hace cada minuto).
+    if (/^\d+$/.test((stat.textContent || '').trim()) && (stat.textContent || '').trim() !== '0' &&
+        typeof window.cargarBloqueos === 'function') {
+      try {
+        Promise.resolve(window.cargarBloqueos()).catch(function (e) { console.warn('[accesos-ya-pueden] contador:', e); });
+      } catch (e) { console.warn('[accesos-ya-pueden] contador:', e); }
+    }
+  }
+
   function iniciar() {
     try {
       var ruta = window.location.pathname;
@@ -256,6 +354,7 @@
       };
       envuelta.__ayp = true;
       window.pintarDetalleAccesos = envuelta;
+      try { vigilarContador(); } catch (e2) { console.warn('[accesos-ya-pueden] contador:', e2); }
     } catch (e) {
       console.warn('[accesos-ya-pueden] no se ha podido montar:', e);
     }
