@@ -22,7 +22,8 @@
    1. UN BLOQUE arriba del todo: «En la puerta · N personas esperan tu
       decisión». UNA FILA POR PERSONA (fusionadas por DNI), con una
       etiqueta que dice qué le pasa (PIDE PASO · SIN IDENTIFICAR · SIN
-      PODER ENTRAR · SIN REGISTRAR · YA PUEDE ENTRAR), una frase con todo
+      PODER ENTRAR · SIN REGISTRAR · YA PUEDE ENTRAR; ver también 4 y 7),
+      una frase con todo
       lo suyo junto y, a la derecha, SOLO los botones que tocan a esa
       persona. El formulario de autorización se abre al pulsar
       «Resolver» (una fila abierta a la vez).
@@ -77,6 +78,19 @@
       corregido, resuelta y firmada. Si no hay nadie parecido, no sale nada.
       La regla de quién se parece vive SOLO en la BD (_candidatos_es_el_mismo)
       y la unión solo acepta a alguien que esa regla haya propuesto.
+
+   7. YA EN VERDE PERO SIN IDENTIFICAR (14/10/2026, Dani, caso Daniel
+      Ramírez y Antonio Jiménez de CAPMAR: su empresa lo corrigió a media
+      mañana, e-Coordina ya los daba en verde, y aquí seguían en ROJO
+      arriba como «SIN IDENTIFICAR»: «¿porque no lo marca sin tener que
+      clicar en el 4? así no se ve»). La identidad pendiente sigue sin
+      cerrarse sola (regla del 23/9), pero ya no le impide entrar: lo que
+      falta es que vuelva a escanear el QR. Esa fila va en VERDE, debajo
+      de los parados y de los de dentro, con la etiqueta «YA PUEDE ENTRAR ·
+      SIN IDENTIFICAR», la frase verde delante y el recordatorio de
+      verificarle el documento detrás. No cuenta como «espera tu decisión»;
+      el título la cuenta aparte («· N ya pueden entrar», junto con los que
+      ya podían entrar sin identidad pendiente). Conserva todos sus botones.
 
    QUÉ NO HACE
    No toca la BD ni ninguna regla de fondo: el visto manda, «no se va al
@@ -167,6 +181,8 @@
       '.puerta-meta{font-size:12px;color:var(--texto2,#8b909e)}',
       '.puerta-resumen{font-size:13px;color:var(--texto,#e8eaf0);line-height:1.45}',
       '.puerta-resumen.verde{color:var(--verde,#4caf50)}',
+      // 14/10: el recordatorio de identidad detrás de la frase verde, en gris
+      '.puerta-resumen .puerta-pend{color:var(--texto2,#8b909e)}',
       '.puerta-etq{font-size:11px;font-weight:800;letter-spacing:.04em;padding:2px 8px;border-radius:6px;border:1px solid;white-space:nowrap}',
       '.puerta-etq.pide{background:rgba(255,152,0,.18);border-color:rgba(255,152,0,.6);color:var(--naranja,#ff9800)}',
       '.puerta-etq.roja{background:rgba(244,67,54,.18);border-color:rgba(244,67,54,.6);color:var(--rojo,#f44336)}',
@@ -403,6 +419,10 @@
     if (o.ident) {
       var h = dentro.dni[normDni(o.dni)] || dentro.ref[o.ref] || '';
       if (h) return { clase: 'dentro', etq: 'DENTRO · SIN IDENTIFICAR', peso: 2.5, desde: h };
+      // 14/10/2026: ya en verde (o autorizado, o naranja) y fuera → no está
+      // parado por nada tuyo, solo falta que reescanee. Verde, abajo.
+      var yaPuede = o.bloqs.length && o.bloqs.every(function (b) { return !!b.verde; }) && !o.sol;
+      if (yaPuede) return { clase: 'verde', etq: 'YA PUEDE ENTRAR · SIN IDENTIFICAR', peso: 2.8, sinId: true };
       return { clase: 'roja', etq: 'SIN IDENTIFICAR', peso: 1 };
     }
     if (verde) return { clase: 'verde', etq: 'YA PUEDE ENTRAR', peso: 3 };
@@ -438,6 +458,15 @@
         partes.push(esc(i.cuando || 'Registrado en la puerta') +
           (i.registradoPor ? ' por <strong>' + esc(i.registradoPor) + '</strong>' : ''));
         return partes.join(' · ');
+      }
+      if (cl.sinId) {
+        // 14/10: lo verde delante (es lo que hay que hacer ya), la identidad detrás.
+        var vv = o.bloqs.filter(function (b) { return b.verde; })[0];
+        return '<strong>' + esc(vv.verde) + '</strong>' +
+          '<span class="puerta-pend"> · Cuando puedas, verifícale el documento: ' +
+          esc((i.cuando || 'registrado en la puerta').replace(/^R/, 'r')) +
+          (i.registradoPor ? ' por <strong>' + esc(i.registradoPor) + '</strong>' : '') +
+          ' y nadie se lo ha visto.</span>';
       }
       partes.push(esc(i.cuando || 'Registrado en la puerta') +
         (i.registradoPor ? ' por <strong>' + esc(i.registradoPor) + '</strong>' : '') +
@@ -788,7 +817,7 @@
     cajaFallos.style.display = fallosNodos.length ? '' : 'none';
 
     // Orden: pide paso · sin identificar · sin poder entrar / sin registrar ·
-    // dentro sin identificar · ya puede entrar
+    // dentro sin identificar · ya puede entrar sin identificar (14/10) · ya puede entrar
     var dentro = dentroAhora();
     var filasDatos = personas.map(function (o) { return { o: o, cl: clasificar(o, dentro) }; });
     filasDatos.sort(function (a, b2) {
@@ -798,11 +827,12 @@
 
     var cont = b.querySelector('.puerta-filas');
     cont.innerHTML = '';
-    var pendientes = 0, dentroSinId = 0;
+    var pendientes = 0, dentroSinId = 0, yaPueden = 0, yaPuedenSinId = 0;
     filasDatos.forEach(function (fd) {
       var o = fd.o, cl = fd.cl;
       if (cl.clase === 'dentro') dentroSinId++;
-      else if (cl.clase !== 'verde') pendientes++;
+      else if (cl.clase === 'verde') { yaPueden++; if (cl.sinId) yaPuedenSinId++; }
+      else pendientes++;
       var fila = document.createElement('article');
       fila.className = 'puerta-fila' + (cl.clase === 'verde' ? ' verde' : '') + (cl.clase === 'dentro' ? ' dentro' : '');
       fila.setAttribute('data-clave', o.clave);
@@ -857,15 +887,16 @@
     var h3 = b.querySelector('.puerta-cab h3');
     var tit = b.querySelector('.puerta-titulo');
     var n = filasDatos.length;
-    var cola = dentroSinId ? ' · ' + dentroSinId + ' dentro sin identificar' : '';
+    var cola = (dentroSinId ? ' · ' + dentroSinId + ' dentro sin identificar' : '') +
+      (yaPueden ? ' · ' + yaPueden + (yaPueden === 1 ? ' ya puede entrar' : ' ya pueden entrar') : '');
     if (pendientes) {
       tit.textContent = 'En la puerta · ' + pendientes + (pendientes === 1 ? ' persona espera tu decisión' : ' personas esperan tu decisión') + cola;
       h3.classList.remove('verde');
-    } else if (dentroSinId) {
+    } else if (dentroSinId || yaPuedenSinId) {
       tit.textContent = 'En la puerta · nadie parado' + cola;
       h3.classList.remove('verde');
     } else if (n) {
-      tit.textContent = 'En la puerta · nadie pendiente de ti';
+      tit.textContent = 'En la puerta · nadie pendiente de ti' + cola;
       h3.classList.add('verde');
     }
     b.classList.toggle('naranja', !pendientes);
