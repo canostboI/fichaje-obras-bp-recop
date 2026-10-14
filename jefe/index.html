@@ -94,7 +94,7 @@
   .pill.clicable { cursor: pointer; transition: filter 0.15s, transform 0.1s; }
   .pill.clicable:hover { filter: brightness(1.25); }
   .pill.clicable:active { transform: scale(0.96); }
-  /* 29/9/2026 · Pase temporal junto al color (caso Jonay, MUFEMA). */
+  /* 29/9/2026 · Pase temporal junto al color (caso de un trabajador de una subcontrata). */
   /* A la derecha del color (Dani). En el móvil la columna es estrecha: debajo. */
   .pase { display: inline-block; vertical-align: middle; margin-left: 8px; padding: 2px 8px; border-radius: 6px;
           font-size: 11px; font-weight: 700; white-space: nowrap; cursor: pointer;
@@ -221,7 +221,7 @@
   .sol-btn.regla { background: rgba(76,175,80,0.15); border: 1px solid rgba(76,175,80,0.5); color: var(--verde); }
   .sol-btn.riesgo { background: rgba(255,152,0,0.15); border: 1px solid rgba(255,152,0,0.5); color: var(--naranja); }
   .sol-btn.no { background: transparent; border: 1px solid var(--borde); color: var(--texto2); }
-  /* 28/9/2026 · «He revisado sus papeles» (caso Jonay, MUFEMA) */
+  /* 28/9/2026 · «He revisado sus papeles» (caso de un trabajador de una subcontrata) */
   .sol-btn.papeles { background: rgba(33,150,243,0.13); border: 1px solid rgba(33,150,243,0.5); color: var(--azul); }
   .pap-lista { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
   .pap-lista label { display: flex; align-items: flex-start; gap: 10px; background: var(--bg3); border: 1px solid var(--borde); border-radius: 8px; padding: 10px 12px; font-size: 14px; line-height: 1.4; cursor: pointer; }
@@ -1719,7 +1719,7 @@ async function cargarSolicitudes() {
       // 114ª (20/9/2026) · CIF al resolver una solicitud. Pedido por Dani.
       // El nombre NO identifica a una empresa (e-Coordina los trae con comas
       // y puntos arbitrarios y el emparejamiento exige igualdad exacta): de
-      // ahí el duplicado real 39916945p / VERONICA RODES SEGURA. Con CIF, la
+      // ahí el duplicado real de una autónoma (su CIF es su DNI). Con CIF, la
       // RPC busca por él antes de crear y no duplica. Es OPCIONAL a
       // propósito: el jefe no siempre lo tiene delante y la persona está
       // esperando en la valla. Sin CIF la empresa se crea igual, pero marcada
@@ -1744,7 +1744,7 @@ async function cargarSolicitudes() {
       }
     }
 
-    // 28/9/2026 (Dani, caso Jonay / MUFEMA): la empresa manda los papeles por
+    // 28/9/2026 (Dani, caso de un trabajador de una subcontrata): la empresa manda los papeles por
     // correo y están bien. Botón para dejarlo en NARANJA 5 días o hasta que
     // e-Coordina mande. Solo con ficha y solo subcontrata (el personal propio
     // tiene «Ya está en regla»).
@@ -1782,7 +1782,7 @@ async function cargarSolicitudes() {
 }
 
 // ═══ «📄 He revisado sus papeles» (28/9/2026, Dani) ═══════════════════════
-// Caso Jonay Moraga (MUFEMA): e-Coordina lo tenía en rojo, la empresa mandó
+// Caso de un trabajador de una subcontrata: e-Coordina lo tenía en rojo, la empresa mandó
 // los papeles por correo y estaban bien. «Asumo el riesgo» vale solo hoy y el
 // forzado estaba en otra pantalla. Esto hace las dos cosas de una vez en la
 // BD (revisar_papeles_solicitud): NARANJA 5 días naturales o hasta que
@@ -2314,7 +2314,7 @@ async function cargarPresencia() {
 
   await cargarCaras(ids);
 
-  // 29/9/2026 (Dani, caso Jonay): quien entra con un PASE TEMPORAL tiene que
+  // 29/9/2026 (Dani, mismo caso): quien entra con un PASE TEMPORAL tiene que
   // distinguirse de un naranja normal de e-Coordina. Dos clases de pase:
   //   · forzado a verde/naranja (p. ej. «He revisado sus papeles»), con fecha
   //   · excepción de hoy (rojo autorizado en la puerta), solo ese día

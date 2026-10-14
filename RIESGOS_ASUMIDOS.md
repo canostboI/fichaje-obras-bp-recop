@@ -5,7 +5,9 @@
 > escritas y no se redescubran como "bugs" en el futuro.
 >
 > Creado: 6/7/2026 (auditoría profunda, hallazgo MJ-19).
-> Última actualización: 28/9/2026 (R-6: motivos que devuelve
+> Última actualización: 14/10/2026 (H-01 de la auditoría de octubre:
+> fuera de este documento el DNI de una ficha real; aviso en R-1).
+> Antes: 28/9/2026 (R-6: motivos que devuelve
 > `registrar_fichaje`; cierra el A16 de la auditoría de septiembre ·
 > R-7: «Mis últimos días» solo justo después de fichar · R-3 corregido
 > a 6 RPC públicas).
@@ -33,6 +35,13 @@ físicamente en la obra puede fichar por él.
 - El encargado confirma presencia real con la ronda diaria
   (`marcar_ronda`), que actúa como verificación humana cruzada.
 - Todo fichaje queda auditado (hora, coordenadas, origen).
+
+**Ojo (14/10/2026, H-01 de la auditoría de octubre):** la premisa de que
+el DNI de un compañero es difícil de conocer **no se cumple hoy para 10
+personas**: sus DNI estuvieron en comentarios del repositorio público.
+Se quitaron de `main` el 14/10, pero siguen en el historial de Git, que
+también es público. Hasta que se limpie el historial o el código pase a un
+repositorio privado, este riesgo no es razonable para esas personas.
 
 **Revisión futura:** si se implementa P-13 (portal del trabajador con
 DNI + PIN), el PIN puede reutilizarse para endurecer el fichaje sin
@@ -268,7 +277,8 @@ entra **solo con el DNI**, sin segundo dato: decisión de Dani (12/9/2026).
 rastro**. Con un DNI completo y el UUID del QR (R-4), cualquiera podía
 leer desde fuera de la obra, y sin que nadie lo supiera, a qué hora
 entraba y salía esa persona los últimos días. Comprobado en un bloque
-deshecho con la ficha de pruebas `00000001R`: devolvía sus fichajes
+deshecho con una ficha real (no era de pruebas; su DNI se retiró de
+este documento el 14/10/2026, H-01): devolvía sus fichajes
 del 24/9 sin haber fichado.
 
 **Estado:** ✅ **CERRADO el 28/9/2026** (sesión 141ª, decisión de Dani;

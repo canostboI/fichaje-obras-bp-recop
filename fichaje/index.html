@@ -1673,7 +1673,7 @@ const TEXTOS = {
   // Urdu — traducido por Claude y desplegado SIN revisión previa de nativo.
   // Decisión de Dani, 23/8/2026: algo legible es mejor que nada legible, y
   // hasta hoy un urduhablante veía la valla en castellano.
-  // Pendiente de que Hussain lo lea EN OBRA. Si algo suena mal se corrige
+  // Pendiente de que lo lea EN OBRA un trabajador urduhablante. Si algo suena mal se corrige
   // aquí y se vuelve a subir. Hoja de repaso: revision-traducciones.html.
   // El par de botones اندر / باہر se cambió el 23/8 desde داخلہ / اخراج,
   // porque اخراج también significa despido y el botón quedaba ambiguo.
@@ -1823,7 +1823,7 @@ const TEXTOS = {
 
   // Panyabí (gurmují) — traducido por Claude y desplegado SIN revisión previa
   // de nativo. Misma decisión que el urdu, 23/8/2026.
-  // Pendiente de que lo lean los Singh / Kumar EN OBRA.
+  // Pendiente de que lo lean EN OBRA trabajadores nativos.
   // Ojo a la FUENTE, que no es cosa de la traducción: en Android viejo las
   // conjuntas con ਹ subjuntiva (ਮਨ੍ਹਾ, ਖੁੱਲ੍ਹੀ) pueden salir como cuadrados ▯.
   // Si pasa, es que al móvil le falta la fuente gurmují, no que esté mal.
@@ -2386,7 +2386,7 @@ let idiomaActual = 'es';
 // ---------------------------------------------------------------------
 // Hasta ahora el idioma se guardaba SOLO por móvil (`idioma_fichaje`).
 // Eso vale para quien usa su propio móvil, pero no para el móvil de obra:
-// si Lester ficha a tres personas seguidas, las tres ven la pantalla en el
+// si el encargado ficha a tres personas seguidas, las tres ven la pantalla en el
 // idioma de la última bandera pulsada.
 //
 // Hay DOS memorias, y no son la misma cosa:
@@ -2511,7 +2511,7 @@ function aplicarIdioma(lang, origen) {
   });
 
   // El idioma DEL MÓVIL solo cambia si alguien pulsa una bandera sin tener
-  // un DNI en curso. Si Lester pulsa 🇲🇦 para ayudar a un compañero, eso es
+  // un DNI en curso. Si el encargado pulsa 🇲🇦 para ayudar a un compañero, eso es
   // el idioma DE ESE COMPAÑERO, no el de su móvil: se aprenderá al fichar.
   if (origen === 'manual' && !estado.dni) {
     localStorage.setItem('idioma_fichaje', lang);
@@ -2689,8 +2689,8 @@ function dniLetraIncorrecta(dni) {
   }
   return false;
 }
-// 9/10/2026 (Dani, caso Moussa el Kadaoui): tecleó su NIE sin la letra final
-// (Y9164508 en vez de Y9164508B). dniLetraIncorrecta no lo cazaba porque solo
+// 9/10/2026 (Dani, caso de un trabajador): tecleó su NIE sin la letra final
+// (Y0000000 en vez de Y0000000Z). dniLetraIncorrecta no lo cazaba porque solo
 // mira textos que YA tienen letra, así que pasó como desconocido y acabó en
 // «Sin registrar» con ficha y todo. Aquí se caza la forma exacta de DNI o NIE
 // a la que solo le falta la letra: 8 dígitos, o X/Y/Z + 7 dígitos. No se le
@@ -2849,7 +2849,7 @@ async function registrarSinRegistrar() {
   }
 }
 
-// B1 (caso Verónica, 31/8/2026). Sin esta casilla, quien trabaja por su
+// B1 (caso de una autónoma, 31/8/2026). Sin esta casilla, quien trabaja por su
 // cuenta no tenía nada que poner en "Empresa" y acababa escribiendo ahí su
 // propio DNI — que es exactamente lo que paso el 31/8 y ensucio la tabla de
 // empresas. El valor que se guarda es SIEMPRE 'Autónomo/a' en castellano,
@@ -3484,7 +3484,7 @@ async function ejecutarFichaje(tipo) {
     if (!data || !data.success) {
       irA(el.pasoResultado);
       el.btnEntrada.disabled = false; el.btnSalida.disabled = false;
-      // UNA-SOLA-CAUSA (5/10/2026, caso Boulmani): si el rechazo es por GPS,
+      // UNA-SOLA-CAUSA (5/10/2026, caso de un trabajador): si el rechazo es por GPS,
       // el cartel naranja «Acceso con aviso · documentación pendiente» que
       // quedó de validar_acceso sigue en pantalla encima del error, y el
       // trabajador (y el encargado que mira la foto) leen «no entra por

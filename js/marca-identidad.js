@@ -37,7 +37,7 @@
    9/10/2026 — EN EL ENCARGADO, LA MARCA VA EN SU PROPIA LÍNEA
    El nombre de la tarjeta del encargado se recorta a 2 líneas («…»).
    Antes la marca iba DENTRO de esa caja, al final del nombre: con un
-   nombre largo (caso «EL KADAOUI, MOUSSA el kadaoui») quedaba en la 3ª
+   nombre largo (de cuatro o cinco palabras, con el apellido repetido) quedaba en la 3ª
    línea y se cortaba, y parecía que el encargado no tenía el aviso.
    Ahora va en una línea aparte justo DEBAJO del nombre (fuera del
    recorte), así se ve siempre. El jefe no cambia (su tabla no recorta).

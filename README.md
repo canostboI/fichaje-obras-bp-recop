@@ -2,6 +2,19 @@
 
 App web de control de acceso y fichaje para obras de construcción.
 
+## ⚠️ Regla de datos (obligatoria)
+
+Este repositorio es **público**. Nunca se escribe en el código, en los
+comentarios, en los documentos ni en los mensajes de commit ningún dato
+real de una persona: **ni DNI/NIE, ni nombres, ni teléfonos, ni correos**
+de trabajadores, encargados o jefes. Tampoco para explicar «el caso de
+fulano»: se escribe «caso de un trabajador», «una subcontrata», etc.
+
+Para ejemplos y maquetas se usan datos inventados: DNI `00000000T`,
+NIE `Y0000000Z`, nombres como «NOMBRE APELLIDOS» o «Pere Inventat».
+Las pruebas contra la base devuelven recuentos e identificadores, nunca
+datos de personas. (Auditoría de octubre de 2026, hallazgo H-01.)
+
 ## Roles
 
 - **Admin** — acceso total

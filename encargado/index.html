@@ -1316,13 +1316,13 @@
     // 1/10/2026 · DOS AGUJEROS QUE ESCONDÍAN EL PANEL VERDE (caso Muralla):
     //  1) Solo miraba a quien NADIE había marcado «✓ Visto». Pero «Visto»
     //     quiere decir «me he enterado del bloqueo», no «está resuelto». Ese
-    //     día los 6 bloqueos estaban vistos y el panel no salía, con Zroude y
-    //     Boulmani ya en verde esperando en la puerta. Ahora se mira a TODO
+    //     día los 6 bloqueos estaban vistos y el panel no salía, con dos
+    //     trabajadores ya en verde esperando en la puerta. Ahora se mira a TODO
     //     el que sigue sin fichar. El panel ROJO no cambia: sigue sacando
     //     solo lo no visto.
     //  2) Solo contaba la autorización que nace de una PETICIÓN del
     //     encargado. Si el jefe autoriza directamente (excepciones_acceso,
-    //     caso Gasull), no salía. Ahora se mira también la excepción activa
+    //     caso de un trabajador), no salía. Ahora se mira también la excepción activa
     //     de hoy, que es lo mismo que mira la valla para dejarle pasar.
     const candidatos = clas.pendientes;
     const yaNoEnRojo = {};
@@ -1413,7 +1413,7 @@
       if (solYa && solYa.estado === 'autorizada') {
         botonPedir = '<span class="etq-sol ok">✓ Autorizado — que fiche en la valla</span>';
       } else if (solYa && solYa.estado === 'pendiente') {
-        // 28/9/2026 · Caso CHAABAN (OMAX): salía aquí Y en el panel amarillo.
+        // 28/9/2026 · Caso de un trabajador de una subcontrata: salía aquí Y en el panel amarillo.
         // Ahora esta tarjeta es la ficha completa de la persona, así que el
         // «Se ha ido» (que corta los recordatorios al jefe) vive también aquí.
         botonPedir = '<span class="etq-sol esp">⏳ Esperando al jefe de obra — NO entra</span>'

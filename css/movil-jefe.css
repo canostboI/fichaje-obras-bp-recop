@@ -56,7 +56,7 @@
      Cada fila deja de ser una fila de tabla y pasa a ser una rejilla:
        ┌──────────────────────────┬───────┬────────┐
        │ NOMBRE APELLIDOS  🛡️ 🏗️  │ 07:51 │ verde  │
-       │ 43687899C (gris)         │       │        │
+       │ 00000000T (gris)         │       │        │
        └──────────────────────────┴───────┴────────┘
      Nada se esconde: el DNI sigue ahí, debajo del nombre.
      La cabecera de columnas sobra (hora y color se entienden solos). */
@@ -114,7 +114,7 @@
        ┌─────────────────────────────────────┐
        │ mié 23 sep            (si hay fecha)│
        │ (cara) NOMBRE APELLIDOS   ● En obra │
-       │ Z4970455E                           │
+       │ 00000000T                           │
        │ Entrada 07:43  Salida 12:13  4h 30m │
        │ [✏ Entrada] [✏ Salida]              │
        └─────────────────────────────────────┘
@@ -184,7 +184,7 @@
    pasa a ser una tarjeta:
        ┌─────────────────────────────────────┐
        │ (cara) NOMBRE APELLIDOS  🛡️ 🏗️      │
-       │        47238372Y · Oficial 1ª       │
+       │        00000000T · Oficial 1ª       │
        │        [✓ Válido · MURALLA]         │
        │        Jornada [Normal]  25,00 €/h  │
        │        🪪 [Editar] [Quitar de…]      │
@@ -313,7 +313,7 @@
   /* Las de 4 columnas o más (el detalle de autorizaciones, los presentes
      sin registrar) no caben sin partir nombres y DNI por la mitad: se
      deslizan dentro de su caja y las palabras quedan enteras. Probado:
-     partir «GURJEET» en «GURJEE-T» se lee peor que deslizar. */
+     partir «BARTOLOMEU» en «BARTOLOME-U» se lee peor que deslizar. */
   table.inf-tabla:has(th:nth-child(4)) {
     display: block; max-width: 100%;
     overflow-x: auto; -webkit-overflow-scrolling: touch;

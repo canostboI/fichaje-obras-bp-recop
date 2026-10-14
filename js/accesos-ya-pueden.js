@@ -11,8 +11,8 @@
    ver el comentario de abrirModalAccesosDenegados en jefe/index.html).
    Pero si mientras tanto le has arreglado los papeles o le has
    autorizado, la tarjeta seguía igual, mezclada con los que siguen en
-   rojo de verdad. Caso BAMSA del 1/10: renovado el contrato, Zroude y
-   Boulmani ya estaban en verde y seguían saliendo como bloqueados.
+   rojo de verdad. Caso BAMSA del 1/10: renovado el contrato, dos
+   trabajadores ya estaban en verde y seguían saliendo como bloqueados.
 
    QUÉ HACE
    Después de pintar la ventana, mira el estado de AHORA de quien sigue
@@ -54,7 +54,7 @@
    para hoy».
 
    AÑADIDO 14/10/2026 — EL NÚMERO DE LA TARJETA (solo el jefe)
-   Dani, con Daniel y Antonio ya en verde: «¿porque no lo marca sin tener
+   Dani, con dos trabajadores ya en verde: «¿porque no lo marca sin tener
    que clicar en el 4? así no se ve». La tarjeta «Denegados sin resolver»
    decía 4 y la ventana, al abrirla, «2 sin poder entrar · 2 ya pueden
    entrar». Ahora la tarjeta dice lo mismo que la ventana: el número

@@ -26,7 +26,7 @@
    #lista-presencia es una rejilla (.lista-tarjetas). La cabecera de
    grupo es hija suya, así que ocupaba UNA CELDA como si fuera un
    trabajador más: en el ordenador, con dos columnas, «BOSCH PASCUAL»
-   se quedaba a la izquierda y Mario Martínez a su derecha, en la misma
+   se quedaba a la izquierda y un trabajador de otra empresa a su derecha, en la misma
    fila. A ojo, ese nombre no pertenecía a esa empresa.
 
    grid-column: 1 / -1 hace que la cabecera ocupe la fila entera, de la

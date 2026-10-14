@@ -42,7 +42,7 @@ vaciarla. Verificar = seguir la cadena hasta el efecto real.
   (primera exitosa tras la reparación del 20/7; los `failed` del
   18-20/7 son el fallo viejo).
 - **Efecto real verificado:** cerró exactamente las 3 jornadas
-  abiertas del lunes 20 (Martí, Fennouch, Essamery) a las 17:30.
+  abiertas del lunes 20 (tres trabajadores) a las 17:30.
 - **Cero escapes en julio:** recuento por día de entradas sin salida
   del 2 al 20 de julio = 0 en todos los días. Certificado.
 
@@ -84,12 +84,12 @@ vaciarla. Verificar = seguir la cadena hasta el efecto real.
 
 ### H-01 · SMS diarios a la obra de prueba y al móvil de Dani
 - **Qué:** `encargado@test.com` conservaba el 2º número de Dani
-  (+34619427906) — la reversión anotada el 19/7 NO estaba en la BD
+  (número retirado del documento, H-01 de la auditoría de 14/10/2026) — la reversión anotada el 19/7 NO estaba en la BD
   (otra vez el patrón "las notas mienten"). Ese usuario está en las
   3 obras → Dani recibía SMS de las 3, incluida la de prueba, que
   generaba SMS reales (con coste) cada mañana.
-- Extra: `jefe@test.com` tenía un teléfono CORRUPTO (`+3461942790`,
-  9 dígitos) — el número de Dani mal recortado.
+- Extra: `jefe@test.com` tenía un teléfono CORRUPTO (número
+  retirado, 9 dígitos) — el número de Dani mal recortado.
 - **Fix:** `telefono = NULL` en ambos usuarios de test. Verificado.
 
 ### H-02 · Escola Música Valls se quedaba sin receptor de avisos
@@ -98,15 +98,15 @@ vaciarla. Verificar = seguir la cadena hasta el efecto real.
   porque los SMS le llegaban a Dani por la ficha de test; el
   encargado real de Escola nunca los ha recibido. Aviso enviado a
   nadie = silencio de libro.
-- **Fix (decisión de Dani):** teléfono +34619427906 añadido a la
+- **Fix (decisión de Dani):** el 2º teléfono de Dani añadido a la
   cuenta sombra **Dani Encargado** (está en las 2 obras reales, no
-  en la de prueba). Reparto actual: Lester (Muralla) + Dani
+  en la de prueba). Reparto actual: el encargado de Muralla + Dani
   (Muralla y Escola). Cuando haya encargado real de Escola con
   ficha, se le pone teléfono desde el modal Equipo y Dani decide si
   retira el suyo.
 
 ### H-03 · Ficha y cuenta Auth vivas de una persona que ya no está
-- **Qué:** ficha "Jamal" (`jamal@test.com`, rol encargado, activa,
+- **Qué:** ficha de un encargado (correo de dominio test.com, activa,
   VINCULADA a Auth). Persona real que estuvo en obra y ya no está.
   Podía hacer login. Email de dominio test.com → irrecuperable y
   fuente de rebotes si el sistema le enviara algo.
@@ -118,7 +118,7 @@ vaciarla. Verificar = seguir la cadena hasta el efecto real.
   es SQL + panel, dos pasos manuales fáciles de olvidar.
 
 ### H-04 · Escape del autocierre: 1 entrada abierta el 1/7
-- **Qué:** AOURAGH, EL HASSAN (Muralla) fichó ENTRADA a las 17:30:04
+- **Qué:** un trabajador de Muralla fichó ENTRADA a las 17:30:04
   del 1/7 (olvidó la entrada de la mañana; al ir a fichar la salida
   el sistema le sugirió Entrar y le dio). La recuperación manual del
   20/7 no la cerró y además le generó un autocierre suelto el 2/7 a
@@ -158,7 +158,7 @@ vaciarla. Verificar = seguir la cadena hasta el efecto real.
   vs. dejarlo — cambiaría totales ya facturados) ya tiene número
   exacto. Inclinación actual: dejarlo. **Sin prisa.**
 
-### P-04 · Martí Balsells no ficha las salidas (hábito)
+### P-04 · Un trabajador no ficha las salidas (hábito)
 - Autocerrado el 16/7 y el 20/7; casi no ficha entradas tampoco.
   No es fallo del sistema: hablar con él o con el encargado.
 
@@ -192,10 +192,10 @@ email); pg_cron no avisa de nada.
 | S-01..S-07 | Verificación | ✅ SANO | Cadena completa comprobada 22/7 |
 | H-01 | Hallazgo | ✅ ARREGLADO 22/7 | Teléfonos de test a NULL |
 | H-02 | Hallazgo | ✅ ARREGLADO 22/7 | Dani Encargado cubre Escola |
-| H-03 | Hallazgo | ✅ ARREGLADO 22/7 | Jamal: ficha inactiva + Auth borrado |
-| H-04 | Hallazgo | ✅ ASUMIDO 22/7 | AOURAGH 1/7 — decisión Dani, no corregir |
+| H-03 | Hallazgo | ✅ ARREGLADO 22/7 | Encargado antiguo: ficha inactiva + Auth borrado |
+| H-04 | Hallazgo | ✅ ASUMIDO 22/7 | Entrada del 1/7 — decisión Dani, no corregir |
 | P-01 | Pendiente | ABIERTO | → US-6 (usuarios de test en obras reales) |
 | P-02 | Pendiente | ABIERTO | → US-7 (alerta vs. rastro en incidencias) |
 | P-03 | Pendiente | ABIERTO | Decisión Dani, sin prisa (~355 días-persona) |
-| P-04 | Pendiente | ABIERTO | Hábito de Martí — gestión humana |
+| P-04 | Pendiente | ABIERTO | Hábito de un trabajador — gestión humana |
 | Vigilante | Diseño | ACORDADO | Implementar: RPC `salud_crons()` + banner admin |

@@ -9,8 +9,8 @@
    DE DÓNDE VIENE
    La cabecera de jefe/index.html tenía TRES bloques rojos que hablaban
    de las mismas personas: «Personas sin identificar», «Piden
-   autorización en la puerta» y «N personas sin poder entrar». Youssef,
-   El Kadaqui, Hammami y Zougagh salían en dos o tres a la vez, y la
+   autorización en la puerta» y «N personas sin poder entrar». Cuatro
+   personas salían en dos o tres a la vez, y la
    lista roja repetía a la misma persona dos veces (una fila por la nota
    «Sin registrar» de las 08:02, otra por el intento «Documentación» de
    las 08:57). Cada tarjeta de «Piden autorización» abría el formulario
@@ -68,8 +68,8 @@
       el recordatorio es la marca «🪪 Identificar» de los listados de
       presentes (js/marca-identidad.js), que no se va con el visto.
 
-   6. «ES EL MISMO» (9/10/2026, Dani, caso Moussa el Kadaoui: ayer tenía
-      ficha con su NIE Y9164508B; hoy tecleó Y9164508, sin la letra, y salió
+   6. «ES EL MISMO» (9/10/2026, Dani, caso de un trabajador: ayer tenía
+      ficha con su NIE Y0000000Z; hoy tecleó Y0000000, sin la letra, y salió
       como «SIN REGISTRAR»). En las filas SIN REGISTRAR se pregunta a la BD
       (candidatos_es_el_mismo) si hay alguien con ficha en esta obra con el
       mismo DNI salvo la letra o con el mismo nombre. Si lo hay, sale un botón
@@ -79,8 +79,8 @@
       La regla de quién se parece vive SOLO en la BD (_candidatos_es_el_mismo)
       y la unión solo acepta a alguien que esa regla haya propuesto.
 
-   7. YA EN VERDE PERO SIN IDENTIFICAR (14/10/2026, Dani, caso Daniel
-      Ramírez y Antonio Jiménez de CAPMAR: su empresa lo corrigió a media
+   7. YA EN VERDE PERO SIN IDENTIFICAR (14/10/2026, Dani, caso de dos
+      trabajadores de una subcontrata: su empresa lo corrigió a media
       mañana, e-Coordina ya los daba en verde, y aquí seguían en ROJO
       arriba como «SIN IDENTIFICAR»: «¿porque no lo marca sin tener que
       clicar en el 4? así no se ve»). La identidad pendiente sigue sin
@@ -541,8 +541,8 @@
       });
       acc.appendChild(bq.nodo);
     });
-    // 4) UN SOLO «✓ Visto» por persona (14/10/2026, Dani: en las filas de Daniel
-    //    y Antonio salían dos, el de la identidad y el del intento en la valla, y
+    // 4) UN SOLO «✓ Visto» por persona (14/10/2026, Dani: en las filas de esas
+    //    dos personas salían dos, el de la identidad y el del intento en la valla, y
     //    no se sabía cuál era cuál; con uno solo marcado la fila no se iba).
     //    Si hay las dos cosas, el mismo botón marca las dos.
     var refId = (o.ident && o.ident.ref) ? o.ident.ref : '';
@@ -875,7 +875,7 @@
   // Sale solo si la persona TIENE FICHA y lo ha intentado hoy en la valla (un
   // bloqueo_rojo exige ficha). El 5/10 se excluía al «desconocido», pero desde el
   // 21/9 su ficha nace en la puerta y su intento de después es tan real como
-  // cualquier otro (caso Youssef, 8/10: ficha a las 08:37, intento a las 08:57).
+  // cualquier otro (caso de un trabajador, 8/10: ficha a las 08:37, intento a las 08:57).
   function casillaHora(o, marcadas) {
     var s = o.sol;
     if (!s) return;

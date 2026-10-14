@@ -55,7 +55,7 @@
    los que las dos detecciones marcan, entra quien esté FICHANDO con un
    dictamen de e-Coordina de más de 15 días (o sin ninguno), lo haya
    marcado algo o no. Si un día la detección falla, el banner no se queda
-   callado. Nació del caso CHAABAN: fichaba a diario en Muralla con el
+   callado. Nació del caso de un trabajador que fichaba a diario en Muralla con el
    dictamen del 08/06 porque su empresa lo tenía de alta en el centro de
    OTRA obra.
 
