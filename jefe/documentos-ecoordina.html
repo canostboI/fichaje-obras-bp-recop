@@ -983,6 +983,7 @@ async function confirmarImportacion() {
   const forzadosVivos = res.forzadosVivos || 0;
   const forzadosApagados = res.forzadosApagados || 0;
   const bloqueadosPorAusencia = res.bloqueadosPorAusencia || 0;
+  const mejorasBloqueadas = res.mejorasBloqueadas || 0;
 
   // 75ª. El aviso anterior decía que a los forzados «no se les había
   // modificado nada», y era cierto: la RPC se los saltaba enteros y sus
@@ -1010,6 +1011,17 @@ async function confirmarImportacion() {
       </div>`
     : '';
 
+  // H-03 (14/10/2026): los colores los dicta el robot. Una carga manual solo puede
+  // mantener o empeorar colores; las mejoras se rechazan y queda una línea
+  // [color_manual]. Para dar paso a alguien en rojo: forzar con motivo.
+  const avisoMejoras = mejorasBloqueadas > 0
+    ? `<div class="alert alert-warning" style="margin-top:10px;">
+        🔒 <strong>${mejorasBloqueadas} mejora${mejorasBloqueadas > 1 ? 's' : ''} de color no aplicada${mejorasBloqueadas > 1 ? 's' : ''}</strong>:
+        una carga manual no puede subir a nadie de color (eso lo hace el robot de e-Coordina cada noche).
+        Si alguien tiene que entrar hoy, usa «Forzar» con un motivo.
+      </div>`
+    : '';
+
   if (fallos.length === 0) {
     msg.style.color = 'var(--verde)';
     msg.textContent = `✅ ${creados} creados, ${actualizados} actualizados.`;
@@ -1018,7 +1030,7 @@ async function confirmarImportacion() {
         Importación completada. <strong>${creados}</strong> trabajadores nuevos creados, <strong>${actualizados}</strong> actualizados. Sin errores.
       </div>
       ${avisoForzados}${avisoApagados}
-      ${avisoBloqueados}
+      ${avisoBloqueados}${avisoMejoras}
       ${construirLista('🆕 Trabajadores nuevos creados', res.creadosLista, 'var(--verde)')}
       ${construirLista('🔁 Trabajadores actualizados', res.actualizadosLista, 'var(--azul)')}
     `;
@@ -1042,7 +1054,7 @@ async function confirmarImportacion() {
         </table>
       </div>
       ${avisoForzados}${avisoApagados}
-      ${avisoBloqueados}
+      ${avisoBloqueados}${avisoMejoras}
       ${construirLista('🆕 Trabajadores nuevos creados', res.creadosLista, 'var(--verde)')}
       ${construirLista('🔁 Trabajadores actualizados', res.actualizadosLista, 'var(--azul)')}
     `;

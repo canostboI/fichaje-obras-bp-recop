@@ -893,7 +893,7 @@ window.EcoordinaImport = (function () {
   // resultadoFinal: salida de calcularResultado.
   // dnisABloquear: array de objetos { dni } a poner en rojo por ausencia (opcional).
   // Devuelve: { creadosLista, actualizadosLista, fallos, saltadosPorForzado,
-  //             forzadosVivos, forzadosApagados, bloqueadosPorAusencia }
+  //             forzadosVivos, forzadosApagados, bloqueadosPorAusencia, mejorasBloqueadas }
   async function aplicar(sb, obraId, resultadoFinal, dnisABloquear) {
     const creadosLista = [];
     const actualizadosLista = [];
@@ -955,6 +955,9 @@ window.EcoordinaImport = (function () {
     let forzadosVivos = 0;
     let forzadosApagados = 0;
     let bloqueadosPorAusencia = 0;
+    // H-03 (14/10/2026): una carga manual (jefe) ya no puede MEJORAR colores;
+    // la RPC devuelve cuántas mejoras ha rechazado para que la pantalla lo diga.
+    let mejorasBloqueadas = 0;
 
     if (p_resultados.length || p_dnis_a_bloquear.length) {
       try {
@@ -973,6 +976,7 @@ window.EcoordinaImport = (function () {
           forzadosVivos = rpcResult.forzados_vivos || 0;
           forzadosApagados = rpcResult.forzados_apagados || 0;
           bloqueadosPorAusencia = rpcResult.bloqueados_por_ausencia || 0;
+          mejorasBloqueadas = rpcResult.mejoras_bloqueadas || 0;
         }
       } catch (err) {
         console.error('Excepción en aplicar_resultado_ecoordina:', err);
@@ -981,7 +985,7 @@ window.EcoordinaImport = (function () {
     }
 
     return { creadosLista, actualizadosLista, fallos, saltadosPorForzado,
-             forzadosVivos, forzadosApagados, bloqueadosPorAusencia };
+             forzadosVivos, forzadosApagados, bloqueadosPorAusencia, mejorasBloqueadas };
   }
 
   // ── API pública ───────────────────────────────────────────────────────────
