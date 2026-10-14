@@ -91,6 +91,12 @@
       verificarle el documento detrás. No cuenta como «espera tu decisión»;
       el título la cuenta aparte («· N ya pueden entrar», junto con los que
       ya podían entrar sin identidad pendiente). Conserva todos sus botones.
+   8. UN SOLO «✓ VISTO» POR FILA (14/10/2026, Dani). Las filas con identidad
+      pendiente y además intento en la valla tenían dos «✓ Visto» (el del
+      punto 5 y el de las anotaciones), sin saber cuál era cuál; marcando
+      solo uno, la fila no se iba. Ahora hay uno: marca la identidad y
+      después las anotaciones (vistoTodo). Si la segunda parte falla, se
+      dice qué quedó hecho y la pantalla se recarga.
 
    QUÉ NO HACE
    No toca la BD ni ninguna regla de fondo: el visto manda, «no se va al
@@ -501,18 +507,7 @@
       acc.appendChild(b);
     }
     // 2) Identidad: su tarjeta entera (texto escondido por CSS), con sus dos botones y el hueco del rechazo
-    if (o.ident) {
-      acc.appendChild(o.ident.nodo);
-      if (o.ident.ref) {
-        var vi = document.createElement('button');
-        vi.type = 'button';
-        vi.className = 'puerta-btn';
-        vi.textContent = '✓ Visto';
-        vi.title = 'Ya lo sé: deja de salir aquí. La identidad sigue pendiente y la marca 🪪 queda en los listados.';
-        vi.addEventListener('click', function () { vistoIdentidad(o.ident.ref, vi); });
-        acc.appendChild(vi);
-      }
-    }
+    if (o.ident) acc.appendChild(o.ident.nodo);
     // 3) Bloqueos: sus enlaces, sin repetir; los «Visto» se sustituyen por uno solo para toda la persona
     var vistos = [];
     var hrefs = {};
@@ -532,13 +527,27 @@
       });
       acc.appendChild(bq.nodo);
     });
-    if (vistos.length) {
+    // 4) UN SOLO «✓ Visto» por persona (14/10/2026, Dani: en las filas de Daniel
+    //    y Antonio salían dos, el de la identidad y el del intento en la valla, y
+    //    no se sabía cuál era cuál; con uno solo marcado la fila no se iba).
+    //    Si hay las dos cosas, el mismo botón marca las dos.
+    var refId = (o.ident && o.ident.ref) ? o.ident.ref : '';
+    if (refId || vistos.length) {
       var v = document.createElement('button');
       v.type = 'button';
       v.className = 'puerta-btn';
       v.textContent = '✓ Visto';
-      v.title = vistos.length > 1 ? 'Marca como vistas sus ' + vistos.length + ' anotaciones de hoy' : 'Marcar como visto';
-      v.addEventListener('click', function () { marcarVistos(vistos, v); });
+      var nAnot = vistos.length === 1 ? 'su anotación de hoy' : 'sus ' + vistos.length + ' anotaciones de hoy';
+      v.title = refId && vistos.length
+        ? 'Ya lo sé: deja de salir aquí (marca vistas su identidad pendiente y ' + nAnot + '). La identidad sigue pendiente y la marca 🪪 queda en los listados.'
+        : refId
+          ? 'Ya lo sé: deja de salir aquí. La identidad sigue pendiente y la marca 🪪 queda en los listados.'
+          : (vistos.length > 1 ? 'Marca como vistas ' + nAnot : 'Marcar como visto');
+      v.addEventListener('click', function () {
+        if (refId && vistos.length) vistoTodo(refId, vistos, v);
+        else if (refId) vistoIdentidad(refId, v);
+        else marcarVistos(vistos, v);
+      });
       acc.appendChild(v);
     }
   }
@@ -644,6 +653,42 @@
     }
   }
 
+  // 14/10/2026 · El «✓ Visto» único de una fila con identidad pendiente Y
+  // anotaciones de la valla. Primero la identidad (solo el jefe puede: si se
+  // niega, no se toca nada más); después las anotaciones. Si la segunda parte
+  // falla, se dice qué quedó hecho y qué no, y la pantalla se recarga para que
+  // enseñe la verdad.
+  async function vistoTodo(ref, ids, btn) {
+    var obra = obraDeAhora();
+    if (!obra) return;
+    btn.disabled = true;
+    btn.textContent = 'Marcando…';
+    var identidadHecha = false;
+    try {
+      var r = await sb.rpc('marcar_identidad_vista', { p_trabajador_id: ref, p_obra_id: obra });
+      if (r.error || !r.data || r.data.ok !== true) {
+        throw new Error((r.error && r.error.message) || (r.data && r.data.error) || 'No se pudo marcar');
+      }
+      identidadHecha = true;
+      for (var i = 0; i < ids.length; i++) {
+        var r2 = await sb.rpc('marcar_incidencia_vista', { p_incidencia_id: ids[i] });
+        if (r2.error || !r2.data || !r2.data.success) {
+          throw new Error((r2.error && r2.error.message) || (r2.data && r2.data.error) || 'No se pudo marcar');
+        }
+      }
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = '✓ Visto';
+      alert((identidadHecha
+        ? 'La identidad quedó marcada como vista, pero las anotaciones de la valla no: '
+        : 'Error: ') + (e && e.message ? e.message : e));
+    }
+    try {
+      if (typeof window.cargarIdentidadesPendientes === 'function') await window.cargarIdentidadesPendientes();
+      if (typeof window.cargarBloqueos === 'function') await window.cargarBloqueos();
+      if (window.MarcaIdentidad && typeof window.MarcaIdentidad.repintar === 'function') window.MarcaIdentidad.repintar();
+    } catch (_) {}
+  }
   async function marcarVistos(ids, btn) {
     btn.disabled = true;
     btn.textContent = 'Marcando…';
