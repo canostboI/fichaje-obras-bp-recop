@@ -97,8 +97,10 @@ function pintar(d) {
       '<p>Lista sacada de la app el ' + esc(d.generada_en) + '. Vale solo para ese día.</p>' +
       (d.obra_activa ? '' : '<p><strong>La obra no está activa: hoy no entra nadie.</strong></p>') +
     '</div>' +
-    '<div class="aviso">Usar SOLO si la app no responde en dos móviles. Quien está en NO no entra ' +
-    'salvo que lo autorice el jefe de obra por teléfono (apuntarlo en la fila). ' +
+    // Texto prudente (opción «a» del borrador de continuidad): quien sale en NO
+    // no entra. Si la empresa decide otra regla, se cambia aquí.
+    '<div class="aviso">Usar SOLO si la app no responde en dos móviles. Quien está en NO no entra. ' +
+    'Nadie que no esté en esta lista entra. ' +
     'Cuando vuelva la app, el encargado pasa estas horas como fichajes manuales. ' +
     'Después, escanear la hoja y destruir el papel.</div>' +
     '<table><thead><tr><th>Nº</th><th>Nombre</th><th>Empresa</th><th>Color</th><th>¿Entra?</th>' +
