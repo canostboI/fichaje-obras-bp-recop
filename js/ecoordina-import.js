@@ -247,6 +247,23 @@ window.EcoordinaImport = (function () {
 
   // Decide si un documento caducado sigue dentro de su margen.
   // Devuelve null si no aplica margen, o { dias, agotado, fechaTexto }.
+  // H-12 (15/10/2026) · «VALIDADO» CON LA CADUCIDAD PASADA. Antes un «Validado» se
+  // saltaba sin mirar su fecha: si e-Coordina se congela (paso a Twind) un
+  // reconocimiento médico validado que caducó ayer seguiría dando verde para
+  // siempre. Ahora, si la fila trae F.caducidad legible y es ANTERIOR a hoy, el
+  // documento cuenta como «Caducado» (con su regla y, si lo tiene, su margen).
+  // Medido el 15/10: e-Coordina ya marca «Caducado» a tiempo (0 de 204 «Validado»
+  // de empresa con fecha pasada), así que hoy no cambia ningún color: es una red.
+  // GEMELO de la función del mismo nombre en scripts/ecoordina-sync.mjs.
+  function estadoEfectivo(estado, fechaCaducidadTexto, hoyTexto) {
+    const e = String(estado || '').trim();
+    if (e !== 'Validado') return estado;
+    const tCad = parsearFechaEcoordina(fechaCaducidadTexto);
+    const m = String(hoyTexto || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (tCad === null || !m) return estado;
+    const hoy = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10)).getTime();
+    return tCad < hoy ? 'Caducado' : estado;
+  }
   function evaluarMargen(nombreDoc, estado, fechaCaducidadTexto, hoyTexto) {
     if (String(estado || '').trim() !== 'Caducado') return null;
     const dias = diasDeMargen(nombreDoc);
@@ -741,7 +758,8 @@ window.EcoordinaImport = (function () {
     for (const fila of filasEmpresa) {
       const empresaRaw = String(fila['Empresa'] || '').trim();
       if (!empresaRaw) continue;
-      const nombreDoc = fila['Documento'] || '', estado = fila['Estado'] || '';
+      const nombreDoc = fila['Documento'] || '';
+      const estado = estadoEfectivo(fila['Estado'] || '', fila['F.caducidad'] || '', hoyStr);  // H-12
       if (estado === 'Validado' && String(nombreDoc).startsWith('Formación 60 horas')) {
         empresasCon60hValidada.add(empresaRaw);
       }
@@ -766,7 +784,7 @@ window.EcoordinaImport = (function () {
       }
       porTrabajador[dni].docs.push({
         doc: fila['Documento'] || '',
-        estado: fila['Estado'] || '',
+        estado: estadoEfectivo(fila['Estado'] || '', fila['F.caducidad'] || '', hoyStr),  // H-12
         // Fecha declarada por e-Coordina. Solo la usa el margen de cortesía.
         fechaCaducidad: fila['F.caducidad'] || ''
       });
@@ -899,6 +917,21 @@ window.EcoordinaImport = (function () {
     const actualizadosLista = [];
     const fallos = [];
     const resultadosConId = [];
+
+    // H-12 (15/10/2026) · FRENO POR FECHA: el mismo que el robot. Si el admin ha
+    // puesto el día desde el que e-Coordina deja de dictar, la carga manual
+    // tampoco aplica nada (no crea fichas ni toca colores).
+    try {
+      const { data: freno, error: frenoErr } = await sb.rpc('freno_ecoordina');
+      if (!frenoErr && freno && freno.ok !== false && freno.activo) {
+        fallos.push({ dni: '—', nombre: '—', fase: 'freno por fecha',
+          mensaje: 'Desde el ' + (freno.desde || '(fecha ilegible)') + ' e-Coordina ya no dicta colores: no se ha aplicado nada. '
+                 + 'Los colores los tiene que dar la plataforma nueva.' });
+        return { creadosLista, actualizadosLista, fallos, saltadosPorForzado: 0,
+                 forzadosVivos: 0, forzadosApagados: 0, bloqueadosPorAusencia: 0, mejorasBloqueadas: 0 };
+      }
+      if (frenoErr) console.warn('freno_ecoordina:', frenoErr.message);
+    } catch (e) { console.warn('freno_ecoordina:', e); }
 
     // Paso 1: crear/actualizar trabajadores y recoger sus IDs.
     for (const r of resultadoFinal) {

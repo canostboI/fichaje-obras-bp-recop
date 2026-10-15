@@ -265,6 +265,23 @@ function parsearFechaEcoordina(texto) {
   if (d.getFullYear() !== anio || d.getMonth() !== mes - 1 || d.getDate() !== dia) return null;
   return d.getTime();
 }
+// H-12 (15/10/2026) · «VALIDADO» CON LA CADUCIDAD PASADA. Antes un «Validado» se
+// saltaba sin mirar su fecha: si e-Coordina se congela (paso a Twind) un
+// reconocimiento médico validado que caducó ayer seguiría dando verde para
+// siempre. Ahora, si la fila trae F.caducidad legible y es ANTERIOR a hoy, el
+// documento cuenta como «Caducado» (con su regla y, si lo tiene, su margen).
+// Medido el 15/10: e-Coordina ya marca «Caducado» a tiempo (0 de 204 «Validado»
+// de empresa con fecha pasada), así que hoy no cambia ningún color: es una red.
+// GEMELO de la función del mismo nombre en js/ecoordina-import.js.
+function estadoEfectivo(estado, fechaCaducidadTexto, hoyTexto) {
+  const e = String(estado || '').trim();
+  if (e !== 'Validado') return estado;
+  const tCad = parsearFechaEcoordina(fechaCaducidadTexto);
+  const m = String(hoyTexto || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (tCad === null || !m) return estado;
+  const hoy = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10)).getTime();
+  return tCad < hoy ? 'Caducado' : estado;
+}
 function fechaMasRecienteDeFila(fila) {
   const candidatos = [fila['F.emisión'], fila['F.emision'], fila['F.verificado'], fila['F.cumplimentado'], fila['F.solicitado']];
   let max = -Infinity;
@@ -434,6 +451,7 @@ function calcularResultadoObra(filasObra, trabajadoresApp) {
   // DOCS_CON_MARGEN. Se calcula UNA vez por obra para que todo el cálculo mire
   // el mismo día aunque el proceso cruce la medianoche.
   const hoyStr = hoyEspana();
+  let validadosCaducados = 0;  // H-12: «Validado» con la caducidad pasada
 
   // Separar filas empresa / trabajador
   const filasEmpresa = [];
@@ -500,7 +518,9 @@ function calcularResultadoObra(filasObra, trabajadoresApp) {
   for (const fila of filasEmpresa) {
     const empresaRaw = String(fila['Empresa'] || '').trim();
     if (!empresaRaw) continue;
-    const nombreDoc = fila['Documento'] || '', estado = fila['Estado'] || '';
+    const nombreDoc = fila['Documento'] || '';
+    const estado = estadoEfectivo(fila['Estado'] || '', fila['F.caducidad'] || '', hoyStr);  // H-12
+    if (estado === 'Caducado' && String(fila['Estado'] || '').trim() === 'Validado') validadosCaducados++;
     if (estado === 'Validado' && String(nombreDoc).startsWith('Formación 60 horas')) {
       empresasCon60hValidada.add(empresaRaw);
     }
@@ -522,9 +542,11 @@ function calcularResultadoObra(filasObra, trabajadoresApp) {
     if (!porTrabajador[dni]) {
       porTrabajador[dni] = { dni, nombre: fila._nombreTrabajador, empresa: extraerNombreEmpresa(fila['Empresa'] || ''), empresaRaw: fila._empresaRaw, docs: [] };
     }
+    const estadoFila = estadoEfectivo(fila['Estado'] || '', fila['F.caducidad'] || '', hoyStr);  // H-12
+    if (estadoFila === 'Caducado' && String(fila['Estado'] || '').trim() === 'Validado') validadosCaducados++;
     porTrabajador[dni].docs.push({
       doc: fila['Documento'] || '',
-      estado: fila['Estado'] || '',
+      estado: estadoFila,
       // Fecha declarada por e-Coordina. Solo la usa el margen de cortesía.
       fechaCaducidad: fila['F.caducidad'] || ''
     });
@@ -631,6 +653,7 @@ function calcularResultadoObra(filasObra, trabajadoresApp) {
     });
   }
 
+  if (validadosCaducados > 0) log(`   ⚠ ${validadosCaducados} documento(s) «Validado» con la caducidad pasada cuentan como «Caducado» (H-12)`);
   return resultadoFinal;
 }
 
@@ -706,6 +729,29 @@ async function main() {
   log('Autenticando en Supabase como', EMAIL);
   const { error: authErr } = await sb.auth.signInWithPassword({ email: EMAIL, password: PASSWORD });
   if (authErr) { console.error('ERROR de login en Supabase:', authErr.message); process.exit(1); }
+
+  // H-12 (15/10/2026) · FRENO POR FECHA. Si el admin ha puesto el día desde el
+  // que e-Coordina deja de dictar (paso a Twind), desde ese día NO se aplica
+  // ningún color: el Excel puede estar congelado y cada noche sería una sync
+  // «ok» que renueva verdes muertos. La sync termina en error, así que el
+  // vigilante de las 21:00 avisa con [sync_parada] y, a los 7 días, la regla de
+  // la valla cierra a la subcontrata. Vacío = sin freno (no cambia nada).
+  // Si no se puede leer el ajuste, se sigue como siempre y queda en el log.
+  {
+    const { data: freno, error: frenoErr } = await sb.rpc('freno_ecoordina');
+    if (frenoErr || !freno || freno.ok === false) {
+      log('⚠ No se ha podido leer el freno por fecha (freno_ecoordina):', (frenoErr && frenoErr.message) || (freno && freno.error) || 'sin respuesta', '— se sigue sin freno.');
+    } else if (freno.activo) {
+      console.error('FRENO POR FECHA: desde ' + (freno.desde || '(fecha ilegible)') + ' e-Coordina ya no dicta colores. No se aplica nada. ' + (freno.aviso || ''));
+      const { error: logErr } = await sb.from('ecoordina_sync').insert({
+        estado: 'error', obras_ok: 0, obras_error: 0,
+        detalle: [{ fase: 'freno', freno_desde: freno.desde || null, motivo: 'Freno por fecha activo (ajustes_sistema.freno_ecoordina_desde): no se aplica ningún color.' }]
+      });
+      if (logErr) log('⚠ no se pudo guardar el registro en ecoordina_sync:', logErr.message);
+      process.exit(1);
+    }
+  }
+
 
   // Cargar reglas y empresas propias (global)
   {
@@ -785,6 +831,7 @@ async function main() {
   const centrosEnArchivo = new Set(filas.map(f => normalizar(f['Centro'])).filter(Boolean));
 
   let huboFalloGrave = false;
+
   // OPS-004 (2.3-A): un CSV vacío nunca es un día bueno — el padrón nunca
   // está legítimamente vacío. Fallo grave aunque no haya obras que recorrer.
   if (filas.length === 0) {
