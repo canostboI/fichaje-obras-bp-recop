@@ -393,6 +393,48 @@ pide. La tabla sigue existiendo; restaurar el registro es una línea en
 
 ---
 
+## R-10 · La extensión `http` de la base la puede ejecutar cualquier rol — H-63
+
+**Qué es:** las 19 funciones `extensions.http*` tienen EXECUTE para
+`PUBLIC`, `anon` y `authenticated`. Ese permiso lo dio `supabase_admin`,
+y desde la cuenta `postgres` (la única a la que llegamos) el `REVOKE` no
+tiene efecto (probado el 15/10/2026, Tanda 8).
+
+**Por qué se acepta (de momento):** no se puede arreglar desde aquí. No
+es una decisión de la empresa: está pendiente de que Supabase lo quite.
+
+**Mitigaciones:** el esquema `extensions` no está expuesto en la API, así
+que hoy no hay camino para llamarlas con la clave pública ni con una
+sesión de la app. Solo serían un problema si alguien consiguiera ejecutar
+SQL con esos roles.
+
+**Revisar:** cuando conteste el soporte de Supabase (tarea manual de la
+Tanda 8). Comprobación: `has_function_privilege('anon',
+'extensions.http_post(character varying, jsonb)', 'EXECUTE')` = false.
+
+---
+
+## R-11 · La web no puede llevar cabeceras de seguridad — H-66
+
+**Qué es:** GitHub Pages no deja poner cabeceras HTTP. Desde el
+15/10/2026 cada página lleva su `Content-Security-Policy` en una etiqueta
+`<meta>` (scripts solo propios, conexiones solo a Supabase), pero hay dos
+cosas que una `<meta>` no puede hacer: impedir que otra web meta la app
+en un marco (`frame-ancestors` / `X-Frame-Options`, «clickjacking») y
+fijar `Referrer-Policy`.
+
+**Por qué se acepta:** limitación del alojamiento. Para quitarla haría
+falta un hosting con cabeceras o un proxy delante (encaja con el dominio
+de la empresa de H-71).
+
+**Mitigaciones:** las acciones delicadas piden confirmación y sesión; la
+valla no tiene sesión que robar.
+
+**Revisar:** si la web pasa a un dominio propio con proxy o a otro
+hosting.
+
+---
+
 ## Cómo mantener este documento
 
 - Cada riesgo nuevo que se decida **no** resolver, se añade aquí con:
