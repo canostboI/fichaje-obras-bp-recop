@@ -10,6 +10,7 @@
 <script src="../vendor/supabase-js-2.117.3.js" integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R"></script>
 <script src="../js/guardian.js"></script>
 <script src="../js/menu-admin.js"></script>
+<script src="../js/contactos-reservados.js"></script>
 <style>
   :root {
     --verde: #4caf50; --naranja: #ff9800; --rojo: #f44336; --azul: #2196f3;
@@ -211,8 +212,10 @@ const gruposAbiertos = {};
 
 async function cargarTrabajadores() {
   document.getElementById('tabla-trabajadores').innerHTML = '<div class="cargando">Cargando…</div>';
-  const { data, error } = await sb.from('trabajadores').select(`id, nombre, apellidos, dni, telefono, activo, categoria, categoria_otra, precio_hora_personalizado, empresa:empresa_id(id, nombre), validaciones_obra ( estado, obra:obra_id ( id, nombre ) )`).order('apellidos');
+  const { data, error } = await sb.from('trabajadores').select(`id, nombre, apellidos, dni, activo, categoria, categoria_otra, precio_hora_personalizado, empresa:empresa_id(id, nombre), validaciones_obra ( estado, obra:obra_id ( id, nombre ) )`).order('apellidos');
   if (error || !data) { document.getElementById('tabla-trabajadores').innerHTML = '<div class="vacio">Error al cargar trabajadores</div>'; return; }
+  // H-27: el teléfono ya no se lee directo; solo el admin, por la base.
+  await ContactosReservados.completarTrabajadores(sb, data);
   todosTrabajadores = data;
   const ids = data.map(t => t.id);
   habIconosPorTrabajador = {};

@@ -12,6 +12,7 @@
 <script src="../vendor/supabase-js-2.117.3.js" integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R"></script>
 <script src="../js/guardian.js"></script>
 <script src="../js/menu-admin.js"></script>
+<script src="../js/contactos-reservados.js"></script>
 <style>
   :root {
     --verde: #4caf50;
@@ -273,8 +274,10 @@ async function leerTodo() {
         .order('hora', { ascending: false }).limit(1).maybeSingle()
         .then(r => ({ obra_id: o.id, hora: (r && r.data) ? r.data.hora : null }))
     )),
+    // H-27: el teléfono de la cuenta llega aparte (solo admin, por la base).
     equipo: () => sb.from('usuarios_obra')
-      .select('obra_id, rol_en_obra, usuario:usuario_app_id(nombre, activo, telefono)'),
+      .select('obra_id, rol_en_obra, usuario:usuario_app_id(id, nombre, activo)')
+      .then(async r => { if (!r.error && r.data) await ContactosReservados.completarUsuarios(sb, r.data, x => x.usuario); return r; }),
     fichajes: () => SbPaginado.traerTodo(() => sb.from('fichajes')
       .select('tipo, hora, obra_id, trabajador_id, cierre_automatico, trabajador:trabajador_id(id, nombre, apellidos, dni)')
       .gte('hora', rango.desde).lt('hora', rango.hasta)

@@ -10,6 +10,7 @@
 <script src="../js/guardian.js"></script>
 <script src="../js/config.js"></script>
 <script src="../js/menu-admin.js"></script>
+<script src="../js/contactos-reservados.js"></script>
 <script src="../vendor/qrious-4.0.2.min.js" integrity="sha384-Dr98ddmUw2QkdCarNQ+OL7xLty7cSxgR0T7v1tq4UErS/qLV0132sBYTolRAFuOV"></script>
 <style>
   :root {
@@ -334,8 +335,9 @@ async function cambiarVista(vista) {
 
 async function cargarDirectorio() {
   const cont = document.getElementById('tabla-directorio');
-  const { data: personas, error: e1 } = await sb.from('usuarios_app').select('id, nombre, email, telefono, activo, auth_user_id, rol').order('nombre');
+  const { data: personas, error: e1 } = await sb.from('usuarios_app').select('id, nombre, activo, auth_user_id, rol').order('nombre');
   if (e1) { cont.innerHTML = '<div class="vacio">Error al cargar el directorio.</div>'; return; }
+  await ContactosReservados.completarUsuarios(sb, personas);  // H-27: correo y teléfono, solo admin
   const { data: asigs } = await sb.from('usuarios_obra').select('usuario_app_id, rol_en_obra, obra:obra_id(nombre)');
   const porPersona = {};
   (asigs || []).forEach(a => { (porPersona[a.usuario_app_id] = porPersona[a.usuario_app_id] || []).push({ obra: a.obra?.nombre || '—', rol: a.rol_en_obra }); });
@@ -397,8 +399,9 @@ async function cargarObras() {
 }
 
 async function cargarUsuarios() {
-  const { data } = await sb.from('usuarios_app').select('id, nombre, email, rol').eq('activo', true).in('rol', ['jefe_obra', 'encargado']).order('nombre');
+  const { data } = await sb.from('usuarios_app').select('id, nombre, rol').eq('activo', true).in('rol', ['jefe_obra', 'encargado']).order('nombre');
   todosUsuarios = data || [];
+  await ContactosReservados.completarUsuarios(sb, todosUsuarios);  // H-27
 }
 
 document.getElementById('btn-nueva').onclick = () => {
@@ -590,8 +593,9 @@ async function abrirEquipoPorId(id) {
 async function cargarEquipo() {
   if (!document.getElementById('modal-equipo').classList.contains('visible')) { if (vistaActual === 'directorio') await cargarDirectorio(); return; }
   document.getElementById('equipo-lista').innerHTML = '<div class="cargando">Cargando…</div>';
-  const { data, error } = await sb.from('usuarios_obra').select('id, rol_en_obra, usuario_app:usuario_app_id(id, nombre, email, auth_user_id, telefono, activo)').eq('obra_id', obraEquipoId);
+  const { data, error } = await sb.from('usuarios_obra').select('id, rol_en_obra, usuario_app:usuario_app_id(id, nombre, auth_user_id, activo)').eq('obra_id', obraEquipoId);
   if (error) { document.getElementById('equipo-lista').innerHTML = '<div class="equipo-vacio">Error al cargar el equipo.</div>'; return; }
+  await ContactosReservados.completarUsuarios(sb, data, x => x.usuario_app);  // H-27
   equipoActual = data || [];
   if (!data || data.length === 0) { document.getElementById('equipo-lista').innerHTML = '<div class="equipo-vacio">Esta obra no tiene equipo asignado todavía.</div>'; return; }
   document.getElementById('equipo-lista').innerHTML = data.map(item => `<div class="equipo-item"><div class="equipo-item-info"><span class="equipo-item-nombre">${esc(item.usuario_app?.nombre || '—')}${item.usuario_app?.activo === false ? ' <span class="pill gris">De baja</span>' : ''}</span><span class="equipo-item-email">${esc(item.usuario_app?.email || '')} · <span class="pill ${item.rol_en_obra === 'jefe_obra' ? 'azul' : 'naranja'}">${item.rol_en_obra === 'jefe_obra' ? 'Jefe de obra' : 'Encargado'}</span>${!item.usuario_app?.auth_user_id ? ' <span class="pill naranja">⚠️ Sin vincular</span>' : ''}${!item.usuario_app?.auth_user_id ? ` <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;" onclick="editarEmail('${item.usuario_app?.id}', '${escJs(item.usuario_app?.email || '')}')">Editar email</button> <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;" onclick="abrirBienvenida('${item.usuario_app?.id}')">📋 Mensaje de bienvenida</button>` : ` <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;" onclick="enviarEnlaceAcceso('${escJs(item.usuario_app?.email || '')}', '${escJs(item.usuario_app?.nombre || '')}')">Enviar enlace de acceso</button>`}</span><span class="equipo-item-email">📞 ${item.usuario_app?.telefono ? esc(item.usuario_app.telefono) : '<em>sin teléfono</em>'} <button class="btn-secundario" style="padding:2px 8px; font-size:11px; margin-left:6px;" onclick="editarTelefono('${item.usuario_app?.id}', '${escJs(item.usuario_app?.telefono || '')}')">Editar</button></span></div><div style="display:flex; gap:6px;">${item.usuario_app?.activo === false ? `<button class="btn-secundario" onclick="reactivarUsuario('${item.usuario_app?.id}', '${escJs(item.usuario_app?.nombre || '')}')">Reactivar</button>` : `<button class="btn-peligro" onclick="darDeBaja('${item.usuario_app?.id}', '${escJs(item.usuario_app?.nombre || '')}')">Dar de baja</button>`}<button class="btn-peligro" onclick="quitarDelEquipo('${item.id}')">Quitar</button></div></div>`).join('');
