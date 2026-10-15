@@ -177,11 +177,16 @@
   }
 
   // ── Mirar ────────────────────────────────────────────────────
+  // H-60 (15/10/2026): el enlace firmado de una cara dura 5 minutos (antes
+  // 1 hora), como los títulos. Quien copie o vea el enlace ya no puede abrir
+  // la foto sin sesión durante una hora. Las pantallas que lo reutilizan
+  // (jefe/index.html) lo renuevan antes de que caduque.
+  var SEGUNDOS_ENLACE = 300;
   // El bucket es privado: la foto solo se ve con enlace firmado.
   async function enlace(ruta) {
     if (!ruta) return null;
     try {
-      var r = await db().storage.from(BUCKET).createSignedUrl(ruta, 3600);
+      var r = await db().storage.from(BUCKET).createSignedUrl(ruta, SEGUNDOS_ENLACE);
       if (r.error || !r.data) return null;
       return r.data.signedUrl;
     } catch (e) { return null; }
@@ -197,7 +202,7 @@
     var lista = (rutas || []).filter(function (r) { return !!r; });
     if (!lista.length) return salida;
     try {
-      var r = await db().storage.from(BUCKET).createSignedUrls(lista, 3600);
+      var r = await db().storage.from(BUCKET).createSignedUrls(lista, SEGUNDOS_ENLACE);
       if (r.error || !r.data) return salida;
       r.data.forEach(function (x) {
         if (x && x.path && x.signedUrl && !x.error) salida[x.path] = x.signedUrl;

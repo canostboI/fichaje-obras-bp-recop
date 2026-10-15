@@ -667,9 +667,10 @@ let fotoUrlActual = '';
 let carasPorTrabajador = {};
 // Enlaces ya firmados, por ruta: { url, t }. La tabla se repinta cada minuto;
 // sin esto, cada minuto se firmarían enlaces NUEVOS y todas las fotos se
-// volverían a descargar. Se reutilizan 50 min (el enlace dura 60).
+// volverían a descargar. Se reutilizan 4 min: H-60 (15/10/2026) el enlace
+// dura 5 min (antes 60), así que se renueva antes de que caduque.
 let enlacesCaraCache = {};
-const MIN_REUSO_ENLACE_CARA = 50;
+const MIN_REUSO_ENLACE_CARA = 4;
 
 let validacionesCache = {};
 // 29/9/2026 · trabajador_id → { etiqueta, detalle } de quien entra con un
