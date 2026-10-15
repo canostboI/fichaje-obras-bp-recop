@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lista de colores para imprimir</title>
+<link rel="icon" type="image/png" href="assets/icons/portium-192.png">
+<script src="vendor/supabase-js-2.117.3.js" integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R"></script>
+<script src="js/guardian.js"></script>
+<script src="js/auto-logout.js"></script>
+<!--
+  lista-colores.html — H-38 de la auditoría (Tanda 8, 15/10/2026).
+  Lista de la obra para IMPRIMIR y dejar en la caseta, por si un día la app
+  no responde. Cada persona con el color que le daría HOY la valla (la misma
+  función que usa la valla para pedir paso y autorizar: _color_puerta, vía
+  lista_colores_obra) y huecos para apuntar entrada, salida y firma.
+  Sin DNI a propósito: es un papel que se queda a la vista.
+  Qué hacer con ella el día de la caída: procedimiento de la empresa
+  (borrador en el proyecto de arreglos, CONTINUIDAD_BORRADOR.md).
+-->
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, sans-serif; margin: 0; background: #f4f4f4; color: #111; }
+  .barra { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 12px 16px; background: #1a1a2e; color: #fff; }
+  .barra h1 { font-size: 1.05rem; margin: 0 auto 0 0; }
+  .barra button, .barra select { font-size: 0.95rem; padding: 6px 10px; border-radius: 6px; border: 1px solid #fff; background: transparent; color: #fff; }
+  .barra select option { color: #111; }
+  .hoja { background: #fff; max-width: 1000px; margin: 16px auto; padding: 18px 20px; }
+  .cab h2 { margin: 0 0 4px; font-size: 1.2rem; }
+  .cab p { margin: 2px 0; font-size: 0.85rem; color: #444; }
+  .aviso { border: 2px solid #111; padding: 8px 10px; margin: 10px 0 14px; font-size: 0.85rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th, td { border: 1px solid #555; padding: 5px 6px; text-align: left; vertical-align: middle; }
+  th { background: #eee; }
+  td.n { width: 32px; text-align: right; }
+  td.color { white-space: nowrap; font-weight: 700; }
+  td.hueco { width: 70px; }
+  td.firma { width: 120px; }
+  tr.no td.color { text-decoration: underline; }
+  .msg { padding: 16px; text-align: center; }
+  @media print {
+    body { background: #fff; }
+    .barra { display: none; }
+    .hoja { margin: 0; max-width: none; padding: 0; }
+    tr { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="barra">
+  <h1>🖨️ Lista de colores para la caseta</h1>
+  <select id="sel-obra" aria-label="Obra" style="display:none"></select>
+  <button id="btn-imprimir" disabled>Imprimir</button>
+  <button id="btn-volver">Volver</button>
+</div>
+<div class="hoja" id="hoja"><p class="msg">Cargando…</p></div>
+
+<script>
+const sb = supabase.createClient('https://istrnsicleopzbsrapsw.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY');
+AutoLogout.init(sb);
+
+// Escape completo (H-10): & < > " '
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+const COLOR = {
+  verde:   '● VERDE',
+  naranja: '◐ NARANJA',
+  rojo:    '○ ROJO'
+};
+
+function pintar(d) {
+  const hoja = document.getElementById('hoja');
+  if (!d || !d.ok) {
+    hoja.innerHTML = '<p class="msg">' + esc((d && d.error) || 'No se ha podido cargar la lista.') + '</p>';
+    return;
+  }
+  const filas = (d.personas || []).map((p, i) => {
+    const entra = p.pasa ? (p.excepcion_hoy ? 'Sí (autorizado hoy)' : 'Sí') : 'NO';
+    return '<tr class="' + (p.pasa ? 'si' : 'no') + '">' +
+      '<td class="n">' + (i + 1) + '</td>' +
+      '<td>' + esc(p.nombre) + '</td>' +
+      '<td>' + esc(p.empresa) + '</td>' +
+      '<td class="color">' + esc(COLOR[p.color] || p.color) + '</td>' +
+      '<td>' + esc(entra) + '</td>' +
+      '<td class="hueco"></td><td class="hueco"></td><td class="firma"></td>' +
+    '</tr>';
+  }).join('');
+  hoja.innerHTML =
+    '<div class="cab">' +
+      '<h2>' + esc(d.obra) + '</h2>' +
+      '<p>Lista sacada de la app el ' + esc(d.generada_en) + '. Vale solo para ese día.</p>' +
+      (d.obra_activa ? '' : '<p><strong>La obra no está activa: hoy no entra nadie.</strong></p>') +
+    '</div>' +
+    '<div class="aviso">Usar SOLO si la app no responde en dos móviles. Quien está en NO no entra ' +
+    'salvo que lo autorice el jefe de obra por teléfono (apuntarlo en la fila). ' +
+    'Cuando vuelva la app, el encargado pasa estas horas como fichajes manuales. ' +
+    'Después, escanear la hoja y destruir el papel.</div>' +
+    '<table><thead><tr><th>Nº</th><th>Nombre</th><th>Empresa</th><th>Color</th><th>¿Entra?</th>' +
+    '<th>Entrada</th><th>Salida</th><th>Firma</th></tr></thead><tbody>' +
+    (filas || '<tr><td colspan="8">No hay nadie dado de alta en esta obra.</td></tr>') +
+    '</tbody></table>';
+  document.getElementById('btn-imprimir').disabled = false;
+}
+
+async function cargar(obraId) {
+  document.getElementById('btn-imprimir').disabled = true;
+  document.getElementById('hoja').innerHTML = '<p class="msg">Cargando…</p>';
+  const { data, error } = await sb.rpc('lista_colores_obra', { p_obra_id: obraId });
+  if (error) { pintar({ ok: false, error: 'No se ha podido cargar la lista. (' + error.message + ')' }); return; }
+  pintar(data);
+}
+
+document.getElementById('btn-imprimir').addEventListener('click', () => window.print());
+document.getElementById('btn-volver').addEventListener('click', () => history.length > 1 ? history.back() : location.replace('index.html'));
+
+(async function init() {
+  const g = await Guardian.entrar(sb, { campos: 'id', volver: 'index.html' });
+  if (!g) return;
+  const u = g.usuario;
+
+  let obras = [];
+  if (u.rol === 'admin') {
+    const { data } = await sb.from('obras').select('id, nombre, estado').neq('estado', 'oculta').order('nombre');
+    obras = data || [];
+  } else {
+    const { data } = await sb.from('usuarios_obra')
+      .select('obra_id, rol_en_obra, obras(id, nombre, estado)')
+      .eq('usuario_app_id', u.id)
+      .in('rol_en_obra', ['jefe_obra', 'encargado']);
+    obras = (data || []).map(a => a.obras).filter(o => o && o.estado !== 'oculta');
+  }
+  if (!obras.length) { pintar({ ok: false, error: 'No tienes ninguna obra asignada.' }); return; }
+
+  // Obra: la de la dirección, o la que se usaba en el panel, o la primera.
+  const params = new URLSearchParams(location.search);
+  let elegida = params.get('obra') || '';
+  if (!elegida) {
+    try { elegida = localStorage.getItem('jefe_obra_activa_id') || localStorage.getItem('encargado_obra_activa_id') || ''; } catch (_) {}
+  }
+  if (!obras.some(o => o.id === elegida)) elegida = obras[0].id;
+
+  const sel = document.getElementById('sel-obra');
+  if (obras.length > 1) {
+    sel.innerHTML = obras.map(o => '<option value="' + esc(o.id) + '">' + esc(o.nombre) + '</option>').join('');
+    sel.value = elegida;
+    sel.style.display = '';
+    sel.addEventListener('change', () => cargar(sel.value));
+  }
+  cargar(elegida);
+})();
+</script>
+</body>
+</html>
