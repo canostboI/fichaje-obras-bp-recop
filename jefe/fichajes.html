@@ -443,8 +443,8 @@ function nombreFirmante(id) {
 // UNA consulta a fotos_identidad con los ids que ya salen en la lista y UNA
 // sola llamada a FI.enlaces para firmarlas todas de golpe. FI.enlaces NO deja
 // rastro en accesos_foto_log a propósito (decisión de Dani, 18/9/2026): un
-// registro con 23 líneas por pantalla no sirve de nada. Mirar UNA cara a
-// conciencia sigue siendo otra cosa.
+// registro con 23 líneas por pantalla no sirve de nada. Tampoco FI.ver deja
+// rastro: no hay registro de quién mira una cara (H-34, R-9 de RIESGOS_ASUMIDOS.md).
 // Si algo falla se quedan las INICIALES: una foto que no carga no puede
 // romper la lista de fichajes, que es lo importante de esta pantalla.
 async function cargarCaras(fichajes) {

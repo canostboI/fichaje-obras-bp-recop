@@ -5,7 +5,9 @@
 > escritas y no se redescubran como "bugs" en el futuro.
 >
 > Creado: 6/7/2026 (auditoría profunda, hallazgo MJ-19).
-> Última actualización: 15/10/2026, tarde (Tanda 4: R-5 con el freno por fecha y
+> Última actualización: 15/10/2026, mediodía (Tanda 6: R-4 corregido, H-20;
+> R-8 caras entre obras, H-33; R-9 sin registro de quién mira una cara, H-34).
+> Antes: 15/10/2026, tarde (Tanda 4: R-5 con el freno por fecha y
 > el «Validado» caducado, H-12).
 > Antes: 15/10/2026 (auditoría de octubre, tandas 2 y 3:
 > R-1, el GPS se exige también en la salida garantizada (H-06); R-5, la
@@ -198,18 +200,27 @@ se escriben en la incidencia `bloqueo_rojo` (uso interno, con RLS).
 primera pantalla, antes de pulsar Entrada). `registrar_fichaje` sí
 devuelve los motivos detallados al pulsar Entrada: ver **R-6**.
 
-**Riesgo residual, ahora SÍ aceptado:** con un UUID de obra cualquiera
-+ anon key todavía se puede comprobar si un DNI existe en el sistema y
-obtener, de ese DNI:
+**Riesgo residual, ahora SÍ aceptado:** con el UUID de una obra que
+exista + anon key todavía se puede comprobar si un DNI existe en el
+sistema y obtener, de ese DNI:
 - el **nombre de pila** (necesario para el saludo de la pantalla),
 - el **color** del semáforo en esa obra,
 - si hay excepción activa hoy.
 
+🆕 **15/10/2026 (H-20 de la auditoría de octubre):** hasta hoy esto
+funcionaba también con un UUID **inventado** y devolvía el campo
+`nombre` entero (en casi todas las fichas, nombre y apellidos). Ahora
+`validar_acceso` mira la obra **antes** que el DNI (UUID inventado →
+respuesta genérica, sin tocar el DNI) y devuelve solo la **primera
+palabra** del nombre.
+
 Ojo al alcance: la búsqueda del trabajador **no filtra por obra**, así
-que el UUID de una sola obra sirve para sondear DNIs contra toda la
-base. Se acepta porque el dato revelado es mínimo y el atacante ya
-necesita conocer el DNI completo de antemano (no es enumerable por
-fuerza bruta con coste razonable: 8 dígitos + letra de control).
+que el UUID de una sola obra real (está en el cartel) sirve para sondear
+DNIs contra toda la base. Se acepta porque el dato revelado es mínimo.
+⚠️ La premisa «el atacante necesita conocer el DNI completo» no vale
+para las personas cuyo DNI estuvo en el repositorio público (H-01) y
+**no hay límite de peticiones** en la API (H-21, pendiente de decisión:
+un límite por IP podría cortar la valla, que ficha desde un solo móvil).
 
 ---
 
@@ -336,6 +347,49 @@ minutos → `[]` · fichaje reciente pero `manual` → `[]` · DNI inexistente
 **Revisión futura:** si algún día la lista se enseña en otro momento (p.
 ej. antes de fichar, o en un portal del trabajador con PIN), hay que
 revisar esta condición: con ella, la lista saldría vacía.
+
+---
+
+## R-8 · Las caras de las personas valoradas se ven desde otras obras — H-33
+
+**Qué es:** un jefe o encargado puede ver la foto de la cara de un
+trabajador de **otra obra** si esa persona tiene alguna valoración
+(`identidad_leer` y `ver_foto_identidad` usan `puedo_ver_valoraciones`,
+101ª). La auditoría de octubre lo marca como fuga entre obras de un dato
+sensible (H-33).
+
+**Por qué se acepta:** decisión de Dani (15/10/2026): la cara acompaña
+al ranking de valoraciones, que es compartido entre obras a propósito
+(ver H-43, pendiente de decisión de la empresa). Sin la cara, el ranking
+pierde la forma de reconocer a la persona.
+
+**Mitigaciones:** bucket privado, solo con enlace firmado y temporal;
+solo jefes y encargados activos; nadie fuera de una obra de la empresa.
+
+**Revisar:** cuando la empresa decida sobre las valoraciones (H-43). Si
+el ranking se limita a la obra, esta regla vuelve a ser
+`es_admin() OR trabajador_en_mis_obras(...)`.
+
+---
+
+## R-9 · No queda registro de quién mira una cara — H-34
+
+**Qué es:** `accesos_foto_log` no se rellena desde la 108ª (18/9/2026):
+ni `ver_foto_identidad` ni las listas firmadas en bloque (`FI.enlaces`)
+anotan quién mira una foto. A la pregunta «¿quién ha visto la cara de
+esta persona?» la app **no sabe responder**.
+
+**Por qué se acepta:** decisión de Dani (18/9/2026, ratificada el
+15/10/2026): un registro con decenas de líneas por pantalla no sirve de
+nada. Desde el 15/10/2026 el código y los comentarios dicen la verdad
+(antes prometían el registro).
+
+**Mitigaciones:** solo ven caras el admin y los jefes y encargados de
+las obras de la persona (más R-8); enlaces firmados y temporales.
+
+**Revisar:** si un auditor de protección de datos o la empresa lo
+pide. La tabla sigue existiendo; restaurar el registro es una línea en
+`ver_foto_identidad`.
 
 ---
 

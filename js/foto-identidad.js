@@ -33,7 +33,10 @@
    devuelve un resultado y no lanza jamás.
 
    El bucket es PRIVADO. Una foto solo se ve por enlace firmado y
-   temporal, y pedirlo deja línea en `accesos_foto_log`.
+   temporal. H-34 (auditoría, 15/10/2026): NO queda registro de quién
+   mira una cara. `accesos_foto_log` no se rellena desde la 108ª
+   (decisión de Dani, ratificada el 15/10/2026; ver R-9 de
+   RIESGOS_ASUMIDOS.md). No prometer lo contrario en ningún sitio.
 
    Dependencias: ninguna. Los estilos del visor los inyecta él mismo
    para no tener que tocar el CSS de cada página.
@@ -50,15 +53,11 @@
      FI.enlace(ruta)                         → Promise<url|null>
      FI.enlaces(rutas)                       → Promise<{ruta: url}> (108a)
                                                Varias de golpe, en UNA
-                                               llamada. NO deja rastro en
-                                               accesos_foto_log: es para
-                                               pintar caras en una lista
-                                               (decision de Dani, 18/9/2026:
-                                               un registro con 23 lineas por
-                                               pantalla no sirve de nada).
-                                               Para mirar UNA cara a
-                                               proposito sigue estando
-                                               FI.ver, que si deja rastro.
+                                               llamada, para pintar caras
+                                               en una lista. Ni esta ni
+                                               FI.ver dejan rastro de quien
+                                               mira (H-34: ver R-9 de
+                                               RIESGOS_ASUMIDOS.md).
      FI.ver(trabajadorId)                    → Promise<{hay_foto, url}>
      FI.visor(url)                           → abre la foto a pantalla
      FI.montarCaptura(hueco, opts)           → 2 botones + vista previa
@@ -170,7 +169,9 @@
 
   // Borrado de cortesia del huerfano. El bucket no da DELETE a nadie
   // salvo al duenno, asi que esto puede fallar sin consecuencias: si
-  // falla, el fichero lo recogera el cron de caducidad.
+  // falla, el fichero lo recoge el cron nocturno de la cola de borrado
+  // (vaciar_cola_borrado_fotos encola toda foto sin ficha de mas de 24 h,
+  // H-32, 15/10/2026).
   async function limpiar(ruta) {
     try { await db().storage.from(BUCKET).remove([ruta]); } catch (e) { /* da igual */ }
   }
@@ -206,7 +207,8 @@
   }
 
   // Pedir la foto de UNA persona. Va por RPC a proposito: es la que
-  // anota en accesos_foto_log quien ha mirado esa cara.
+  // decide si puedes verla. NO anota quien la mira (H-34: desde la 108ª
+  // no queda registro; ver R-9 de RIESGOS_ASUMIDOS.md).
   async function ver(trabajadorId) {
     try {
       var r = await db().rpc('ver_foto_identidad', { p_trabajador_id: trabajadorId });
