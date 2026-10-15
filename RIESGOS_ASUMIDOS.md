@@ -442,6 +442,41 @@ hosting.
 
 ---
 
+## R-12 · Con la identidad pendiente se entra en verde — H-85
+
+**Qué es:** una ficha con `identidad_pendiente` (alta en la puerta sin
+verificar todavía el documento en persona) pasa la valla con su color
+normal. Ni `validar_acceso` ni `registrar_fichaje` miran esa marca.
+
+**Por qué se acepta:** decisión de Dani (15/10/2026): la identidad la
+cierra el encargado en persona, y parar a la gente en la puerta por un
+trámite pendiente hace más daño que bien. Queda escrito como regla.
+
+**Mitigaciones:** la marca 🪪 sale en los listados del jefe y del
+encargado; el bloque «Pendientes de identificar» les recuerda a quién
+falta ver; al denegar en la puerta la identidad se cierra como «rechazado».
+
+**Revisar:** si aparece un caso de suplantación o lo pide la empresa
+(entonces: naranja o rojo hasta verificar, en `_color_puerta` y la valla).
+
+---
+
+## R-13 · El encargado ve el precio por hora y el CIF de las empresas — H-27
+
+**Qué es:** desde el 15/10/2026 el encargado ya no puede leer teléfonos ni
+correos, pero sí `trabajadores.precio_hora_personalizado` (2 fichas lo
+tienen) y el CIF de todas las empresas.
+
+**Por qué se acepta:** decisión de Dani (15/10/2026). El precio lo lee el
+jefe en el resumen del mes y la proforma; cerrarlo obliga a rehacer esas
+pantallas. El CIF no es dato personal salvo de autónomos y lo usa el
+importador.
+
+**Revisar:** si más fichas pasan a tener precio personalizado o la
+empresa lo pide.
+
+---
+
 ## Cómo mantener este documento
 
 - Cada riesgo nuevo que se decida **no** resolver, se añade aquí con:
