@@ -31,6 +31,12 @@ import { createClient } from '@supabase/supabase-js';
 import * as XLSX from 'xlsx';
 import fs from 'fs';
 import path from 'path';
+import { createHash } from 'crypto';
+
+// H-11 (15/10/2026): en el log (público en GitHub) nunca un DNI ni un nombre.
+// Para poder casar un aviso con una persona se escribe una huella corta del DNI
+// (los 6 primeros caracteres de su md5): no se puede leer el DNI a partir de ella.
+function huella(dni) { return 'huella ' + createHash('md5').update(String(dni || '').toUpperCase()).digest('hex').slice(0, 6); }
 
 // ── Config (la URL y la anon key son públicas, igual que en la web) ───────────
 const SUPABASE_URL = 'https://istrnsicleopzbsrapsw.supabase.co';
@@ -675,13 +681,13 @@ async function volcarObra(sb, obraId, resultadoFinal) {
       });
       if (rpcErr || !rpcData || rpcData.ok === false || !rpcData.id) {
         fallosCrear++;
-        log('   ⚠ fallo crear/actualizar', r.dni, (rpcErr && rpcErr.message) || (rpcData && rpcData.error) || '');
+        log('   ⚠ fallo crear/actualizar', huella(r.dni), (rpcErr && rpcErr.message) || (rpcData && rpcData.error) || '');
         continue;
       }
       resultadosConId.push({ ...r, trabajadorId: rpcData.id });
     } catch (err) {
       fallosCrear++;
-      log('   ⚠ excepción crear/actualizar', r.dni, err.message || String(err));
+      log('   ⚠ excepción crear/actualizar', huella(r.dni), err.message || String(err));
     }
   }
 
@@ -1053,8 +1059,9 @@ async function main() {
     // pero dejan de ser invisibles: van al log, al resumen y a ecoordina_sync.
     if (filasSinIdentificar.length) {
       log(`   ⚠ ${filasSinIdentificar.length} fila(s) con trabajador no identificado (no se han aplicado a la empresa):`);
+      // H-11: sin la columna Trabajador (nombre y DNI); solo empresa y documento.
       for (const f of filasSinIdentificar.slice(0, 10)) {
-        log(`      · "${f.trabajador}" · ${f.empresa || '(sin empresa)'} · ${f.doc}`);
+        log(`      · ${String(f.empresa || '(sin empresa)').split(' - ')[0]} · ${f.doc}`);
       }
     }
     resumen.push({ obra: obra.nombre, trabajadores: resultado.length, ...cuenta, aplicados: res.aplicados, fallosCrear: res.fallosCrear, rpc: res.mainOk ? 'OK' : 'ERROR', sin_identificar: filasSinIdentificar.length, forzados_vivos: res.forzadosVivos, forzados_apagados: res.forzadosApagados, docs_empresa: docsEmpresa });

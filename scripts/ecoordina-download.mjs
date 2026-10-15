@@ -187,9 +187,13 @@ try {
   await download.saveAs(dest);
 
   const stats = fs.statSync(dest);
-  const head = fs.readFileSync(dest, { encoding: 'latin1' }).split('\n').slice(0, 3).join('\n');
-  log('CSV guardado:', dest, `(${stats.size} bytes)`);
-  log('Primeras líneas del CSV:\n' + head);
+  // H-11 (15/10/2026): antes se imprimían aquí las 3 primeras líneas del CSV
+  // (cabecera + 2 filas con nombre, DNI, empresa y documento). Los logs de
+  // Actions los ve cualquier cuenta de GitHub. Ahora solo tamaño, número de
+  // líneas y los NOMBRES de las columnas (la cabecera no tiene datos personales).
+  const lineas = fs.readFileSync(dest, { encoding: 'latin1' }).split('\n');
+  log('CSV guardado:', dest, `(${stats.size} bytes, ${lineas.length} líneas)`);
+  log('Columnas del CSV:', (lineas[0] || '').trim().slice(0, 300));
   await shot(page, '07-ok');
   log('HITO 1 COMPLETADO ✅');
 
