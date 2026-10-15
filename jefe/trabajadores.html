@@ -1850,6 +1850,13 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     return;
   }
 
+  // H-07 (15/10/2026): si la persona también está en una obra que no es de
+  // este jefe, la RPC solo la añade a sus obras y NO cambia sus datos (nombre,
+  // categoría, precio, empresa). Se dice, para que no parezca que se guardó.
+  const avisoAjena = (rpcData && rpcData.ficha_ajena)
+    ? ' Ojo: esta persona también está en una obra que no es tuya. Se ha añadido a tu obra, pero su nombre, categoría, precio y empresa NO se han cambiado: eso lo hace el administrador.'
+    : '';
+
   // Quitar obras: SIEMPRE por la RPC quitar_trabajador_de_obra, la misma que
   // usa admin/trabajadores.html. Además de quitar la validación documental,
   // retira al trabajador como Recurso Preventivo de esa obra. El DELETE
@@ -1879,11 +1886,12 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   if (aQuitar.length > 0) {
     msg.textContent = 'Guardado. Quitado de ' + aQuitar.length
       + (aQuitar.length === 1 ? ' obra' : ' obras')
-      + '. Aviso: si sigue en e-Coordina bajo el centro de esa obra, la sincronización de esta noche volverá a asignarlo. La baja definitiva se hace en e-Coordina.';
+      + '. Aviso: si sigue en e-Coordina bajo el centro de esa obra, la sincronización de esta noche volverá a asignarlo. La baja definitiva se hace en e-Coordina.'
+      + avisoAjena;
   } else {
-    msg.textContent = 'Guardado correctamente.';
+    msg.textContent = 'Guardado correctamente.' + avisoAjena;
   }
-  setTimeout(() => { cerrarModal(); cargarTrabajadores(); }, aQuitar.length > 0 ? 5000 : 800);
+  setTimeout(() => { cerrarModal(); cargarTrabajadores(); }, (aQuitar.length > 0 || avisoAjena) ? 6000 : 800);
 });
 
 function abrirModalForzar(trabajadorId, obraId) {
