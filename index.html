@@ -362,11 +362,10 @@ btnLogin.addEventListener('click', async () => {
 
   if (error) {
     setCargando(false);
-    if ((error.message || '').toLowerCase().includes('email not confirmed')) {
-      mostrarError('Tu correo aún no está confirmado. Busca el email de confirmación (mira también en spam) y pincha el enlace.');
-    } else {
-      mostrarError('Correo o contraseña incorrectos.');
-    }
+    // H-58 (15/10/2026): el MISMO mensaje para «contraseña mal» y para «correo
+    // sin confirmar». Antes eran distintos y servían para saber qué correos
+    // tienen cuenta. La pista del correo de confirmación va en los dos.
+    mostrarError('Correo o contraseña incorrectos. Si acabas de darte de alta, busca antes el email de confirmación (mira también en spam) y pincha el enlace.');
     return;
   }
 
