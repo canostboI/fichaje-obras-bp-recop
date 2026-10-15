@@ -16,6 +16,7 @@
 <script src="../vendor/supabase-js-2.117.3.js" integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R"></script>
 <script src="../vendor/qrious-4.0.2.min.js" integrity="sha384-Dr98ddmUw2QkdCarNQ+OL7xLty7cSxgR0T7v1tq4UErS/qLV0132sBYTolRAFuOV"></script>
 <script src="../js/guardian.js"></script>
+<script src="../js/config.js"></script>
 <script src="../js/branding.js"></script>
 <script src="../js/auto-logout.js"></script>
 <script src="../js/motivos.js"></script>
@@ -3023,7 +3024,7 @@ async function marcarVisto(incidenciaId, btn) {
 }
 
 function abrirQR(obraId, obraNombre) {
-  const url = `https://canostboi.github.io/fichaje-obras-bp-recop/fichaje/?obra=${obraId}`;
+  const url = PORTIUM_CONFIG.urlValla(obraId);  // H-71: js/config.js
   document.getElementById('qr-obra-nombre').textContent = obraNombre;
   const canvas = document.getElementById('qr-canvas');
   new QRious({ element: canvas, value: url, size: 280, background: 'white', foreground: 'black' });

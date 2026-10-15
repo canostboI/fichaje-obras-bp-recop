@@ -8,6 +8,7 @@
 <title>Obras — Admin</title>
 <script src="../vendor/supabase-js-2.117.3.js" integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R"></script>
 <script src="../js/guardian.js"></script>
+<script src="../js/config.js"></script>
 <script src="../js/menu-admin.js"></script>
 <script src="../vendor/qrious-4.0.2.min.js" integrity="sha384-Dr98ddmUw2QkdCarNQ+OL7xLty7cSxgR0T7v1tq4UErS/qLV0132sBYTolRAFuOV"></script>
 <style>
@@ -544,7 +545,7 @@ document.getElementById('btn-guardar').onclick = async () => {
 function abrirQRPorId(id) {
   const o = todasObras.find(x => x.id === id);
   if (!o) { alert('No se ha encontrado la obra.'); return; }
-  const url = `https://canostboi.github.io/fichaje-obras-bp-recop/fichaje/?obra=${o.id}`;
+  const url = PORTIUM_CONFIG.urlValla(o.id);
   qrActual = { nombre: o.nombre || 'Obra', empresa_marca: o.empresa_marca || 'bosch_pascual', url };
   document.getElementById('qr-titulo').textContent = 'QR — ' + qrActual.nombre;
   document.getElementById('qr-url').textContent = url;
@@ -629,13 +630,13 @@ async function enviarEnlaceAcceso(email, nombre) {
   if (!limpio) { mostrarErrorEquipo('Ese usuario no tiene email guardado.'); return; }
   if (!confirm(`Enviar a "${nombre || limpio}" un enlace para crear una contraseña nueva.\n\nEl correo llega a: ${limpio}\n\n¿Enviar?`)) return;
   ocultarMensajesEquipo();
-  const { error } = await sb.auth.resetPasswordForEmail(limpio, { redirectTo: 'https://canostboi.github.io/fichaje-obras-bp-recop/nueva-password.html' });
+  const { error } = await sb.auth.resetPasswordForEmail(limpio, { redirectTo: PORTIUM_CONFIG.APP_URL + 'nueva-password.html' });
   if (error) { mostrarErrorEquipo('No se ha podido enviar el enlace: ' + error.message); return; }
   mostrarOkEquipo(`✓ Enlace enviado a ${limpio}.`);
 }
 
 // ===== 109a: mensaje de bienvenida para WhatsApp =====
-const APP_URL = 'https://canostboi.github.io/fichaje-obras-bp-recop/';
+const APP_URL = PORTIUM_CONFIG.APP_URL;  // H-71: js/config.js
 let bvNombre = '', bvEmail = '', bvSistema = 'android';
 
 function textoBienvenida(nombre, email, sistema) {
