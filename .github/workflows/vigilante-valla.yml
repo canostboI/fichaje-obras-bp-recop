@@ -1,0 +1,128 @@
+name: Vigilante · la valla responde
+
+# H-69 · H-64 · H-70 de la auditoría (Tanda 8, 15/10/2026).
+#
+# Cada hora en horario de obra (lunes a sábado) comprueba desde fuera, como
+# lo haría el móvil de la caseta, que:
+#   1. la página de la valla se descarga (GitHub Pages), y
+#   2. la base de Supabase contesta (llama a obra_publica con una obra que no
+#      existe: solo lee, no escribe nada y no devuelve datos de nadie).
+# Si algo falla abre una issue con la etiqueta «valla-caida» (GitHub manda un
+# correo); si ya hay una abierta, añade un comentario. Cuando vuelve a
+# responder, la cierra sola con un comentario.
+#
+# Además:
+#   - H-64: la llamada de cada día cuenta como actividad, así que el plan
+#     gratuito de Supabase no pausa el proyecto en vacaciones.
+#   - H-70: GitHub desactiva los workflows programados de un repo público tras
+#     60 días sin cambios. Este workflow se vuelve a «activar» a sí mismo y a
+#     los otros dos en cada pasada (eso pone el contador a cero). Uno que se
+#     haya desactivado A MANO (disabled_manually) NO se toca: si Dani para el
+#     robot a propósito, se queda parado.
+#
+# No usa ningún secreto: la dirección y la clave pública de Supabase son las
+# mismas que lleva cualquier página de la web. No manda SMS ni correos.
+# Si se añade o quita un workflow programado, añadirlo a la lista WORKFLOWS.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 4-19 * * 1-6'   # cada hora a y 23, de 05:23/06:23 a 20:23/21:23 Madrid
+
+permissions:
+  contents: read
+  issues: write
+  actions: write
+
+concurrency:
+  group: vigilante-valla
+  cancel-in-progress: false
+
+jobs:
+  vigilar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SUPABASE_URL: https://istrnsicleopzbsrapsw.supabase.co
+      SUPABASE_ANON: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzdHJuc2ljbGVvcHpic3JhcHN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIxMTYsImV4cCI6MjA5MTM4ODExNn0.5UXV2LWPXmbfLI7rKpZSG9YBzZsesjckHnhQabA0mTY
+      WORKFLOWS: vigilante-valla.yml ecoordina.yml recordatorio-crons.yml
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          sparse-checkout: js/config.js
+          sparse-checkout-cone-mode: false
+
+      - name: Comprobar la valla y la base
+        id: valla
+        run: |
+          set -u
+          APP_URL=$(grep -oE "https://[^']+/" js/config.js | head -1)
+          FALLOS=""
+
+          # 1) La página de la valla
+          COD_WEB=$(curl -sS -o pagina.html -w '%{http_code}' --max-time 30 "${APP_URL}fichaje/") || true
+          COD_WEB=${COD_WEB:-000}
+          if [ "$COD_WEB" != "200" ] || ! grep -q "validar_acceso" pagina.html; then
+            FALLOS="${FALLOS}- La página de la valla no se descarga bien (HTTP ${COD_WEB}).\n"
+          fi
+
+          # 2) La base: obra_publica con una obra inexistente (solo lectura)
+          COD_BD=$(curl -sS -o respuesta.json -w '%{http_code}' --max-time 30 \
+            -X POST "${SUPABASE_URL}/rest/v1/rpc/obra_publica" \
+            -H "apikey: ${SUPABASE_ANON}" -H "Authorization: Bearer ${SUPABASE_ANON}" \
+            -H 'Content-Type: application/json' \
+            -d '{"p_obra_id":"00000000-0000-0000-0000-000000000000"}') || true
+          COD_BD=${COD_BD:-000}
+          if [ "$COD_BD" != "200" ] || ! grep -q '"success"' respuesta.json; then
+            FALLOS="${FALLOS}- La base de Supabase no contesta (HTTP ${COD_BD}). Si sale 540 o 503, el proyecto puede estar PAUSADO: Supabase → proyecto → «Restore project».\n"
+          fi
+          rm -f pagina.html respuesta.json
+
+          echo "Web: HTTP ${COD_WEB} · Base: HTTP ${COD_BD}"
+          if [ -n "$FALLOS" ]; then
+            printf '%b' "$FALLOS" > fallos.txt
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Avisar si falla
+        if: steps.valla.outputs.ok == 'false'
+        run: |
+          CUERPO="$(date -u +'%d/%m/%Y %H:%M') UTC — el vigilante no ha podido abrir la valla:
+
+          $(cat fallos.txt)
+          Qué hacer: abrir la valla desde un móvil. Si no carga, usar la lista impresa de la caseta (lista-colores.html) y el procedimiento de continuidad.
+
+          Ejecución: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+
+          _Issue automática de \`vigilante-valla.yml\` (H-69). Se cierra sola cuando la valla vuelve a responder._"
+          ABIERTA=$(gh issue list --repo "$GITHUB_REPOSITORY" --label valla-caida --state open --json number --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "$ABIERTA" ]; then
+            gh issue comment "$ABIERTA" --repo "$GITHUB_REPOSITORY" --body "$CUERPO"
+          else
+            gh label create valla-caida --repo "$GITHUB_REPOSITORY" --color B60205 --description "La valla no responde (vigilante)" 2>/dev/null || true
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "🔴 La valla no responde" --body "$CUERPO" --label valla-caida
+          fi
+          exit 1
+
+      - name: Cerrar el aviso si ya responde
+        if: steps.valla.outputs.ok == 'true'
+        run: |
+          for N in $(gh issue list --repo "$GITHUB_REPOSITORY" --label valla-caida --state open --json number --jq '.[].number' 2>/dev/null); do
+            gh issue close "$N" --repo "$GITHUB_REPOSITORY" --comment "✅ $(date -u +'%d/%m/%Y %H:%M') UTC: la valla vuelve a responder."
+          done
+
+      - name: Mantener vivos los workflows programados (H-70)
+        if: always()
+        run: |
+          for W in $WORKFLOWS; do
+            ESTADO=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${W}" --jq '.state' 2>/dev/null || echo desconocido)
+            case "$ESTADO" in
+              active|disabled_inactivity)
+                gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/${W}/enable" >/dev/null \
+                  && echo "${W}: ${ESTADO} → activo" || echo "${W}: no se ha podido activar" ;;
+              *) echo "${W}: ${ESTADO} (no se toca)" ;;
+            esac
+          done

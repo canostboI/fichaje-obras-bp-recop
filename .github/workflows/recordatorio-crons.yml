@@ -7,6 +7,12 @@ name: Recordatorio · cambio de hora en crons
 # papeles_subcontratas_diario) corren a las dos horas UTC posibles y solo
 # trabajan si en Madrid es la hora buena. Esta issue queda como repaso.
 #
+# ⚠️ ACTUALIZADO 15/10/2026 (H-69/H-70, Tanda 8): añadido el workflow
+# `vigilante-valla.yml` (`23 4-19 * * 1-6`, cada hora en horario de obra).
+# **NO necesita ajuste estacional**: en invierno empieza y acaba una hora antes
+# en Madrid y da igual. Comprueba que la valla responde y mantiene activos los
+# workflows programados (este incluido).
+#
 # MJ-23 (auditoría usabilidad): los crons van en UTC pero España cambia
 # de hora dos veces al año. Este workflow abre una issue automática:
 #   · 1 de OCTUBRE  → recordar ATRASAR los crons (invierno, UTC+1)
