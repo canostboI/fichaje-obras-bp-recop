@@ -497,10 +497,44 @@ document.getElementById('btn-guardar').onclick = async () => {
   if (adminEmailRaw && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(adminEmailRaw)) { mostrarError('El email del administrativo/a no parece válido: ' + adminEmailRaw); return; }
   if (latitud < 27 || latitud > 44 || longitud < -19 || longitud > 5) { if (!confirm('⚠️ Estas coordenadas caen FUERA de España:\n\nLatitud: ' + latitud + '\nLongitud: ' + longitud + '\n\n¿Puede que hayas cambiado un signo, o intercambiado latitud y longitud?\n\n¿Guardar de todos modos?')) return; }
   const payload = { numero_obra: numeroRaw === '' ? null : numeroRaw, nombre, direccion, latitud: Number(latitud.toFixed(4)), longitud: Number(longitud.toFixed(4)), radio_gps, minutos_descanso, hora_entrada_default: entradaRaw + ':00', hora_salida_default: salidaRaw + ':00', empresa_marca, estado, ecoordina_centro: ecoordinaCentroRaw === '' ? null : ecoordinaCentroRaw, administrativo_nombre: adminNombreRaw === '' ? null : adminNombreRaw, administrativo_email: adminEmailRaw === '' ? null : adminEmailRaw };
+  // H-24 (auditoría): volver a «activa» una obra que no lo estaba NO se hace con
+  // el UPDATE de la ficha (se saltaba la protección de reanudación A7: colores
+  // viejos de la subcontrata, sin sync ni rastro). Se guarda lo demás y se
+  // reanuda con cambiar_estado_obra, que pide confirmación. La base rechaza el
+  // UPDATE directo de todos modos (trigger trg_reanudar_solo_por_cambiar_estado).
+  const estadoAnterior = obraEditandoId ? ((todasObras.find(x => x.id === obraEditandoId) || {}).estado || null) : null;
+  const reanudar = !!obraEditandoId && estadoAnterior !== 'activa' && estado === 'activa';
+  if (reanudar && estadoAnterior !== 'pausada') {
+    mostrarError('Esta obra está «' + (estadoAnterior || '?') + '». Para volver a activarla, pásala primero a «pausada», guarda, y después cámbiala a «activa».');
+    return;
+  }
+  if (reanudar) delete payload.estado;
   let error;
   if (obraEditandoId) { ({ error } = await sb.from('obras').update(payload).eq('id', obraEditandoId)); }
   else { ({ error } = await sb.from('obras').insert(payload)); }
   if (error) { mostrarError('Error al guardar: ' + error.message); return; }
+  if (reanudar) {
+    const { data: previa, error: errPrevia } = await sb.rpc('cambiar_estado_obra', { p_obra_id: obraEditandoId, p_estado: 'activa' });
+    if (errPrevia) { mostrarError('Datos guardados, pero no se ha podido reanudar: ' + errPrevia.message); await cargarObras(); return; }
+    if (previa && previa.requiere_confirmacion) {
+      const lista = (previa.consecuencias || []).map(c => '• ' + c).join('\n');
+      if (!confirm('Reanudar la obra «' + (previa.obra || '') + '»:\n\n' + lista + '\n\n¿Reanudar ahora?')) {
+        mostrarError('Datos guardados. La obra sigue «pausada».');
+        await cargarObras();
+        return;
+      }
+      const { data: hecha, error: errHecha } = await sb.rpc('cambiar_estado_obra', { p_obra_id: obraEditandoId, p_estado: 'activa', p_confirmar: true, p_motivo: 'Reanudada desde la ficha de la obra' });
+      if (errHecha || !hecha || !hecha.ok) {
+        mostrarError('Datos guardados, pero no se ha podido reanudar: ' + ((errHecha && errHecha.message) || (hecha && hecha.error) || 'sin respuesta'));
+        await cargarObras();
+        return;
+      }
+    } else if (!previa || !previa.ok) {
+      mostrarError('Datos guardados, pero no se ha podido reanudar: ' + ((previa && previa.error) || 'sin respuesta'));
+      await cargarObras();
+      return;
+    }
+  }
   document.getElementById('modal-obra').classList.remove('visible');
   await cargarObras();
 };
