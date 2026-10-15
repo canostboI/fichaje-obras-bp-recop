@@ -12,7 +12,7 @@
  *
  * Uso:
  *   1) Cargar ExcelJS antes que este script:
- *        <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+ *        <script src="../vendor/exceljs-4.4.0.min.js" integrity="…"></script>  (copia en vendor/, H-39)
  *        <script src="../js/listado-dia.js"></script>
  *
  *   2) Construir las filas de personas a partir de lo que la página ya tiene
