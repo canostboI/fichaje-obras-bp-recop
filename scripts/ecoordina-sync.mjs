@@ -96,6 +96,21 @@ function log(...a) { console.log(new Date().toISOString(), ...a); }
 // H-09 (Tanda 5): el robot ya no escribe a mano en ecoordina_sync ni en obras.
 // Pasa por dos funciones de la base que solo aceptan al robot o al admin, para
 // que el día que el robot tenga su propia cuenta no necesite más permisos.
+// H-09 (Tanda 5): el robot cierra su sesión al terminar, salga bien o mal.
+// scope 'local' = solo la sesión de esta ejecución; mientras el robot siga
+// entrando con la cuenta del admin, no echa a Dani de su navegador.
+let sbSesion = null;
+async function salir(codigo) {
+  if (sbSesion) {
+    try {
+      const { error } = await sbSesion.auth.signOut({ scope: 'local' });
+      if (error) log('⚠ no se pudo cerrar la sesión de Supabase:', error.message);
+    } catch (e) { log('⚠ no se pudo cerrar la sesión de Supabase:', e.message); }
+    sbSesion = null;
+  }
+  process.exit(codigo);
+}
+
 async function registrarSync(sb, estado, obrasOk, obrasError, detalle) {
   const { data, error } = await sb.rpc('registrar_sync_ecoordina', {
     p_estado: estado, p_obras_ok: obrasOk, p_obras_error: obrasError, p_detalle: detalle
@@ -744,9 +759,10 @@ async function main() {
 
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
 
-  log('Autenticando en Supabase como', EMAIL);
+  log('Autenticando en Supabase');
   const { error: authErr } = await sb.auth.signInWithPassword({ email: EMAIL, password: PASSWORD });
   if (authErr) { console.error('ERROR de login en Supabase:', authErr.message); process.exit(1); }
+  sbSesion = sb;
 
   // H-12 (15/10/2026) · FRENO POR FECHA. Si el admin ha puesto el día desde el
   // que e-Coordina deja de dictar (paso a Twind), desde ese día NO se aplica
@@ -764,7 +780,7 @@ async function main() {
       const logErr = await registrarSync(sb, 'error', 0, 0,
         [{ fase: 'freno', freno_desde: freno.desde || null, motivo: 'Freno por fecha activo (ajustes_sistema.freno_ecoordina_desde): no se aplica ningún color.' }]);
       if (logErr) log('⚠ no se pudo guardar el registro en ecoordina_sync:', logErr);
-      process.exit(1);
+      await salir(1);
     }
   }
 
@@ -772,12 +788,12 @@ async function main() {
   // Cargar reglas y empresas propias (global)
   {
     const { data, error } = await sb.from('reglas_documentales').select('*');
-    if (error) { console.error('ERROR cargando reglas_documentales:', error.message); process.exit(1); }
+    if (error) { console.error('ERROR cargando reglas_documentales:', error.message); await salir(1); }
     reglas = data || [];
   }
   {
     const { data, error } = await sb.from('empresas').select('nombre, cif, es_empresa_propia').eq('es_empresa_propia', true);
-    if (error) { console.error('ERROR cargando empresas:', error.message); process.exit(1); }
+    if (error) { console.error('ERROR cargando empresas:', error.message); await salir(1); }
     empresasPropias = new Set();
     for (const e of (data || [])) {
       const nNombre = normalizar(e.nombre), nCif = normalizarCif(e.cif);
@@ -789,7 +805,7 @@ async function main() {
   }
   {
     const { data, error } = await sb.from('empresas').select('nombre, cif, es_autonomo_sin_asalariados').eq('es_autonomo_sin_asalariados', true);
-    if (error) { console.error('ERROR cargando autónomos sin asalariados:', error.message); process.exit(1); }
+    if (error) { console.error('ERROR cargando autónomos sin asalariados:', error.message); await salir(1); }
     autonomosSolos = new Set();
     for (const e of (data || [])) {
       const nNombre = normalizar(e.nombre), nCif = normalizarCif(e.cif);
@@ -807,7 +823,7 @@ async function main() {
       .from('exenciones_documento_empresa')
       .select('nombre_documento, motivo, empresa:empresa_id(nombre, cif)')
       .eq('activo', true);
-    if (error) { console.error('ERROR cargando exenciones documentales:', error.message); process.exit(1); }
+    if (error) { console.error('ERROR cargando exenciones documentales:', error.message); await salir(1); }
     exenciones = new Map();
     for (const ex of (data || [])) {
       const emp = ex.empresa || {};
@@ -831,14 +847,14 @@ async function main() {
   const trabajadoresApp = {};
   {
     const { data, error } = await sb.from('trabajadores').select('id, nombre, dni, categoria');
-    if (error) { console.error('ERROR cargando trabajadores:', error.message); process.exit(1); }
+    if (error) { console.error('ERROR cargando trabajadores:', error.message); await salir(1); }
     (data || []).forEach(t => { if (t.dni) trabajadoresApp[String(t.dni).toUpperCase()] = { id: t.id, nombre: t.nombre, categoria: t.categoria }; });
   }
 
   // Obras activas
   const { data: obras, error: obrasErr } = await sb.from('obras')
     .select('id, nombre, ecoordina_centro').eq('activa', true).order('nombre');
-  if (obrasErr) { console.error('ERROR cargando obras:', obrasErr.message); process.exit(1); }
+  if (obrasErr) { console.error('ERROR cargando obras:', obrasErr.message); await salir(1); }
   log(`Obras activas: ${(obras || []).length}`);
 
   // Leer y parsear el CSV una sola vez
@@ -1094,7 +1110,7 @@ async function main() {
 
   log('HITO 2 COMPLETADO' + (huboFalloGrave ? ' CON ERRORES ⚠' : ' ✅'));
 
-  if (huboFalloGrave) process.exit(1);
+  await salir(huboFalloGrave ? 1 : 0);
 }
 
-main().catch(err => { console.error('ERROR no controlado:', err); process.exit(1); });
+main().catch(async err => { console.error('ERROR no controlado:', err); await salir(1); });

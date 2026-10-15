@@ -53,8 +53,11 @@ async function main() {
     p_estado: 'error', p_obras_ok: 0, p_obras_error: 0,
     p_detalle: [{ fase: 'descarga', motivo, run: RUN_URL }]
   });
-  if (error || !data || data.ok !== true) {
-    log('No se pudo apuntar el fallo en ecoordina_sync:', (error && error.message) || (data && data.error) || 'sin respuesta');
+  const fallo = (error && error.message) || (!data || data.ok !== true ? ((data && data.error) || 'sin respuesta') : null);
+  // H-09: cerrar la sesión de esta ejecución (solo esta, scope 'local').
+  try { await sb.auth.signOut({ scope: 'local' }); } catch (e) { log('⚠ no se pudo cerrar la sesión de Supabase:', e.message); }
+  if (fallo) {
+    log('No se pudo apuntar el fallo en ecoordina_sync:', fallo);
     process.exit(1);
   }
   log('Fallo de descarga apuntado en ecoordina_sync:', motivo);
