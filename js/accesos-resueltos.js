@@ -30,6 +30,20 @@
    coincidencia. Para un trabajador YA dado de alta la regla estricta se
    mantiene: una entrada anterior al bloqueo no dice nada del bloqueo.
 
+   SEGUNDA VÍA — «ESTÁ DENTRO DESDE ENTONCES» (15/10/2026, Dani: «acabo de
+   dar por buenos estos dos fichajes, ¿no debería ya desaparecer el
+   banner?»). El botón «🕐 Dar por buena su entrada de las HH:MM» de
+   js/en-la-puerta.js, y la casilla del 5/10 al autorizar, apuntan la
+   entrada a la hora EXACTA del primer intento denegado (mismo instante,
+   al microsegundo). No es «posterior», así que la regla de arriba nunca
+   la daba por buena y la persona seguía saliendo como denegada aunque
+   estaba trabajando dentro. Ahora también está RESUELTO si la persona
+   está DENTRO AHORA (su último movimiento del día es una entrada, sin
+   salida detrás) y esa entrada es de la hora de su PRIMER intento o
+   posterior. Cubre también a quien lo intentó varias veces (el botón
+   apunta el primero). No abre agujeros: quien entró, salió y después le
+   denegaron tiene una salida detrás, así que sigue pendiente.
+
    Se mide desde el PRIMER intento a propósito: quien lo intentó a las 06:45,
    a las 07:30 y entró a las 08:15 estuvo hora y media parado, aunque su
    último intento fuera 5 minutos antes de entrar.
@@ -197,16 +211,48 @@ window.AccesosResueltos = (function () {
 
   function indexarEntradas(fichajes) {
     var porId = {}, porDni = {};
+    // 15/10/2026 · también TODOS los movimientos (entradas y salidas) de cada
+    // persona, para saber si está dentro ahora y desde cuándo.
+    var movId = {}, movDni = {};
     (fichajes || []).forEach(function (f) {
-      if ((f.tipo || '') !== 'entrada') return;
       if (!f.hora) return;
+      var tipo = f.tipo || '';
+      if (tipo !== 'entrada' && tipo !== 'salida') return;
       var t = trabajadorDe(f);
       var id = f.trabajador_id || (t && t.id) || null;
       var dni = normalizarDni(t && t.dni);
+      var mov = { tipo: tipo, hora: f.hora };
+      if (id) { (movId[id] = movId[id] || []).push(mov); }
+      if (dni) { (movDni[dni] = movDni[dni] || []).push(mov); }
+      if (tipo !== 'entrada') return;
       if (id) { (porId[id] = porId[id] || []).push(f.hora); }
       if (dni) { (porDni[dni] = porDni[dni] || []).push(f.hora); }
     });
-    return { porId: porId, porDni: porDni };
+    return { porId: porId, porDni: porDni, movId: movId, movDni: movDni };
+  }
+
+  // 15/10/2026 · Si la persona está DENTRO AHORA (su último movimiento del día
+  // es una entrada), devuelve la hora de esa entrada; si no, null. Los
+  // movimientos pueden llegar repetidos (por id y por DNI): se quitan.
+  function entradaAbierta(listasMov) {
+    var vistos = {}, movs = [];
+    (listasMov || []).forEach(function (lista) {
+      (lista || []).forEach(function (m) {
+        var k = m.tipo + '|' + new Date(m.hora).getTime();
+        if (vistos[k]) return;
+        vistos[k] = true;
+        movs.push(m);
+      });
+    });
+    if (!movs.length) return null;
+    movs.sort(function (a, b) {
+      var d = new Date(a.hora).getTime() - new Date(b.hora).getTime();
+      if (d !== 0) return d;
+      // Misma hora exacta: la salida va detrás (no se da a nadie por dentro de más).
+      return (a.tipo === 'salida' ? 1 : 0) - (b.tipo === 'salida' ? 1 : 0);
+    });
+    var ultimo = movs[movs.length - 1];
+    return ultimo.tipo === 'entrada' ? ultimo.hora : null;
   }
 
   function primeraEntradaDelDia(listas) {
@@ -349,6 +395,18 @@ window.AccesosResueltos = (function () {
         : (g.clase === 'sin_registrar')
           ? primeraEntradaDelDia(listas)
           : primeraEntradaPosterior(listas, g.ultimoIntento);
+      // 15/10/2026 · Segunda vía (ver cabecera): está dentro ahora con una
+      // entrada de la hora de su primer intento o posterior (p. ej. la que
+      // apunta «🕐 Dar por buena su entrada», al instante exacto del intento).
+      if (!g.entrada && g.clase !== 'sin_registrar' && g.primerIntento) {
+        var movs = [];
+        if (g.trabajador_id && idx.movId[g.trabajador_id]) movs.push(idx.movId[g.trabajador_id]);
+        if (dni && idx.movDni[dni]) movs.push(idx.movDni[dni]);
+        var abierta = entradaAbierta(movs);
+        if (abierta && new Date(abierta).getTime() >= new Date(g.primerIntento).getTime()) {
+          g.entrada = abierta;
+        }
+      }
       decidirEstado(g, gracia, entradasConocidas);
     });
 
