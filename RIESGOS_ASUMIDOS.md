@@ -400,6 +400,13 @@ pide. La tabla sigue existiendo; restaurar el registro es una línea en
 y desde la cuenta `postgres` (la única a la que llegamos) el `REVOKE` no
 tiene efecto (probado el 15/10/2026, Tanda 8).
 
+🆕 Tanda 9 (H-75, H-78): pasa lo mismo con `extensions.pg_stat_statements`
+(lectura para `anon` y `authenticated`) y con las funciones de `cron`
+(programar crons, para `PUBLIC`): el `REVOKE` tampoco hace efecto. Sin
+camino: `extensions` no está expuesto y `cron` no tiene USAGE para esos
+roles (lo vigila el bloque E5 de `auditoria_permisos`). Se pide a
+Supabase en la misma consulta de soporte.
+
 **Por qué se acepta (de momento):** no se puede arreglar desde aquí. No
 es una decisión de la empresa: está pendiente de que Supabase lo quite.
 
