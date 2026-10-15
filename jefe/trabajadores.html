@@ -2078,7 +2078,7 @@ document.getElementById('btn-autorizar-hoy').addEventListener('click', async () 
 });
 
 document.getElementById('btn-quitar-autorizacion').addEventListener('click', async () => {
-  if (!confirm('¿Quitar la autorización de hoy? El trabajador volverá a estar bloqueado.')) return;
+  if (!confirm('¿Quitar la autorización? Se retira la de hoy y, si la había, también la de los días siguientes. El trabajador volverá a estar bloqueado.')) return;
   const btn = document.getElementById('btn-quitar-autorizacion');
   const msg = document.getElementById('forzar-msg');
   btn.disabled = true; msg.className = ''; msg.textContent = 'Quitando autorización…';
@@ -2087,7 +2087,7 @@ document.getElementById('btn-quitar-autorizacion').addEventListener('click', asy
     msg.className = 'msg-error'; msg.textContent = 'Error: ' + (error?.message || data?.error || 'No se pudo quitar');
     btn.disabled = false; return;
   }
-  msg.className = 'msg-ok'; msg.textContent = 'Autorización quitada.';
+  msg.className = 'msg-ok'; msg.textContent = (data && data.revocadas > 1) ? 'Autorización quitada (hoy y días siguientes).' : 'Autorización quitada.';
   setTimeout(() => { cerrarModalForzar(); cargarTrabajadores(); }, 800);
 });
 
