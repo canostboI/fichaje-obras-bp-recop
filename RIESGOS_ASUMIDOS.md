@@ -5,8 +5,12 @@
 > escritas y no se redescubran como "bugs" en el futuro.
 >
 > Creado: 6/7/2026 (auditoría profunda, hallazgo MJ-19).
-> Última actualización: 14/10/2026 (H-01 de la auditoría de octubre:
-> fuera de este documento el DNI de una ficha real; aviso en R-1).
+> Última actualización: 15/10/2026 (auditoría de octubre, tandas 2 y 3:
+> R-1, el GPS se exige también en la salida garantizada (H-06); R-5, la
+> carga manual del jefe ya no mejora colores (H-03) y los artefactos de
+> Actions se guardan 7 días (H-02)).
+> Antes: 14/10/2026 (H-01: fuera de este documento el DNI de una ficha
+> real; aviso en R-1).
 > Antes: 28/9/2026 (R-6: motivos que devuelve
 > `registrar_fichaje`; cierra el A16 de la auditoría de septiembre ·
 > R-7: «Mis últimos días» solo justo después de fichar · R-3 corregido
@@ -30,6 +34,10 @@ físicamente en la obra puede fichar por él.
 
 **Mitigaciones activas:**
 - GPS obligatorio y **recalculado en servidor**: hay que estar en la obra.
+  Desde el 15/10/2026 (H-06) también para la «salida garantizada» (quien
+  tiene una entrada abierta): antes esa salida se saltaba el GPS y se podía
+  cerrar la jornada de otro desde casa. Sigue saltándose rojo, baja y obra
+  parada, pero hay que estar en la obra.
 - Incidencia `movil_compartido`: si varios DNIs fichan desde el mismo
   contexto, queda registrado para revisión.
 - El encargado confirma presencia real con la ronda diaria
@@ -217,9 +225,14 @@ automático).
 
 **Mitigaciones activas:**
 - Issue automática en el repo si la sync falla (`ecoordina.yml`, MJ-20),
-  con capturas de pantalla del fallo en el artifact `debug/`.
+  con capturas de pantalla del fallo en el artifact `debug/`. ⚠️ Esos
+  artefactos son visibles para cualquier cuenta de GitHub (H-02, H-11): desde
+  el 15/10/2026 se guardan solo 7 días.
 - Importador manual del jefe (`jefe/documentos-ecoordina.html`) y del
-  admin como respaldo: misma lógica, mismo módulo compartido.
+  admin como respaldo: misma lógica, mismo módulo compartido. Desde el
+  14/10/2026 (H-03) la carga del jefe solo puede **mantener o empeorar**
+  colores y siempre deja `[color_manual]`: no sustituye al robot para dar
+  verdes. Para dejar pasar a alguien, «Forzar» con motivo.
 
 ---
 
