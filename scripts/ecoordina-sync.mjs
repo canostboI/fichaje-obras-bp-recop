@@ -93,6 +93,18 @@ const DOCS_CON_MARGEN = [
 
 function log(...a) { console.log(new Date().toISOString(), ...a); }
 
+// H-09 (Tanda 5): el robot ya no escribe a mano en ecoordina_sync ni en obras.
+// Pasa por dos funciones de la base que solo aceptan al robot o al admin, para
+// que el día que el robot tenga su propia cuenta no necesite más permisos.
+async function registrarSync(sb, estado, obrasOk, obrasError, detalle) {
+  const { data, error } = await sb.rpc('registrar_sync_ecoordina', {
+    p_estado: estado, p_obras_ok: obrasOk, p_obras_error: obrasError, p_detalle: detalle
+  });
+  if (error) return error.message;
+  if (!data || data.ok !== true) return (data && data.error) || 'sin respuesta';
+  return null;
+}
+
 // ── Helpers portados literalmente del importador web ──────────────────────────
 function normalizar(s) {
   return String(s || '')
@@ -749,11 +761,9 @@ async function main() {
       log('⚠ No se ha podido leer el freno por fecha (freno_ecoordina):', (frenoErr && frenoErr.message) || (freno && freno.error) || 'sin respuesta', '— se sigue sin freno.');
     } else if (freno.activo) {
       console.error('FRENO POR FECHA: desde ' + (freno.desde || '(fecha ilegible)') + ' e-Coordina ya no dicta colores. No se aplica nada. ' + (freno.aviso || ''));
-      const { error: logErr } = await sb.from('ecoordina_sync').insert({
-        estado: 'error', obras_ok: 0, obras_error: 0,
-        detalle: [{ fase: 'freno', freno_desde: freno.desde || null, motivo: 'Freno por fecha activo (ajustes_sistema.freno_ecoordina_desde): no se aplica ningún color.' }]
-      });
-      if (logErr) log('⚠ no se pudo guardar el registro en ecoordina_sync:', logErr.message);
+      const logErr = await registrarSync(sb, 'error', 0, 0,
+        [{ fase: 'freno', freno_desde: freno.desde || null, motivo: 'Freno por fecha activo (ajustes_sistema.freno_ecoordina_desde): no se aplica ningún color.' }]);
+      if (logErr) log('⚠ no se pudo guardar el registro en ecoordina_sync:', logErr);
       process.exit(1);
     }
   }
@@ -996,10 +1006,10 @@ async function main() {
 
     // Marcar la obra como sincronizada hoy (solo si se aplicó bien)
     if (res.mainOk && res.aplicados > 0) {
-      const { error: updErr } = await sb.from('obras')
-        .update({ ultima_sync_ecoordina: new Date().toISOString() })
-        .eq('id', obra.id);
-      if (updErr) log(`   ⚠ no se pudo marcar ultima_sync_ecoordina en ${obra.nombre}:`, updErr.message);
+      const { data: marca, error: updErr } = await sb.rpc('marcar_sync_obra', { p_obra_id: obra.id });
+      if (updErr || !marca || marca.ok !== true) {
+        log(`   ⚠ no se pudo marcar ultima_sync_ecoordina en ${obra.nombre}:`, (updErr && updErr.message) || (marca && marca.error) || 'sin respuesta');
+      }
     }
 
     // 23/9/2026 · Documentos de EMPRESA (pedido por Dani: verlos en la ficha de
@@ -1077,13 +1087,8 @@ async function main() {
   // o un fallo grave (CSV vacío / sin Centro) ya no pasan por verdes.
   const estadoGlobal = (obrasError > 0 || huboFalloGrave || obrasOk === 0) ? 'error' : 'ok';
   {
-    const { error: logErr } = await sb.from('ecoordina_sync').insert({
-      estado: estadoGlobal,
-      obras_ok: obrasOk,
-      obras_error: obrasError,
-      detalle: resumen
-    });
-    if (logErr) log('⚠ no se pudo guardar el registro en ecoordina_sync:', logErr.message);
+    const logErr = await registrarSync(sb, estadoGlobal, obrasOk, obrasError, resumen);
+    if (logErr) log('⚠ no se pudo guardar el registro en ecoordina_sync:', logErr);
     else log(`Registro global guardado (${estadoGlobal}, ${obrasOk} obras OK, ${obrasError} con error)`);
   }
 

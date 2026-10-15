@@ -48,13 +48,15 @@ async function main() {
   const { error: authErr } = await sb.auth.signInWithPassword({ email: EMAIL, password: PASSWORD });
   if (authErr) { log('No se pudo entrar en Supabase:', authErr.message); process.exit(1); }
 
-  const { error } = await sb.from('ecoordina_sync').insert({
-    estado: 'error',
-    obras_ok: 0,
-    obras_error: 0,
-    detalle: [{ fase: 'descarga', motivo, run: RUN_URL }]
+  // H-09 (Tanda 5): por la función de la base (solo robot o admin), no a mano.
+  const { data, error } = await sb.rpc('registrar_sync_ecoordina', {
+    p_estado: 'error', p_obras_ok: 0, p_obras_error: 0,
+    p_detalle: [{ fase: 'descarga', motivo, run: RUN_URL }]
   });
-  if (error) { log('No se pudo apuntar el fallo en ecoordina_sync:', error.message); process.exit(1); }
+  if (error || !data || data.ok !== true) {
+    log('No se pudo apuntar el fallo en ecoordina_sync:', (error && error.message) || (data && data.error) || 'sin respuesta');
+    process.exit(1);
+  }
   log('Fallo de descarga apuntado en ecoordina_sync:', motivo);
 }
 
