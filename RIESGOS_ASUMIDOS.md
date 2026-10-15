@@ -5,7 +5,9 @@
 > escritas y no se redescubran como "bugs" en el futuro.
 >
 > Creado: 6/7/2026 (auditoría profunda, hallazgo MJ-19).
-> Última actualización: 15/10/2026 (auditoría de octubre, tandas 2 y 3:
+> Última actualización: 15/10/2026, tarde (Tanda 4: R-5 con el freno por fecha y
+> el «Validado» caducado, H-12).
+> Antes: 15/10/2026 (auditoría de octubre, tandas 2 y 3:
 > R-1, el GPS se exige también en la salida garantizada (H-06); R-5, la
 > carga manual del jefe ya no mejora colores (H-03) y los artefactos de
 > Actions se guardan 7 días (H-02)).
@@ -221,7 +223,13 @@ la sync se rompe sin previo aviso.
 de un fallo es bajo: los estados documentales simplemente no se
 refrescan esa noche; nadie queda bloqueado indebidamente (política de
 "desaparecidos": los ausentes de un import nunca se bloquean en
-automático).
+automático). Si la sync no vuelve a funcionar, a los 7 días la regla de la
+valla (A8) pone en rojo a la subcontrata: el riesgo de verdad es lo
+contrario, que la sync **no** se rompa y siga bajando datos muertos.
+
+**Ese riesgo (auditoría de octubre, H-12):** cuando e-Coordina pase a Twind
+quedará en modo consulta. Si el robot sigue entrando y baja un Excel
+congelado, cada noche sería una sync «ok» que renueva los verdes.
 
 **Mitigaciones activas:**
 - Issue automática en el repo si la sync falla (`ecoordina.yml`, MJ-20),
@@ -233,6 +241,15 @@ automático).
   14/10/2026 (H-03) la carga del jefe solo puede **mantener o empeorar**
   colores y siempre deja `[color_manual]`: no sustituye al robot para dar
   verdes. Para dejar pasar a alguien, «Forzar» con motivo.
+- 🆕 15/10/2026 (H-12) · **Freno por fecha**: `ajustes_sistema.freno_ecoordina_desde`.
+  Vacío no hace nada. Con una fecha, desde ese día el robot no aplica ningún
+  color (la sync queda en `error`, salta `[sync_parada]` y, a los 7 días, la
+  valla cierra) y el importador manual tampoco. Se pone cuando CTAIMA dé el
+  día del cambio. Si el valor no es una fecha válida, frena (falla cerrado).
+- 🆕 15/10/2026 (H-12) · Un documento **«Validado» con `F.caducidad` anterior a
+  hoy cuenta como «Caducado»** en los dos motores (robot y web), con su regla y
+  su margen. Así un papel caducado no da verde aunque la plataforma deje de
+  actualizar estados. Hoy e-Coordina ya marca a tiempo los caducados.
 
 ---
 
