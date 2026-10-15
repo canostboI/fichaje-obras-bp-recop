@@ -23,8 +23,12 @@ name: e-Coordina · sincronización diaria
 # que caduca el lunes aún figuraría válido y esa persona entraría en verde
 # con el apto médico caducado.
 #
-# ⚠️ Cambio de hora de octubre (CET = UTC+1): pasar a '43 23 * * 0-4' y
-# '43 2 * * 1-5'. Lo recuerda solo recordatorio-crons.yml.
+# H-88 (Tanda 5): YA NO HAY QUE TOCAR NADA EN EL CAMBIO DE HORA. Están las
+# cuatro líneas, las de verano y las de invierno, y el trabajo «decidir» deja
+# pasar solo las de la estación en curso (mira el desfase de Madrid:
+# +0200 verano, +0100 invierno). Las de la otra estación terminan en 10 s
+# sin hacer nada. Los cambios de hora son domingo a las 01:00 UTC y ninguna
+# de estas líneas cae en sábado noche, así que nunca se cruzan.
 # También se puede lanzar a mano desde la pestaña Actions (workflow_dispatch)
 # y desde el botón «Actualizar ahora» de jefe/documentos-ecoordina.html
 # (máx. 2 al día, 30 min entre ellas; los topes viven en la BD).
@@ -36,8 +40,10 @@ name: e-Coordina · sincronización diaria
 on:
   workflow_dispatch:
   schedule:
-    - cron: '43 22 * * 0-4'
-    - cron: '43 1 * * 1-5'
+    - cron: '43 22 * * 0-4'   # verano: 00:43 Madrid
+    - cron: '43 1 * * 1-5'    # verano: 03:43 Madrid
+    - cron: '43 23 * * 0-4'   # invierno: 00:43 Madrid
+    - cron: '43 2 * * 1-5'    # invierno: 03:43 Madrid
 
 permissions:
   contents: read
@@ -48,12 +54,40 @@ permissions:
 # lanzar mientras corre la de madrugada: la segunda ESPERA a que acabe la
 # primera, no la cancela. Así e-Coordina no recibe dos inicios de sesión
 # simultáneos con la misma cuenta.
-concurrency:
-  group: ecoordina-sync
-  cancel-in-progress: false
 
 jobs:
+  # H-88: ¿esta línea del cron es la de la estación en curso? Las lanzadas a
+  # mano (botón del jefe, pestaña Actions) pasan siempre.
+  decidir:
+    runs-on: ubuntu-latest
+    outputs:
+      seguir: ${{ steps.toca.outputs.seguir }}
+    steps:
+      - name: ¿Toca en esta estación?
+        id: toca
+        env:
+          EVENTO: ${{ github.event_name }}
+          LINEA: ${{ github.event.schedule }}
+        run: |
+          DESFASE=$(TZ=Europe/Madrid date +%z)
+          SEGUIR=true
+          if [ "$EVENTO" = "schedule" ]; then
+            case "$LINEA" in
+              '43 22 * * 0-4'|'43 1 * * 1-5') [ "$DESFASE" = "+0200" ] || SEGUIR=false ;;
+              '43 23 * * 0-4'|'43 2 * * 1-5') [ "$DESFASE" = "+0100" ] || SEGUIR=false ;;
+            esac
+          fi
+          echo "Línea: ${LINEA:-manual} · desfase Madrid: $DESFASE · sigue: $SEGUIR"
+          echo "seguir=$SEGUIR" >> "$GITHUB_OUTPUT"
+
   sincronizar:
+    needs: decidir
+    if: needs.decidir.outputs.seguir == 'true'
+    # H-88: el turno va en el trabajo, no en todo el workflow, para que las
+    # líneas de la otra estación (que no hacen nada) no ocupen la cola.
+    concurrency:
+      group: ecoordina-sync
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     steps:
       - name: Descargar el repo

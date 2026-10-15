@@ -1,5 +1,12 @@
 name: Recordatorio · cambio de hora en crons
 
+# H-88 (Tanda 5, 15/10/2026): desde ahora NO HAY QUE MOVER NINGÚN CRON.
+# ecoordina.yml lleva las líneas de verano y de invierno y deja pasar solo las
+# de la estación en curso; los pg_cron que dependen de la hora española
+# (aviso_ronda_1/2/3, auditoria_permisos_diaria, reloj_naranja_diario y
+# papeles_subcontratas_diario) corren a las dos horas UTC posibles y solo
+# trabajan si en Madrid es la hora buena. Esta issue queda como repaso.
+#
 # MJ-23 (auditoría usabilidad): los crons van en UTC pero España cambia
 # de hora dos veces al año. Este workflow abre una issue automática:
 #   · 1 de OCTUBRE  → recordar ATRASAR los crons (invierno, UTC+1)
@@ -115,52 +122,24 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           MES=$(date -u +'%m')
-
           if [ "$MES" = "10" ]; then
-            TITULO="🕐 Cambio de hora (INVIERNO): atrasar los crons — $(date -u +'%Y')"
-            DIRECCION="España pasa a **UTC+1** el último domingo de octubre. Hay que sumar **+1 hora** a todos los crons UTC para que sigan corriendo a la misma hora española."
-            TABLA="| Cron | Ahora (verano) | Cambiar a (invierno) |
-          |------|----------------|----------------------|
-          | GitHub · \`ecoordina.yml\` (1ª línea, la buena) | \`43 22 * * 0-4\` | \`43 23 * * 0-4\` |
-          | GitHub · \`ecoordina.yml\` (2ª línea, refuerzo) | \`43 1 * * 1-5\` | \`43 2 * * 1-5\` |
-          | pg_cron · \`aviso_ronda_1\` | \`30 7 * * 1-6\` | \`30 8 * * 1-6\` |
-          | pg_cron · \`aviso_ronda_2\` | \`0 8 * * 1-6\` | \`0 9 * * 1-6\` |
-          | pg_cron · \`aviso_ronda_3\` | \`0 9 * * 1-6\` | \`0 10 * * 1-6\` |
-          | pg_cron · \`auditoria_permisos_diaria\` | \`0 5 * * *\` | \`0 6 * * *\` |"
+            TITULO="🕐 Cambio de hora (INVIERNO): repaso — $(date -u +'%Y')"
           else
-            TITULO="🕑 Cambio de hora (VERANO): adelantar los crons — $(date -u +'%Y')"
-            DIRECCION="España pasa a **UTC+2** el último domingo de marzo. Hay que restar **-1 hora** a todos los crons UTC para que sigan corriendo a la misma hora española."
-            TABLA="| Cron | Ahora (invierno) | Cambiar a (verano) |
-          |------|------------------|--------------------|
-          | GitHub · \`ecoordina.yml\` (1ª línea, la buena) | \`43 23 * * 0-4\` | \`43 22 * * 0-4\` |
-          | GitHub · \`ecoordina.yml\` (2ª línea, refuerzo) | \`43 2 * * 1-5\` | \`43 1 * * 1-5\` |
-          | pg_cron · \`aviso_ronda_1\` | \`30 8 * * 1-6\` | \`30 7 * * 1-6\` |
-          | pg_cron · \`aviso_ronda_2\` | \`0 9 * * 1-6\` | \`0 8 * * 1-6\` |
-          | pg_cron · \`aviso_ronda_3\` | \`0 10 * * 1-6\` | \`0 9 * * 1-6\` |
-          | pg_cron · \`auditoria_permisos_diaria\` | \`0 6 * * *\` | \`0 5 * * *\` |"
+            TITULO="🕑 Cambio de hora (VERANO): repaso — $(date -u +'%Y')"
           fi
 
-          CUERPO="$DIRECCION
+          CUERPO="El cambio real es el **último domingo de este mes**. Desde H-88 (octubre de 2026) **no hay que mover ningún cron**: se ajustan solos.
 
-          El cambio real es el **último domingo de este mes**. Hacer el ajuste ese fin de semana (o el lunes siguiente).
+          ## Repaso del lunes siguiente al cambio
 
-          ## Checklist
+          - [ ] Cuadro de mando → «Automatismos» en verde.
+          - [ ] En Actions, las ejecuciones de \`ecoordina.yml\` de esa madrugada: una con el trabajo «sincronizar» hecho y otra que termina en «decidir» (la de la otra estación). Si las dos se quedan en «decidir», la sync no ha corrido.
+          - [ ] \`ecoordina_sync\`: la ejecución buena termina de madrugada, antes de los primeros fichajes.
+          - [ ] Los SMS de ronda llegan a su hora española de siempre (09:30, 10:00, 11:00).
 
-          $TABLA
+          > ⚠️ Si se crea un cron nuevo que dependa de la hora española, hay que hacerlo igual: las dos horas UTC en el cron y la comprobación de la hora de Madrid dentro.
 
-          > ⚠️ **\`ecoordina.yml\` tiene DOS líneas \`cron:\`, y hay que cambiar LAS DOS.** La primera (\`0-4\`, dom-jue) es la que hace el trabajo; la segunda (\`1-5\`) es red de seguridad por si GitHub retrasa el disparo. **Los días distintos NO son una errata:** a las 22:43 UTC del domingo, en España ya es lunes. Solo cambia la HORA, nunca los días.
-
-          **Cómo:**
-          - [ ] \`ecoordina.yml\`: editar **las DOS líneas** \`cron:\` en el repo.
-          - [ ] pg_cron (los 4 de la tabla): en Supabase → SQL Editor, un \`SELECT cron.alter_job(jobid, schedule => '...')\` por cada uno, o desde la UI de Integrations → Cron.
-          - [ ] **NO tocar estos NUEVE, que funcionan en ambas estaciones:** \`autocierre_nocturno\` (\`0 2 * * *\`), \`recordatorio_solicitudes_acceso\` (\`*/10 * * * *\`, decide el horario de obra leyendo la hora de Madrid por dentro), \`caducar-fotos-identidad\` (\`30 4 * * 0\`, semanal, compara contra un umbral de 12 meses), \`vaciar-cola-borrado-fotos\` (\`15 3 * * *\`), \`caducar_forzados_diario\` (\`30 3 * * *\`, calcula la fecha de Madrid por dentro y corre muy por delante del primer fichaje en las dos estaciones), \`vigilante_obra_diario\` (\`0 19 * * 1-6\`, calcula el día de Madrid por dentro; a las 20:00/21:00 la jornada ya terminó) y \`reloj_naranja_diario\` (\`15 4 * * *\`, cuenta días laborables de Madrid por dentro) y \`papeles_subcontratas_diario\` (\`10 4 * * *\`, ídem) y \`comprobar_entregas_sms\` (\`*/15 5-20 * * *\`, cada 15 min; la hora exacta da igual).
-          - [ ] 🔴 **Sí mirar \`reloj_naranja_diario\` aunque no se cambie:** es el de margen más estrecho (06:15 Madrid en verano, 24 min antes del primer fichaje de Muralla). Comprobar que sigue corriendo DESPUÉS de la sync nocturna y ANTES del primer fichaje de TODAS las obras, no solo de Muralla.
-          - [ ] Verificar al día siguiente que la sync nocturna y los SMS de ronda llegan a su hora española habitual.
-          - [ ] Comprobar en \`ecoordina_sync\` que la ejecución buena sigue terminando de madrugada, muy por delante de los fichajes de las 06:39 en Muralla.
-
-          > ⚠️ **Esta lista es código que envejece.** Si se crea un cron nuevo (pg_cron o GitHub Actions), hay que añadirlo AQUÍ el mismo día. Un recordatorio incompleto es peor que ninguno: hace creer que el repaso está hecho.
-
-          _Issue creada automáticamente por \`recordatorio-crons.yml\` (MJ-23)._"
+          _Issue creada automáticamente por \`recordatorio-crons.yml\` (MJ-23, H-88)._"
 
           gh issue create --repo "$GITHUB_REPOSITORY" \
             --title "$TITULO" \
