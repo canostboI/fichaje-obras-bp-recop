@@ -14,7 +14,7 @@
   // Fecha LOCAL (Madrid), nunca toISOString(), que pasa a UTC (regla de js/fechas.js).
   function isoLocal(f) { return f.getFullYear() + '-' + String(f.getMonth() + 1).padStart(2, '0') + '-' + String(f.getDate()).padStart(2, '0'); }
 
-  function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt == null ? '' : txt); return d.innerHTML; }
+  /* H-10 (15/10/2026): escapa también " y ' (antes solo & < >): un nombre con comillas metido en un atributo ejecutaba código. */ function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt == null ? '' : txt); return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
   function inyectarEstilos() {
     if (document.getElementById('evo-estilos')) return;

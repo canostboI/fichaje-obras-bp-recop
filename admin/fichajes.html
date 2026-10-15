@@ -224,7 +224,7 @@ function meterIconoHab(mapa, h) {
   if (i === -1) lista.push(item);
   else if (gravedadHab(estado) > gravedadHab(lista[i].estado)) lista[i] = item;
 }
-function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
+/* H-10 (15/10/2026): escapa también " y ' (antes solo & < >): un nombre con comillas metido en un atributo ejecutaba código. */ function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 function formatFechaHora(iso) { if (!iso) return '—'; const d = new Date(iso); return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); }
 </script>
 </body>

@@ -1352,8 +1352,8 @@ function renderTabla(lista) {
         if (!empresaObj || empresaObj.es_empresa_propia) return '';
         const tieneContrato = !!contratosPorEmpresa[empresaObj.id];
         return tieneContrato
-          ? `<span class="badge-empresa contrato" onclick="event.stopPropagation();abrirModalContrato('${esc(empresaObj.id)}','${esc(empresa)}')">📄 Contrato</span>`
-          : `<span class="badge-empresa sin-contrato" onclick="event.stopPropagation();abrirModalContrato('${esc(empresaObj.id)}','${esc(empresa)}')">⚠ Sin contrato</span>`;
+          ? `<span class="badge-empresa contrato" onclick="event.stopPropagation();abrirModalContrato('${esc(empresaObj.id)}','${escJs(empresa)}')">📄 Contrato</span>`
+          : `<span class="badge-empresa sin-contrato" onclick="event.stopPropagation();abrirModalContrato('${esc(empresaObj.id)}','${escJs(empresa)}')">⚠ Sin contrato</span>`;
       })(),
       (() => {
         // Asignar a toda la empresa de golpe: es como se reparten los
@@ -1361,7 +1361,7 @@ function renderTabla(lista) {
         // el mismo turno), y evita 12 clics para poner lo mismo 12 veces.
         if (!obraFiltroTrabajadores || jornadasError) return '';
         const ids = trabajadores.map(x => x.id);
-        return `<span class="badge-empresa total" title="Asignar tipo de jornada a los ${ids.length} de esta empresa" onclick="event.stopPropagation();abrirModalJornada(${JSON.stringify(ids).replace(/"/g, '&quot;')}, '${esc(empresa)} (${ids.length} personas)')">🕐 Jornada</span>`;
+        return `<span class="badge-empresa total" title="Asignar tipo de jornada a los ${ids.length} de esta empresa" onclick="event.stopPropagation();abrirModalJornada(${JSON.stringify(ids).replace(/"/g, '&quot;')}, '${escJs(empresa + ' (' + ids.length + ' personas)')}')">🕐 Jornada</span>`;
       })(),
       (() => {
         if (!obraFiltroTrabajadores) return '';
@@ -1369,8 +1369,8 @@ function renderTabla(lista) {
         if (!empresaObj || empresaObj.es_empresa_propia) return '';
         const tieneLibro = !!librosPorEmpresa[empresaObj.id];
         return tieneLibro
-          ? `<span class="badge-empresa libro" onclick="event.stopPropagation();abrirModalLibro('${esc(empresaObj.id)}','${esc(empresa)}')">📘 Libro</span>`
-          : `<span class="badge-empresa sin-libro" onclick="event.stopPropagation();abrirModalLibro('${esc(empresaObj.id)}','${esc(empresa)}')">⚠ Sin libro</span>`;
+          ? `<span class="badge-empresa libro" onclick="event.stopPropagation();abrirModalLibro('${esc(empresaObj.id)}','${escJs(empresa)}')">📘 Libro</span>`
+          : `<span class="badge-empresa sin-libro" onclick="event.stopPropagation();abrirModalLibro('${esc(empresaObj.id)}','${escJs(empresa)}')">⚠ Sin libro</span>`;
       })(),
       (() => {
         // 114ª (20/9/2026) · Atajo a la ficha de la subcontrata. Pedido por
@@ -1387,7 +1387,7 @@ function renderTabla(lista) {
     ].join('');
 
     filasBody += `
-      <tr class="grupo-empresa-cab" onclick="toggleGrupo('${esc(empresa)}')">
+      <tr class="grupo-empresa-cab" onclick="toggleGrupo('${escJs(empresa)}')">
         <td colspan="7">
           <div class="grupo-empresa-label">
             <span class="${chevronClase}" id="chevron-${esc(empresa)}">▶</span>
@@ -1416,7 +1416,7 @@ function renderTabla(lista) {
           <td>${esc(etiquetaCategoria(t) || '—')}</td>
           <td>${formatearPrecio(t.precio_hora_personalizado)}</td>
           <td>${obraFiltroTrabajadores
-                ? `<button class="btn-accion" style="font-size:.8rem;padding:3px 8px" title="${esc(tituloJornada(t.id))}" onclick="abrirModalJornada(['${esc(t.id)}'], '${esc(nombreCompleto(t)).replace(/'/g, "\\'")}')">${esc(nombreTipoJornada(t.id))}</button>`
+                ? `<button class="btn-accion" style="font-size:.8rem;padding:3px 8px" title="${esc(tituloJornada(t.id))}" onclick="abrirModalJornada(['${esc(t.id)}'], '${escJs(nombreCompleto(t))}')">${esc(nombreTipoJornada(t.id))}</button>`
                 : '<span style="opacity:.5">elige una obra</span>'}</td>
           <td>${t.obras.map(o => pillObra(t, o)).join('')}</td>
           <td><div class="acciones">${iconoIdent(t)}<button class="btn-accion primario" onclick="abrirEdicion('${t.id}')">Editar</button>${obraFiltroTrabajadores ? `<button class="btn-accion peligro" onclick="abrirModalQuitar('${t.id}')">Quitar de la obra</button>` : ''}</div></td>
@@ -2325,7 +2325,15 @@ function meterIconoHab(mapa, h) {
   if (i === -1) lista.push(item);
   else if (gravedadHab(estado) > gravedadHab(lista[i].estado)) lista[i] = item;
 }
-function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
+/* H-10 (15/10/2026): para meter un texto dentro de '...' en un onclick="...". Primero se
+   escapa para JavaScript (\\, ', saltos) y después para HTML (& < > " '). Antes solo se
+   escapaba ': un " cerraba el atributo y se podía inyectar código. */
+function escJs(s) {
+  const js = String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+    .replace(/\r?\n/g, '\\n').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+  return js.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+/* H-10 (15/10/2026): escapa también " y ' (antes solo & < >): un nombre con comillas metido en un atributo ejecutaba código. */ function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
 // === Contratos entre empresas ===
 let contratoCtx = null;

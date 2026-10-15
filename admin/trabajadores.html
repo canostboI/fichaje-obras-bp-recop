@@ -290,7 +290,7 @@ function renderTabla(data) {
     const grupoAbierto = gruposAbiertos[empresa] !== false;
     const empresaEsc = esc(empresa);
     const badgesHtml = [rojos > 0 ? `<span class="badge-empresa rojo">${rojos} rojo${rojos > 1 ? 's' : ''}</span>` : '', naranjas > 0 ? `<span class="badge-empresa naranja">${naranjas} naranja${naranjas > 1 ? 's' : ''}</span>` : '', `<span class="badge-empresa total">${trabajadores.length} trabajador${trabajadores.length > 1 ? 'es' : ''}</span>`].join('');
-    filasBody += `<tr class="grupo-empresa-cab" onclick="toggleGrupo(${JSON.stringify(empresa)})"><td colspan="9"><div class="grupo-empresa-label"><span class="grupo-empresa-chevron${grupoAbierto ? ' abierto' : ''}" id="chevron-${empresaEsc}">▶</span>${empresaEsc}<div class="grupo-empresa-badges">${badgesHtml}</div></div></td></tr>`;
+    filasBody += `<tr class="grupo-empresa-cab" onclick="toggleGrupo('${escJs(empresa)}')"><td colspan="9"><div class="grupo-empresa-label"><span class="grupo-empresa-chevron${grupoAbierto ? ' abierto' : ''}" id="chevron-${empresaEsc}">▶</span>${empresaEsc}<div class="grupo-empresa-badges">${badgesHtml}</div></div></td></tr>`;
     const filaClase = grupoAbierto ? 'grupo-fila' : 'grupo-fila oculto';
     trabajadores.forEach(t => {
       const estadoGeneral = estadoDocumental(t.validaciones_obra);
@@ -452,7 +452,15 @@ function meterIconoHab(mapa, h) {
   if (i === -1) lista.push(item);
   else if (gravedadHab(estado) > gravedadHab(lista[i].estado)) lista[i] = item;
 }
-function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
+/* H-10 (15/10/2026): para meter un texto dentro de '...' en un onclick="...". Primero se
+   escapa para JavaScript (\\, ', saltos) y después para HTML (& < > " '). Antes solo se
+   escapaba ': un " cerraba el atributo y se podía inyectar código. */
+function escJs(s) {
+  const js = String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+    .replace(/\r?\n/g, '\\n').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+  return js.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+/* H-10 (15/10/2026): escapa también " y ' (antes solo & < >): un nombre con comillas metido en un atributo ejecutaba código. */ function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 function formatearPrecio(valor) { if (valor === null || valor === undefined || valor === '') return '—'; const n = Number(valor); if (isNaN(n)) return '—'; return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €/h'; }
 
 let quitarCtx = null;

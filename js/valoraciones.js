@@ -102,7 +102,7 @@
   var obras = [], obraId = null, listaValorar = [], listaRanking = [], rankingCargado = false;
   var cacheFoto = new Map(), observador = null;
 
-  function esc(t) { var d = document.createElement('div'); d.textContent = String(t == null ? '' : t); return d.innerHTML; }
+  /* H-10 (15/10/2026): escapa también " y ' (antes solo & < >): un nombre con comillas metido en un atributo ejecutaba código. */ function esc(t) { var d = document.createElement('div'); d.textContent = String(t == null ? '' : t); return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
   function iniciales(n) { var p = String(n || '?').trim().split(/\s+/); return ((p[0] || '?')[0] + (p[1] ? p[1][0] : '')).toUpperCase(); }
   function estrellas(n) { var r = Math.round(Number(n) || 0); return '<span class="val-estr">' + '★'.repeat(r) + '<span class="v">' + '★'.repeat(5 - r) + '</span></span>'; }
   function fecha(f) { return f ? new Date(f).toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid' }) : ''; }

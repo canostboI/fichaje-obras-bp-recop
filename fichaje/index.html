@@ -2961,7 +2961,8 @@ function pintarMotivos(contenedor, motivos, criticos) {
 function escapar(txt) {
   const div = document.createElement('div');
   div.textContent = String(txt);
-  return div.innerHTML;
+  // H-10 (15/10/2026): también " y ' (antes solo & < >).
+  return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 function formatearHora(iso) {
   return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });

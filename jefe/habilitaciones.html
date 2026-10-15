@@ -868,8 +868,16 @@ function formatFecha(iso) {
   const [y, m, d] = iso.split('-');
   return d + '/' + m + '/' + y;
 }
-function esc(s) { const d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; }
-function escAttr(s) { return String(s || '').replace(/'/g, "\\'"); }
+/* H-10 (15/10/2026): escapa también " y ' (antes solo & < >): un nombre con comillas metido en un atributo ejecutaba código. */ function esc(s) { const d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+/* H-10 (15/10/2026): para meter un texto dentro de '...' en un onclick="...". Primero se
+   escapa para JavaScript (\\, ', saltos) y después para HTML (& < > " '). Antes solo se
+   escapaba ': un " cerraba el atributo y se podía inyectar código. */
+function escJs(s) {
+  const js = String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+    .replace(/\r?\n/g, '\\n').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+  return js.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function escAttr(s) { return escJs(s || ''); }
 function msgHab(txt, tipo) {
   const el = document.getElementById('msg-hab');
   el.textContent = txt;

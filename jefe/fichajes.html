@@ -707,10 +707,10 @@ function pintarJornada(j, mostrarFecha, idxJornada, repite) {
   // Botones de corrección
   const btns = [];
   if (j.entradaId) {
-    btns.push(`<button class="btn-naranja" onclick="abrirCorreccion('${j.entradaId}','${esc(nombreCompleto)} — entrada','${j.entradaHora}')">✏ Entrada</button>`);
+    btns.push(`<button class="btn-naranja" onclick="abrirCorreccion('${j.entradaId}','${escJs(nombreCompleto + ' — entrada')}','${j.entradaHora}')">✏ Entrada</button>`);
   }
   if (j.salidaId) {
-    btns.push(`<button class="btn-naranja" onclick="abrirCorreccion('${j.salidaId}','${esc(nombreCompleto)} — salida','${j.salidaHora}')">✏ Salida</button>`);
+    btns.push(`<button class="btn-naranja" onclick="abrirCorreccion('${j.salidaId}','${escJs(nombreCompleto + ' — salida')}','${j.salidaHora}')">✏ Salida</button>`);
   }
   const accionesHtml = `<div class="acciones-jornada">${btns.join('')}</div>`;
 
@@ -961,7 +961,15 @@ function horaAhora() { const d = new Date(); return String(d.getHours()).padStar
 function mostrarError(msg) { const el = document.getElementById('error-correccion'); el.textContent = msg; el.style.display = 'block'; }
 function mostrarErrorManual(msg) { const el = document.getElementById('error-manual'); el.textContent = msg; el.style.display = 'block'; document.getElementById('ok-manual').style.display = 'none'; }
 
-function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML; }
+/* H-10 (15/10/2026): para meter un texto dentro de '...' en un onclick="...". Primero se
+   escapa para JavaScript (\\, ', saltos) y después para HTML (& < > " '). Antes solo se
+   escapaba ': un " cerraba el atributo y se podía inyectar código. */
+function escJs(s) {
+  const js = String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+    .replace(/\r?\n/g, '\\n').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+  return js.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+/* H-10 (15/10/2026): escapa también " y ' (antes solo & < >): un nombre con comillas metido en un atributo ejecutaba código. */ function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt || ''); return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
 function formatHora(iso) {
   if (!iso) return '—';

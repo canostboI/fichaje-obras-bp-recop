@@ -234,7 +234,8 @@ function renderTabla() {
     </tr>`).join('');
 }
 
-function esc(str) { return (str || '').replace(/"/g, '&quot;'); }
+/* H-10 (15/10/2026): antes solo escapaba " (ni < ni >): un nombre de empresa con etiquetas se pintaba como HTML. */
+function esc(str) { return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function actualizar(i, campo, valor) { reglas[i][campo] = valor; if (!reglas[i]._nueva) reglas[i]._modificada = true; }
 
 function nuevaFila() {

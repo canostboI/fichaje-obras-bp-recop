@@ -132,7 +132,7 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 window._sbAdmin = sb;
 
-function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt == null ? '' : txt); return d.innerHTML; }
+/* H-10 (15/10/2026): escapa también " y ' (antes solo & < >): un nombre con comillas metido en un atributo ejecutaba código. */ function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt == null ? '' : txt); return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 function r2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
 function fmtH(n) { return r2(n).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function fmtFecha(ymd) { if (!ymd) return '—'; const p = String(ymd).slice(0, 10).split('-'); if (p.length !== 3) return String(ymd); return p[2] + '/' + p[1] + '/' + p[0]; }

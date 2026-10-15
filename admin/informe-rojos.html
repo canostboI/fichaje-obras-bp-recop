@@ -184,7 +184,7 @@ window._sbAdmin = sb;
 
 const LOGOS = { bosch_pascual: '../assets/logos/bosch_pascual_logo_white.svg', recop: '../assets/logos/recop_logo_white.svg' };
 
-function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt == null ? '' : txt); return d.innerHTML; }
+/* H-10 (15/10/2026): escapa también " y ' (antes solo & < >): un nombre con comillas metido en un atributo ejecutaba código. */ function esc(txt) { const d = document.createElement('div'); d.textContent = String(txt == null ? '' : txt); return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 function fmtFecha(iso) { if (!iso) return null; const d = new Date(iso + 'T00:00:00'); return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }); }
 function fmtHoy() { return new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }); }
 function fmtFechaDia(iso) { if (!iso) return ''; const d = new Date(iso + 'T00:00:00'); return d.toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }); }

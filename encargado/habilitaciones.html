@@ -197,7 +197,8 @@
   function esc(txt) {
     const d = document.createElement('div');
     d.textContent = String(txt || '');
-    return d.innerHTML;
+    // H-10 (15/10/2026): también " y ' (antes solo & < >).
+    return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   function iniciales(nombreCompleto) {
