@@ -2393,7 +2393,8 @@ let idiomaActual = 'es';
 //   · `idioma_fichaje`  → el idioma DEL MÓVIL. Lo que se ve al llegar y al
 //     volver a empezar. Solo cambia si alguien pulsa una bandera cuando NO
 //     hay ningún DNI en curso, es decir, en la pantalla del DNI.
-//   · `idiomas_por_dni` → mapa DNI → idioma. Se aprende SOLO cuando un
+//   · `idiomas_por_dni` → mapa HUELLA DEL DNI → idioma (H-40, 15/10/2026:
+//     ya no se guarda el DNI, solo una huella corta, ver huellaDni). Se aprende SOLO cuando un
 //     fichaje sale bien: se guarda el idioma que había en pantalla en ese
 //     momento. Ese es el único instante en que sabemos con certeza que el
 //     idioma que se ve y la persona que ficha van juntos.
@@ -2410,12 +2411,46 @@ let idiomaActual = 'es';
 const IDIOMAS_DNI_CLAVE = 'idiomas_por_dni';
 const IDIOMAS_DNI_MAX   = 50;   // móvil de obra grande; más allá se poda
 
+// H-40 (15/10/2026): el móvil de obra es compartido y se puede perder. Antes
+// guardaba hasta 50 DNI completos (este mapa) y los de las últimas 2 horas
+// (historial del móvil compartido). Ahora guarda solo una HUELLA de 20 bits:
+// 'h' + 5 cifras hexadecimales. Para recordar el idioma o contar DNI distintos
+// basta; para saber el DNI no: cada huella la comparten unos 120 DNI/NIE
+// posibles, así que el móvil perdido ya no lleva una lista de DNI.
+// Si dos personas del mismo móvil comparten huella (≈1 entre 1.000 con 50),
+// lo peor que pasa es que una vea la valla en el idioma de la otra.
+// «Recordar mi DNI en este móvil» (ultimo_dni) sigue guardando el DNI entero:
+// lo marca la propia persona, viene desmarcado y avisa de usarlo solo en un
+// móvil propio; sin el DNI entero no podría rellenarlo.
+function huellaDni(limpio) {
+  const t = 'portium-valla|' + String(limpio || '');
+  let h = 0x811c9dc5;                       // FNV-1a de 32 bits
+  for (let i = 0; i < t.length; i++) {
+    h ^= t.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return 'h' + (h >>> 12).toString(16).padStart(5, '0');
+}
+const ES_HUELLA = /^h[0-9a-f]{5}$/;
+
 // Lee el mapa. Nunca lanza: si el JSON está roto, devuelve mapa vacío y la
 // valla sigue funcionando con el idioma del móvil.
+// Si el móvil aún tiene el mapa antiguo (claves = DNI), lo pasa a huellas y
+// lo vuelve a guardar: el idioma aprendido no se pierde y el DNI desaparece.
 function leerIdiomasPorDni() {
   try {
     const m = JSON.parse(localStorage.getItem(IDIOMAS_DNI_CLAVE) || '{}');
-    return (m && typeof m === 'object' && !Array.isArray(m)) ? m : {};
+    if (!m || typeof m !== 'object' || Array.isArray(m)) return {};
+    const viejas = Object.keys(m).filter(k => !ES_HUELLA.test(k));
+    if (viejas.length) {
+      viejas.forEach(k => {
+        const h = huellaDni(normalizarDni(k));
+        if (!m[h] || (m[k] && (m[k].ts || 0) > (m[h].ts || 0))) m[h] = m[k];
+        delete m[k];
+      });
+      try { localStorage.setItem(IDIOMAS_DNI_CLAVE, JSON.stringify(m)); } catch (_) {}
+    }
+    return m;
   } catch (_) { return {}; }
 }
 
@@ -2439,7 +2474,7 @@ function idiomaDelMovil() {
 function idiomaDeDni(dni) {
   const limpio = normalizarDni(dni || '');
   if (!limpio) return null;
-  const e = leerIdiomasPorDni()[limpio];
+  const e = leerIdiomasPorDni()[huellaDni(limpio)];
   if (!e || !TEXTOS[e.lang]) return null;
   return e.lang;
 }
@@ -2450,7 +2485,7 @@ function recordarIdiomaDeDni(dni, lang) {
   const limpio = normalizarDni(dni || '');
   if (!limpio || !TEXTOS[lang]) return;
   const mapa = leerIdiomasPorDni();
-  mapa[limpio] = { lang: lang, ts: Date.now() };
+  mapa[huellaDni(limpio)] = { lang: lang, ts: Date.now() };
   const claves = Object.keys(mapa);
   if (claves.length > IDIOMAS_DNI_MAX) {
     claves
@@ -2658,6 +2693,11 @@ function aplicarFotoFondo(fotoUrl) {
     el.obraNombre.textContent = 'Obra #' + estado.obraId.substring(0, 8);
   }
 
+  // H-40: al abrir la valla se limpian los DNI completos que dejaron
+  // versiones anteriores en el mapa de idiomas y en el historial.
+  leerIdiomasPorDni();
+  podarHistorialDni();
+
   const ultimo = localStorage.getItem('ultimo_dni');
   if (ultimo && ultimo.length >= 5) {
     mostrarDniRecordado(ultimo);
@@ -2740,15 +2780,30 @@ const G3_VENTANA_MS  = 2 * 60 * 60 * 1000;
 const G3_UMBRAL_DNIS = 3;
 const G3_CLAVE_LOCAL = 'movil_historial';
 
+// H-40: el historial guarda la huella del DNI (huellaDni), no el DNI, y se
+// poda también al abrir la valla (podarHistorialDni), no solo al fichar.
+// Las entradas de versiones anteriores (con DNI) se pasan a huella al leer.
+function leerHistorialDni() {
+  const limite = Date.now() - G3_VENTANA_MS;
+  let historial = [];
+  try { historial = JSON.parse(localStorage.getItem(G3_CLAVE_LOCAL) || '[]'); } catch (_) { historial = []; }
+  if (!Array.isArray(historial)) historial = [];
+  return historial
+    .filter(e => e && e.ts >= limite)
+    .map(e => ({ dni: ES_HUELLA.test(e.dni || '') ? e.dni : huellaDni(normalizarDni(e.dni)), ts: e.ts }));
+}
+function podarHistorialDni() {
+  try {
+    const h = leerHistorialDni();
+    if (h.length) localStorage.setItem(G3_CLAVE_LOCAL, JSON.stringify(h));
+    else localStorage.removeItem(G3_CLAVE_LOCAL);
+  } catch (_) {}
+}
 function registrarHistorialDni(dni) {
   const limpio = normalizarDni(dni);
   if (!limpio) return;
-  const ahora  = Date.now();
-  const limite = ahora - G3_VENTANA_MS;
-  let historial = [];
-  try { historial = JSON.parse(localStorage.getItem(G3_CLAVE_LOCAL) || '[]'); } catch (_) { historial = []; }
-  historial = historial.filter(e => e.ts >= limite);
-  historial.push({ dni: limpio, ts: ahora });
+  const historial = leerHistorialDni();
+  historial.push({ dni: huellaDni(limpio), ts: Date.now() });
   try { localStorage.setItem(G3_CLAVE_LOCAL, JSON.stringify(historial)); } catch (_) {}
   return historial;
 }
