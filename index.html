@@ -368,7 +368,10 @@ btnLogin.addEventListener('click', async () => {
     // H-58 (15/10/2026): el MISMO mensaje para «contraseña mal» y para «correo
     // sin confirmar». Antes eran distintos y servían para saber qué correos
     // tienen cuenta. La pista del correo de confirmación va en los dos.
-    mostrarError('Correo o contraseña incorrectos. Si acabas de darte de alta, busca antes el email de confirmación (mira también en spam) y pincha el enlace.');
+    // 19/10/2026 (Dani): un encargado nuevo intentó entrar muchas veces sin haber
+    // creado nunca su cuenta. Ahora el mensaje le manda también a «¿Primera
+    // vez?». Sigue siendo el MISMO texto para todos (H-58 intacto).
+    mostrarError('Correo o contraseña incorrectos. ¿Es tu primera vez? Pulsa «¿Primera vez? Crea tu contraseña», aquí debajo. Si ya la creaste, busca el email de confirmación (mira también en spam) y pincha el enlace.');
     return;
   }
 
