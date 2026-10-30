@@ -185,6 +185,7 @@
     </div>
 
     <div id="banner-fallos"></div>
+    <div id="zona-cuentas"></div>
     <div id="zona-salud"></div>
     <div id="resumen"></div>
     <div id="zona-urgente"></div>
@@ -1207,8 +1208,49 @@ async function refrescar() {
   document.getElementById('btn-copiar').addEventListener('click', copiarResumen);
 
   await refrescar();
+  cargarCuentasPorActivar();
   setInterval(refrescar, REFRESCO_MS);
+  setInterval(cargarCuentasPorActivar, REFRESCO_MS);
 })();
+
+// 30/10/2026 (caso Moha): personas que ya crearon y confirmaron su cuenta
+// pero cuya ficha tiene más de 7 días (H-18 no la enlaza sola). El admin
+// comprueba que es la persona correcta y la activa con un botón.
+async function cargarCuentasPorActivar() {
+  const zona = document.getElementById('zona-cuentas');
+  if (!zona) return;
+  try {
+    const { data, error } = await sb.rpc('cuentas_por_activar');
+    if (error || !data || !data.length) { zona.innerHTML = ''; return; }
+    const roles = { admin: 'Administrador', jefe_obra: 'Jefe de obra', encargado: 'Encargado' };
+    zona.innerHTML =
+      '<div class="aviso naranja" style="display:block;margin-bottom:18px;padding:14px 18px;border-radius:10px;">' +
+      '<b>🔑 Cuentas por activar (' + data.length + ')</b>' +
+      '<div style="font-size:13px;margin:4px 0 10px;opacity:.9">Ya crearon su contraseña y confirmaron el correo. Comprueba que el correo es el de esa persona y actívala.</div>' +
+      data.map(c =>
+        '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 0;border-top:1px solid rgba(255,255,255,.08)">' +
+        '<span style="flex:1;min-width:200px"><b>' + esc(c.nombre) + '</b> · ' + esc(roles[c.rol] || c.rol) +
+        '<br><span style="font-size:12px;opacity:.85">' + esc(c.email) + '</span></span>' +
+        '<button class="btn" data-activar="' + esc(c.usuario_id) + '">Activar</button></div>'
+      ).join('') + '</div>';
+    zona.querySelectorAll('[data-activar]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        btn.textContent = 'Activando…';
+        const r = await sb.rpc('activar_cuenta', { p_usuario_id: btn.dataset.activar });
+        if (r.error) {
+          alert('No se pudo activar: ' + r.error.message);
+          btn.disabled = false;
+          btn.textContent = 'Activar';
+          return;
+        }
+        cargarCuentasPorActivar();
+      });
+    });
+  } catch (e) {
+    zona.innerHTML = '';
+  }
+}
 
 async function leerHistoricoObras(obrasActivas) {
   if (!obrasActivas || !obrasActivas.length) return null;

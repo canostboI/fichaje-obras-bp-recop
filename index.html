@@ -476,7 +476,20 @@ async function redirigirSegunRol() {
   const { data: rol, error } = await sb.rpc('vincular_y_obtener_rol');
 
   if (error || !rol) {
+    // 30/10/2026 (caso Moha): correo confirmado y ficha existente, pero la
+    // ficha tiene más de 7 días y H-18 no la enlaza sola. Mensaje claro y el
+    // admin la activa con un botón (admin/ → «Cuentas por activar»).
+    let pendiente = false;
+    try {
+      const r = await sb.rpc('mi_cuenta_pendiente');
+      pendiente = r.data === true;
+    } catch (_) {}
     await sb.auth.signOut();
+    if (pendiente) {
+      mostrarOk('✅ Tu cuenta está creada y tu correo confirmado. Falta un último paso: que el administrador la active. Avísale; en cuanto lo haga, entra aquí con tu correo y tu contraseña.');
+      setCargando(false);
+      return;
+    }
     mostrarError('Tu usuario no tiene acceso configurado. Contacta con el administrador.');
     setCargando(false);
     return;
