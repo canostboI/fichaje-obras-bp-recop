@@ -44,6 +44,16 @@
    urgente, el otro es limpieza— y mezclarlos es como se consigue que a
    la tercera mañana nadie mire el banner.
 
+   3/11/2026 (Dani, caso OBRES GLOBIC en Escola Música Valls): antes una
+   empresa con la puerta YA CERRADA no pasaba nunca a la lista gris,
+   aunque no viniera nadie suyo desde hacía meses. Salía en rojo cada
+   mañana sin que hubiera nada que hacer. Ahora, cerrada o no, si lleva
+   más de 30 días sin que fiche nadie suyo, va a la lista gris «por
+   limpiar». La puerta sigue cerrada igual (eso lo decide la base de
+   datos, no esta pantalla): si alguien suyo aparece, la valla lo para
+   y sale en «En la puerta» como cualquier denegado. Solo cambia dónde
+   se enseña el aviso.
+
    SI NO SE PUEDE COMPROBAR, LO DICE. Un banner vacío puede significar
    «no hay nada» o «no se ha podido mirar», y no se pintan igual.
 
@@ -217,9 +227,10 @@
       var e = lista[i];
       var quieta = (e.dias_sin_pisar !== null && e.dias_sin_pisar !== undefined
                     && e.dias_sin_pisar > DIAS_SIN_PISAR);
-      // Una empresa con la puerta ya cerrada no se aparca nunca, aunque
-      // lleve tiempo sin venir: es una consecuencia en marcha.
-      if (quieta && !e.cerrada) dormidas.push(e);
+      // 3/11/2026 (Dani): cerrada o no, si nadie suyo pisa la obra desde hace
+      // más de 30 días, es limpieza, no urgencia. La puerta sigue cerrada en
+      // la base de datos; aquí solo se decide dónde se enseña.
+      if (quieta) dormidas.push(e);
       else activas.push(e);
     }
 
@@ -247,7 +258,8 @@
     if (dormidas.length) {
       html += '<div class="psc psc-gris">🧹 Además hay <b>' + dormidas.length
            + '</b> subcontrata(s) sin contrato o sin libro que no pisan la obra desde hace '
-           + 'más de un mes. No corre prisa: es una lista por limpiar. '
+           + 'más de un mes. No corre prisa: es una lista por limpiar (si ya tienen la puerta '
+           + 'cerrada, sigue cerrada). '
            + '<button type="button" class="psc-mas">'
            + (verDormidas ? 'ocultar' : 'ver cuáles son') + '</button>';
       if (verDormidas) for (var s = 0; s < dormidas.length; s++) html += filaEmpresa(dormidas[s]);
