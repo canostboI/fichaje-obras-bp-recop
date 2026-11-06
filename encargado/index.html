@@ -606,6 +606,7 @@
     <button class="btn-qr-header" id="btn-lista-colores" onclick="window.location.href='../lista-colores.html'">🖨️ Lista para la caseta</button>
     <button class="btn-qr-header" id="btn-ver-qr">📱 Ver QR</button>
     <button class="btn-qr-header" id="btn-actualizar-presencia">🔄 Actualizar</button>
+    <button class="btn-qr-header" id="btn-cambiar-obra">🔁 Cambiar de obra</button>
     <button id="btn-logout">Cerrar sesión</button>
   </div>
 </header>
@@ -1061,6 +1062,8 @@
         opt.dataset.fotoUrl = a.obras.foto_url || '';
         select.appendChild(opt);
       });
+      // 6/11/2026 (Dani): con 2 o más obras, botón para cambiar de obra.
+      document.getElementById('btn-cambiar-obra').style.display = 'inline-block';
       // Obra recordada: si el encargado ya eligió una (aquí, en Habilitaciones
       // o en Resumen) y sigue asignada, se entra directamente. Solo se vuelve
       // a preguntar si no hay ninguna guardada o ya no es suya.
@@ -1086,8 +1089,20 @@
     try { localStorage.setItem(CLAVE_OBRA_ENC, obraId); } catch (_) {}
   }
 
-  // Sin botón de cambiar obra (decisión de Dani, sept 2026): cambiar de
-  // obra es raro y se hace cerrando sesión y volviendo a entrar.
+  // 6/11/2026 (Dani) · BOTÓN «CAMBIAR DE OBRA». Antes no había (sept 2026:
+  // «se cambia cerrando sesión»), pero cerrar sesión NO borra la obra
+  // guardada y al volver entraba otra vez en la misma: un encargado con 2
+  // obras no podía cambiar. El botón solo se enseña si tiene 2 o más.
+  // Abre el mismo desplegable de siempre; elegir la misma obra lo cierra.
+  // Los permisos no cambian: la base de datos ya filtra por obra asignada.
+  document.getElementById('btn-cambiar-obra').addEventListener('click', () => {
+    const card = document.getElementById('card-selector');
+    const select = document.getElementById('select-obra');
+    if (card.style.display === 'block') { card.style.display = 'none'; return; }
+    if (obraActualId) select.value = obraActualId;
+    card.style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
 
   // Al elegir una obra se entra directamente, sin botón (sept 2026, Dani):
   // igual que en Habilitaciones y Resumen. La opción vacía no hace nada.
@@ -1103,6 +1118,14 @@
     const fotoUrl = opt.dataset.fotoUrl || '';
     if (!obraId) return;
     document.getElementById('card-selector').style.display = 'none';
+    // Misma obra que ya se está viendo: no se recarga nada.
+    if (obraId === obraActualId) return;
+    // 6/11/2026 · Al cambiar de obra se olvida lo pintado de la anterior,
+    // para que nada de una obra (ni un formulario a medias) pase a la otra.
+    firmaTarjetas = '';
+    ultimoHtmlSolenc = '';
+    const pSol = document.getElementById('panel-solenc');
+    if (pSol) pSol.innerHTML = '';
     cargarObra(obraId, nombre, marca, fotoUrl);
   });
 
